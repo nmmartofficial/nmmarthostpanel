@@ -1,0 +1,84 @@
+<!-- Credit Master Content -->
+<div id="credit-master-content" class="flex-grow flex flex-col bg-white overflow-hidden">
+    <!-- Credit Master List View -->
+    <div id="credit-master-list" class="flex flex-col h-full">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-100 flex flex-col gap-4">
+            <h2 class="text-xl font-bold text-gray-800">Credit Master</h2>
+            <button id="addNewCreditBtn" class="bg-blue-600 text-white px-6 py-2 rounded-md font-bold text-sm w-fit shadow-md hover:bg-blue-700">
+                New
+            </button>
+        </div>
+
+        <!-- Credit Table -->
+        <div class="flex-grow p-6 overflow-y-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-gray-700 font-bold border-b border-gray-200 text-sm">
+                        <th class="py-3 px-4">ID</th>
+                        <th class="py-3 px-4">Account Name</th>
+                        <th class="py-3 px-4">Mobile No</th>
+                        <th class="py-3 px-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm">
+                    <!-- Empty state or records would go here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Credit Master Entry Form (Hidden by default) -->
+    <div id="credit-master-form" class="hidden p-6 bg-white flex flex-col h-full overflow-y-auto">
+        <h2 class="text-xl font-bold text-gray-800 mb-6">Credit Master</h2>
+        
+        <div class="space-y-6 max-w-6xl border border-gray-200 rounded-lg p-6">
+            <!-- Row 1 -->
+            <div class="grid grid-cols-3 gap-6">
+                <div class="flex flex-col gap-1">
+                    <label class="text-[11px] font-bold text-gray-500">Account Name</label>
+                    <input type="text" class="border border-gray-200 rounded p-2 text-sm outline-none focus:border-blue-500">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[11px] font-bold text-gray-500">Cr days</label>
+                    <input type="number" class="border border-gray-200 rounded p-2 text-sm outline-none focus:border-blue-500">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <label class="text-[11px] font-bold text-gray-500">Cr Amount</label>
+                    <input type="number" class="border border-gray-200 rounded p-2 text-sm outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- Customer Details Section -->
+            <div class="space-y-4">
+                <h3 class="text-sm font-bold text-gray-800 border-b pb-2">Customer Details</h3>
+                <div id="creditCustomerRows" class="space-y-3">
+                    <div class="flex items-end gap-4 credit-customer-row">
+                        <div class="flex-grow flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-500">Mobile</label>
+                            <input type="text" placeholder="Mobile" class="border border-gray-200 rounded p-2 text-sm outline-none w-full">
+                        </div>
+                        <div class="flex-grow flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-500">Name</label>
+                            <input type="text" placeholder="Name" class="border border-gray-200 rounded p-2 text-sm outline-none w-full">
+                        </div>
+                        <div class="flex-grow flex flex-col gap-1">
+                            <label class="text-[11px] font-bold text-gray-500">Address</label>
+                            <input type="text" placeholder="Address" class="border border-gray-200 rounded p-2 text-sm outline-none w-full">
+                        </div>
+                        <button class="remove-customer-row bg-red-500 text-white px-6 py-2 rounded text-sm font-bold hover:bg-red-600">Remove</button>
+                    </div>
+                </div>
+                <button id="addMoreCreditCustomer" class="bg-emerald-700 text-white px-8 py-2 rounded text-sm font-bold shadow-md hover:bg-emerald-800">
+                    Add More
+                </button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex justify-center gap-3 pt-6 border-t">
+                <button class="bg-blue-600 text-white px-8 py-2 rounded text-sm font-bold shadow-md hover:bg-blue-700">Save</button>
+                <button id="cancelCreditBtn" class="bg-slate-500 text-white px-8 py-2 rounded text-sm font-bold shadow-md hover:bg-slate-600">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>

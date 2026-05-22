@@ -1,0 +1,81 @@
+<!-- Banner Master Content -->
+<div id="banner-master-content" class="flex-grow flex flex-col bg-white overflow-hidden">
+    <!-- Banner Master List View -->
+    <div id="banner-master-list" class="flex flex-col h-full">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-100 flex flex-col gap-4">
+            <h2 class="text-xl font-bold text-gray-800">Banner Master</h2>
+            <button id="addNewBannerBtn" class="bg-blue-600 text-white px-6 py-2 rounded-md font-bold text-sm w-fit shadow-md hover:bg-blue-700">
+                Add New
+            </button>
+        </div>
+
+        <!-- Banner Table -->
+        <div class="flex-grow p-6 overflow-y-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-gray-700 font-bold border-b border-gray-200 text-sm">
+                        <th class="py-3 px-4">Title</th>
+                        <th class="py-3 px-4">Images</th>
+                        <th class="py-3 px-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm">
+                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="py-4 px-4 text-gray-400 italic">No Title</td>
+                        <td class="py-4 px-4">804364.jpg</td>
+                        <td class="py-4 px-4 space-x-2">
+                            <button class="px-4 py-1.5 bg-amber-400 text-black rounded font-bold hover:bg-amber-500">Edit</button>
+                            <button class="px-4 py-1.5 bg-red-500 text-white rounded font-bold hover:bg-red-600">Delete</button>
+                        </td>
+                    </tr>
+                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="py-4 px-4 text-gray-400 italic">No Title</td>
+                        <td class="py-4 px-4">695898.png</td>
+                        <td class="py-4 px-4 space-x-2">
+                            <button class="px-4 py-1.5 bg-amber-400 text-black rounded font-bold hover:bg-amber-500">Edit</button>
+                            <button class="px-4 py-1.5 bg-red-500 text-white rounded font-bold hover:bg-red-600">Delete</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Banner Entry Form (Hidden by default) -->
+    <div id="banner-master-form" class="hidden p-6 bg-white flex flex-col h-full overflow-y-auto">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Banner Entry</h2>
+        
+        <div class="space-y-4 max-w-5xl">
+            <input type="text" placeholder="Enter Banner Title" class="w-full border border-gray-200 rounded p-2 text-sm outline-none focus:border-blue-500">
+            
+            <div class="flex items-center gap-2">
+                <input type="file" id="bannerImage" class="hidden">
+                <label for="bannerImage" class="border border-gray-300 px-4 py-1 text-sm rounded cursor-pointer hover:bg-gray-50 bg-gray-100">Choose file</label>
+                <span class="text-sm text-gray-500">No file chosen</span>
+            </div>
+
+            <div class="relative">
+                <input type="text" placeholder="Search Item" class="w-full border border-gray-200 rounded p-2 text-sm outline-none focus:border-blue-500">
+            </div>
+
+            <!-- Product List Scrollable -->
+            <div class="h-64 border border-gray-100 rounded-md overflow-y-auto p-4 space-y-2 text-sm text-gray-700">
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input type="checkbox" class="w-4 h-4"> NESTLE KITKAT 16.4 GM
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input type="checkbox" class="w-4 h-4"> ACT II MAGIC BUTTER
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                    <input type="checkbox" class="w-4 h-4"> DAIRY MILK RS10.
+                </label>
+            </div>
+
+            <div class="flex gap-3">
+                <button class="bg-emerald-700 text-white px-8 py-2 rounded text-sm font-bold shadow-md hover:bg-emerald-800">Save</button>
+                <button id="cancelBannerBtn" class="bg-gray-500 text-white px-8 py-2 rounded text-sm font-bold shadow-md hover:bg-gray-600">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
