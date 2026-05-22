@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'saleEntryBtn': 'sections/sale-entry.html',
         'purchaseBtn': 'sections/purchase.html',
         'transactionBtn': 'sections/transaction.html',
+        'billViewBtn': 'sections/view-bill.html',
         'itemMasterBtn': 'sections/master-item.html',
         'itemUnitMasterBtn': 'sections/master-unit.html',
         'itemGroupMasterBtn': 'sections/master-group.html',
