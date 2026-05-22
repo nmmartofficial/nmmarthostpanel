@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Loads a section from an HTML file and injects it into the main container
      * @param {string} url - The path to the HTML file
      */
-    async function loadSection(url) {
+    async function loadSection(url, btnId) {
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`Failed to load ${url}`);
@@ -43,11 +43,39 @@ document.addEventListener('DOMContentLoaded', () => {
             // Re-initialize event listeners for the newly loaded content
             initializeSectionEvents();
             
+            // Update active state in dropdowns
+            updateActiveState(btnId);
+            
             // Close any open dropdowns after navigation
             document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show'));
         } catch (error) {
             console.error('Routing Error:', error);
             mainContent.innerHTML = `<div class="p-10 text-red-500">Error loading section: ${error.message}</div>`;
+        }
+    }
+
+    /**
+     * Updates the visual active state of navigation buttons
+     * @param {string} activeId - The ID of the clicked button
+     */
+    function updateActiveState(activeId) {
+        // Remove active classes from all nav items and dropdown items
+        document.querySelectorAll('.nav-item, .dropdown-item').forEach(item => {
+            item.classList.remove('bg-blue-600', 'bg-gray-100', 'text-blue-600', 'font-semibold');
+            const icon = item.querySelector('i');
+            if (icon) icon.classList.remove('text-blue-600');
+        });
+
+        // Add active classes to the current button
+        const activeBtn = document.getElementById(activeId);
+        if (activeBtn) {
+            if (activeBtn.classList.contains('dropdown-item')) {
+                activeBtn.classList.add('bg-gray-100', 'text-blue-600', 'font-semibold');
+                const icon = activeBtn.querySelector('i');
+                if (icon) icon.classList.add('text-blue-600');
+            } else if (activeBtn.classList.contains('nav-item')) {
+                activeBtn.classList.add('bg-blue-600');
+            }
         }
     }
 
@@ -61,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btn) {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    loadSection(routes[id]);
+                    loadSection(routes[id], id);
                 });
             }
         });

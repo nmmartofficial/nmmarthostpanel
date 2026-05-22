@@ -18,10 +18,10 @@
         <!-- Action Buttons -->
         <div class="flex items-center gap-3">
             <input type="file" id="importItemInput" class="hidden" accept=".xlsx, .xls">
-            <button id="importItemBtn" class="flex items-center gap-2 px-4 py-2 border border-blue-500 text-blue-500 rounded-lg font-bold hover:bg-blue-50 transition-colors text-sm">
+            <button id="importItemBtn" class="flex items-center gap-2 px-4 py-1.5 border border-blue-400 text-blue-500 rounded-md font-medium hover:bg-blue-50 transition-colors text-sm">
                 <i class="fas fa-file-import"></i> Import Item
             </button>
-            <button id="addNewItemBtn" class="flex items-center gap-2 px-4 py-2 border border-blue-500 text-blue-500 rounded-lg font-bold hover:bg-blue-50 transition-colors text-sm">
+            <button id="addNewItemBtn" class="flex items-center gap-2 px-4 py-1.5 border border-blue-400 text-blue-500 rounded-md font-medium hover:bg-blue-50 transition-colors text-sm">
                 <i class="fas fa-plus"></i> Create New
             </button>
         </div>
@@ -50,7 +50,7 @@
     </div>
 
     <!-- Item Table -->
-    <div class="flex-grow p-4 overflow-x-auto">
+    <div id="item-master-list" class="flex-grow p-4 overflow-x-auto">
         <table class="w-full text-left border-collapse">
             <thead>
                 <tr class="text-gray-700 font-bold border-b border-gray-200 text-sm">
