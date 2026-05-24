@@ -187,6 +187,58 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * Generic Master Form Submission Handler
+     */
+    async function bindMasterFormSubmit(formId, tableName) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+
+        const saveBtn = form.querySelector('.save-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                
+                // Collect all input data from the form
+                const formData = {};
+                const inputs = form.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    if (input.id || input.name) {
+                        const key = input.id || input.name;
+                        // Map UI IDs to DB column names if necessary
+                        const dbKey = key.replace('prod-', '').replace('product-', '');
+                        formData[dbKey] = input.type === 'number' ? parseFloat(input.value) : input.value;
+                    }
+                });
+
+                try {
+                    showNotification(`Saving to ${tableName}...`, 'info');
+                    const { data, error } = await window.supabaseClient
+                        .from(tableName)
+                        .insert([formData])
+                        .select();
+
+                    if (error) throw error;
+
+                    alert(`SUCCESS: Data saved to ${tableName}!`);
+                    showNotification('Record created successfully!', 'success');
+                    
+                    // Reset form and toggle views
+                    inputs.forEach(input => input.value = '');
+                    form.classList.add('hidden');
+                    const modulePrefix = formId.split('-')[0];
+                    const listView = document.getElementById(`${modulePrefix}-master-list`);
+                    if (listView) listView.classList.remove('hidden');
+                    
+                } catch (error) {
+                    console.error(`Error saving to ${tableName}:`, error);
+                    alert(`ERROR: ${error.message}`);
+                    showNotification('Save failed!', 'error');
+                }
+            });
+        }
+    }
+
+    /**
      * Section-specific event listeners (e.g., "Add New" button toggles)
      * This uses event delegation where possible or re-binds after content load
      */
@@ -194,12 +246,23 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- 1. Supabase Master Sync ---
         if (document.getElementById('prod-category')) {
             syncMasterDropdowns();
+            bindMasterFormSubmit('item-master-form', 'items');
         }
 
         // --- 2. Real-time Orders Listener ---
         if (document.getElementById('live-orders-table-body')) {
             setupOrdersRealtimeListener();
         }
+
+        // --- 3. Other Master Forms Binding ---
+        const masterForms = [
+            { id: 'brand-master-form', table: 'brands' },
+            { id: 'main-cat-master-form', table: 'categories' },
+            { id: 'delivery-boy-master-form', table: 'delivery_boys' }
+        ];
+        masterForms.forEach(m => {
+            if (document.getElementById(m.id)) bindMasterFormSubmit(m.id, m.table);
+        });
 
         // Map of buttons to their corresponding forms/views
         const toggleBtnMap = {
