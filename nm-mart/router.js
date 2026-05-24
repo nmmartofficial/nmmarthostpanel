@@ -264,11 +264,137 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.classList.add('active');
             });
         });
+
+        // Sale Entry specific: Clear Cart
+        const clearCartBtn = document.getElementById('clearCartBtn');
+        if (clearCartBtn) {
+            clearCartBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear the cart?')) {
+                    showNotification('Cart cleared!', 'info');
+                }
+            });
+        }
+
+        // Sale Entry specific: Payment
+        const paymentBtn = document.getElementById('paymentBtn');
+        if (paymentBtn) {
+            paymentBtn.addEventListener('click', () => {
+                showNotification('Redirecting to payment...', 'success');
+            });
+        }
     }
 
     // Initialize the app
     setupNavigation();
+    setupGlobalActions(); // Setup global Save/Edit/Delete actions
     
     // Load default Home section
     loadSection(routes['homeBtn']);
+
+    /**
+     * Setup global actions using event delegation on #main-content
+     */
+    function setupGlobalActions() {
+        mainContent.addEventListener('click', (e) => {
+            const target = e.target;
+
+            // 1. SAVE ACTION
+            const saveBtn = target.closest('.save-btn') || 
+                           (target.tagName === 'BUTTON' && (target.innerText.includes('Save') || target.innerText.includes('Update')));
+            
+            if (saveBtn) {
+                e.preventDefault();
+                const sectionName = document.querySelector('h2, h3, .text-xl span')?.innerText || 'Record';
+                showNotification(`${sectionName} saved successfully!`, 'success');
+                
+                // Auto-close form if it exists
+                const form = saveBtn.closest('[id$="-form"]') || saveBtn.closest('[id$="-view"]');
+                if (form && !form.id.includes('sale-entry')) { // Don't close sale entry
+                    form.classList.add('hidden');
+                    const modulePrefix = form.id.split('-')[0];
+                    const listView = document.getElementById(`${modulePrefix}-master-list`) || 
+                                   document.getElementById(`${modulePrefix}-list-view`);
+                    if (listView) listView.classList.remove('hidden');
+                }
+                return;
+            }
+
+            // 2. DELETE ACTION
+            const deleteBtn = target.closest('.delete-btn') || target.closest('.fa-trash') || target.closest('.fa-trash-alt');
+            if (deleteBtn) {
+                e.preventDefault();
+                if (confirm('Are you sure you want to delete this record?')) {
+                    const row = deleteBtn.closest('tr');
+                    if (row) {
+                        row.classList.add('opacity-0', 'transition-all', 'duration-300');
+                        setTimeout(() => row.remove(), 300);
+                        showNotification('Record deleted successfully!', 'error');
+                    }
+                }
+                return;
+            }
+
+            // 3. EDIT ACTION
+            const editBtn = target.closest('.edit-btn') || target.closest('.fa-edit') || target.closest('.far.fa-edit');
+            if (editBtn) {
+                e.preventDefault();
+                const modulePrefix = mainContent.querySelector('[id$="-content"]')?.id.split('-')[0];
+                const formId = `${modulePrefix}-master-form` || `${modulePrefix}-form`;
+                const form = document.getElementById(formId);
+                const list = document.getElementById(`${modulePrefix}-master-list`) || 
+                            document.getElementById(`${modulePrefix}-list-view`);
+                
+                if (form && list) {
+                    list.classList.add('hidden');
+                    form.classList.remove('hidden');
+                    showNotification('Editing record...', 'info');
+                }
+                return;
+            }
+
+            // 4. PRINT ACTION
+            const printBtn = target.closest('.print-btn') || target.closest('.fa-print');
+            if (printBtn) {
+                e.preventDefault();
+                window.print();
+                return;
+            }
+        });
+    }
+
+    /**
+     * Simple notification system
+     */
+    function showNotification(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-20 right-5 px-6 py-3 rounded-lg shadow-2xl text-white font-bold transform transition-all duration-500 translate-y-20 z-[100] flex items-center gap-2`;
+        
+        const colors = {
+            'success': 'bg-emerald-600',
+            'error': 'bg-red-600',
+            'info': 'bg-blue-600',
+            'warning': 'bg-amber-500'
+        };
+        
+        const icons = {
+            'success': 'fa-check-circle',
+            'error': 'fa-exclamation-circle',
+            'info': 'fa-info-circle',
+            'warning': 'fa-exclamation-triangle'
+        };
+
+        toast.classList.add(colors[type] || colors.info);
+        toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i> ${message}`;
+        
+        document.body.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => toast.classList.remove('translate-y-20'), 10);
+        
+        // Animate out
+        setTimeout(() => {
+            toast.classList.add('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
 });
