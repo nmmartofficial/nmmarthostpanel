@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 2. Sales & POS
         'posCounterBtn': 'sections/sale-entry.html',
-        'onlineOrdersBtn': 'sections/sale-entry.html',
+        'onlineOrdersBtn': 'sections/orders.html',
         'b2bInvoicingBtn': 'sections/sale-entry.html',
         'salesReturnBtn': 'sections/sale-entry.html',
 
@@ -190,7 +190,17 @@ document.addEventListener('DOMContentLoaded', () => {
      * Section-specific event listeners (e.g., "Add New" button toggles)
      * This uses event delegation where possible or re-binds after content load
      */
-    function initializeSectionEvents() {
+    async function initializeSectionEvents() {
+        // --- 1. Supabase Master Sync ---
+        if (document.getElementById('itemCategoryDropdown')) {
+            syncMasterDropdowns();
+        }
+
+        // --- 2. Real-time Orders Listener ---
+        if (document.getElementById('live-orders-table-body')) {
+            setupOrdersRealtimeListener();
+        }
+
         // Map of buttons to their corresponding forms/views
         const toggleBtnMap = {
             'addNewItemBtn': 'item-master-form',
@@ -423,6 +433,130 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * POS Save/Print Order
+     */
+    async function handlePOSCheckout(isPrint) {
+        if (currentCart.length === 0) {
+            showNotification('Cart is empty!', 'error');
+            return;
+        }
+
+        const subtotalStr = document.getElementById('billSubtotal').innerText.replace('₹', '');
+        const taxStr = document.getElementById('billTax').innerText.replace('₹', '');
+        const finalStr = document.getElementById('finalBillAmount').innerText.replace('₹', '');
+        
+        const invoiceData = {
+            customer_name: document.getElementById('displayCustName').innerText,
+            customer_mobile: document.getElementById('displayCustMob').innerText,
+            subtotal: parseFloat(subtotalStr),
+            total_tax: parseFloat(taxStr),
+            round_off: parseFloat(document.getElementById('billRoundOff').innerText),
+            final_amount: parseFloat(finalStr),
+            billing_type: 'POS',
+            transaction_status: 'completed'
+        };
+
+        try {
+            showNotification('Saving order to cloud...', 'info');
+            const result = await window.db.saveInvoice(invoiceData, currentCart);
+            
+            console.log('Order Saved Successfully:', result);
+            showNotification(`Order #${result.bill_no} saved successfully!`, 'success');
+            
+            if (isPrint) window.print();
+
+            // Clear Cart after success
+            currentCart = [];
+            renderCart();
+            calculateBillTotal();
+        } catch (error) {
+            console.error('POS Checkout Error:', error);
+            showNotification('Failed to save order. Check console.', 'error');
+        }
+    }
+
+    /**
+     * Sync Category/Brand dropdowns from Supabase
+     */
+    async function syncMasterDropdowns() {
+        try {
+            const [categories, brands] = await Promise.all([
+                window.supabaseClient.from('categories').select('id, name'),
+                window.supabaseClient.from('brands').select('id, name')
+            ]);
+
+            const catDropdown = document.getElementById('itemCategoryDropdown');
+            const brandDropdown = document.getElementById('itemBrandDropdown');
+
+            if (catDropdown && categories.data) {
+                catDropdown.innerHTML = '<option value="">Select Category</option>' + 
+                    categories.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            }
+
+            if (brandDropdown && brands.data) {
+                brandDropdown.innerHTML = '<option value="">Select Brand</option>' + 
+                    brands.data.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+            }
+        } catch (error) {
+            console.error('Master Sync Error:', error);
+        }
+    }
+
+    /**
+     * Real-time listener for new orders
+     */
+    let ordersSubscription = null;
+    function setupOrdersRealtimeListener() {
+        if (ordersSubscription) return; // Already listening
+
+        ordersSubscription = window.supabaseClient
+            .channel('public:sales_invoices')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sales_invoices' }, payload => {
+                handleNewLiveOrder(payload.new);
+            })
+            .subscribe();
+    }
+
+    function handleNewLiveOrder(order) {
+        const tableBody = document.getElementById('live-orders-table-body');
+        const noMsg = document.getElementById('no-orders-msg');
+        const sound = document.getElementById('orderAlertSound');
+
+        if (tableBody) {
+            if (noMsg) noMsg.remove();
+            
+            if (sound) sound.play().catch(e => console.log('Sound blocked by browser'));
+
+            const time = new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const row = document.createElement('tr');
+            row.className = 'border-b border-gray-50 hover:bg-emerald-50 transition-colors animate-bounce';
+            row.innerHTML = `
+                <td class="py-4 px-6 text-gray-400 font-medium">${time}</td>
+                <td class="py-4 px-6 font-bold text-slate-800">#${order.bill_no}</td>
+                <td class="py-4 px-6">
+                    <p class="font-bold text-slate-700">${order.customer_name}</p>
+                    <p class="text-[10px] text-gray-400">${order.customer_mobile || 'No Mobile'}</p>
+                </td>
+                <td class="py-4 px-6">
+                    <span class="px-2 py-1 rounded text-[10px] font-bold ${order.billing_type === 'Online' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}">${order.billing_type}</span>
+                </td>
+                <td class="py-4 px-6 text-right font-black text-slate-900">₹${order.final_amount.toFixed(2)}</td>
+                <td class="py-4 px-6 text-center">
+                    <span class="px-2 py-1 rounded-full bg-emerald-100 text-emerald-600 text-[10px] font-bold">COMPLETED</span>
+                </td>
+                <td class="py-4 px-6 text-right">
+                    <button class="text-blue-500 hover:text-blue-700"><i class="fas fa-eye"></i></button>
+                </td>
+            `;
+            tableBody.prepend(row);
+            
+            // Update stats
+            const countEl = document.getElementById('todayOrderCount');
+            if (countEl) countEl.innerText = parseInt(countEl.innerText) + 1;
+        }
+    }
+
+    /**
      * Setup global actions using event delegation on #main-content
      */
     function setupGlobalActions() {
@@ -455,26 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isPrint = target.id === 'printOrderBtn' || target.closest('#printOrderBtn');
             
             if (isSave || isPrint) {
-                if (currentCart.length === 0) {
-                    showNotification('Cart is empty!', 'error');
-                    return;
-                }
-                
-                const orderData = {
-                    timestamp: new Date().toISOString(),
-                    items: currentCart,
-                    summary: {
-                        subtotal: document.getElementById('billSubtotal').innerText,
-                        tax: document.getElementById('billTax').innerText,
-                        total: document.getElementById('finalBillAmount').innerText
-                    }
-                };
-                
-                console.log('--- ORDER BREAKDOWN ---');
-                console.log(JSON.stringify(orderData, null, 2));
-                
-                showNotification(isPrint ? 'Order printed (Console Log)' : 'Order saved (Console Log)', 'success');
-                if (isPrint) window.print();
+                handlePOSCheckout(isPrint);
                 return;
             }
 
