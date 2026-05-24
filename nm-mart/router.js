@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Generic Master Form Submission Handler
      */
-    async function bindMasterFormSubmit(formId, tableName) {
+    async function bindMasterFormSubmit(formId, tableName, bucketName = null) {
         const form = document.getElementById(formId);
         if (!form) return;
 
@@ -201,17 +201,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Collect all input data from the form
                 const formData = {};
                 const inputs = form.querySelectorAll('input, select, textarea');
-                inputs.forEach(input => {
+                let fileToUpload = null;
+
+                for (const input of inputs) {
+                    if (input.type === 'file' && input.files[0]) {
+                        fileToUpload = input.files[0];
+                        continue;
+                    }
                     if (input.id || input.name) {
                         const key = input.id || input.name;
-                        // Map UI IDs to DB column names if necessary
-                        const dbKey = key.replace('prod-', '').replace('product-', '');
+                        const dbKey = key.replace('prod-', '').replace('product-', '').replace('item', '').replace('-', '_').toLowerCase();
                         formData[dbKey] = input.type === 'number' ? parseFloat(input.value) : input.value;
                     }
-                });
+                }
 
                 try {
-                    showNotification(`Saving to ${tableName}...`, 'info');
+                    showNotification(`Processing ${tableName}...`, 'info');
+
+                    // 1. Handle Image Upload if bucket is provided
+                    if (bucketName && fileToUpload) {
+                        showNotification('Uploading image...', 'info');
+                        const imageUrl = await window.db.uploadImage(fileToUpload, bucketName);
+                        formData['image_url'] = imageUrl;
+                    }
+
+                    // 2. Save to Database
                     const { data, error } = await window.supabaseClient
                         .from(tableName)
                         .insert([formData])
@@ -223,11 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     showNotification('Record created successfully!', 'success');
                     
                     // Reset form and toggle views
-                    inputs.forEach(input => input.value = '');
+                    inputs.forEach(input => {
+                        if (input.type !== 'button' && input.type !== 'submit') input.value = '';
+                    });
                     form.classList.add('hidden');
-                    const modulePrefix = formId.split('-')[0];
-                    const listView = document.getElementById(`${modulePrefix}-master-list`);
-                    if (listView) listView.classList.remove('hidden');
+                    
+                    // Trigger dynamic table refresh
+                    const activeSection = mainContent.children[0]?.id;
+                    if (activeSection) initializeSectionEvents();
                     
                 } catch (error) {
                     console.error(`Error saving to ${tableName}:`, error);
@@ -239,29 +256,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * APP FETCH BLUEPRINT (For Mobile App Integration)
+     * Paste this function into your Customer Mobile App code.
+     */
+    async function fetchLiveAppData() {
+        try {
+            const [products, banners] = await Promise.all([
+                window.supabaseClient.from('items').select('*').eq('is_live_on_app', true),
+                window.supabaseClient.from('banners').select('*').eq('is_active', true)
+            ]);
+            return { products: products.data, banners: banners.data };
+        } catch (error) {
+            console.error('App Sync Error:', error);
+            return null;
+        }
+    }
+    window.fetchLiveAppData = fetchLiveAppData; // Make globally accessible for testing
+
+    /**
      * Section-specific event listeners (e.g., "Add New" button toggles)
      * This uses event delegation where possible or re-binds after content load
      */
     async function initializeSectionEvents() {
-        // --- 1. Supabase Master Sync ---
-        if (document.getElementById('prod-category')) {
-            syncMasterDropdowns();
-            bindMasterFormSubmit('item-master-form', 'items');
+        // --- 1. Dynamic Table Renderers ---
+        const tableRenderMap = {
+            'item-master-content': renderItemsTable,
+            'banner-master-content': renderBannersTable,
+            'brand-master-content': renderBrandsTable,
+            'main-cat-master-content': renderCategoriesTable,
+            'delivery-boy-master-content': renderDeliveryBoysTable
+        };
+
+        const activeSection = mainContent.children[0]?.id;
+        if (activeSection && tableRenderMap[activeSection]) {
+            tableRenderMap[activeSection]();
         }
 
-        // --- 2. Real-time Orders Listener ---
+        // --- 2. Supabase Master Sync ---
+        if (document.getElementById('prod-category')) {
+            syncMasterDropdowns();
+            bindMasterFormSubmit('item-master-form', 'items', 'product-images');
+        }
+
+        // --- 3. Real-time Orders Listener ---
         if (document.getElementById('live-orders-table-body')) {
             setupOrdersRealtimeListener();
         }
 
-        // --- 3. Other Master Forms Binding ---
+        // --- 4. Other Master Forms Binding ---
         const masterForms = [
-            { id: 'brand-master-form', table: 'brands' },
-            { id: 'main-cat-master-form', table: 'categories' },
+            { id: 'brand-master-form', table: 'brands', bucket: 'brand-logos' },
+            { id: 'main-cat-master-form', table: 'categories', bucket: 'category-icons' },
+            { id: 'banner-master-form', table: 'banners', bucket: 'app-banners' },
             { id: 'delivery-boy-master-form', table: 'delivery_boys' }
         ];
         masterForms.forEach(m => {
-            if (document.getElementById(m.id)) bindMasterFormSubmit(m.id, m.table);
+            if (document.getElementById(m.id)) bindMasterFormSubmit(m.id, m.table, m.bucket);
         });
 
         // Map of buttons to their corresponding forms/views
@@ -762,5 +812,180 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.classList.add('translate-y-20', 'opacity-0');
             setTimeout(() => toast.remove(), 500);
         }, 3000);
+    }
+
+    /**
+     * DYNAMIC TABLE RENDERERS
+     */
+
+    async function renderItemsTable() {
+        const tbody = document.querySelector('#item-master-list tbody');
+        if (!tbody) return;
+        
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('items')
+                .select('*, categories(name), brands(name)');
+            
+            if (error) throw error;
+
+            tbody.innerHTML = data.length ? data.map((item, index) => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${item.stock_qty < 10 ? 'bg-red-50' : ''}">
+                    <td class="py-3 px-4 text-gray-500">${index + 1}</td>
+                    <td class="py-3 px-4 font-bold text-slate-700">${item.item_name}</td>
+                    <td class="py-3 px-4 font-mono text-xs text-gray-500">${item.barcode || 'N/A'}</td>
+                    <td class="py-3 px-4">
+                        <img src="${item.image_url || 'https://via.placeholder.com/40'}" class="w-10 h-10 object-cover rounded shadow-sm border border-gray-100">
+                    </td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase">${item.categories?.name || 'Uncategorized'}</span></td>
+                    <td class="py-3 px-4 font-medium text-gray-600">${item.brands?.name || 'Generic'}</td>
+                    <td class="py-3 px-4 font-bold">₹${item.mrp}</td>
+                    <td class="py-3 px-4 font-bold text-emerald-600">₹${item.selling_rate}</td>
+                    <td class="py-3 px-4 text-gray-500">${item.gst_percent}%</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 rounded font-black ${item.stock_qty < 10 ? 'text-red-600 bg-red-100' : 'text-emerald-600 bg-emerald-100'}">
+                            ${item.stock_qty}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-right space-x-2">
+                        <button class="edit-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                        <button class="delete-btn text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('') : '<tr class="text-gray-400 italic text-sm"><td colspan="11" class="py-10 text-center">No items found in cloud.</td></tr>';
+        } catch (e) { console.error(e); }
+    }
+
+    async function renderBannersTable() {
+        const tbody = document.querySelector('#banner-master-list tbody');
+        if (!tbody) return;
+        
+        try {
+            const { data, error } = await window.supabaseClient.from('banners').select('*');
+            if (error) throw error;
+
+            tbody.innerHTML = data.length ? data.map((banner, index) => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td class="py-4 px-4 font-bold text-slate-700">${banner.title || 'Untitled Banner'}</td>
+                    <td class="py-4 px-4">
+                        <img src="${banner.image_url}" class="w-32 h-16 object-cover rounded shadow-md border border-gray-100">
+                    </td>
+                    <td class="py-4 px-4 text-center">
+                        <span class="px-2 py-1 rounded-full text-[10px] font-bold ${banner.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}">
+                            ${banner.is_active ? 'LIVE' : 'INACTIVE'}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 text-right space-x-2">
+                        <button class="edit-btn text-blue-500 hover:text-blue-700 font-bold"><i class="fas fa-edit"></i> Edit</button>
+                        <button class="delete-btn text-red-500 hover:text-red-600 font-bold"><i class="fas fa-trash"></i> Delete</button>
+                    </td>
+                </tr>
+            `).join('') : '<tr><td colspan="4" class="py-10 text-center text-gray-400">No banners found.</td></tr>';
+        } catch (e) { console.error(e); }
+    }
+
+    async function renderBrandsTable() {
+        const tbody = document.querySelector('#brand-master-list tbody');
+        if (!tbody) return;
+        
+        try {
+            const { data, error } = await window.supabaseClient.from('brands').select('*');
+            if (error) throw error;
+
+            tbody.innerHTML = data.length ? data.map((brand, index) => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td class="py-3 px-4 text-gray-500">${index + 1}</td>
+                    <td class="py-3 px-4 font-bold text-slate-700 uppercase tracking-wide">${brand.name}</td>
+                    <td class="py-3 px-4">
+                        <div class="flex justify-center">
+                            <img src="${brand.image_url || 'https://via.placeholder.com/30'}" class="h-8 object-contain">
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-right space-x-2">
+                        <button class="edit-btn px-3 py-1 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50"><i class="far fa-edit"></i> Edit</button>
+                        <button class="delete-btn px-3 py-1 bg-red-500 text-white rounded text-xs font-bold hover:bg-red-600"><i class="fas fa-trash"></i> Delete</button>
+                    </td>
+                </tr>
+            `).join('') : '<tr><td colspan="4" class="py-10 text-center text-gray-400">No brands found.</td></tr>';
+        } catch (e) { console.error(e); }
+    }
+
+    async function renderCategoriesTable() {
+        const tbody = document.querySelector('#main-cat-master-list tbody');
+        if (!tbody) return;
+        
+        try {
+            const { data, error } = await window.supabaseClient.from('categories').select('*');
+            if (error) throw error;
+
+            tbody.innerHTML = data.length ? data.map((cat, index) => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td class="py-3 px-4 text-gray-500">${index + 1}</td>
+                    <td class="py-3 px-4 font-bold text-slate-700 uppercase tracking-wide">${cat.name}</td>
+                    <td class="py-3 px-4">
+                        <div class="flex justify-center">
+                            <img src="${cat.image_url || 'https://via.placeholder.com/30'}" class="h-8 object-contain">
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-right space-x-2">
+                        <button class="edit-btn px-3 py-1 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50"><i class="far fa-edit"></i> Edit</button>
+                        <button class="delete-btn px-3 py-1 bg-red-500 text-white rounded text-xs font-bold hover:bg-red-600"><i class="fas fa-trash"></i> Delete</button>
+                    </td>
+                </tr>
+            `).join('') : '<tr><td colspan="4" class="py-10 text-center text-gray-400">No categories found.</td></tr>';
+        } catch (e) { console.error(e); }
+    }
+
+    async function renderDeliveryBoysTable() {
+        const tbody = document.querySelector('#delivery-boy-master-list-body');
+        const emptyState = document.querySelector('#delivery-boy-master-list .flex-grow.flex');
+        
+        try {
+            const { data, error } = await window.supabaseClient.from('delivery_boys').select('*');
+            if (error) throw error;
+
+            if (data.length) {
+                if (emptyState) emptyState.classList.add('hidden');
+                
+                // Create table if it doesn't exist or just update body
+                let table = document.querySelector('#delivery-boy-master-list table');
+                if (!table) {
+                    const listContainer = document.getElementById('delivery-boy-master-list');
+                    listContainer.innerHTML += `
+                        <div class="flex-grow p-6 overflow-y-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="text-gray-700 font-bold border-b border-gray-200 text-sm">
+                                        <th class="py-3 px-4">SNo</th>
+                                        <th class="py-3 px-4">Name</th>
+                                        <th class="py-3 px-4">Mobile</th>
+                                        <th class="py-3 px-4 text-center">Status</th>
+                                        <th class="py-3 px-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="delivery-boy-master-list-body" class="text-sm"></tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('delivery-boy-master-list-body').innerHTML = data.map((boy, index) => `
+                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="py-4 px-4 text-gray-500">${index + 1}</td>
+                        <td class="py-4 px-4 font-bold text-slate-700">${boy.full_name}</td>
+                        <td class="py-4 px-4 text-gray-600 font-medium">${boy.mobile || 'N/A'}</td>
+                        <td class="py-4 px-4 text-center">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-bold ${boy.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}">
+                                ${boy.status.toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 text-right space-x-2">
+                            <button class="edit-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                            <button class="delete-btn text-red-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        } catch (e) { console.error(e); }
     }
 });

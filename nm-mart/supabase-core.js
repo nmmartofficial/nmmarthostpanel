@@ -34,7 +34,7 @@ const db = {
      */
     async saveInvoice(invoiceData, items) {
         // 1. Insert into sales_invoices
-        const { data: invoice, error: invoiceError } = await supabase
+        const { data: invoice, error: invoiceError } = await window.supabaseClient
             .from('sales_invoices')
             .insert([invoiceData])
             .select()
@@ -45,7 +45,7 @@ const db = {
         // 2. Prepare and insert line items
         const lineItems = items.map(item => ({
             invoice_id: invoice.id,
-            item_id: item.id, // Ensure your item objects have UUIDs from DB
+            item_id: item.id,
             item_name: item.name,
             quantity: item.qty,
             rate: item.price,
@@ -53,13 +53,34 @@ const db = {
             total_amount: item.price * item.qty
         }));
 
-        const { error: itemsError } = await supabase
+        const { error: itemsError } = await window.supabaseClient
             .from('sales_invoice_items')
             .insert(lineItems);
 
         if (itemsError) throw itemsError;
 
         return invoice;
+    },
+
+    /**
+     * Upload an image to Supabase Storage Bucket
+     * @param {File} file - The file object to upload
+     * @param {string} bucket - Bucket name ('product-images', 'app-banners')
+     * @returns {string} Public URL of the uploaded image
+     */
+    async uploadImage(file, bucket) {
+        const fileName = `${Date.now()}_${file.name}`;
+        const { data, error } = await window.supabaseClient.storage
+            .from(bucket)
+            .upload(fileName, file);
+
+        if (error) throw error;
+
+        const { data: publicUrl } = window.supabaseClient.storage
+            .from(bucket)
+            .getPublicUrl(fileName);
+
+        return publicUrl.publicUrl;
     }
 };
 
