@@ -20,9 +20,9 @@ const db = {
      * Fetch all items from the database
      */
     async getItems() {
-        const { data, error } = await supabase
-            .from('items')
-            .select('*, categories(name), brands(name)');
+        const { data, error } = await window.supabaseClient
+            .from('item_master')
+            .select('*, main_category(name), brand_master(name)');
         if (error) throw error;
         return data;
     },

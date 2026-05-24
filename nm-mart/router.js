@@ -210,7 +210,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (input.id || input.name) {
                         const key = input.id || input.name;
-                        const dbKey = key.replace('prod-', '').replace('product-', '').replace('item', '').replace('-', '_').toLowerCase();
+                        // Special handling for mapping UI IDs to DB columns
+                        let dbKey = key.replace('prod-', '').replace('product-', '').replace('item-', '').replace('-', '_').toLowerCase();
+                        
+                        // Fix for category/brand mapping in item_master
+                        if (tableName === 'item_master' && dbKey === 'category') dbKey = 'category_id';
+                        if (tableName === 'item_master' && dbKey === 'brand') dbKey = 'brand_id';
+                        
                         formData[dbKey] = input.type === 'number' ? parseFloat(input.value) : input.value;
                     }
                 }
@@ -243,8 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     form.classList.add('hidden');
                     
                     // Trigger dynamic table refresh
-                    const activeSection = mainContent.children[0]?.id;
-                    if (activeSection) initializeSectionEvents();
+                    initializeSectionEvents();
                     
                 } catch (error) {
                     console.error(`Error saving to ${tableName}:`, error);
@@ -262,8 +267,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchLiveAppData() {
         try {
             const [products, banners] = await Promise.all([
-                window.supabaseClient.from('items').select('*').eq('is_live_on_app', true),
-                window.supabaseClient.from('banners').select('*').eq('is_active', true)
+                window.supabaseClient.from('item_master').select('*').eq('is_live_on_app', true),
+                window.supabaseClient.from('banner_master').select('*').eq('is_active', true)
             ]);
             return { products: products.data, banners: banners.data };
         } catch (error) {
@@ -271,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
         }
     }
-    window.fetchLiveAppData = fetchLiveAppData; // Make globally accessible for testing
+    window.fetchLiveAppData = fetchLiveAppData;
 
     /**
      * Section-specific event listeners (e.g., "Add New" button toggles)
@@ -295,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- 2. Supabase Master Sync ---
         if (document.getElementById('prod-category')) {
             syncMasterDropdowns();
-            bindMasterFormSubmit('item-master-form', 'items', 'product-images');
+            bindMasterFormSubmit('item-master-form', 'item_master', 'product-images');
         }
 
         // --- 3. Real-time Orders Listener ---
@@ -305,10 +310,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- 4. Other Master Forms Binding ---
         const masterForms = [
-            { id: 'brand-master-form', table: 'brands', bucket: 'brand-logos' },
-            { id: 'main-cat-master-form', table: 'categories', bucket: 'category-icons' },
-            { id: 'banner-master-form', table: 'banners', bucket: 'app-banners' },
-            { id: 'delivery-boy-master-form', table: 'delivery_boys' }
+            { id: 'brand-master-form', table: 'brand_master', bucket: 'brand-logos' },
+            { id: 'main-cat-master-form', table: 'main_category', bucket: 'category-icons' },
+            { id: 'banner-master-form', table: 'banner_master', bucket: 'app-banners' },
+            { id: 'delivery-boy-master-form', table: 'delivery_boy_master' }
         ];
         masterForms.forEach(m => {
             if (document.getElementById(m.id)) bindMasterFormSubmit(m.id, m.table, m.bucket);
@@ -596,8 +601,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function syncMasterDropdowns() {
         try {
             const [categories, brands] = await Promise.all([
-                window.supabaseClient.from('categories').select('id, name'),
-                window.supabaseClient.from('brands').select('id, name')
+                window.supabaseClient.from('main_category').select('id, name'),
+                window.supabaseClient.from('brand_master').select('id, name')
             ]);
 
             const catDropdown = document.getElementById('prod-category');
@@ -824,8 +829,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             const { data, error } = await window.supabaseClient
-                .from('items')
-                .select('*, categories(name), brands(name)');
+                .from('item_master')
+                .select('*, main_category(name), brand_master(name)');
             
             if (error) throw error;
 
@@ -836,8 +841,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <img src="${item.image_url || 'https://via.placeholder.com/40'}" class="w-10 h-10 object-cover rounded shadow-sm border border-gray-100" onerror="this.src='https://via.placeholder.com/40'">
                     </td>
                     <td class="py-3 px-4 font-bold text-slate-700">${item.item_name}</td>
-                    <td class="py-3 px-4"><span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase">${item.categories?.name || 'Uncategorized'}</span></td>
-                    <td class="py-3 px-4 font-medium text-gray-600">${item.brands?.name || 'Generic'}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase">${item.main_category?.name || 'Uncategorized'}</span></td>
+                    <td class="py-3 px-4 font-medium text-gray-600">${item.brand_master?.name || 'Generic'}</td>
                     <td class="py-3 px-4 font-bold">₹${item.mrp}</td>
                     <td class="py-3 px-4 font-bold text-emerald-600">₹${item.selling_rate}</td>
                     <td class="py-3 px-4 text-gray-500">${item.gst_percent}%</td>
@@ -860,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tbody) return;
         
         try {
-            const { data, error } = await window.supabaseClient.from('banners').select('*');
+            const { data, error } = await window.supabaseClient.from('banner_master').select('*');
             if (error) throw error;
 
             tbody.innerHTML = data.length ? data.map((banner, index) => `
@@ -893,8 +898,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             const { data, error } = await window.supabaseClient
-                .from('brands')
-                .select('*, items(count)');
+                .from('brand_master')
+                .select('*, item_master(count)');
             
             if (error) throw error;
 
@@ -905,7 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="py-4 px-4 text-gray-400 text-xs italic">${brand.name.toLowerCase().replace(/\s+/g, '-')}</td>
                     <td class="py-4 px-4 text-center">
                         <span class="px-3 py-1 bg-slate-100 text-slate-600 rounded-full font-bold text-xs">
-                            ${brand.items[0]?.count || 0} Products
+                            ${brand.item_master[0]?.count || 0} Products
                         </span>
                     </td>
                     <td class="py-4 px-4 text-right space-x-2">
@@ -923,8 +928,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             const { data, error } = await window.supabaseClient
-                .from('categories')
-                .select('*, items(count)');
+                .from('main_category')
+                .select('*, item_master(count)');
             
             if (error) throw error;
 
@@ -935,7 +940,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="py-4 px-4 text-gray-400 text-xs italic">${cat.name.toLowerCase().replace(/\s+/g, '-')}</td>
                     <td class="py-4 px-4 text-center">
                         <span class="px-3 py-1 bg-blue-100 text-blue-600 rounded-full font-bold text-xs">
-                            ${cat.items[0]?.count || 0} Products
+                            ${cat.item_master[0]?.count || 0} Products
                         </span>
                     </td>
                     <td class="py-4 px-4 text-right space-x-2">
@@ -952,7 +957,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tbody) return;
         
         try {
-            const { data, error } = await window.supabaseClient.from('delivery_boys').select('*');
+            const { data, error } = await window.supabaseClient.from('delivery_boy_master').select('*');
             if (error) throw error;
 
             tbody.innerHTML = data.length ? data.map((boy, index) => `
