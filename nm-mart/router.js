@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function initializeSectionEvents() {
         // --- 1. Supabase Master Sync ---
-        if (document.getElementById('itemCategoryDropdown')) {
+        if (document.getElementById('prod-category')) {
             syncMasterDropdowns();
         }
 
@@ -461,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await window.db.saveInvoice(invoiceData, currentCart);
             
             console.log('Order Saved Successfully:', result);
-            showNotification(`Order #${result.bill_no} saved successfully!`, 'success');
+            alert(`SUCCESS: Order #${result.bill_no} saved to Supabase!`);
             
             if (isPrint) window.print();
 
@@ -469,9 +469,11 @@ document.addEventListener('DOMContentLoaded', () => {
             currentCart = [];
             renderCart();
             calculateBillTotal();
+            showNotification('POS Cart Reset Successfully', 'success');
         } catch (error) {
             console.error('POS Checkout Error:', error);
-            showNotification('Failed to save order. Check console.', 'error');
+            alert('CRITICAL ERROR: Failed to save invoice to cloud. Please check connection.');
+            showNotification('Database Sync Failed!', 'error');
         }
     }
 
@@ -485,8 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.supabaseClient.from('brands').select('id, name')
             ]);
 
-            const catDropdown = document.getElementById('itemCategoryDropdown');
-            const brandDropdown = document.getElementById('itemBrandDropdown');
+            const catDropdown = document.getElementById('prod-category');
+            const brandDropdown = document.getElementById('prod-brand');
 
             if (catDropdown && categories.data) {
                 catDropdown.innerHTML = '<option value="">Select Category</option>' + 
@@ -511,7 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         ordersSubscription = window.supabaseClient
             .channel('public:sales_invoices')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sales_invoices' }, payload => {
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'sales_invoices',
+                filter: 'transaction_status=eq.pending' // Only Pending orders
+            }, payload => {
                 handleNewLiveOrder(payload.new);
             })
             .subscribe();
