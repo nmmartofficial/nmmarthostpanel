@@ -333,24 +333,163 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSection(routes['homeBtn']);
 
     /**
+     * POS STATE MANAGEMENT
+     */
+    let currentCart = [];
+
+    /**
+     * POS Functions
+     */
+    function addToCart(productName, price, taxPercent) {
+        const existingItem = currentCart.find(item => item.name === productName);
+        
+        if (existingItem) {
+            existingItem.qty += 1;
+        } else {
+            currentCart.push({
+                name: productName,
+                price: parseFloat(price),
+                tax: parseFloat(taxPercent),
+                qty: 1
+            });
+        }
+        
+        renderCart();
+        calculateBillTotal();
+        showNotification(`${productName} added to cart`, 'info');
+    }
+
+    function renderCart() {
+        const cartContainer = document.getElementById('pos-cart-items');
+        if (!cartContainer) return;
+
+        cartContainer.innerHTML = currentCart.map((item, index) => `
+            <div class="flex items-center p-2 text-[11px] border-b border-gray-100 bg-white group hover:bg-emerald-50 transition-colors">
+                <div class="w-1/2 font-medium text-gray-700">${item.name}</div>
+                <div class="w-1/4 flex items-center justify-center gap-2">
+                    <button onclick="window.updateQty(${index}, -1)" class="w-5 h-5 flex items-center justify-center bg-gray-100 rounded hover:bg-gray-200">-</button>
+                    <span class="font-bold w-4 text-center">${item.qty}</span>
+                    <button onclick="window.updateQty(${index}, 1)" class="w-5 h-5 flex items-center justify-center bg-gray-100 rounded hover:bg-gray-200">+</button>
+                </div>
+                <div class="w-1/4 text-right font-bold text-gray-800">₹${(item.price * item.qty).toFixed(2)}</div>
+                <button onclick="window.removeFromCart(${index})" class="ml-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    // Global qty update for onclick handlers
+    window.updateQty = (index, delta) => {
+        if (currentCart[index]) {
+            currentCart[index].qty += delta;
+            if (currentCart[index].qty <= 0) {
+                currentCart.splice(index, 1);
+            }
+            renderCart();
+            calculateBillTotal();
+        }
+    };
+
+    window.removeFromCart = (index) => {
+        currentCart.splice(index, 1);
+        renderCart();
+        calculateBillTotal();
+    };
+
+    function calculateBillTotal() {
+        const subtotal = currentCart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+        const taxTotal = currentCart.reduce((sum, item) => sum + ((item.price * item.tax / 100) * item.qty), 0);
+        
+        const discount = 0; // Future dynamic discount
+        const delivery = 0; // Future dynamic delivery
+        
+        const rawTotal = subtotal + taxTotal - discount + delivery;
+        const finalTotal = Math.round(rawTotal);
+        const roundOff = finalTotal - rawTotal;
+
+        // Update UI
+        const elements = {
+            'billSubtotal': `₹${subtotal.toFixed(2)}`,
+            'billTax': `₹${taxTotal.toFixed(2)}`,
+            'billRoundOff': roundOff.toFixed(2),
+            'finalBillAmount': `₹${finalTotal.toFixed(0)}.00`
+        };
+
+        Object.keys(elements).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = elements[id];
+        });
+    }
+
+    /**
      * Setup global actions using event delegation on #main-content
      */
     function setupGlobalActions() {
         mainContent.addEventListener('click', (e) => {
             const target = e.target;
 
-            // 1. SAVE ACTION
+            // POS Product Click
+            const posCard = target.closest('.pos-card');
+            if (posCard && posCard.parentElement.id === 'pos-product-grid') {
+                const name = posCard.dataset.name;
+                const price = posCard.dataset.price;
+                const tax = posCard.dataset.tax;
+                addToCart(name, price, tax);
+                return;
+            }
+
+            // POS Clear Cart
+            if (target.id === 'clearCartBtn' || target.closest('#clearCartBtn')) {
+                if (currentCart.length > 0 && confirm('Clear entire cart?')) {
+                    currentCart = [];
+                    renderCart();
+                    calculateBillTotal();
+                    showNotification('Cart cleared', 'warning');
+                }
+                return;
+            }
+
+            // POS Save/Print Order
+            const isSave = target.id === 'saveOrderBtn' || target.closest('#saveOrderBtn');
+            const isPrint = target.id === 'printOrderBtn' || target.closest('#printOrderBtn');
+            
+            if (isSave || isPrint) {
+                if (currentCart.length === 0) {
+                    showNotification('Cart is empty!', 'error');
+                    return;
+                }
+                
+                const orderData = {
+                    timestamp: new Date().toISOString(),
+                    items: currentCart,
+                    summary: {
+                        subtotal: document.getElementById('billSubtotal').innerText,
+                        tax: document.getElementById('billTax').innerText,
+                        total: document.getElementById('finalBillAmount').innerText
+                    }
+                };
+                
+                console.log('--- ORDER BREAKDOWN ---');
+                console.log(JSON.stringify(orderData, null, 2));
+                
+                showNotification(isPrint ? 'Order printed (Console Log)' : 'Order saved (Console Log)', 'success');
+                if (isPrint) window.print();
+                return;
+            }
+
+            // 1. SAVE ACTION (Other sections)
             const saveBtn = target.closest('.save-btn') || 
                            (target.tagName === 'BUTTON' && (target.innerText.includes('Save') || target.innerText.includes('Update')));
             
-            if (saveBtn) {
+            if (saveBtn && !saveBtn.id.includes('saveOrderBtn')) {
                 e.preventDefault();
                 const sectionName = document.querySelector('h2, h3, .text-xl span')?.innerText || 'Record';
                 showNotification(`${sectionName} saved successfully!`, 'success');
                 
                 // Auto-close form if it exists
                 const form = saveBtn.closest('[id$="-form"]') || saveBtn.closest('[id$="-view"]');
-                if (form && !form.id.includes('sale-entry')) { // Don't close sale entry
+                if (form && !form.id.includes('sale-entry')) { 
                     form.classList.add('hidden');
                     const modulePrefix = form.id.split('-')[0];
                     const listView = document.getElementById(`${modulePrefix}-master-list`) || 
@@ -359,7 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return;
             }
-
+            
+            // ... (keep existing delete, edit, print logic)
             // 2. DELETE ACTION
             const deleteBtn = target.closest('.delete-btn') || target.closest('.fa-trash') || target.closest('.fa-trash-alt');
             if (deleteBtn) {
@@ -393,9 +533,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 4. PRINT ACTION
+            // 4. PRINT ACTION (Other sections)
             const printBtn = target.closest('.print-btn') || target.closest('.fa-print');
-            if (printBtn) {
+            if (printBtn && !printBtn.id.includes('printOrderBtn')) {
                 e.preventDefault();
                 window.print();
                 return;

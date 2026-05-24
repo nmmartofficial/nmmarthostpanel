@@ -32,28 +32,28 @@
             <button class="bg-blue-600 text-white px-4 py-2 rounded font-semibold text-sm shadow-md hover:bg-blue-700">Connect to Serial</button>
         </div>
         <!-- Product Grid -->
-        <div class="flex-grow overflow-y-auto pos-grid-container">
-            <!-- Cards -->
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">BOUNTY RS35</p><p class="pos-price">₹35</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">CADBURY 5STAR RS20</p><p class="pos-price">₹20</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">CADBURY CELEBRATION</p><p class="pos-price">₹50</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">CADBURY DAIRY MILK RS50</p><p class="pos-price">₹50</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">CADBURY OREO 41.75G</p><p class="pos-price">₹10</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">CHOCOBAR GOLD RS25</p><p class="pos-price">₹25</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">CRISELLO RS10</p><p class="pos-price">₹10</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">CRISPELLO CHOCLATE RS10</p><p class="pos-price">₹10</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK 105g</p><p class="pos-price">₹98</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK 11G</p><p class="pos-price">₹10</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK 12.1G</p><p class="pos-price">₹10</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK 18G</p><p class="pos-price">₹20</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK 20.2g</p><p class="pos-price">₹20</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK 50RS</p><p class="pos-price">₹45</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK RS10.</p><p class="pos-price">₹10</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK RS20</p><p class="pos-price">₹20</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">DAIRY MILK RS20.</p><p class="pos-price">₹20</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">dairy milk.</p><p class="pos-price">₹47</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">FIVE STAR 18g</p><p class="pos-price">₹10</p></div>
-            <div class="pos-card"><p class="text-[11px] font-bold mb-4">FIVE STAR 20.2g</p><p class="pos-price">₹10</p></div>
+        <div class="flex-grow overflow-y-auto pos-grid-container" id="pos-product-grid">
+            <!-- Cards with data attributes for JS -->
+            <div class="pos-card" data-name="BOUNTY RS35" data-price="35" data-tax="5"><p class="text-[11px] font-bold mb-4">BOUNTY RS35</p><p class="pos-price">₹35</p></div>
+            <div class="pos-card" data-name="CADBURY 5STAR RS20" data-price="20" data-tax="5"><p class="text-[11px] font-bold mb-4">CADBURY 5STAR RS20</p><p class="pos-price">₹20</p></div>
+            <div class="pos-card" data-name="CADBURY CELEBRATION" data-price="50" data-tax="12"><p class="text-[11px] font-bold mb-4">CADBURY CELEBRATION</p><p class="pos-price">₹50</p></div>
+            <div class="pos-card" data-name="CADBURY DAIRY MILK RS50" data-price="50" data-tax="12"><p class="text-[11px] font-bold mb-4">CADBURY DAIRY MILK RS50</p><p class="pos-price">₹50</p></div>
+            <div class="pos-card" data-name="CADBURY OREO 41.75G" data-price="10" data-tax="5"><p class="text-[11px] font-bold mb-4">CADBURY OREO 41.75G</p><p class="pos-price">₹10</p></div>
+            <div class="pos-card" data-name="CHOCOBAR GOLD RS25" data-price="25" data-tax="18"><p class="text-[11px] font-bold mb-4">CHOCOBAR GOLD RS25</p><p class="pos-price">₹25</p></div>
+            <div class="pos-card" data-name="CRISELLO RS10" data-price="10" data-tax="5"><p class="text-[11px] font-bold mb-4">CRISELLO RS10</p><p class="pos-price">₹10</p></div>
+            <div class="pos-card" data-name="CRISPELLO CHOCLATE RS10" data-price="10" data-tax="5"><p class="text-[11px] font-bold mb-4">CRISPELLO CHOCLATE RS10</p><p class="pos-price">₹10</p></div>
+            <div class="pos-card" data-name="DAIRY MILK 105g" data-price="98" data-tax="12"><p class="text-[11px] font-bold mb-4">DAIRY MILK 105g</p><p class="pos-price">₹98</p></div>
+            <div class="pos-card" data-name="DAIRY MILK 11G" data-price="10" data-tax="5"><p class="text-[11px] font-bold mb-4">DAIRY MILK 11G</p><p class="pos-price">₹10</p></div>
+            <div class="pos-card" data-name="DAIRY MILK 12.1G" data-price="10" data-tax="5"><p class="text-[11px] font-bold mb-4">DAIRY MILK 12.1G</p><p class="pos-price">₹10</p></div>
+            <div class="pos-card" data-name="DAIRY MILK 18G" data-price="20" data-tax="5"><p class="text-[11px] font-bold mb-4">DAIRY MILK 18G</p><p class="pos-price">₹20</p></div>
+            <div class="pos-card" data-name="DAIRY MILK 20.2g" data-price="20" data-tax="5"><p class="text-[11px] font-bold mb-4">DAIRY MILK 20.2g</p><p class="pos-price">₹20</p></div>
+            <div class="pos-card" data-name="DAIRY MILK 50RS" data-price="45" data-tax="12"><p class="text-[11px] font-bold mb-4">DAIRY MILK 50RS</p><p class="pos-price">₹45</p></div>
+            <div class="pos-card" data-name="DAIRY MILK RS10." data-price="10" data-tax="5"><p class="text-[11px] font-bold mb-4">DAIRY MILK RS10.</p><p class="pos-price">₹10</p></div>
+            <div class="pos-card" data-name="DAIRY MILK RS20" data-price="20" data-tax="5"><p class="text-[11px] font-bold mb-4">DAIRY MILK RS20</p><p class="pos-price">₹20</p></div>
+            <div class="pos-card" data-name="DAIRY MILK RS20." data-price="20" data-tax="5"><p class="text-[11px] font-bold mb-4">DAIRY MILK RS20.</p><p class="pos-price">₹20</p></div>
+            <div class="pos-card" data-name="dairy milk." data-price="47" data-tax="12"><p class="text-[11px] font-bold mb-4">dairy milk.</p><p class="pos-price">₹47</p></div>
+            <div class="pos-card" data-name="FIVE STAR 18g" data-price="10" data-tax="5"><p class="text-[11px] font-bold mb-4">FIVE STAR 18g</p><p class="pos-price">₹10</p></div>
+            <div class="pos-card" data-name="FIVE STAR 20.2g" data-price="10" data-tax="5"><p class="text-[11px] font-bold mb-4">FIVE STAR 20.2g</p><p class="pos-price">₹10</p></div>
         </div>
     </div>
 
@@ -62,11 +62,11 @@
         <!-- Customer Info -->
         <div class="p-4 bg-slate-800 text-white flex justify-between items-start">
             <div class="text-[11px] space-y-1">
-                <p><span class="text-gray-400">Cust Name :</span> , <span class="text-gray-400">Mob :</span></p>
-                <p><span class="text-gray-400">Add :</span></p>
+                <p><span class="text-gray-400">Cust Name :</span> <span id="displayCustName">Cash Customer</span>, <span class="text-gray-400">Mob :</span> <span id="displayCustMob">0000000000</span></p>
+                <p><span class="text-gray-400">Add :</span> <span id="displayCustAdd">N/A</span></p>
             </div>
             <div class="bg-red-600 rounded-full px-3 py-1 text-center">
-                <p class="text-[10px] font-bold leading-tight">0</p>
+                <p class="text-[10px] font-bold leading-tight" id="onlineOrderCount">0</p>
                 <p class="text-[8px] uppercase">Online</p>
             </div>
         </div>
@@ -76,9 +76,9 @@
             <div class="w-1/4 text-center">Qty</div>
             <div class="w-1/4 text-right">Rate</div>
         </div>
-        <!-- Cart Items (Empty Placeholder) -->
-        <div class="flex-grow bg-emerald-50/30 overflow-y-auto">
-            <!-- Items will appear here -->
+        <!-- Cart Items Container -->
+        <div class="flex-grow bg-emerald-50/30 overflow-y-auto" id="pos-cart-items">
+            <!-- Items will appear here dynamically -->
         </div>
         <!-- Actions & Summary -->
         <div class="p-2 border-t border-gray-200">
@@ -89,20 +89,21 @@
                 <button class="text-blue-600 text-[10px] text-left underline">Show summary</button>
             </div>
             <div class="text-[11px] space-y-1 border-t pt-2 border-gray-100">
-                <div class="flex justify-between"><span>% Bill Discount :</span> <span class="flex items-center">0% <span class="ml-4">0.00</span></span></div>
-                <div class="flex justify-between"><span><i class="fas fa-truck"></i> Delivery charge :</span> <span class="flex items-center">0% <span class="ml-4">0.00</span></span></div>
-                <div class="flex justify-between"><span>% Flat Discount :</span> <span>0.00</span></div>
-                <div class="flex justify-between text-blue-600 font-bold"><span>Round Off :</span> <span>0.00</span></div>
+                <div class="flex justify-between"><span>Subtotal :</span> <span id="billSubtotal">₹0.00</span></div>
+                <div class="flex justify-between text-gray-500"><span>Tax Amount :</span> <span id="billTax">₹0.00</span></div>
+                <div class="flex justify-between"><span>% Bill Discount :</span> <span class="flex items-center">0% <span class="ml-4" id="billDiscount">0.00</span></span></div>
+                <div class="flex justify-between"><span><i class="fas fa-truck"></i> Delivery charge :</span> <span id="billDelivery">0.00</span></div>
+                <div class="flex justify-between text-blue-600 font-bold"><span>Round Off :</span> <span id="billRoundOff">0.00</span></div>
             </div>
             <div class="mt-4 flex justify-between items-end border-t pt-2 border-gray-100">
                 <span class="text-xl font-bold brand-font">Bill Amount</span>
-                <span class="text-3xl font-black brand-font">₹0.00</span>
+                <span class="text-3xl font-black brand-font" id="finalBillAmount">₹0.00</span>
             </div>
         </div>
         <!-- Bottom Buttons -->
         <div class="flex h-12">
-            <button class="flex-grow bg-red-500 text-white font-bold text-sm hover:bg-red-600">Save</button>
-            <button class="flex-grow bg-cyan-400 text-white font-bold text-sm hover:bg-cyan-500">Print</button>
+            <button id="saveOrderBtn" class="flex-grow bg-red-500 text-white font-bold text-sm hover:bg-red-600">Save</button>
+            <button id="printOrderBtn" class="flex-grow bg-cyan-400 text-white font-bold text-sm hover:bg-cyan-500">Print</button>
         </div>
     </div>
 </div>
