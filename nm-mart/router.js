@@ -236,6 +236,27 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // Item Master specific: Discount Calculation
+        const mrpInput = document.getElementById('product-mrp');
+        const sellingInput = document.getElementById('product-selling-price');
+        const discountInput = document.getElementById('product-discount');
+
+        if (mrpInput && sellingInput && discountInput) {
+            const calculateDiscount = () => {
+                const mrp = parseFloat(mrpInput.value) || 0;
+                const selling = parseFloat(sellingInput.value) || 0;
+
+                if (mrp > 0 && selling <= mrp) {
+                    const discount = ((mrp - selling) / mrp) * 100;
+                    discountInput.value = Math.round(discount) + '%';
+                } else {
+                    discountInput.value = '0%';
+                }
+            };
+            mrpInput.addEventListener('input', calculateDiscount);
+            sellingInput.addEventListener('input', calculateDiscount);
+        }
+
         // Sale Entry specific: Sidebar buttons
         document.querySelectorAll('.pos-sidebar-btn').forEach(btn => {
             btn.addEventListener('click', () => {
