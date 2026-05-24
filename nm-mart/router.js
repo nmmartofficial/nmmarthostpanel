@@ -831,12 +831,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tbody.innerHTML = data.length ? data.map((item, index) => `
                 <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${item.stock_qty < 10 ? 'bg-red-50' : ''}">
-                    <td class="py-3 px-4 text-gray-500">${index + 1}</td>
-                    <td class="py-3 px-4 font-bold text-slate-700">${item.item_name}</td>
                     <td class="py-3 px-4 font-mono text-xs text-gray-500">${item.barcode || 'N/A'}</td>
                     <td class="py-3 px-4">
-                        <img src="${item.image_url || 'https://via.placeholder.com/40'}" class="w-10 h-10 object-cover rounded shadow-sm border border-gray-100">
+                        <img src="${item.image_url || 'https://via.placeholder.com/40'}" class="w-10 h-10 object-cover rounded shadow-sm border border-gray-100" onerror="this.src='https://via.placeholder.com/40'">
                     </td>
+                    <td class="py-3 px-4 font-bold text-slate-700">${item.item_name}</td>
                     <td class="py-3 px-4"><span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase">${item.categories?.name || 'Uncategorized'}</span></td>
                     <td class="py-3 px-4 font-medium text-gray-600">${item.brands?.name || 'Generic'}</td>
                     <td class="py-3 px-4 font-bold">₹${item.mrp}</td>
@@ -852,12 +851,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         <button class="delete-btn text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
-            `).join('') : '<tr class="text-gray-400 italic text-sm"><td colspan="11" class="py-10 text-center">No items found in cloud.</td></tr>';
+            `).join('') : '<tr class="text-gray-400 italic text-sm"><td colspan="10" class="py-10 text-center">No items found in cloud.</td></tr>';
         } catch (e) { console.error(e); }
     }
 
     async function renderBannersTable() {
-        const tbody = document.querySelector('#banner-master-list tbody');
+        const tbody = document.querySelector('#banner-master-list table tbody');
         if (!tbody) return;
         
         try {
@@ -866,21 +865,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tbody.innerHTML = data.length ? data.map((banner, index) => `
                 <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td class="py-4 px-4 font-mono text-xs text-gray-400">${banner.id.split('-')[0]}...</td>
                     <td class="py-4 px-4 font-bold text-slate-700">${banner.title || 'Untitled Banner'}</td>
-                    <td class="py-4 px-4">
-                        <img src="${banner.image_url}" class="w-32 h-16 object-cover rounded shadow-md border border-gray-100">
-                    </td>
+                    <td class="py-4 px-4 text-gray-500 uppercase text-[10px] font-bold tracking-widest">${banner.target_category || 'General'}</td>
                     <td class="py-4 px-4 text-center">
                         <span class="px-2 py-1 rounded-full text-[10px] font-bold ${banner.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}">
                             ${banner.is_active ? 'LIVE' : 'INACTIVE'}
                         </span>
                     </td>
+                    <td class="py-4 px-4">
+                        <div class="flex justify-center">
+                            <img src="${banner.image_url}" class="w-32 h-16 object-cover rounded shadow-md border border-gray-100">
+                        </div>
+                    </td>
                     <td class="py-4 px-4 text-right space-x-2">
-                        <button class="edit-btn text-blue-500 hover:text-blue-700 font-bold"><i class="fas fa-edit"></i> Edit</button>
-                        <button class="delete-btn text-red-500 hover:text-red-600 font-bold"><i class="fas fa-trash"></i> Delete</button>
+                        <button class="edit-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                        <button class="delete-btn text-red-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
-            `).join('') : '<tr><td colspan="4" class="py-10 text-center text-gray-400">No banners found.</td></tr>';
+            `).join('') : '<tr><td colspan="6" class="py-10 text-center text-gray-400">No banners found.</td></tr>';
         } catch (e) { console.error(e); }
     }
 
@@ -889,24 +892,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tbody) return;
         
         try {
-            const { data, error } = await window.supabaseClient.from('brands').select('*');
+            const { data, error } = await window.supabaseClient
+                .from('brands')
+                .select('*, items(count)');
+            
             if (error) throw error;
 
             tbody.innerHTML = data.length ? data.map((brand, index) => `
                 <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td class="py-3 px-4 text-gray-500">${index + 1}</td>
-                    <td class="py-3 px-4 font-bold text-slate-700 uppercase tracking-wide">${brand.name}</td>
-                    <td class="py-3 px-4">
-                        <div class="flex justify-center">
-                            <img src="${brand.image_url || 'https://via.placeholder.com/30'}" class="h-8 object-contain">
-                        </div>
+                    <td class="py-4 px-4 font-mono text-xs text-gray-400">${brand.id.split('-')[0]}...</td>
+                    <td class="py-4 px-4 font-bold text-slate-700 uppercase tracking-wide">${brand.name}</td>
+                    <td class="py-4 px-4 text-gray-400 text-xs italic">${brand.name.toLowerCase().replace(/\s+/g, '-')}</td>
+                    <td class="py-4 px-4 text-center">
+                        <span class="px-3 py-1 bg-slate-100 text-slate-600 rounded-full font-bold text-xs">
+                            ${brand.items[0]?.count || 0} Products
+                        </span>
                     </td>
-                    <td class="py-3 px-4 text-right space-x-2">
-                        <button class="edit-btn px-3 py-1 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50"><i class="far fa-edit"></i> Edit</button>
-                        <button class="delete-btn px-3 py-1 bg-red-500 text-white rounded text-xs font-bold hover:bg-red-600"><i class="fas fa-trash"></i> Delete</button>
+                    <td class="py-4 px-4 text-right space-x-2">
+                        <button class="edit-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                        <button class="delete-btn text-red-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
-            `).join('') : '<tr><td colspan="4" class="py-10 text-center text-gray-400">No brands found.</td></tr>';
+            `).join('') : '<tr><td colspan="5" class="py-10 text-center text-gray-400">No brands found.</td></tr>';
         } catch (e) { console.error(e); }
     }
 
@@ -915,77 +922,60 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!tbody) return;
         
         try {
-            const { data, error } = await window.supabaseClient.from('categories').select('*');
+            const { data, error } = await window.supabaseClient
+                .from('categories')
+                .select('*, items(count)');
+            
             if (error) throw error;
 
             tbody.innerHTML = data.length ? data.map((cat, index) => `
                 <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td class="py-3 px-4 text-gray-500">${index + 1}</td>
-                    <td class="py-3 px-4 font-bold text-slate-700 uppercase tracking-wide">${cat.name}</td>
-                    <td class="py-3 px-4">
-                        <div class="flex justify-center">
-                            <img src="${cat.image_url || 'https://via.placeholder.com/30'}" class="h-8 object-contain">
-                        </div>
+                    <td class="py-4 px-4 font-mono text-xs text-gray-400">${cat.id.split('-')[0]}...</td>
+                    <td class="py-4 px-4 font-bold text-slate-700 uppercase tracking-wide">${cat.name}</td>
+                    <td class="py-4 px-4 text-gray-400 text-xs italic">${cat.name.toLowerCase().replace(/\s+/g, '-')}</td>
+                    <td class="py-4 px-4 text-center">
+                        <span class="px-3 py-1 bg-blue-100 text-blue-600 rounded-full font-bold text-xs">
+                            ${cat.items[0]?.count || 0} Products
+                        </span>
                     </td>
-                    <td class="py-3 px-4 text-right space-x-2">
-                        <button class="edit-btn px-3 py-1 border border-gray-300 rounded text-xs font-bold hover:bg-gray-50"><i class="far fa-edit"></i> Edit</button>
-                        <button class="delete-btn px-3 py-1 bg-red-500 text-white rounded text-xs font-bold hover:bg-red-600"><i class="fas fa-trash"></i> Delete</button>
+                    <td class="py-4 px-4 text-right space-x-2">
+                        <button class="edit-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                        <button class="delete-btn text-red-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
-            `).join('') : '<tr><td colspan="4" class="py-10 text-center text-gray-400">No categories found.</td></tr>';
+            `).join('') : '<tr><td colspan="5" class="py-10 text-center text-gray-400">No categories found.</td></tr>';
         } catch (e) { console.error(e); }
     }
 
     async function renderDeliveryBoysTable() {
-        const tbody = document.querySelector('#delivery-boy-master-list-body');
-        const emptyState = document.querySelector('#delivery-boy-master-list .flex-grow.flex');
+        const tbody = document.getElementById('delivery-boy-master-list-body');
+        if (!tbody) return;
         
         try {
             const { data, error } = await window.supabaseClient.from('delivery_boys').select('*');
             if (error) throw error;
 
-            if (data.length) {
-                if (emptyState) emptyState.classList.add('hidden');
-                
-                // Create table if it doesn't exist or just update body
-                let table = document.querySelector('#delivery-boy-master-list table');
-                if (!table) {
-                    const listContainer = document.getElementById('delivery-boy-master-list');
-                    listContainer.innerHTML += `
-                        <div class="flex-grow p-6 overflow-y-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="text-gray-700 font-bold border-b border-gray-200 text-sm">
-                                        <th class="py-3 px-4">SNo</th>
-                                        <th class="py-3 px-4">Name</th>
-                                        <th class="py-3 px-4">Mobile</th>
-                                        <th class="py-3 px-4 text-center">Status</th>
-                                        <th class="py-3 px-4 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="delivery-boy-master-list-body" class="text-sm"></tbody>
-                            </table>
-                        </div>
-                    `;
-                }
-                
-                document.getElementById('delivery-boy-master-list-body').innerHTML = data.map((boy, index) => `
-                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td class="py-4 px-4 text-gray-500">${index + 1}</td>
-                        <td class="py-4 px-4 font-bold text-slate-700">${boy.full_name}</td>
-                        <td class="py-4 px-4 text-gray-600 font-medium">${boy.mobile || 'N/A'}</td>
-                        <td class="py-4 px-4 text-center">
-                            <span class="px-3 py-1 rounded-full text-[10px] font-bold ${boy.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}">
-                                ${boy.status.toUpperCase()}
-                            </span>
-                        </td>
-                        <td class="py-4 px-4 text-right space-x-2">
-                            <button class="edit-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
-                            <button class="delete-btn text-red-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
+            tbody.innerHTML = data.length ? data.map((boy, index) => `
+                <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td class="py-4 px-4 font-mono text-xs text-gray-400">${boy.id.split('-')[0]}...</td>
+                    <td class="py-4 px-4 font-bold text-slate-700">${boy.full_name}</td>
+                    <td class="py-4 px-4 text-gray-600 font-medium">${boy.mobile || 'N/A'}</td>
+                    <td class="py-4 px-4">
+                        <span class="px-2 py-1 bg-gray-100 text-gray-500 rounded text-[10px] font-bold tracking-widest uppercase">
+                            ${boy.vehicle_type || 'Motorcycle'}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 text-center">
+                        <span class="px-3 py-1 rounded-full text-[10px] font-bold ${boy.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}">
+                            ${boy.status.toUpperCase()}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 text-right space-x-2">
+                        <button class="edit-btn text-blue-500 hover:text-blue-700"><i class="fas fa-edit"></i></button>
+                        <button class="delete-btn text-red-500 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('') : '<tr><td colspan="6" class="py-10 text-center text-gray-400">No delivery boys found.</td></tr>';
         } catch (e) { console.error(e); }
     }
 });

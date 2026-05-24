@@ -11,32 +11,20 @@
         </div>
 
         <!-- Banner Table -->
-        <div class="flex-grow p-6 overflow-y-auto">
+        <div id="banner-master-list-table" class="flex-grow p-4 overflow-y-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="text-gray-700 font-bold border-b border-gray-200 text-sm">
-                        <th class="py-3 px-4">Title</th>
-                        <th class="py-3 px-4">Images</th>
-                        <th class="py-3 px-4">Action</th>
+                    <tr class="text-gray-700 font-bold border-b border-gray-200 text-[11px] uppercase tracking-wider">
+                        <th class="py-3 px-4">Banner ID</th>
+                        <th class="py-3 px-4">Banner Name</th>
+                        <th class="py-3 px-4">Target Category</th>
+                        <th class="py-3 px-4 text-center">Active Status</th>
+                        <th class="py-3 px-4 text-center">Live Preview</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="text-sm">
-                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td class="py-4 px-4 text-gray-400 italic">No Title</td>
-                        <td class="py-4 px-4">804364.jpg</td>
-                        <td class="py-4 px-4 space-x-2">
-                            <button class="px-4 py-1.5 bg-amber-400 text-black rounded font-bold hover:bg-amber-500">Edit</button>
-                            <button class="px-4 py-1.5 bg-red-500 text-white rounded font-bold hover:bg-red-600">Delete</button>
-                        </td>
-                    </tr>
-                    <tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td class="py-4 px-4 text-gray-400 italic">No Title</td>
-                        <td class="py-4 px-4">695898.png</td>
-                        <td class="py-4 px-4 space-x-2">
-                            <button class="px-4 py-1.5 bg-amber-400 text-black rounded font-bold hover:bg-amber-500">Edit</button>
-                            <button class="px-4 py-1.5 bg-red-500 text-white rounded font-bold hover:bg-red-600">Delete</button>
-                        </td>
-                    </tr>
+                    <!-- Dynamic Data -->
                 </tbody>
             </table>
         </div>

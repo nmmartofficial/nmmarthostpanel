@@ -23,9 +23,23 @@
             </button>
         </div>
 
-        <!-- Empty State -->
-        <div class="flex-grow flex items-center justify-center text-gray-500 text-sm">
-            There are no records to display
+        <!-- Delivery Boy Table -->
+        <div id="delivery-boy-master-table" class="flex-grow p-4 overflow-y-auto bg-white">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-gray-700 font-bold border-b border-gray-200 text-[11px] uppercase tracking-wider">
+                        <th class="py-3 px-4">Rider ID</th>
+                        <th class="py-3 px-4">Name</th>
+                        <th class="py-3 px-4">Mobile Number</th>
+                        <th class="py-3 px-4">Vehicle Type</th>
+                        <th class="py-3 px-4 text-center">Live Status</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="delivery-boy-master-list-body" class="text-sm">
+                    <!-- Dynamic Data -->
+                </tbody>
+            </table>
         </div>
     </div>
 
