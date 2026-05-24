@@ -38,141 +38,136 @@
 
     <!-- 1. Top Navbar -->
     <nav class="bg-black text-white px-2 py-0 flex justify-between items-center shadow-lg z-10 h-12">
-        <div class="flex h-full items-center text-[13px] uppercase tracking-tight">
-            <!-- Home Icon -->
+        <div class="flex h-full items-center text-[12px] uppercase tracking-tighter">
+            <!-- Home -->
             <div class="nav-item h-full" id="homeBtn">
                 <i class="fas fa-home text-lg"></i>
             </div>
             
-            <!-- Master -->
+            <!-- 1. Master -->
             <div class="relative h-full group">
                 <div class="nav-item h-full" id="masterBtn">
-                    <i class="fas fa-th-large text-sm"></i>
+                    <i class="fas fa-database text-sm"></i>
                     <span class="nav-text">Master</span>
                     <i class="fas fa-caret-down ml-1 text-[10px]"></i>
                 </div>
-                <!-- Dropdown Menu -->
                 <div class="dropdown-content" id="masterDropdown">
-                    <a href="#" class="dropdown-item" id="itemMasterBtn"><i class="fas fa-sitemap"></i> Item Master</a>
-                    <a href="#" class="dropdown-item" id="itemUnitMasterBtn"><i class="fas fa-truck-loading"></i> Item Unit Master</a>
-                    <a href="#" class="dropdown-item" id="itemGroupMasterBtn"><i class="fas fa-layer-group"></i> Item Group Master</a>
-                    <a href="#" class="dropdown-item" id="itemMainCategoryBtn"><i class="fas fa-shopping-bag"></i> Item Main Category</a>
-                    <a href="#" class="dropdown-item" id="itemSubCategoryBtn"><i class="fas fa-city"></i> Item Sub Category</a>
-                    <a href="#" class="dropdown-item" id="brandMasterBtn"><i class="fas fa-tag"></i> Brand Master</a>
-                    <a href="#" class="dropdown-item" id="departmentMasterBtn"><i class="fas fa-warehouse"></i> Department Master</a>
-                    <a href="#" class="dropdown-item" id="accountMasterBtn"><i class="fas fa-id-card"></i> Account Master</a>
-                    <a href="#" class="dropdown-item" id="userMasterBtn"><i class="fas fa-user-cog"></i> User Master</a>
-                    <a href="#" class="dropdown-item" id="bannerMasterBtn"><i class="fas fa-image"></i> Banner Master</a>
-                    <a href="#" class="dropdown-item" id="creditMasterBtn"><i class="fas fa-user-check"></i> Credit Master</a>
-                    <a href="#" class="dropdown-item" id="deliveryBoyMasterBtn"><i class="fas fa-bicycle"></i> Delivery Boy Master</a>
-                    <a href="#" class="dropdown-item" id="deliveryCustomerMasterBtn"><i class="fas fa-users"></i> Delivery Customer Master</a>
+                    <a href="#" class="dropdown-item" id="itemMasterBtn"><i class="fas fa-box"></i> Item Master</a>
+                    <a href="#" class="dropdown-item" id="brandMasterBtn"><i class="fas fa-tags"></i> Brand Master</a>
+                    <a href="#" class="dropdown-item" id="itemMainCategoryBtn"><i class="fas fa-layer-group"></i> Main Category</a>
+                    <a href="#" class="dropdown-item" id="itemSubCategoryBtn"><i class="fas fa-stream"></i> Sub Category</a>
+                    <a href="#" class="dropdown-item" id="itemUnitMasterBtn"><i class="fas fa-weight-hanging"></i> Unit Master</a>
+                    <a href="#" class="dropdown-item" id="accountMasterBtn"><i class="fas fa-address-book"></i> Account Master</a>
+                    <a href="#" class="dropdown-item" id="userMasterBtn"><i class="fas fa-user-shield"></i> User Permissions</a>
+                    <a href="#" class="dropdown-item" id="bannerMasterBtn"><i class="fas fa-ad"></i> Banner Master</a>
+                    <a href="#" class="dropdown-item" id="deliveryBoyMasterBtn"><i class="fas fa-motorcycle"></i> Logistics Staff</a>
                 </div>
             </div>
 
-            <!-- Sale Entry -->
-            <div class="nav-item h-full" id="saleEntryBtn">
-                <i class="fas fa-file-invoice text-sm"></i>
-                <span class="nav-text">Sale Entry</span>
+            <!-- 2. Sales & POS -->
+            <div class="relative h-full group">
+                <div class="nav-item h-full" id="saleEntryBtn">
+                    <i class="fas fa-cash-register text-sm"></i>
+                    <span class="nav-text">Sales & POS</span>
+                    <i class="fas fa-caret-down ml-1 text-[10px]"></i>
+                </div>
+                <div class="dropdown-content" id="saleDropdown">
+                    <a href="#" class="dropdown-item" id="posCounterBtn"><i class="fas fa-keyboard"></i> POS Counter</a>
+                    <a href="#" class="dropdown-item" id="onlineOrdersBtn"><i class="fas fa-cloud-download-alt"></i> Online Orders</a>
+                    <a href="#" class="dropdown-item" id="b2bInvoicingBtn"><i class="fas fa-file-invoice-dollar"></i> B2B Invoicing</a>
+                    <a href="#" class="dropdown-item" id="salesReturnBtn"><i class="fas fa-undo-alt"></i> Sales Returns</a>
+                </div>
             </div>
 
-            <!-- Purchase -->
-            <div class="nav-item h-full" id="purchaseBtn">
-                <i class="fas fa-shopping-cart text-sm"></i>
-                <span class="nav-text">Purchase</span>
+            <!-- 3. Procurement -->
+            <div class="relative h-full group">
+                <div class="nav-item h-full" id="purchaseBtn">
+                    <i class="fas fa-shopping-basket text-sm"></i>
+                    <span class="nav-text">Procurement</span>
+                    <i class="fas fa-caret-down ml-1 text-[10px]"></i>
+                </div>
+                <div class="dropdown-content" id="purchaseDropdown">
+                    <a href="#" class="dropdown-item" id="purchaseEntryBtn"><i class="fas fa-file-import"></i> Purchase Entry</a>
+                    <a href="#" class="dropdown-item" id="purchaseOrderBtn"><i class="fas fa-clipboard-list"></i> Purchase Order (PO)</a>
+                    <a href="#" class="dropdown-item" id="supplierMasterBtn"><i class="fas fa-truck"></i> Supplier Directory</a>
+                    <a href="#" class="dropdown-item" id="purchaseReturnBtn"><i class="fas fa-reply-all"></i> Purchase Returns</a>
+                </div>
             </div>
 
-            <!-- View -->
+            <!-- 4. Analytics -->
             <div class="relative h-full group">
                 <div class="nav-item h-full" id="viewBtn">
-                    <i class="fas fa-list text-sm"></i>
-                    <span class="nav-text">View</span>
+                    <i class="fas fa-chart-line text-sm"></i>
+                    <span class="nav-text">Analytics</span>
                     <i class="fas fa-caret-down ml-1 text-[10px]"></i>
                 </div>
                 <div class="dropdown-content" id="viewDropdown">
-                    <a href="#" class="dropdown-item"><i class="fas fa-shopping-basket"></i> Online Order</a>
-                    <a href="#" class="dropdown-item" id="billViewBtn">
-                        <i class="fas fa-database"></i> Bill View
-                    </a>
-                    <a href="#" class="dropdown-item">
-                        <i class="fas fa-truck-loading"></i> Bill View (Delivery)
-                    </a>
-                    <a href="#" class="dropdown-item">
-                        <i class="fas fa-code-branch"></i> Branch Bill
-                    </a>
-                    <a href="#" class="dropdown-item">
-                        <i class="fas fa-mobile-alt"></i> Payment (Mobile No)
-                    </a>
-                    <a href="#" class="dropdown-item">
-                        <i class="fas fa-wallet"></i> Wallet recharge
-                    </a>
+                    <a href="#" class="dropdown-item" id="orderTrackingBtn"><i class="fas fa-map-marker-alt"></i> Order Tracking</a>
+                    <a href="#" class="dropdown-item" id="billHistoryBtn"><i class="fas fa-history"></i> Bill History</a>
+                    <a href="#" class="dropdown-item" id="customerDirectoryBtn"><i class="fas fa-users"></i> Customer Directory</a>
+                    <a href="#" class="dropdown-item" id="inventoryOverviewBtn"><i class="fas fa-warehouse"></i> Inventory Overview</a>
+                    <a href="#" class="dropdown-item" id="deliveryLogisticsBtn"><i class="fas fa-shipping-fast"></i> Delivery Logistics</a>
                 </div>
             </div>
 
-            <!-- Report -->
+            <!-- 5. Intelligence -->
             <div class="relative h-full group">
                 <div class="nav-item h-full" id="reportBtn">
-                    <i class="fas fa-flag text-sm"></i>
-                    <span class="nav-text">Report</span>
+                    <i class="fas fa-file-contract text-sm"></i>
+                    <span class="nav-text">Intelligence</span>
                     <i class="fas fa-caret-down ml-1 text-[10px]"></i>
                 </div>
                 <div class="dropdown-content" id="reportDropdown">
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Sale Summary</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Sale Report Bill-wise</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Sale Report Item-wise</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-list-check"></i> Sale Report Item-Summary</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-trash-can"></i> Sale-Trash Bill</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-ban"></i> Sale-Cancelled Bill</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-cart-shopping"></i> Purchase Report</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-bars-staggered"></i> Stock Report</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-warehouse"></i> Item Statement Report</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-book"></i> Logbook</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-book-open"></i> Ledger View</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-money-bill-transfer"></i> Payment Report (Delivery Boy)</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-money-bill-transfer"></i> Credit Report</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-money-bill-transfer"></i> Payment Reminder</a>
+                    <a href="#" class="dropdown-item" id="salesAnalyticsBtn"><i class="fas fa-chart-pie"></i> Sales Analytics</a>
+                    <a href="#" class="dropdown-item" id="stockValuationBtn"><i class="fas fa-calculator"></i> Stock Valuation</a>
+                    <a href="#" class="dropdown-item" id="profitLossBtn"><i class="fas fa-file-invoice"></i> Profit & Loss</a>
+                    <a href="#" class="dropdown-item" id="taxGstReportBtn"><i class="fas fa-landmark"></i> Tax (GST) Reports</a>
+                    <a href="#" class="dropdown-item" id="customerInsightsBtn"><i class="fas fa-lightbulb"></i> Customer Insights</a>
                 </div>
             </div>
 
-            <!-- Store -->
+            <!-- 6. Logistics -->
             <div class="relative h-full group">
                 <div class="nav-item h-full" id="storeBtn">
-                    <i class="fas fa-angle-double-right text-sm"></i>
-                    <span class="nav-text">Store</span>
+                    <i class="fas fa-boxes text-sm"></i>
+                    <span class="nav-text">Logistics</span>
                     <i class="fas fa-caret-down ml-1 text-[10px]"></i>
                 </div>
                 <div class="dropdown-content" id="storeDropdown">
-                    <a href="#" class="dropdown-item"><i class="fas fa-sliders"></i> Bill of Materials (BOM)</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-arrows-to-dot"></i> Production Entry</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-chart-column"></i> Costing Report</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-left"></i> Stock Transfer</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-left"></i> Stock Transfer Report</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-trash-arrow-up"></i> Wastage Entry</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-trash-arrow-up"></i> Wastage Report</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-file-lines"></i> (PO) Purchase order</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-file-lines"></i> (RO) Purchase Report</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-file-lines"></i> (RO) Requisition Order Report</a>
+                    <a href="#" class="dropdown-item" id="warehouseMgmtBtn"><i class="fas fa-dolly"></i> Warehouse Mgmt</a>
+                    <a href="#" class="dropdown-item" id="stockAdjustmentBtn"><i class="fas fa-sliders-h"></i> Stock Adjustment</a>
+                    <a href="#" class="dropdown-item" id="internalTransferBtn"><i class="fas fa-exchange-alt"></i> Internal Transfers</a>
+                    <a href="#" class="dropdown-item" id="wastageTrackingBtn"><i class="fas fa-trash-alt"></i> Wastage Tracking</a>
                 </div>
             </div>
 
-            <!-- Transaction -->
-            <div class="nav-item h-full" id="transactionBtn">
-                <i class="fas fa-money-bill-transfer text-sm"></i>
-                <span class="nav-text">Transaction</span>
+            <!-- 7. Finance -->
+            <div class="relative h-full group">
+                <div class="nav-item h-full" id="transactionBtn">
+                    <i class="fas fa-wallet text-sm"></i>
+                    <span class="nav-text">Finance</span>
+                    <i class="fas fa-caret-down ml-1 text-[10px]"></i>
+                </div>
+                <div class="dropdown-content" id="transactionDropdown">
+                    <a href="#" class="dropdown-item" id="cashBankBookBtn"><i class="fas fa-book"></i> Cash/Bank Book</a>
+                    <a href="#" class="dropdown-item" id="expenseEntryBtn"><i class="fas fa-receipt"></i> Expense Entry</a>
+                    <a href="#" class="dropdown-item" id="partyLedgerBtn"><i class="fas fa-clipboard-list"></i> Party Ledgers</a>
+                    <a href="#" class="dropdown-item" id="paymentReminderBtn"><i class="fas fa-bell"></i> Payment Reminders</a>
+                </div>
             </div>
 
-            <!-- Tools -->
+            <!-- 8. Systems -->
             <div class="relative h-full group">
                 <div class="nav-item h-full" id="toolsBtn">
-                    <i class="fas fa-tools text-sm"></i>
-                    <span class="nav-text">Tools</span>
+                    <i class="fas fa-cogs text-sm"></i>
+                    <span class="nav-text">Systems</span>
                     <i class="fas fa-caret-down ml-1 text-[10px]"></i>
                 </div>
                 <div class="dropdown-content" id="toolsDropdown">
-                    <a href="#" class="dropdown-item"><i class="fas fa-cog"></i> Configuration</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-left"></i> Store Item Display</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-left"></i> Store Sub-Cat Display</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-left"></i> Store Main-Cat Display</a>
-                    <a href="#" class="dropdown-item"><i class="fas fa-right-left"></i> Test Bluetooth</a>
+                    <a href="#" class="dropdown-item" id="appConfigBtn"><i class="fas fa-mobile-alt"></i> App Configuration</a>
+                    <a href="#" class="dropdown-item" id="storeDisplayBtn"><i class="fas fa-desktop"></i> Store Display</a>
+                    <a href="#" class="dropdown-item" id="userPermissionsBtn"><i class="fas fa-user-lock"></i> User Permissions</a>
+                    <a href="#" class="dropdown-item" id="databaseBackupBtn"><i class="fas fa-hdd"></i> Database Backup</a>
                 </div>
             </div>
         </div>

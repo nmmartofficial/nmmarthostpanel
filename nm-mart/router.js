@@ -9,23 +9,61 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mapping of button IDs to their respective section files
     const routes = {
         'homeBtn': 'sections/home.html',
-        'saleEntryBtn': 'sections/sale-entry.html',
-        'purchaseBtn': 'sections/purchase.html',
-        'transactionBtn': 'sections/transaction.html',
-        'billViewBtn': 'sections/view-bill.html',
+        
+        // 1. Master
         'itemMasterBtn': 'sections/master-item.html',
-        'itemUnitMasterBtn': 'sections/master-unit.html',
-        'itemGroupMasterBtn': 'sections/master-group.html',
+        'brandMasterBtn': 'sections/master-brand.html',
         'itemMainCategoryBtn': 'sections/master-main-category.html',
         'itemSubCategoryBtn': 'sections/master-sub-category.html',
-        'brandMasterBtn': 'sections/master-brand.html',
-        'departmentMasterBtn': 'sections/master-department.html',
+        'itemUnitMasterBtn': 'sections/master-unit.html',
         'accountMasterBtn': 'sections/master-account.html',
         'userMasterBtn': 'sections/master-user.html',
         'bannerMasterBtn': 'sections/master-banner.html',
-        'creditMasterBtn': 'sections/master-credit.html',
         'deliveryBoyMasterBtn': 'sections/master-delivery-boy.html',
-        'deliveryCustomerMasterBtn': 'sections/master-delivery-customer.html'
+
+        // 2. Sales & POS
+        'posCounterBtn': 'sections/sale-entry.html',
+        'onlineOrdersBtn': 'sections/sale-entry.html',
+        'b2bInvoicingBtn': 'sections/sale-entry.html',
+        'salesReturnBtn': 'sections/sale-entry.html',
+
+        // 3. Procurement
+        'purchaseEntryBtn': 'sections/purchase.html',
+        'purchaseOrderBtn': 'sections/purchase.html',
+        'supplierMasterBtn': 'sections/master-account.html',
+        'purchaseReturnBtn': 'sections/purchase.html',
+
+        // 4. Analytics
+        'orderTrackingBtn': 'sections/view-bill.html',
+        'billHistoryBtn': 'sections/view-bill.html',
+        'customerDirectoryBtn': 'sections/master-delivery-customer.html',
+        'inventoryOverviewBtn': 'sections/master-item.html',
+        'deliveryLogisticsBtn': 'sections/view-bill.html',
+
+        // 5. Intelligence
+        'salesAnalyticsBtn': 'sections/home.html',
+        'stockValuationBtn': 'sections/home.html',
+        'profitLossBtn': 'sections/home.html',
+        'taxGstReportBtn': 'sections/home.html',
+        'customerInsightsBtn': 'sections/home.html',
+
+        // 6. Logistics
+        'warehouseMgmtBtn': 'sections/master-item.html',
+        'stockAdjustmentBtn': 'sections/master-item.html',
+        'internalTransferBtn': 'sections/master-item.html',
+        'wastageTrackingBtn': 'sections/master-item.html',
+
+        // 7. Finance
+        'cashBankBookBtn': 'sections/transaction.html',
+        'expenseEntryBtn': 'sections/transaction.html',
+        'partyLedgerBtn': 'sections/master-account.html',
+        'paymentReminderBtn': 'sections/master-credit.html',
+
+        // 8. Systems
+        'appConfigBtn': 'sections/home.html',
+        'storeDisplayBtn': 'sections/home.html',
+        'userPermissionsBtn': 'sections/master-user.html',
+        'databaseBackupBtn': 'sections/home.html'
     };
 
     /**
@@ -104,9 +142,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupGlobalUI() {
         const dropdownToggles = [
             { btn: 'masterBtn', menu: 'masterDropdown' },
+            { btn: 'saleEntryBtn', menu: 'saleDropdown' },
+            { btn: 'purchaseBtn', menu: 'purchaseDropdown' },
             { btn: 'viewBtn', menu: 'viewDropdown' },
             { btn: 'reportBtn', menu: 'reportDropdown' },
             { btn: 'storeBtn', menu: 'storeDropdown' },
+            { btn: 'transactionBtn', menu: 'transactionDropdown' },
             { btn: 'toolsBtn', menu: 'toolsDropdown' }
         ];
 
