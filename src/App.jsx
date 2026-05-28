@@ -355,6 +355,14 @@ export default function App() {
   const [itemGridPage, setItemGridPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
 
+  // --- Banner Master Custom States ---
+  const [isBannerGridMode, setIsBannerGridMode] = useState(true);
+  const [bannerPageMode, setBannerPageMode] = useState('NEW');
+  const [bannerFormData, setBannerFormData] = useState({});
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [redirectType, setRedirectType] = useState('custom'); // 'custom' or 'product'
+
   // --- Dynamic Options from Masters ---
   const getItemGroupOptions = () => [
     { value: '28', label: '28: NM MART' },
@@ -988,6 +996,19 @@ export default function App() {
       autoSyncItemsToSupabase(itemMaster);
     }
   }, []); // Empty dependency array = run once on mount
+
+  // --- Close product dropdown when clicking outside ---
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.product-dropdown-container')) {
+        setShowProductDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const handleSave = async (tab, data, setter) => {
     // Ensure data has a valid UUID
@@ -3400,19 +3421,365 @@ export default function App() {
         />;
 
       case 'BannerMaster':
-        return <MasterView 
-          title="Banner Master" 
-          data={bannerMaster}
-          onSave={(d) => handleSave('BannerMaster', d, setBannerMaster)}
-          onDelete={(id) => handleDelete(id, setBannerMaster, "BannerMaster")}
-          mediaSubfolder="banners"
-          fields={[
-            { name: 'title', label: 'Banner Title' },
-            { name: 'imageUrl', label: 'Banner Image', type: 'image', fullWidth: true },
-            { name: 'redirect', label: 'Redirect Path' },
-            { name: 'active', label: 'Status', type: 'toggle' },
-          ]}
-        />;
+        if (!isBannerGridMode) {
+          return (
+            <div className="p-8 max-w-5xl mx-auto animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 p-6 space-y-6">
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <ImageIcon className="text-blue-500" size={20} />
+                  <h2 className="text-xl font-bold text-blue-500">
+                    Banner [{bannerPageMode}]
+                  </h2>
+                </div>
+
+                {/* Title */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Banner Title</label>
+                  <input
+                    type="text"
+                    value={bannerFormData.title || ''}
+                    onChange={(e) => setBannerFormData({ ...bannerFormData, title: e.target.value })}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 rounded-md px-3 py-2 text-sm outline-none transition-all shadow-sm"
+                  />
+                </div>
+
+                {/* Image */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Banner Image</label>
+                  {bannerFormData.imageUrl && (
+                    <div className="w-32 h-20 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden mb-2">
+                      <img src={bannerFormData.imageUrl} alt="Banner" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <div className="flex border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden">
+                      <input
+                        type="file"
+                        id="banner-image"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              setBannerFormData({
+                                ...bannerFormData,
+                                imageUrl: ev.target.result,
+                                imageFile: file,
+                              });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="banner-image"
+                        className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-xs font-bold cursor-pointer hover:bg-slate-200 transition-all border-r border-slate-300 dark:border-slate-700"
+                      >
+                        Choose file
+                      </label>
+                      <span className="px-3 py-1.5 bg-white dark:bg-slate-900 text-xs text-slate-500 min-w-[120px]">
+                        {bannerFormData.imageFile?.name || bannerFormData.imageUrl ? 'File selected' : 'No file chosen'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Redirect Type */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Redirect Type</label>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => {
+                        setRedirectType('custom');
+                        setBannerFormData({ ...bannerFormData, redirect: '' });
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border ${
+                        redirectType === 'custom'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      Custom Path
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRedirectType('product');
+                        setProductSearch('');
+                        setShowProductDropdown(false);
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border ${
+                        redirectType === 'product'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      Link to Product
+                    </button>
+                  </div>
+                </div>
+
+                {/* Redirect Field */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Redirect Path</label>
+                  {redirectType === 'custom' ? (
+                    <input
+                      type="text"
+                      value={bannerFormData.redirect || ''}
+                      onChange={(e) => setBannerFormData({ ...bannerFormData, redirect: e.target.value })}
+                      placeholder="/category/grocery or /"
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 rounded-md px-3 py-2 text-sm outline-none transition-all shadow-sm"
+                    />
+                  ) : (
+                    <div className="relative product-dropdown-container">
+                      <input
+                        type="text"
+                        value={productSearch}
+                        onChange={(e) => {
+                          setProductSearch(e.target.value);
+                          setShowProductDropdown(true);
+                        }}
+                        onFocus={() => setShowProductDropdown(true)}
+                        placeholder="Search product by name or barcode..."
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 rounded-md px-3 py-2 text-sm outline-none transition-all shadow-sm"
+                      />
+                      {showProductDropdown && productSearch && (
+                        <div className="absolute z-10 w-full max-h-80 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md shadow-lg mt-1">
+                          {itemMaster
+                            .filter((item) =>
+                              item.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                              (item.barcode && item.barcode.includes(productSearch))
+                            )
+                            .slice(0, 10)
+                            .map((item) => (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  setBannerFormData({
+                                    ...bannerFormData,
+                                    redirect: `/product/${item.id}`,
+                                    selectedProduct: item,
+                                  });
+                                  setProductSearch(
+                                    `${item.name} ${item.barcode ? `(${item.barcode})` : ''} - ₹${item.sellingPrice || item.mrp}`
+                                  );
+                                  setShowProductDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-slate-100 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-0"
+                              >
+                                <div className="text-sm font-bold text-slate-800 dark:text-white">
+                                  {item.name}
+                                </div>
+                                <div className="text-xs text-slate-500 flex gap-4">
+                                  {item.barcode && <span>Barcode: {item.barcode}</span>}
+                                  <span>₹{item.sellingPrice || item.mrp}</span>
+                                </div>
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                      {bannerFormData.selectedProduct && !showProductDropdown && (
+                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <div className="text-sm font-bold text-blue-800 dark:text-blue-300">
+                            Selected Product: {bannerFormData.selectedProduct.name}
+                          </div>
+                          <div className="text-xs text-blue-600 dark:text-blue-400">
+                            Redirect: {bannerFormData.redirect}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Toggle */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Status</label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBannerFormData({ ...bannerFormData, active: !bannerFormData.active })
+                      }
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                        bannerFormData.active ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          bannerFormData.active ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                    <span className="text-sm text-slate-600 dark:text-slate-300">
+                      {bannerFormData.active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={async () => {
+                      let imageUrl = bannerFormData.imageUrl;
+                      if (bannerFormData.imageFile) {
+                        const uploadedUrl = await uploadMediaToSupabase(bannerFormData.imageFile, 'nm-media', 'banners');
+                        if (uploadedUrl) imageUrl = uploadedUrl;
+                      }
+                      const dataToSave = {
+                        ...bannerFormData,
+                        id: bannerFormData.id || Date.now(),
+                        imageUrl,
+                      };
+                      delete dataToSave.imageFile;
+                      delete dataToSave.selectedProduct;
+
+                      handleSave('BannerMaster', dataToSave, setBannerMaster);
+                      setIsBannerGridMode(true);
+                      setBannerFormData({});
+                      setRedirectType('custom');
+                      setProductSearch('');
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsBannerGridMode(true);
+                      setBannerFormData({});
+                      setRedirectType('custom');
+                      setProductSearch('');
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        } else {
+          return (
+            <div className="p-6 space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    <ImageIcon className="text-slate-600 dark:text-slate-400" size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                      Banner Master
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {bannerMaster.length} banners total
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setBannerPageMode('NEW');
+                    setBannerFormData({});
+                    setRedirectType('custom');
+                    setProductSearch('');
+                    setIsBannerGridMode(false);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2"
+                >
+                  <Plus size={18} /> Create New
+                </button>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white uppercase text-[11px] font-black tracking-widest border-b border-slate-100 dark:border-slate-800">
+                      <tr>
+                        <th className="px-6 py-5">SNo</th>
+                        <th className="px-6 py-5">Title</th>
+                        <th className="px-6 py-5 hide-on-mobile">Image</th>
+                        <th className="px-6 py-5">Redirect</th>
+                        <th className="px-6 py-5">Status</th>
+                        <th className="px-6 py-5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {bannerMaster.map((banner, index) => (
+                        <tr key={banner.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group">
+                          <td className="px-6 py-5 text-xs font-black text-slate-900 dark:text-white">
+                            {index + 1}
+                          </td>
+                          <td className="px-6 py-5">
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">
+                              {banner.title}
+                            </p>
+                          </td>
+                          <td className="px-6 py-5 hide-on-mobile">
+                            <div className="w-16 h-10 mx-auto bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden">
+                              {banner.imageUrl ? (
+                                <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <ImageIcon size={18} className="text-slate-400" />
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-5">
+                            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                              {banner.redirect || '-'}
+                            </p>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span
+                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                banner.active
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                              }`}
+                            >
+                              {banner.active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5 text-right space-x-2 whitespace-nowrap">
+                            <button
+                              onClick={() => {
+                                setBannerFormData(banner);
+                                setBannerPageMode('EDIT');
+                                if (banner.redirect && banner.redirect.startsWith('/product/')) {
+                                  const productId = banner.redirect.split('/product/')[1];
+                                  const product = itemMaster.find((p) => p.id.toString() === productId.toString());
+                                  setRedirectType('product');
+                                  if (product) {
+                                    setBannerFormData({ ...banner, selectedProduct: product });
+                                    setProductSearch(
+                                      `${product.name} ${product.barcode ? `(${product.barcode})` : ''} - ₹${product.sellingPrice || product.mrp}`
+                                    );
+                                  }
+                                } else {
+                                  setRedirectType('custom');
+                                }
+                                setIsBannerGridMode(false);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-all shadow-sm"
+                            >
+                              <Edit2 size={12} /> Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(banner.id, setBannerMaster, 'BannerMaster')}
+                              className="inline-flex items-center gap-1.5 bg-rose-500 text-white rounded-lg text-[11px] font-black uppercase hover:bg-rose-600 transition-all shadow-md shadow-rose-500/20"
+                            >
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          );
+        }
 
       case 'CreditMaster':
         return <MasterView 
