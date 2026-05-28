@@ -73,9 +73,24 @@ const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceho
     setShowForm(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    onSave({ ...formData, id: editingId || Date.now() });
+    
+    const dataToSave = { ...formData, id: editingId || Date.now() };
+    
+    // Check all fields for files to upload
+    for (const field of fields) {
+      const fileKey = `${field.name}File`;
+      if (dataToSave[fileKey]) {
+        const uploadedUrl = await uploadMediaToSupabase(dataToSave[fileKey], 'nm-media');
+        if (uploadedUrl) {
+          dataToSave[field.name] = uploadedUrl;
+        }
+        delete dataToSave[fileKey]; // Remove the temporary file object
+      }
+    }
+    
+    onSave(dataToSave);
     setShowForm(false);
     setEditingId(null);
     setFormData({});
@@ -117,6 +132,47 @@ const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceho
                       />
                     </button>
                     <span className="text-sm text-slate-600 dark:text-slate-300">{formData[field.name] ? 'Active' : 'Inactive'}</span>
+                  </div>
+                ) : field.type === 'image' || field.name.toLowerCase().includes('image') || field.name.toLowerCase().includes('picture') || field.name.toLowerCase().includes('photo') ? (
+                  <div className="flex flex-col gap-2">
+                    {formData[field.name] && (
+                      <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <img src={formData[field.name]} alt="Preview" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <div className="flex border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden">
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          id={`master-field-${field.name}`}
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                setFormData({
+                                  ...formData, 
+                                  [field.name]: event.target.result, 
+                                  [`${field.name}File`]: file 
+                                });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                        <label 
+                          htmlFor={`master-field-${field.name}`} 
+                          className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-xs font-bold cursor-pointer hover:bg-slate-200 transition-all border-r border-slate-300 dark:border-slate-700"
+                        >
+                          Choose file
+                        </label>
+                        <span className="px-3 py-1.5 bg-white dark:bg-slate-900 text-xs text-slate-500 min-w-[120px]">
+                          {formData[`${field.name}File`]?.name || formData[field.name] ? 'File selected' : 'No file chosen'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <input 
@@ -737,6 +793,34 @@ export default function App() {
   const isValidUUID = (str) => { 
     const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i; 
     return regex.test(str); 
+  };
+
+  // --- Universal Media Upload to Supabase Storage ---
+  const uploadMediaToSupabase = async (file, bucketName = 'nm-media') => { 
+    try { 
+      if (!file) return null; 
+      
+      // Clean and generate a completely unique filename 
+      const fileExt = file.name.split('.').pop(); 
+      const fileName = `${crypto.randomUUID()}.${fileExt}`; 
+      
+      // Upload file to the specified Supabase storage bucket 
+      const { data, error } = await supabase.storage 
+        .from(bucketName) 
+        .upload(fileName, file); 
+
+      if (error) throw error; 
+
+      // Retrieve and return the permanent Public URL 
+      const { data: { publicUrl } } = supabase.storage 
+        .from(bucketName) 
+        .getPublicUrl(fileName); 
+
+      return publicUrl; 
+    } catch (err) { 
+      console.error(`Supabase Storage upload error [Bucket: ${bucketName}]:`, err.message); 
+      return null; 
+    } 
   };
 
   // --- Auto-Sync Function (re-usable for bulk sync) ---
@@ -2968,7 +3052,13 @@ export default function App() {
                               if (file) {
                                 const reader = new FileReader();
                                 reader.onload = (event) => {
-                                  setItemFormData({...itemFormData, picture: event.target.result, pictureName: file.name});
+                                  // Keep both the preview URL and the actual File object for upload
+                                  setItemFormData({
+                                    ...itemFormData, 
+                                    picture: event.target.result, 
+                                    pictureFile: file, 
+                                    pictureName: file.name
+                                  });
                                 };
                                 reader.readAsDataURL(file);
                               }
@@ -2984,9 +3074,27 @@ export default function App() {
                     
                     <div className="flex items-center gap-2 w-full md:w-auto justify-end">
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           if (!itemFormData.name || !itemFormData.barcode) return alert("Missing Name or Barcode!");
-                          handleSave('ItemMaster', { ...itemFormData, id: itemFormData.id || Date.now() }, setItemMaster);
+                          
+                          let pictureUrl = itemFormData.picture;
+                          // If we have a new file to upload, send it to Supabase first
+                          if (itemFormData.pictureFile) {
+                            const uploadedUrl = await uploadMediaToSupabase(itemFormData.pictureFile, 'nm-media');
+                            if (uploadedUrl) {
+                              pictureUrl = uploadedUrl;
+                            }
+                          }
+
+                          const dataToSave = { 
+                            ...itemFormData, 
+                            id: itemFormData.id || Date.now(),
+                            picture: pictureUrl
+                          };
+                          // Remove the temporary File object from the saved data
+                          delete dataToSave.pictureFile;
+                          
+                          handleSave('ItemMaster', dataToSave, setItemMaster);
                           setIsItemGridMode(true);
                         }}
                         className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
@@ -3094,7 +3202,7 @@ export default function App() {
           onDelete={(id) => handleDelete(id, setBannerMaster, "BannerMaster")}
           fields={[
             { name: 'title', label: 'Banner Title' },
-            { name: 'imageUrl', label: 'Banner Image URL', fullWidth: true },
+            { name: 'imageUrl', label: 'Banner Image', type: 'image', fullWidth: true },
             { name: 'redirect', label: 'Redirect Path' },
             { name: 'active', label: 'Status', type: 'toggle' },
           ]}
