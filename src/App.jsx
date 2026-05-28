@@ -4204,6 +4204,12 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
+          <a
+            href="#download-app"
+            className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
+          >
+            📥 Download NM App
+          </a>
           <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"><Maximize size={20} /></button>
           <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all relative">
             <Bell size={20} />
