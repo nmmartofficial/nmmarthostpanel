@@ -521,6 +521,7 @@ export default function App() {
   const [isAdminAuthorized, setIsAdminAuthorized] = useState(false);
   const [printerStatus, setPrinterStatus] = useState('Disconnected');
   const [printerLogs, setPrinterLogs] = useState([]);
+  const [printerCharacteristic, setPrinterCharacteristic] = useState(null);
   const [mobileDisplaySettings, setMobileDisplaySettings] = useLocalStorage('nm_mobile_display', {
     items: {},
     subCats: {},
@@ -546,11 +547,54 @@ export default function App() {
     }
   };
 
-  const handlePrinterTest = () => {
+  const handlePrinterTest = async () => {
     setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Printing Test Receipt...`]);
-    setTimeout(() => {
-      alert(`${BRAND_NAME} - POS RECEIPT\n------------------\nSupport: ${SUPPORT_PHONE}\nStatus: Printed Successfully`);
-    }, 500);
+    
+    if (printerCharacteristic) {
+      try {
+        const encoder = new TextEncoder();
+        const testReceipt = `
+${BRAND_NAME}
+------------------
+Test Receipt
+Support: ${SUPPORT_PHONE}
+Date: ${new Date().toLocaleString()}
+------------------
+Thank you for shopping with us!
+
+
+
+\n\n\n\n`;
+        const data = encoder.encode(testReceipt);
+        await printerCharacteristic.writeValue(data);
+        setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Receipt printed successfully!`]);
+      } catch (e) {
+        console.error("Print failed:", e);
+        setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Error: ${e.message}`]);
+      }
+    } else {
+      alert(`${BRAND_NAME} - POS RECEIPT\n------------------\nSupport: ${SUPPORT_PHONE}\nStatus: Printed Successfully (EMULATOR)`);
+    }
+  };
+  const connectToPrinter = async () => {
+    try {
+      setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Scanning for local devices...`]);
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+        optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb']
+      });
+      setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Connecting to ${device.name}...`]);
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+      const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+      setPrinterCharacteristic(characteristic);
+      setPrinterStatus('Connected');
+      setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Connected via Bluetooth to ${device.name}`]);
+    } catch (e) {
+      console.error("Bluetooth connect failed:", e);
+      setPrinterStatus('Disconnected');
+      setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Error: ${e.message}`]);
+    }
   };
 
   const handleSaveTransaction = async () => {
@@ -694,7 +738,7 @@ export default function App() {
     return { ...item, discAmt, taxableBasis, gstAmt, gross };
   };
 
-  const handleSavePurchase = () => {
+  const handleSavePurchase = async () => {
     if (!purchaseHeader.party || purchaseItems.length === 0) return alert("Missing Party or Items!");
 
     const totalQty = purchaseItems.reduce((s, i) => s + Number(i.qty), 0);
@@ -703,25 +747,36 @@ export default function App() {
 
     const newLog = {
       ...purchaseHeader,
-      id: Date.now(),
+      id: generateUUID(),
       items: purchaseItems,
       totalQty,
       totalTax,
       netAmount,
-      roundOff: Math.round(netAmount) - netAmount
+      roundOff: Math.round(netAmount) - netAmount,
+      createdAt: new Date().toISOString()
     };
 
-    // 1. Save Log
+    // 1. Save Log Locally
     setPurchaseLogs([newLog, ...purchaseLogs]);
 
-    // 2. Increment Stock in Item Master
-    setItemMaster(prev => prev.map(masterItem => {
+    // 2. Increment Stock in Item Master & Sync to Supabase
+    const updatedItems = itemMaster.map(masterItem => {
       const purchased = purchaseItems.find(pi => pi.barcode === masterItem.barcode);
       if (purchased) {
         return { ...masterItem, stockQty: Number(masterItem.stockQty) + Number(purchased.qty) };
       }
       return masterItem;
-    }));
+    });
+    setItemMaster(updatedItems);
+    await autoSyncItemsToSupabase(updatedItems);
+
+    // 3. Sync Purchase Log to Supabase
+    try {
+      const { error } = await supabase.from('purchase_logs').upsert(newLog, { onConflict: 'id' });
+      if (error) throw error;
+    } catch (e) {
+      console.error('Purchase log sync failed:', e);
+    }
 
     alert(`Inventory Stock Updated Successfully for ${BRAND_NAME}!`);
     setIsCreatingPurchase(false);
@@ -807,6 +862,37 @@ export default function App() {
       console.error('Error syncing sale log to Supabase:', error);
     }
     
+    // Print receipt via Bluetooth
+    if (printerCharacteristic) {
+      try {
+        const encoder = new TextEncoder();
+        const receiptText = `
+${BRAND_NAME}
+------------------
+Bill No: ${newBill.billNo}
+Date: ${new Date().toLocaleString()}
+${newBill.customer.name ? `Customer: ${newBill.customer.name}` : ''}
+${newBill.customer.phone ? `Phone: ${newBill.customer.phone}` : ''}
+------------------
+Items:
+${cart.map(item => `${item.name} x${item.qty} ₹${item.sellingPrice * item.qty}`).join('\n')}
+------------------
+Total: ₹${newBill.totals.total}
+Payment Mode: ${newBill.paymentMode}
+------------------
+Thank you for shopping with us!
+
+
+
+\n\n\n\n
+`;
+        const data = encoder.encode(receiptText);
+        await printerCharacteristic.writeValue(data);
+      } catch (e) {
+        console.error("Print failed:", e);
+      }
+    }
+    
     alert(`Bill Generated Successfully for ${BRAND_NAME}!`);
   };
 
@@ -845,10 +931,12 @@ export default function App() {
 
   // --- Universal Excel Export Utility ---
   const exportToExcel = (data, filename = 'export') => {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-    XLSX.writeFile(workbook, `${filename}.xlsx`);
+    setTimeout(() => {
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+      XLSX.writeFile(workbook, `${filename}.xlsx`);
+    }, 0);
   };
 
   // --- Universal Media Upload to Supabase Storage ---
@@ -1271,7 +1359,7 @@ export default function App() {
                 <div className={`w-3 h-3 rounded-full ${printerStatus === 'Connected' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
                 <div className="w-3 h-3 rounded-full bg-slate-700"></div>
               </div>
-              <h2 className="text-xl font-black uppercase tracking-[0.2em] mb-6 border-b border-emerald-500/20 pb-4">BT Thermal POS Emulator</h2>
+              <h2 className="text-xl font-black uppercase tracking-[0.2em] mb-6 border-b border-emerald-500/20 pb-4">BT Thermal POS Interface</h2>
               
               <div className="h-64 overflow-y-auto space-y-1 mb-8 scrollbar-hide">
                 {printerLogs.map((log, i) => <p key={i} className="text-xs">{log}</p>)}
@@ -1280,13 +1368,7 @@ export default function App() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button 
-                  onClick={() => {
-                    setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Scanning for local devices...`]);
-                    setTimeout(() => {
-                      setPrinterLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Connected via Bluetooth to Star-Print58`]);
-                      setPrinterStatus('Connected');
-                    }, 1500);
-                  }}
+                  onClick={connectToPrinter}
                   className="bg-emerald-500/10 hover:bg-emerald-500 hover:text-slate-900 border border-emerald-500/50 text-emerald-500 py-4 rounded-2xl font-black uppercase text-xs transition-all"
                 >
                   Scan & Connect
@@ -1299,7 +1381,11 @@ export default function App() {
                   Print Test Receipt
                 </button>
                 <button 
-                  onClick={() => { setPrinterStatus('Disconnected'); setPrinterLogs([]); }}
+                  onClick={() => { 
+                    setPrinterStatus('Disconnected'); 
+                    setPrinterLogs([]); 
+                    setPrinterCharacteristic(null); 
+                  }}
                   className="bg-rose-500/10 hover:bg-rose-500 hover:text-white border border-rose-500/50 text-rose-500 py-4 rounded-2xl font-black uppercase text-xs transition-all"
                 >
                   Kill Connection
