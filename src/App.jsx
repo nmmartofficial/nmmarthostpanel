@@ -4291,7 +4291,7 @@ Thank you for shopping with us!
 
         <div className="flex items-center gap-2">
           <a
-            href="YOUR_SUPABASE_APK_PUBLIC_URL"
+            href="https://pqmgfxntxhnvknrvdyub.supabase.co/storage/v1/object/public/NMMart%20apk/app-releases/NMMart.apk"
             target="_blank"
             rel="noopener noreferrer"
             download="nm-mart-app-release.apk"
