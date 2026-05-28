@@ -360,9 +360,10 @@ export default function App() {
   const [isBannerGridMode, setIsBannerGridMode] = useState(true);
   const [bannerPageMode, setBannerPageMode] = useState('NEW');
   const [bannerFormData, setBannerFormData] = useState({});
-  const [productSearch, setProductSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
-  const [redirectType, setRedirectType] = useState('custom'); // 'custom' or 'product'
+  const [redirectMode, setRedirectMode] = useState('custom'); // 'custom' or 'products'
+  const [selectedProducts, setSelectedProducts] = useState([]);
 
   // --- Dynamic Options from Masters ---
   const getItemGroupOptions = () => [
@@ -3494,11 +3495,12 @@ export default function App() {
                   <div className="flex gap-4">
                     <button
                       onClick={() => {
-                        setRedirectType('custom');
-                        setBannerFormData({ ...bannerFormData, redirect: '' });
+                        setRedirectMode('custom');
+                        setSelectedProducts([]);
+                        setSearchQuery('');
                       }}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border ${
-                        redirectType === 'custom'
+                        redirectMode === 'custom'
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-50'
                       }`}
@@ -3507,17 +3509,17 @@ export default function App() {
                     </button>
                     <button
                       onClick={() => {
-                        setRedirectType('product');
-                        setProductSearch('');
+                        setRedirectMode('products');
+                        setSearchQuery('');
                         setShowProductDropdown(false);
                       }}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all border ${
-                        redirectType === 'product'
+                        redirectMode === 'products'
                           ? 'bg-blue-600 text-white border-blue-600'
                           : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-50'
                       }`}
                     >
-                      Link to Product
+                      Link to Products (Multi-Select)
                     </button>
                   </div>
                 </div>
@@ -3525,7 +3527,7 @@ export default function App() {
                 {/* Redirect Field */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Redirect Path</label>
-                  {redirectType === 'custom' ? (
+                  {redirectMode === 'custom' ? (
                     <input
                       type="text"
                       value={bannerFormData.redirect || ''}
@@ -3535,37 +3537,59 @@ export default function App() {
                     />
                   ) : (
                     <div className="relative product-dropdown-container">
-                      <input
-                        type="text"
-                        value={productSearch}
-                        onChange={(e) => {
-                          setProductSearch(e.target.value);
+                      {/* Chips Container */}
+                      <div 
+                        className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2 flex flex-wrap gap-2 items-center cursor-text"
+                        onClick={() => {
                           setShowProductDropdown(true);
                         }}
-                        onFocus={() => setShowProductDropdown(true)}
-                        placeholder="Search product by name or barcode..."
-                        className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 focus:border-blue-500 rounded-md px-3 py-2 text-sm outline-none transition-all shadow-sm"
-                      />
-                      {showProductDropdown && productSearch && (
+                      >
+                        {selectedProducts.map((product) => (
+                          <span 
+                            key={product.id} 
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-full text-xs font-bold"
+                          >
+                            {product.name}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProducts(selectedProducts.filter(p => p.id !== product.id));
+                              }}
+                              className="ml-1 text-white hover:text-blue-200 transition-colors"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setShowProductDropdown(true);
+                          }}
+                          onFocus={() => setShowProductDropdown(true)}
+                          placeholder={selectedProducts.length === 0 ? "Search product by name or barcode..." : ""}
+                          className="flex-1 bg-transparent border-none outline-none text-sm text-slate-800 dark:text-white min-w-[150px]"
+                        />
+                      </div>
+                      
+                      {/* Search Dropdown */}
+                      {showProductDropdown && (
                         <div className="absolute z-10 w-full max-h-80 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md shadow-lg mt-1">
                           {itemMaster
                             .filter((item) =>
-                              item.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-                              (item.barcode && item.barcode.includes(productSearch))
+                              !selectedProducts.some(p => p.id === item.id) &&
+                              (item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              (item.barcode && item.barcode.includes(searchQuery)))
                             )
                             .slice(0, 10)
                             .map((item) => (
                               <button
                                 key={item.id}
                                 onClick={() => {
-                                  setBannerFormData({
-                                    ...bannerFormData,
-                                    redirect: `/product/${item.id}`,
-                                    selectedProduct: item,
-                                  });
-                                  setProductSearch(
-                                    `${item.name} ${item.barcode ? `(${item.barcode})` : ''} - ₹${item.sellingPrice || item.mrp}`
-                                  );
+                                  setSelectedProducts([...selectedProducts, item]);
+                                  setSearchQuery('');
                                   setShowProductDropdown(false);
                                 }}
                                 className="w-full text-left px-4 py-3 hover:bg-slate-100 dark:hover:bg-slate-800 border-b border-slate-100 dark:border-slate-800 last:border-0"
@@ -3579,16 +3603,6 @@ export default function App() {
                                 </div>
                               </button>
                             ))}
-                        </div>
-                      )}
-                      {bannerFormData.selectedProduct && !showProductDropdown && (
-                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                          <div className="text-sm font-bold text-blue-800 dark:text-blue-300">
-                            Selected Product: {bannerFormData.selectedProduct.name}
-                          </div>
-                          <div className="text-xs text-blue-600 dark:text-blue-400">
-                            Redirect: {bannerFormData.redirect}
-                          </div>
                         </div>
                       )}
                     </div>
@@ -3629,19 +3643,29 @@ export default function App() {
                         const uploadedUrl = await uploadMediaToSupabase(bannerFormData.imageFile, 'nm-media', 'banners');
                         if (uploadedUrl) imageUrl = uploadedUrl;
                       }
+                      
+                      // Format redirect path for products mode
+                      let redirect = bannerFormData.redirect;
+                      if (redirectMode === 'products' && selectedProducts.length > 0) {
+                        const ids = selectedProducts.map(p => p.id).join(',');
+                        redirect = `/products?ids=${ids}`;
+                      }
+                      
                       const dataToSave = {
                         ...bannerFormData,
                         id: bannerFormData.id || Date.now(),
                         imageUrl,
+                        redirect,
+                        selectedProducts: redirectMode === 'products' ? selectedProducts : undefined,
                       };
                       delete dataToSave.imageFile;
-                      delete dataToSave.selectedProduct;
 
                       handleSave('BannerMaster', dataToSave, setBannerMaster);
                       setIsBannerGridMode(true);
                       setBannerFormData({});
-                      setRedirectType('custom');
-                      setProductSearch('');
+                      setRedirectMode('custom');
+                      setSearchQuery('');
+                      setSelectedProducts([]);
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
                   >
@@ -3651,8 +3675,9 @@ export default function App() {
                     onClick={() => {
                       setIsBannerGridMode(true);
                       setBannerFormData({});
-                      setRedirectType('custom');
-                      setProductSearch('');
+                      setRedirectMode('custom');
+                      setSearchQuery('');
+                      setSelectedProducts([]);
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded-md text-sm font-bold hover:bg-blue-700 transition-all shadow-md"
                   >
@@ -3683,8 +3708,9 @@ export default function App() {
                   onClick={() => {
                     setBannerPageMode('NEW');
                     setBannerFormData({});
-                    setRedirectType('custom');
-                    setProductSearch('');
+                    setRedirectMode('custom');
+                    setSearchQuery('');
+                    setSelectedProducts([]);
                     setIsBannerGridMode(false);
                   }}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2"
@@ -3747,19 +3773,29 @@ export default function App() {
                               onClick={() => {
                                 setBannerFormData(banner);
                                 setBannerPageMode('EDIT');
-                                if (banner.redirect && banner.redirect.startsWith('/product/')) {
+                                
+                                // Check if redirect is multi-product
+                                if (banner.redirect && banner.redirect.startsWith('/products?ids=')) {
+                                  const idsString = banner.redirect.split('/products?ids=')[1];
+                                  const ids = idsString.split(',');
+                                  const products = itemMaster.filter(p => ids.includes(p.id.toString()));
+                                  setSelectedProducts(products);
+                                  setRedirectMode('products');
+                                } 
+                                // Check if it's old single product
+                                else if (banner.redirect && banner.redirect.startsWith('/product/')) {
                                   const productId = banner.redirect.split('/product/')[1];
                                   const product = itemMaster.find((p) => p.id.toString() === productId.toString());
-                                  setRedirectType('product');
+                                  setRedirectMode('products');
                                   if (product) {
-                                    setBannerFormData({ ...banner, selectedProduct: product });
-                                    setProductSearch(
-                                      `${product.name} ${product.barcode ? `(${product.barcode})` : ''} - ₹${product.sellingPrice || product.mrp}`
-                                    );
+                                    setSelectedProducts([product]);
                                   }
-                                } else {
-                                  setRedirectType('custom');
+                                } 
+                                // Otherwise custom
+                                else {
+                                  setRedirectMode('custom');
                                 }
+                                
                                 setIsBannerGridMode(false);
                               }}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-[11px] font-black uppercase text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-all shadow-sm"
