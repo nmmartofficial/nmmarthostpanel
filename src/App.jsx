@@ -4205,7 +4205,10 @@ export default function App() {
 
         <div className="flex items-center gap-2">
           <a
-            href="#download-app"
+            href="YOUR_SUPABASE_APK_PUBLIC_URL"
+            target="_blank"
+            rel="noopener noreferrer"
+            download="nm-mart-app-release.apk"
             className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
           >
             📥 Download NM App
