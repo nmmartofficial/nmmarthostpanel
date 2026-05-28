@@ -335,13 +335,14 @@ export default function App() {
   }, []);
 
   const [saleLogs, setSaleLogs] = useLocalStorage('nm_sale_logs', []);
-  const [activeTab, setActiveTab] = useLocalStorage('nm_active_tab', 'dashboard');
+  const [activeTab, setActiveTab] = useLocalStorage('nm_active_view', 'dashboard');
   const [isMasterOpen, setIsMasterOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isStoreOpen, setIsStoreOpen] = useState(false);
   const [isToolOpen, setIsToolOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // --- Item Master Custom States ---
   const [isItemGridMode, setIsItemGridMode] = useLocalStorage('nm_item_grid_mode', true);
@@ -954,48 +955,49 @@ export default function App() {
     }
   };
 
-  // --- Initial Auto-Sync on App Load ---
+  // --- Initial Load from Supabase + Migration ---
   useEffect(() => {
-    const forceOneTimeMigration = async () => {
+    const initializeApp = async () => {
       try {
-        // Local storage से पुराना एक्सेल डेटा उठाएं
-        const localItems = JSON.parse(localStorage.getItem('nm_item_master')) || [];
-        
-        if (localItems.length === 0) return;
-
-        console.log(`Found ${localItems.length} items in localStorage. Checking sync status with Supabase...`);
-
-        // Supabase से count चेक करें कि क्या डेटा सच में गायब है
-        const { count, error: countError } = await supabase
+        // 1. Fetch items from Supabase (source of truth)
+        console.log("Fetching items from Supabase...");
+        const { data: itemsFromDB, error: fetchError } = await supabase
           .from('item_master')
-          .select('*', { count: 'exact', head: true });
+          .select('*');
 
-        if (countError) throw countError;
+        if (fetchError) throw fetchError;
 
-        // अगर क्लाउड पर डेटा लोकल डेटा से कम है, तो माइग्रेशन ट्रिगर करें
-        if (count < localItems.length) {
-          console.log(`Cloud count (${count}) is less than local count (${localItems.length}). Triggering forced background sync...`);
-          
-          // Use our existing batch sync function to push all 7,000+ items safely
-          if (typeof autoSyncItemsToSupabase === 'function') {
-            await autoSyncItemsToSupabase(localItems);
-            console.log("Forced cloud migration completed successfully!");
-          }
+        console.log(`Fetched ${itemsFromDB.length} items from Supabase`);
+
+        // 2. Update itemMaster with Supabase data if available
+        if (itemsFromDB.length > 0) {
+          setItemMaster(itemsFromDB);
         } else {
-          console.log("Supabase tables are already fully populated and in sync with localStorage.");
+          // 3. If no items in Supabase, check localStorage
+          console.log("No items in Supabase, checking localStorage...");
+          const localItems = JSON.parse(localStorage.getItem('nm_item_master')) || [];
+          if (localItems.length > 0) {
+            setItemMaster(localItems);
+            // Sync local items to Supabase
+            await autoSyncItemsToSupabase(localItems);
+          }
+        }
+
+        // 4. Also sync other masters if needed (optional, but let's keep the migration for older items)
+        const localItems = JSON.parse(localStorage.getItem('nm_item_master')) || [];
+        if (localItems.length > 0 && itemsFromDB.length < localItems.length) {
+          console.log("Migrating older items from localStorage to Supabase...");
+          await autoSyncItemsToSupabase(localItems);
         }
       } catch (err) {
-        console.error("Forced cloud migration failed:", err.message);
+        console.error("Initialization failed:", err.message);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    forceOneTimeMigration();
-    
-    // Original auto-sync
-    if (itemMaster.length > 0) {
-      autoSyncItemsToSupabase(itemMaster);
-    }
-  }, []); // Empty dependency array = run once on mount
+    initializeApp();
+  }, []); // Run once on mount
 
   // --- Close product dropdown when clicking outside ---
   useEffect(() => {
@@ -4013,6 +4015,18 @@ export default function App() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f172a]">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto"></div>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Loading Retail OS...</h2>
+          <p className="text-slate-500">Syncing data from Supabase</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0f172a] text-slate-900 dark:text-white font-sans selection:bg-blue-500/30">
       {/* --- Navbar --- */}
