@@ -48,7 +48,7 @@ const useLocalStorage = (key, initialValue) => {
   return [value, setValue];
 };
 
-const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceholder }) => {
+const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceholder, mediaSubfolder }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -82,7 +82,7 @@ const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceho
     for (const field of fields) {
       const fileKey = `${field.name}File`;
       if (dataToSave[fileKey]) {
-        const uploadedUrl = await uploadMediaToSupabase(dataToSave[fileKey], 'nm-media');
+        const uploadedUrl = await uploadMediaToSupabase(dataToSave[fileKey], 'nm-media', mediaSubfolder);
         if (uploadedUrl) {
           dataToSave[field.name] = uploadedUrl;
         }
@@ -543,7 +543,7 @@ export default function App() {
     }, 500);
   };
 
-  const handleSaveTransaction = () => {
+  const handleSaveTransaction = async () => {
     if (transEntries.length === 0) return alert("Add at least one entry!");
     
     const totalAmount = transEntries.reduce((sum, entry) => sum + Number(entry.amount), 0);
@@ -561,7 +561,7 @@ export default function App() {
       vNo,
       entries: mappedEntries,
       totalAmount,
-      id: Date.now()
+      id: generateUUID()
     };
 
     setTransactionLogs([newTransaction, ...transactionLogs]);
@@ -572,13 +572,33 @@ export default function App() {
       if (entriesForAcc.length > 0) {
         const totalDr = entriesForAcc.reduce((s, e) => s + e.dr, 0);
         const totalCr = entriesForAcc.reduce((s, e) => s + e.cr, 0);
-        return { 
+        const updatedAcc = { 
           ...acc, 
           balance: (Number(acc.balance) || 0) + (transHeader.type === 'Receipt' ? totalCr : -totalDr)
         };
+        // Also sync the updated account to Supabase
+        handleSave('AccountMaster', updatedAcc, setAccountMaster);
+        return updatedAcc;
       }
       return acc;
     }));
+
+    // Sync to Supabase
+    try {
+      const cleanTransaction = {
+        id: String(newTransaction.id),
+        type: String(newTransaction.type),
+        type_value: Number(newTransaction.typeValue),
+        account: String(newTransaction.account),
+        date: String(newTransaction.date),
+        v_no: String(newTransaction.vNo),
+        entries: JSON.stringify(newTransaction.entries),
+        total_amount: parseFloat(newTransaction.totalAmount)
+      };
+      await supabase.from('transaction_logs').upsert(cleanTransaction, { onConflict: 'id' });
+    } catch (error) {
+      console.error('Error syncing transaction log to Supabase:', error);
+    }
 
     alert(`${transHeader.type} (Value: ${transHeader.typeValue}) Voucher ${vNo} Saved Successfully!`);
     
@@ -735,7 +755,7 @@ export default function App() {
     return { gross, tax, total: Math.round(gross + tax) };
   };
 
-  const handleSaveBill = () => {
+  const handleSaveBill = async () => {
     if (cart.length === 0) return alert("Cart is empty!");
     
     // Play audio feedback
@@ -744,7 +764,7 @@ export default function App() {
     
     // Reset state
     const newBill = {
-      id: Date.now(),
+      id: generateUUID(),
       billNo: `NM-${Date.now().toString().slice(-6)}`,
       customer: customerInfo,
       items: cart,
@@ -758,6 +778,24 @@ export default function App() {
     setCart([]);
     setCustomerInfo({ name: '', phone: '', address: '' });
     setSelectedDeliveryBoy('');
+    
+    // Sync to Supabase
+    try {
+      const cleanSaleLog = {
+        id: String(newBill.id),
+        bill_no: String(newBill.billNo),
+        customer: JSON.stringify(newBill.customer),
+        items: JSON.stringify(newBill.items),
+        totals: JSON.stringify(newBill.totals),
+        payment_mode: String(newBill.paymentMode),
+        bill_type: String(newBill.billType),
+        rider: newBill.rider ? String(newBill.rider) : null,
+        date: newBill.date
+      };
+      await supabase.from('sale_logs').upsert(cleanSaleLog, { onConflict: 'id' });
+    } catch (error) {
+      console.error('Error syncing sale log to Supabase:', error);
+    }
     
     alert(`Bill Generated Successfully for ${BRAND_NAME}!`);
   };
@@ -795,26 +833,35 @@ export default function App() {
     return regex.test(str); 
   };
 
+  // --- Universal Excel Export Utility ---
+  const exportToExcel = (data, filename = 'export') => {
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+    XLSX.writeFile(workbook, `${filename}.xlsx`);
+  };
+
   // --- Universal Media Upload to Supabase Storage ---
-  const uploadMediaToSupabase = async (file, bucketName = 'nm-media') => { 
+  const uploadMediaToSupabase = async (file, bucketName = 'nm-media', subFolder = '') => { 
     try { 
       if (!file) return null; 
       
       // Clean and generate a completely unique filename 
       const fileExt = file.name.split('.').pop(); 
-      const fileName = `${crypto.randomUUID()}.${fileExt}`; 
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const filePath = subFolder ? `${subFolder}/${fileName}` : fileName;
       
       // Upload file to the specified Supabase storage bucket 
       const { data, error } = await supabase.storage 
         .from(bucketName) 
-        .upload(fileName, file); 
+        .upload(filePath, file); 
 
       if (error) throw error; 
 
       // Retrieve and return the permanent Public URL 
       const { data: { publicUrl } } = supabase.storage 
         .from(bucketName) 
-        .getPublicUrl(fileName); 
+        .getPublicUrl(filePath); 
 
       return publicUrl; 
     } catch (err) { 
@@ -901,6 +948,42 @@ export default function App() {
 
   // --- Initial Auto-Sync on App Load ---
   useEffect(() => {
+    const forceOneTimeMigration = async () => {
+      try {
+        // Local storage से पुराना एक्सेल डेटा उठाएं
+        const localItems = JSON.parse(localStorage.getItem('nm_item_master')) || [];
+        
+        if (localItems.length === 0) return;
+
+        console.log(`Found ${localItems.length} items in localStorage. Checking sync status with Supabase...`);
+
+        // Supabase से count चेक करें कि क्या डेटा सच में गायब है
+        const { count, error: countError } = await supabase
+          .from('item_master')
+          .select('*', { count: 'exact', head: true });
+
+        if (countError) throw countError;
+
+        // अगर क्लाउड पर डेटा लोकल डेटा से कम है, तो माइग्रेशन ट्रिगर करें
+        if (count < localItems.length) {
+          console.log(`Cloud count (${count}) is less than local count (${localItems.length}). Triggering forced background sync...`);
+          
+          // Use our existing batch sync function to push all 7,000+ items safely
+          if (typeof autoSyncItemsToSupabase === 'function') {
+            await autoSyncItemsToSupabase(localItems);
+            console.log("Forced cloud migration completed successfully!");
+          }
+        } else {
+          console.log("Supabase tables are already fully populated and in sync with localStorage.");
+        }
+      } catch (err) {
+        console.error("Forced cloud migration failed:", err.message);
+      }
+    };
+
+    forceOneTimeMigration();
+    
+    // Original auto-sync
     if (itemMaster.length > 0) {
       autoSyncItemsToSupabase(itemMaster);
     }
@@ -920,9 +1003,9 @@ export default function App() {
       return [processedData, ...prev];
     });
 
-    // If it's Item Master, sync to both tables using UPSERT with exact mappings
-    if (tab === 'ItemMaster') {
-      try {
+    try {
+      // Handle different tabs
+      if (tab === 'ItemMaster') {
         // 1. item_master के लिए 100% सेफ डेटा टाइप्स
         const cleanItem = {
           id: String(processedData.id),
@@ -947,7 +1030,7 @@ export default function App() {
           description: processedData.description ? String(processedData.description) : null
         };
 
-        // 2. products के लिए 100% सेफ डेटा टाइप्स (NM App के लिए)
+        // 2. products के लिए 100% सेफ डेटा टाइप్స (NM App के लिए)
         const cleanProduct = {
           id: String(processedData.id),
           name: String(processedData.name || 'Unknown Item'),
@@ -970,25 +1053,67 @@ export default function App() {
           supabase.from('item_master').upsert(cleanItem, { onConflict: 'id' }),
           supabase.from('products').upsert(cleanProduct, { onConflict: 'id' })
         ]);
-      } catch (error) {
-        console.error('Error saving to Supabase:', error);
+      } else if (tab === 'AccountMaster') {
+        const cleanAccount = {
+          id: String(processedData.id),
+          name: String(processedData.name || ''),
+          phone: processedData.phone ? String(processedData.phone) : null,
+          type: processedData.type ? String(processedData.type) : null,
+          address: processedData.address ? String(processedData.address) : null,
+          balance: parseFloat(processedData.balance) || 0
+        };
+        await supabase.from('account_master').upsert(cleanAccount, { onConflict: 'id' });
+      } else if (tab === 'UserPermission') {
+        const cleanUser = {
+          id: String(processedData.id),
+          username: String(processedData.username || ''),
+          role: processedData.role ? String(processedData.role) : null,
+          profile: processedData.profile ? String(processedData.profile) : null
+        };
+        await supabase.from('user_master').upsert(cleanUser, { onConflict: 'id' });
+      } else if (tab === 'BannerMaster') {
+        const cleanBanner = {
+          id: String(processedData.id),
+          title: String(processedData.title || ''),
+          image_url: processedData.imageUrl ? String(processedData.imageUrl) : null,
+          redirect: processedData.redirect ? String(processedData.redirect) : null,
+          active: Boolean(processedData.active)
+        };
+        await supabase.from('banner_master').upsert(cleanBanner, { onConflict: 'id' });
+      } else if (tab === 'CreditMaster') {
+        const cleanCredit = {
+          id: String(processedData.id),
+          customer: String(processedData.customer || ''),
+          threshold: parseFloat(processedData.threshold) || 0,
+          due_date: processedData.dueDate ? String(processedData.dueDate) : null
+        };
+        await supabase.from('credit_master').upsert(cleanCredit, { onConflict: 'id' });
       }
+    } catch (error) {
+      console.error('Error saving to Supabase:', error);
     }
   };
 
   const handleDelete = async (id, setter, tab) => {
     setter(prev => prev.filter(i => i.id !== id));
     
-    // If it's Item Master, delete from both tables in parallel
-    if (tab === 'ItemMaster') {
-      try {
+    try {
+      if (tab === 'ItemMaster') {
         await Promise.all([
           supabase.from('item_master').delete().eq('id', String(id)),
           supabase.from('products').delete().eq('id', String(id))
         ]);
-      } catch (error) {
-        console.error('Error deleting from Supabase:', error);
+      } else if (tab === 'AccountMaster') {
+        await supabase.from('account_master').delete().eq('id', String(id));
+      } else if (tab === 'UserPermission') {
+        await supabase.from('user_master').delete().eq('id', String(id));
+      } else if (tab === 'BannerMaster') {
+        await supabase.from('banner_master').delete().eq('id', String(id));
+      } else if (tab === 'CreditMaster') {
+        await supabase.from('credit_master').delete().eq('id', String(id));
       }
+    } catch (error) {
+      console.error('Error deleting from Supabase:', error);
     }
   };
 
@@ -1786,10 +1911,81 @@ export default function App() {
                 <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">NM MART Analytical Engine</p>
               </div>
               <div className="flex items-center gap-3">
-                <button className="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 hover:bg-slate-700 transition-all">
-                  <Download size={16} /> Export PDF
+              {activeTab === 'Rpt_SaleSummary' && (
+                <button 
+                  onClick={() => exportToExcel(
+                    saleLogs.map(s => ({
+                      BillNo: s.billNo,
+                      Customer: s.customer.name || 'Walk-in',
+                      Date: new Date(s.date).toLocaleDateString(),
+                      GrossTotal: s.totals.gross,
+                      Tax: s.totals.tax,
+                      NetTotal: s.totals.total,
+                      PaymentMode: s.paymentMode
+                    })), 
+                    'sale-summary'
+                  )}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all"
+                >
+                  <Download size={16} /> Export to Excel
                 </button>
-              </div>
+              )}
+              {activeTab === 'Rpt_Stock_Report' && (
+                <button 
+                  onClick={() => exportToExcel(
+                    itemMaster.map(i => ({
+                      ItemName: i.name,
+                      Barcode: i.barcode,
+                      MRP: i.mrp,
+                      SellingPrice: i.sellingPrice,
+                      StockQty: i.stockQty,
+                      Unit: i.unit,
+                      Group: i.group,
+                      Brand: i.brand
+                    })), 
+                    'stock-report'
+                  )}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all"
+                >
+                  <Download size={16} /> Export to Excel
+                </button>
+              )}
+              {activeTab === 'LedgerView' && (
+                <button 
+                  onClick={() => exportToExcel(
+                    transactionLogs.map(t => ({
+                      VoucherNo: t.vNo,
+                      Date: t.date,
+                      Type: t.type,
+                      Account: t.account,
+                      TotalAmount: t.totalAmount
+                    })), 
+                    'ledger-view'
+                  )}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all"
+                >
+                  <Download size={16} /> Export to Excel
+                </button>
+              )}
+              {activeTab === 'Rpt_CreditCustomer_Report' && (
+                <button 
+                  onClick={() => exportToExcel(
+                    creditMaster.map(c => ({
+                      Customer: c.customer,
+                      CreditThreshold: c.threshold,
+                      DueDate: c.dueDate
+                    })), 
+                    'credit-report'
+                  )}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 transition-all"
+                >
+                  <Download size={16} /> Export to Excel
+                </button>
+              )}
+              <button className="bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-2 hover:bg-slate-700 transition-all">
+                <Download size={16} /> Export PDF
+              </button>
+            </div>
             </div>
 
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-[32px] shadow-sm flex flex-wrap items-center gap-4">
@@ -2772,6 +2968,15 @@ export default function App() {
                     <Download size={16} /> Import Item
                   </button>
                   <button 
+                    onClick={async () => {
+                      await autoSyncItemsToSupabase(itemMaster);
+                      alert("All items synced to Supabase successfully!");
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 rounded-2xl border-2 border-green-600 text-green-600 hover:bg-green-600 hover:text-white transition-all text-xs font-black uppercase tracking-widest shadow-lg shadow-green-500/5"
+                  >
+                    <Repeat size={16} /> Sync All to Supabase
+                  </button>
+                  <button 
                     onClick={() => { setItemPageMode('NEW'); setItemFormData({}); setIsItemGridMode(false); }}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2"
                   >
@@ -3080,7 +3285,7 @@ export default function App() {
                           let pictureUrl = itemFormData.picture;
                           // If we have a new file to upload, send it to Supabase first
                           if (itemFormData.pictureFile) {
-                            const uploadedUrl = await uploadMediaToSupabase(itemFormData.pictureFile, 'nm-media');
+                            const uploadedUrl = await uploadMediaToSupabase(itemFormData.pictureFile, 'nm-media', 'products');
                             if (uploadedUrl) {
                               pictureUrl = uploadedUrl;
                             }
@@ -3200,6 +3405,7 @@ export default function App() {
           data={bannerMaster}
           onSave={(d) => handleSave('BannerMaster', d, setBannerMaster)}
           onDelete={(id) => handleDelete(id, setBannerMaster, "BannerMaster")}
+          mediaSubfolder="banners"
           fields={[
             { name: 'title', label: 'Banner Title' },
             { name: 'imageUrl', label: 'Banner Image', type: 'image', fullWidth: true },
