@@ -968,6 +968,42 @@ Thank you for shopping with us!
     } 
   };
 
+  // --- Helper: Extract Storage File Path from Public URL ---
+  const extractStoragePathFromUrl = (publicUrl, bucketName = 'nm-media') => {
+    if (!publicUrl) return null;
+    try {
+      const url = new URL(publicUrl);
+      const pathParts = url.pathname.split('/');
+      const bucketIndex = pathParts.indexOf(bucketName);
+      if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+        return pathParts.slice(bucketIndex + 1).join('/');
+      }
+    } catch (e) {
+      console.error('Error extracting storage path from URL:', e);
+    }
+    return null;
+  };
+
+  // --- Universal Media Delete from Supabase Storage ---
+  const deleteMediaFromSupabase = async (publicUrl, bucketName = 'nm-media') => {
+    try {
+      const filePath = extractStoragePathFromUrl(publicUrl, bucketName);
+      if (!filePath) {
+        console.warn('No valid storage path found to delete');
+        return;
+      }
+      
+      const { error } = await supabase.storage
+        .from(bucketName)
+        .remove([filePath]);
+        
+      if (error) throw error;
+      console.log(`Successfully deleted file from Supabase Storage: ${filePath}`);
+    } catch (err) {
+      console.error(`Supabase Storage delete error [Bucket: ${bucketName}]:`, err.message);
+    }
+  };
+
   // --- Auto-Sync Function (re-usable for bulk sync) ---
   const autoSyncItemsToSupabase = async (items) => {
     try {
@@ -1207,8 +1243,32 @@ Thank you for shopping with us!
   };
 
   const handleDelete = async (id, setter, tab) => {
+    // Get current data array from the right state variable
+    let currentData = [];
+    if (tab === 'ItemMaster') currentData = itemMaster;
+    else if (tab === 'BannerMaster') currentData = bannerMaster;
+    else if (tab === 'AccountMaster') currentData = accountMaster;
+    else if (tab === 'UserPermission') currentData = userMaster;
+    else if (tab === 'CreditMaster') currentData = creditMaster;
+
+    // Find the item to delete from current data
+    const itemToDelete = currentData.find(i => i.id === id);
+    
+    // Delete media file first if exists
+    if (itemToDelete) {
+      if (tab === 'ItemMaster') {
+        const itemImage = itemToDelete.picture || itemToDelete.image_url;
+        if (itemImage) await deleteMediaFromSupabase(itemImage);
+      } else if (tab === 'BannerMaster') {
+        const bannerImage = itemToDelete.imageUrl || itemToDelete.image_url;
+        if (bannerImage) await deleteMediaFromSupabase(bannerImage);
+      }
+    }
+    
+    // Update local state
     setter(prev => prev.filter(i => i.id !== id));
     
+    // Delete from Supabase tables
     try {
       if (tab === 'ItemMaster') {
         await Promise.all([
