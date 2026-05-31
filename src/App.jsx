@@ -370,6 +370,18 @@ export default function App() {
   const [isToolOpen, setIsToolOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [toasts, setToasts] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Helper to add a toast
+  const addToast = (message, type = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
 
   // --- Item Master Custom States ---
   const [isItemGridMode, setIsItemGridMode] = useLocalStorage('nm_item_grid_mode', true);
@@ -1624,6 +1636,8 @@ Thank you for shopping with us!
   }, []);
 
   const handleSave = async (tab, data, setter) => {
+    setIsSaving(true);
+    try {
     // Ensure data has a valid UUID
     const processedData = { ...data };
     if (!processedData.id || !isValidUUID(processedData.id)) {
@@ -1831,12 +1845,19 @@ Thank you for shopping with us!
         
         await supabase.from('purchase_log').upsert(cleanPurchase, { onConflict: 'id' });
       }
+      
+      addToast('Record saved successfully!', 'success');
     } catch (error) {
       console.error('Error saving to Supabase:', error);
+      addToast('Error saving record! Please try again.', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = async (id, setter, tab) => {
+    setIsDeleting(true);
+    try {
     // Get current data array from the right state variable
     let currentData = [];
     if (tab === 'ItemMaster') currentData = itemMaster;
@@ -1923,10 +1944,16 @@ Thank you for shopping with us!
         }
         await supabase.from('purchase_log').delete().eq('id', String(id));
       }
+      
+      addToast('Record deleted successfully!', 'success');
     } catch (error) {
       console.error('Error deleting from Supabase:', error);
+      addToast('Error deleting record! Please try again.', 'error');
     }
-  };
+  } finally {
+    setIsDeleting(false);
+  }
+};
   
   // --- RBAC: Login/Logout ---
   const handleLogin = async (e) => {
@@ -6126,6 +6153,26 @@ Thank you for shopping with us!
           </div>
         </div>
       </footer>
+
+      {/* --- Toast Notifications --- */}
+      <div className="fixed top-20 right-4 z-[100] space-y-2">
+        {toasts.map(toast => (
+          <div 
+            key={toast.id} 
+            className={`px-4 py-3 rounded-lg shadow-xl text-sm font-bold flex items-center gap-2 animate-in slide-in-from-right fade-in duration-300 ${
+              toast.type === 'success' ? 'bg-emerald-600 text-white' : 
+              toast.type === 'error' ? 'bg-rose-600 text-white' : 
+              'bg-blue-600 text-white'
+            }`}
+          >
+            {toast.type === 'success' && '✅'}
+            {toast.type === 'error' && '❌'}
+            {toast.type === 'info' && 'ℹ️'}
+            {toast.message}
+          </div>
+        ))}
+      </div>
+
     </div>
   );
 }
