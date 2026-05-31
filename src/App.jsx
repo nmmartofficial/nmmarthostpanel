@@ -373,6 +373,8 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [errorLog, setErrorLog] = useState([]); // Last 5 errors for Debug Overlay
+  const [failedButtonId, setFailedButtonId] = useState(null); // For button failure UI
 
   // Helper to add a toast
   const addToast = (message, type = 'success') => {
@@ -380,7 +382,41 @@ export default function App() {
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
+    }, 5000); // Keep errors longer (5 sec)
+  };
+
+  // Global Error Logging Function (handles toast, error log, Supabase)
+  const logError = async (error, context = 'Unknown Operation') => {
+    const errorId = Date.now();
+    const timestamp = new Date().toLocaleString();
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+
+    // 1. Update local error log (keep last 5)
+    const newErrorEntry = { id: errorId, timestamp, message: errorMessage, context };
+    setErrorLog(prev => [newErrorEntry, ...prev].slice(0, 5));
+
+    // 2. Show error toast with actual error message
+    addToast(`${context}: ${errorMessage}`, 'error');
+
+    // 3. Send error to Supabase error_log table
+    try {
+      await supabase.from('error_log').insert([
+        {
+          id: errorId,
+          error_message: errorMessage,
+          error_context: context,
+          timestamp: new Date().toISOString(),
+          user_id: currentStaff?.id || 'anonymous',
+          user_role: currentStaff?.role || 'guest'
+        }
+      ]);
+    } catch (supabaseError) {
+      console.error('Failed to send error to Supabase:', supabaseError);
+    }
+
+    // 4. Trigger button failure UI
+    setFailedButtonId(errorId);
+    setTimeout(() => setFailedButtonId(null), 1000); // Reset after shake animation
   };
 
   // --- Item Master Custom States ---
@@ -564,6 +600,78 @@ export default function App() {
     }
   }, [activeTab, rerunTrigger, itemMaster, bannerMaster]);
 
+  // --- Universal Master Configuration ---
+  const masterConfig = {
+    ItemUnit_View: {
+      table: 'unit_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
+    },
+    ItemGroupMaster: {
+      table: 'group_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
+    },
+    'Item-main-Category': {
+      table: 'main_cat_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
+    },
+    'Item-Sub-Category': {
+      table: 'sub_cat_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
+    },
+    BrandMaster: {
+      table: 'brand_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
+    },
+    StaffMaster: {
+      table: 'staff_master',
+      toDb: (data) => ({ id: String(data.id), username: String(data.username), password: String(data.password), staff_name: String(data.staff_name), role: String(data.role), is_active: Boolean(data.is_active !== undefined ? data.is_active : true) })
+    },
+    VendorMaster: {
+      table: 'vendor_master',
+      toDb: (data) => ({ id: String(data.id), vendor_name: String(data.vendor_name), contact_person: data.contact_person ? String(data.contact_person) : null, mobile: data.mobile ? String(data.mobile) : null, address: data.address ? String(data.address) : null, pending_dues: parseFloat(data.pending_dues || 0) })
+    },
+    DepartmentMas: {
+      table: 'dept_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
+    },
+    AccountMaster: {
+      table: 'account_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || ''), phone: data.phone ? String(data.phone) : null, type: data.type ? String(data.type) : null, address: data.address ? String(data.address) : null, balance: parseFloat(data.balance) || 0 })
+    },
+    UserPermission: {
+      table: 'user_master',
+      toDb: (data) => ({ id: String(data.id), username: String(data.username || ''), role: data.role ? String(data.role) : null, profile: data.profile ? String(data.profile) : null })
+    },
+    CreditMaster: {
+      table: 'credit_master',
+      toDb: (data) => ({ id: String(data.id), customer: String(data.customer || ''), threshold: parseFloat(data.threshold) || 0, due_date: data.dueDate ? String(data.dueDate) : null })
+    },
+    DeliveryBoyMaster: {
+      table: 'delivery_boy_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || ''), phone: data.phone ? String(data.phone) : null, status: data.status ? String(data.status) : 'Available' })
+    },
+    Delivery_cust_Master: {
+      table: 'delivery_customer_master',
+      toDb: (data) => ({ id: String(data.id), name: String(data.name || ''), address: data.address ? String(data.address) : null, coordinates: data.coordinates ? String(data.coordinates) : null })
+    },
+    PincodeMaster: {
+      table: 'pincode_master',
+      toDb: (data) => ({ id: String(data.id), pincode: String(data.pincode), is_allowed: Boolean(data.is_allowed !== undefined ? data.is_allowed : true), delivery_charge: parseFloat(data.delivery_charge || data.deliveryCharge) || 0 })
+    },
+    WalletMaster: {
+      table: 'wallet_master',
+      toDb: (data) => ({ id: String(data.id), user_id: String(data.user_id || data.userId), current_balance: parseFloat(data.current_balance || data.currentBalance) || 0, updated_at: data.updated_at ? String(data.updated_at) : new Date().toISOString() })
+    },
+    WalletTransactions: {
+      table: 'wallet_transactions',
+      toDb: (data) => ({ id: String(data.id), wallet_id: String(data.wallet_id), user_id: String(data.user_id), type: String(data.type), amount: parseFloat(data.amount) || 0, previous_balance: parseFloat(data.previous_balance) || 0, new_balance: parseFloat(data.new_balance) || 0, remarks: data.remarks ? String(data.remarks) : null, created_at: data.created_at ? String(data.created_at) : new Date().toISOString() })
+    },
+    PurchaseLog: {
+      table: 'purchase_log',
+      toDb: (data) => ({ id: String(data.id), vendor_id: String(data.vendor_id), bill_number: data.bill_number ? String(data.bill_number) : null, total_amount: parseFloat(data.total_amount || 0), paid_amount: parseFloat(data.paid_amount || 0), payment_mode: String(data.payment_mode || 'Cash'), purchase_date: data.purchase_date ? String(data.purchase_date) : new Date().toISOString().split('T')[0] })
+    }
+  };
+
   const masters = [
     { id: 'ItemMaster', label: 'Item Master', icon: <Package size={16} /> },
     { id: 'ItemUnit_View', label: 'Item Unit Master', icon: <Layers size={16} /> },
@@ -571,6 +679,7 @@ export default function App() {
     { id: 'Item-main-Category', label: 'Item Main Category', icon: <List size={16} /> },
     { id: 'Item-Sub-Category', label: 'Item Sub Category', icon: <Tag size={16} /> },
     { id: 'BrandMaster', label: 'Brand Master', icon: <Building2 size={16} /> },
+    { id: 'StaffMaster', label: 'Staff Master', icon: <UserCircle size={16} /> },
     { id: 'VendorMaster', label: 'Vendor Master', icon: <Users size={16} /> },
     { id: 'PurchaseLog', label: 'Purchase Log', icon: <ShoppingCart size={16} /> },
     { id: 'DepartmentMas', label: 'Department Master', icon: <Users size={16} /> },
@@ -1474,6 +1583,9 @@ Thank you for shopping with us!
           { data: staffFromDB, error: staffFetchError },
           { data: vendorsFromDB, error: vendorFetchError },
           { data: purchaseLogsFromDB, error: purchaseFetchError },
+          { data: deptsFromDB, error: deptFetchError },
+          { data: dboyFromDB, error: dboyFetchError },
+          { data: dcustFromDB, error: dcustFetchError },
         ] = await Promise.all([
           supabase.from('unit_master').select('*'),
           supabase.from('group_master').select('*'),
@@ -1483,6 +1595,9 @@ Thank you for shopping with us!
           supabase.from('staff_master').select('*'),
           supabase.from('vendor_master').select('*'),
           supabase.from('purchase_log').select('*').order('purchase_date', { ascending: false }),
+          supabase.from('dept_master').select('*'),
+          supabase.from('delivery_boy_master').select('*'),
+          supabase.from('delivery_customer_master').select('*'),
         ]);
 
         if (!unitsFetchError && unitsFromDB.length > 0) setUnitMaster(unitsFromDB);
@@ -1490,6 +1605,9 @@ Thank you for shopping with us!
         if (!mainCatsFetchError && mainCatsFromDB.length > 0) setMainCatMaster(mainCatsFromDB);
         if (!subCatsFetchError && subCatsFromDB.length > 0) setSubCatMaster(subCatsFromDB);
         if (!brandsFetchError && brandsFromDB.length > 0) setBrandMaster(brandsFromDB);
+        if (!deptFetchError && deptsFromDB.length > 0) setDeptMaster(deptsFromDB);
+        if (!dboyFetchError && dboyFromDB.length > 0) setDeliveryBoyMaster(dboyFromDB);
+        if (!dcustFetchError && dcustFromDB.length > 0) setDeliveryCustMaster(dcustFromDB);
         
         // Handle staff master
         if (!staffFetchError && staffFromDB.length > 0) {
@@ -1612,6 +1730,9 @@ Thank you for shopping with us!
       setupRealtimeSubscription('staff_master', setStaffMaster),
       setupRealtimeSubscription('vendor_master', setVendorMaster),
       setupRealtimeSubscription('purchase_log', setVendorPurchaseLog),
+      setupRealtimeSubscription('dept_master', setDeptMaster),
+      setupRealtimeSubscription('delivery_boy_master', setDeliveryBoyMaster),
+      setupRealtimeSubscription('delivery_customer_master', setDeliveryCustMaster),
     ];
 
     // Cleanup subscriptions when component unmounts
@@ -1635,9 +1756,11 @@ Thank you for shopping with us!
     };
   }, []);
 
+  // --- Critical Tabs for Verification Prompt ---
+  const criticalTabs = ['PurchaseLog', 'StaffMaster', 'ItemMaster'];
+
   const handleSave = async (tab, data, setter) => {
     setIsSaving(true);
-    try {
     // Ensure data has a valid UUID
     const processedData = { ...data };
     if (!processedData.id || !isValidUUID(processedData.id)) {
@@ -1652,7 +1775,6 @@ Thank you for shopping with us!
     });
 
     try {
-      // Handle different tabs
       if (tab === 'ItemMaster') {
         // 1. item_master के लिए 100% सेफ डेटा टाइप्स
         const cleanItem = {
@@ -1697,30 +1819,12 @@ Thank you for shopping with us!
           badge: processedData.badge ? String(processedData.badge) : '',
           min_stock_level: parseFloat(processedData.min_stock_level) || 10
         };
-        
+
         // Upsert to item_master and products in parallel for speed
         await Promise.all([
           supabase.from('item_master').upsert(cleanItem, { onConflict: 'id' }),
           supabase.from('products').upsert(cleanProduct, { onConflict: 'id' })
         ]);
-      } else if (tab === 'AccountMaster') {
-        const cleanAccount = {
-          id: String(processedData.id),
-          name: String(processedData.name || ''),
-          phone: processedData.phone ? String(processedData.phone) : null,
-          type: processedData.type ? String(processedData.type) : null,
-          address: processedData.address ? String(processedData.address) : null,
-          balance: parseFloat(processedData.balance) || 0
-        };
-        await supabase.from('account_master').upsert(cleanAccount, { onConflict: 'id' });
-      } else if (tab === 'UserPermission') {
-        const cleanUser = {
-          id: String(processedData.id),
-          username: String(processedData.username || ''),
-          role: processedData.role ? String(processedData.role) : null,
-          profile: processedData.profile ? String(processedData.profile) : null
-        };
-        await supabase.from('user_master').upsert(cleanUser, { onConflict: 'id' });
       } else if (tab === 'BannerMaster') {
         const cleanBanner = {
           id: String(processedData.id),
@@ -1729,110 +1833,12 @@ Thank you for shopping with us!
           redirect_path: processedData.redirect ? String(processedData.redirect) : null,
           is_active: Boolean(processedData.active !== undefined ? processedData.active : true)
         };
-        console.log('Saving banner to Supabase:', cleanBanner);
         const { error } = await supabase.from('banner_master').upsert(cleanBanner, { onConflict: 'id' });
         if (error) {
-          console.error('Banner save error:', JSON.stringify(error, null, 2));
           throw error;
         }
-      } else if (tab === 'CreditMaster') {
-        const cleanCredit = {
-          id: String(processedData.id),
-          customer: String(processedData.customer || ''),
-          threshold: parseFloat(processedData.threshold) || 0,
-          due_date: processedData.dueDate ? String(processedData.dueDate) : null
-        };
-        await supabase.from('credit_master').upsert(cleanCredit, { onConflict: 'id' });
-      } else if (tab === 'WalletMaster') {
-        const cleanWallet = {
-          id: String(processedData.id),
-          user_id: String(processedData.user_id || processedData.userId),
-          current_balance: parseFloat(processedData.current_balance || processedData.currentBalance) || 0,
-          updated_at: processedData.updated_at ? String(processedData.updated_at) : new Date().toISOString()
-        };
-        await supabase.from('wallet_master').upsert(cleanWallet, { onConflict: 'id' });
-      } else if (tab === 'WalletTransactions') {
-        const cleanTransaction = {
-          id: String(processedData.id),
-          wallet_id: String(processedData.wallet_id),
-          user_id: String(processedData.user_id),
-          type: String(processedData.type),
-          amount: parseFloat(processedData.amount) || 0,
-          previous_balance: parseFloat(processedData.previous_balance) || 0,
-          new_balance: parseFloat(processedData.new_balance) || 0,
-          remarks: processedData.remarks ? String(processedData.remarks) : null,
-          created_at: processedData.created_at ? String(processedData.created_at) : new Date().toISOString()
-        };
-        await supabase.from('wallet_transactions').insert([cleanTransaction]);
-      } else if (tab === 'PincodeMaster') {
-        const cleanPincode = {
-          id: String(processedData.id),
-          pincode: String(processedData.pincode),
-          is_allowed: Boolean(processedData.is_allowed !== undefined ? processedData.is_allowed : true),
-          delivery_charge: parseFloat(processedData.delivery_charge || processedData.deliveryCharge) || 0
-        };
-        await supabase.from('pincode_master').upsert(cleanPincode, { onConflict: 'id' });
-      } else if (tab === 'ItemUnit_View') {
-        const cleanUnit = {
-          id: String(processedData.id),
-          name: String(processedData.name || '')
-        };
-        await supabase.from('unit_master').upsert(cleanUnit, { onConflict: 'id' });
-      } else if (tab === 'ItemGroupMaster') {
-        const cleanGroup = {
-          id: String(processedData.id),
-          name: String(processedData.name || '')
-        };
-        await supabase.from('group_master').upsert(cleanGroup, { onConflict: 'id' });
-      } else if (tab === 'Item-main-Category') {
-        const cleanMainCat = {
-          id: String(processedData.id),
-          name: String(processedData.name || '')
-        };
-        await supabase.from('main_cat_master').upsert(cleanMainCat, { onConflict: 'id' });
-      } else if (tab === 'Item-Sub-Category') {
-        const cleanSubCat = {
-          id: String(processedData.id),
-          name: String(processedData.name || '')
-        };
-        await supabase.from('sub_cat_master').upsert(cleanSubCat, { onConflict: 'id' });
-      } else if (tab === 'BrandMaster') {
-        const cleanBrand = {
-          id: String(processedData.id),
-          name: String(processedData.name || '')
-        };
-        await supabase.from('brand_master').upsert(cleanBrand, { onConflict: 'id' });
-      } else if (tab === 'StaffMaster') {
-        const cleanStaff = {
-          id: String(processedData.id),
-          username: String(processedData.username),
-          password: String(processedData.password),
-          staff_name: String(processedData.staff_name),
-          role: String(processedData.role),
-          is_active: Boolean(processedData.is_active !== undefined ? processedData.is_active : true)
-        };
-        await supabase.from('staff_master').upsert(cleanStaff, { onConflict: 'id' });
-      } else if (tab === 'VendorMaster') {
-        const cleanVendor = {
-          id: String(processedData.id),
-          vendor_name: String(processedData.vendor_name),
-          contact_person: processedData.contact_person ? String(processedData.contact_person) : null,
-          mobile: processedData.mobile ? String(processedData.mobile) : null,
-          address: processedData.address ? String(processedData.address) : null,
-          pending_dues: parseFloat(processedData.pending_dues || 0)
-        };
-        await supabase.from('vendor_master').upsert(cleanVendor, { onConflict: 'id' });
       } else if (tab === 'PurchaseLog') {
-        const cleanPurchase = {
-          id: String(processedData.id),
-          vendor_id: String(processedData.vendor_id),
-          bill_number: processedData.bill_number ? String(processedData.bill_number) : null,
-          total_amount: parseFloat(processedData.total_amount || 0),
-          paid_amount: parseFloat(processedData.paid_amount || 0),
-          payment_mode: String(processedData.payment_mode || 'Cash'),
-          purchase_date: processedData.purchase_date ? String(processedData.purchase_date) : new Date().toISOString().split('T')[0]
-        };
-        
+        const cleanPurchase = masterConfig.PurchaseLog.toDb(processedData);
         // Update vendor's pending dues when saving purchase!
         const vendor = vendorMaster.find(v => v.id === cleanPurchase.vendor_id);
         if (vendor) {
@@ -1842,95 +1848,72 @@ Thank you for shopping with us!
             pending_dues: newPendingDues
           }, { onConflict: 'id' });
         }
-        
         await supabase.from('purchase_log').upsert(cleanPurchase, { onConflict: 'id' });
+      } else if (masterConfig[tab]) {
+        const config = masterConfig[tab];
+        const cleanData = config.toDb(processedData);
+        await supabase.from(config.table).upsert(cleanData, { onConflict: 'id' });
       }
-      
       addToast('Record saved successfully!', 'success');
     } catch (error) {
-      console.error('Error saving to Supabase:', error);
-      addToast('Error saving record! Please try again.', 'error');
+      logError(error, `Save Failed (${tab})`);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (id, setter, tab) => {
+    // Verification prompt for critical tabs
+    if (criticalTabs.includes(tab)) {
+      const confirmed = window.confirm(`Warning: Deleting this record (${tab}) is permanent and may affect other data. Are you sure you want to continue?`);
+      if (!confirmed) return;
+    }
+
     setIsDeleting(true);
     try {
-    // Get current data array from the right state variable
-    let currentData = [];
-    if (tab === 'ItemMaster') currentData = itemMaster;
-    else if (tab === 'BannerMaster') currentData = bannerMaster;
-    else if (tab === 'AccountMaster') currentData = accountMaster;
-    else if (tab === 'UserPermission') currentData = userMaster;
-    else if (tab === 'CreditMaster') currentData = creditMaster;
-    else if (tab === 'WalletMaster') currentData = walletMaster;
-    else if (tab === 'WalletTransactions') currentData = walletTransactions;
-    else if (tab === 'PincodeMaster') currentData = pincodeMaster;
-    else if (tab === 'ItemUnit_View') currentData = unitMaster;
-    else if (tab === 'ItemGroupMaster') currentData = groupMaster;
-    else if (tab === 'Item-main-Category') currentData = mainCatMaster;
-    else if (tab === 'Item-Sub-Category') currentData = subCatMaster;
-    else if (tab === 'BrandMaster') currentData = brandMaster;
-    else if (tab === 'StaffMaster') currentData = staffMaster;
-    else if (tab === 'VendorMaster') currentData = vendorMaster;
-    else if (tab === 'PurchaseLog') currentData = vendorPurchaseLog;
+      // Create a state lookup map for cleaner code
+      const stateLookup = {
+        'ItemMaster': itemMaster,
+        'BannerMaster': bannerMaster,
+        'AccountMaster': accountMaster,
+        'UserPermission': userMaster,
+        'CreditMaster': creditMaster,
+        'WalletMaster': walletMaster,
+        'WalletTransactions': walletTransactions,
+        'PincodeMaster': pincodeMaster,
+        'ItemUnit_View': unitMaster,
+        'ItemGroupMaster': groupMaster,
+        'Item-main-Category': mainCatMaster,
+        'Item-Sub-Category': subCatMaster,
+        'BrandMaster': brandMaster,
+        'StaffMaster': staffMaster,
+        'VendorMaster': vendorMaster,
+        'PurchaseLog': vendorPurchaseLog,
+        'DepartmentMas': deptMaster,
+        'DeliveryBoyMaster': deliveryBoyMaster,
+        'Delivery_cust_Master': deliveryCustMaster
+      };
+      const currentData = stateLookup[tab] || [];
 
-    // Find the item to delete from current data
-    const itemToDelete = currentData.find(i => i.id === id);
-    
-    // Delete media file first if exists
-    if (itemToDelete) {
-      if (tab === 'ItemMaster') {
-        const itemImage = itemToDelete.picture || itemToDelete.image_url;
-        if (itemImage) await deleteMediaFromSupabase(itemImage);
-      } else if (tab === 'BannerMaster') {
-        const bannerImage = itemToDelete.imageUrl || itemToDelete.image_url;
-        if (bannerImage) await deleteMediaFromSupabase(bannerImage);
+      const itemToDelete = currentData.find(i => i.id === id);
+      if (itemToDelete) {
+        if (tab === 'ItemMaster') {
+          const itemImage = itemToDelete.picture || itemToDelete.image_url;
+          if (itemImage) await deleteMediaFromSupabase(itemImage);
+        } else if (tab === 'BannerMaster') {
+          const bannerImage = itemToDelete.imageUrl || itemToDelete.image_url;
+          if (bannerImage) await deleteMediaFromSupabase(bannerImage);
+        }
       }
-    }
-    
-    // Update local state
-    setter(prev => prev.filter(i => i.id !== id));
-    
-    // Delete from Supabase tables
-    try {
+
+      setter(prev => prev.filter(i => i.id !== id));
+
       if (tab === 'ItemMaster') {
         await Promise.all([
           supabase.from('item_master').delete().eq('id', String(id)),
           supabase.from('products').delete().eq('id', String(id))
         ]);
-      } else if (tab === 'AccountMaster') {
-        await supabase.from('account_master').delete().eq('id', String(id));
-      } else if (tab === 'UserPermission') {
-        await supabase.from('user_master').delete().eq('id', String(id));
-      } else if (tab === 'BannerMaster') {
-        await supabase.from('banner_master').delete().eq('id', String(id));
-      } else if (tab === 'CreditMaster') {
-        await supabase.from('credit_master').delete().eq('id', String(id));
-      } else if (tab === 'WalletMaster') {
-        await supabase.from('wallet_master').delete().eq('id', String(id));
-      } else if (tab === 'WalletTransactions') {
-        await supabase.from('wallet_transactions').delete().eq('id', String(id));
-      } else if (tab === 'PincodeMaster') {
-        await supabase.from('pincode_master').delete().eq('id', String(id));
-      } else if (tab === 'ItemUnit_View') {
-        await supabase.from('unit_master').delete().eq('id', String(id));
-      } else if (tab === 'ItemGroupMaster') {
-        await supabase.from('group_master').delete().eq('id', String(id));
-      } else if (tab === 'Item-main-Category') {
-        await supabase.from('main_cat_master').delete().eq('id', String(id));
-      } else if (tab === 'Item-Sub-Category') {
-        await supabase.from('sub_cat_master').delete().eq('id', String(id));
-      } else if (tab === 'BrandMaster') {
-        await supabase.from('brand_master').delete().eq('id', String(id));
-      } else if (tab === 'StaffMaster') {
-        await supabase.from('staff_master').delete().eq('id', String(id));
-      } else if (tab === 'VendorMaster') {
-        await supabase.from('vendor_master').delete().eq('id', String(id));
       } else if (tab === 'PurchaseLog') {
-        // If deleting purchase, subtract the due from vendor's pending dues!
         const purchase = vendorPurchaseLog.find(p => p.id === id);
         if (purchase) {
           const vendor = vendorMaster.find(v => v.id === purchase.vendor_id);
@@ -1943,35 +1926,100 @@ Thank you for shopping with us!
           }
         }
         await supabase.from('purchase_log').delete().eq('id', String(id));
+      } else if (masterConfig[tab]) {
+        const config = masterConfig[tab];
+        await supabase.from(config.table).delete().eq('id', String(id));
+      } else if (['BannerMaster', 'AccountMaster', 'UserPermission', 'CreditMaster', 'WalletMaster', 'WalletTransactions', 'PincodeMaster'].includes(tab)) {
+        // Fallback for remaining tabs not in masterConfig yet
+        const tableMap = {
+          'BannerMaster': 'banner_master',
+          'AccountMaster': 'account_master',
+          'UserPermission': 'user_master',
+          'CreditMaster': 'credit_master',
+          'WalletMaster': 'wallet_master',
+          'WalletTransactions': 'wallet_transactions',
+          'PincodeMaster': 'pincode_master'
+        };
+        await supabase.from(tableMap[tab]).delete().eq('id', String(id));
       }
-      
+
       addToast('Record deleted successfully!', 'success');
     } catch (error) {
-      console.error('Error deleting from Supabase:', error);
-      addToast('Error deleting record! Please try again.', 'error');
-    }
-  } finally {
-    setIsDeleting(false);
-  }
-};
-  
-  // --- RBAC: Login/Logout ---
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoginError('');
-    const staff = staffMaster.find(
-      s => s.username === loginUsername && s.password === loginPassword && s.is_active
-    );
-    if (staff) {
-      setCurrentStaff(staff);
-      setActiveTab('dashboard');
-    } else {
-      setLoginError('Invalid username or password');
+      logError(error, `Delete Failed (${tab})`);
+    } finally {
+      setIsDeleting(false);
     }
   };
   
-  const handleLogout = () => {
-    setCurrentStaff(null);
+  // --- RBAC: Login/Logout ---
+  // Auth Listener to sync Supabase session to local state
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        // Fetch user profile from staff_master using user id
+        const { data: staff } = await supabase
+          .from('staff_master')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        setCurrentStaff(staff || { 
+          id: session.user.id, 
+          username: session.user.email, 
+          role: 'super_admin', 
+          is_active: true 
+        });
+      } else {
+        setCurrentStaff(null);
+      }
+    });
+
+    // Check initial session
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: staff } = await supabase
+          .from('staff_master')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        setCurrentStaff(staff || { 
+          id: session.user.id, 
+          username: session.user.email, 
+          role: 'super_admin', 
+          is_active: true 
+        });
+      }
+    };
+    checkSession();
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginUsername,
+        password: loginPassword,
+      });
+
+      if (error) throw error;
+      setActiveTab('dashboard');
+    } catch (error) {
+      setLoginError(error.message || 'Invalid email or password');
+      logError(error, 'Login Failed');
+    }
+  };
+  
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      logError(error, 'Logout Failed');
+    }
   };
   
   // --- RBAC: Allow tab check ---
@@ -2106,11 +2154,11 @@ Thank you for shopping with us!
                 <button 
                   onClick={() => {
                     const pin = document.getElementById('admin-pin').value;
-                    if (pin === '1234') {
+                    if (pin === import.meta.env.VITE_ADMIN_SECURITY_PIN) {
                       setIsAdminAuthorized(true);
-                      alert("Authorization Successful!");
+                      addToast("Authorization Successful!", 'success');
                     } else {
-                      alert("Invalid PIN!");
+                      addToast("Invalid PIN!", 'error');
                     }
                   }}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-5 rounded-[24px] font-black uppercase tracking-widest text-sm shadow-lg shadow-blue-500/20 transition-all"
@@ -6172,6 +6220,35 @@ Thank you for shopping with us!
           </div>
         ))}
       </div>
+
+      {/* --- UI Debugger Overlay (Dev Only) --- */}
+      {import.meta.env.DEV && (
+        <div className="fixed bottom-4 right-4 z-[9999] bg-slate-900/95 backdrop-blur border border-slate-700 rounded-2xl p-4 shadow-2xl w-80">
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-400 text-lg">🐞</span>
+              <h3 className="text-white font-bold text-sm">Active Bug Monitor</h3>
+            </div>
+            <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-1 rounded-full">DEV ONLY</span>
+          </div>
+          
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {errorLog.length === 0 ? (
+              <p className="text-slate-500 text-xs text-center py-4">No errors logged yet 🎉</p>
+            ) : (
+              errorLog.map((err) => (
+                <div key={err.id} className="bg-rose-900/30 border border-rose-800/50 rounded-lg p-2">
+                  <div className="flex justify-between items-start gap-2 mb-1">
+                    <span className="text-rose-400 text-[10px] font-bold uppercase">{err.context}</span>
+                    <span className="text-slate-500 text-[9px]">{err.timestamp}</span>
+                  </div>
+                  <p className="text-slate-300 text-xs break-all">{err.message}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );
