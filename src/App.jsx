@@ -488,14 +488,14 @@ export default function App() {
     { id: 3, name: 'NULL' }
   ]);
   const [groupMaster, setGroupMaster] = useLocalStorage('nm_group_master', []);
-  const [mainCatMaster, setMainCatMaster] = useLocalStorage('nm_main_cat_master', [
+  const [mainCatMaster, setMainCatMaster] = useLocalStorage('nm_main_category_master', [
     { id: 1, name: 'Chocolates' },
     { id: 2, name: 'Snacks' },
     { id: 3, name: 'Biscuits' }
   ]);
-  const [subCatMaster, setSubCatMaster] = useLocalStorage('nm_sub_cat_master', []);
+  const [subCatMaster, setSubCatMaster] = useLocalStorage('nm_sub_category_master', []);
   const [brandMaster, setBrandMaster] = useLocalStorage('nm_brand_master', []);
-  const [deptMaster, setDeptMaster] = useLocalStorage('nm_dept_master', []);
+  const [deptMaster, setDeptMaster] = useLocalStorage('nm_department_master', []);
   const [accountMaster, setAccountMaster] = useLocalStorage('nm_account_master', []);
   const [userMaster, setUserMaster] = useLocalStorage('nm_user_master', []);
   const [bannerMaster, setBannerMaster] = useLocalStorage('nm_banner_master', []);
@@ -611,11 +611,11 @@ export default function App() {
       toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
     },
     'Item-main-Category': {
-      table: 'main_cat_master',
+      table: 'main_category_master',
       toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
     },
     'Item-Sub-Category': {
-      table: 'sub_cat_master',
+      table: 'sub_category_master',
       toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
     },
     BrandMaster: {
@@ -631,7 +631,7 @@ export default function App() {
       toDb: (data) => ({ id: String(data.id), vendor_name: String(data.vendor_name), contact_person: data.contact_person ? String(data.contact_person) : null, mobile: data.mobile ? String(data.mobile) : null, address: data.address ? String(data.address) : null, pending_dues: parseFloat(data.pending_dues || 0) })
     },
     DepartmentMas: {
-      table: 'dept_master',
+      table: 'department_master',
       toDb: (data) => ({ id: String(data.id), name: String(data.name || '') })
     },
     AccountMaster: {
@@ -659,7 +659,7 @@ export default function App() {
       toDb: (data) => ({ id: String(data.id), pincode: String(data.pincode), is_allowed: Boolean(data.is_allowed !== undefined ? data.is_allowed : true), delivery_charge: parseFloat(data.delivery_charge || data.deliveryCharge) || 0 })
     },
     WalletMaster: {
-      table: 'wallet_master',
+      table: 'wallet_balances',
       toDb: (data) => ({ id: String(data.id), user_id: String(data.user_id || data.userId), current_balance: parseFloat(data.current_balance || data.currentBalance) || 0, updated_at: data.updated_at ? String(data.updated_at) : new Date().toISOString() })
     },
     WalletTransactions: {
@@ -1589,13 +1589,13 @@ Thank you for shopping with us!
         ] = await Promise.all([
           supabase.from('unit_master').select('*'),
           supabase.from('group_master').select('*'),
-          supabase.from('main_cat_master').select('*'),
-          supabase.from('sub_cat_master').select('*'),
+          supabase.from('main_category_master').select('*'),
+          supabase.from('sub_category_master').select('*'),
           supabase.from('brand_master').select('*'),
           supabase.from('staff_master').select('*'),
           supabase.from('vendor_master').select('*'),
           supabase.from('purchase_log').select('*').order('purchase_date', { ascending: false }),
-          supabase.from('dept_master').select('*'),
+          supabase.from('department_master').select('*'),
           supabase.from('delivery_boy_master').select('*'),
           supabase.from('delivery_customer_master').select('*'),
         ]);
@@ -1647,7 +1647,7 @@ Thank you for shopping with us!
           { data: walletTxnsFromDB, error: walletTxnFetchError },
           { data: pincodesFromDB, error: pincodeFetchError }
         ] = await Promise.all([
-          supabase.from('wallet_master').select('*'),
+          supabase.from('wallet_balances').select('*'),
           supabase.from('wallet_transactions').select('*').order('created_at', { ascending: false }),
           supabase.from('pincode_master').select('*')
         ]);
@@ -1719,18 +1719,18 @@ Thank you for shopping with us!
       }),
       setupRealtimeSubscription('banner_master', setBannerMaster, (b) => ({ ...b, imageUrl: b.image_url, redirect: b.redirect_path, active: b.is_active })),
       setupRealtimeSubscription('online_orders', setOnlineOrders),
-      setupRealtimeSubscription('wallet_master', setWalletMaster),
+      setupRealtimeSubscription('wallet_balances', setWalletMaster),
       setupRealtimeSubscription('wallet_transactions', setWalletTransactions),
       setupRealtimeSubscription('pincode_master', setPincodeMaster),
       setupRealtimeSubscription('unit_master', setUnitMaster),
       setupRealtimeSubscription('group_master', setGroupMaster),
-      setupRealtimeSubscription('main_cat_master', setMainCatMaster),
-      setupRealtimeSubscription('sub_cat_master', setSubCatMaster),
+      setupRealtimeSubscription('main_category_master', setMainCatMaster),
+      setupRealtimeSubscription('sub_category_master', setSubCatMaster),
       setupRealtimeSubscription('brand_master', setBrandMaster),
       setupRealtimeSubscription('staff_master', setStaffMaster),
       setupRealtimeSubscription('vendor_master', setVendorMaster),
       setupRealtimeSubscription('purchase_log', setVendorPurchaseLog),
-      setupRealtimeSubscription('dept_master', setDeptMaster),
+      setupRealtimeSubscription('department_master', setDeptMaster),
       setupRealtimeSubscription('delivery_boy_master', setDeliveryBoyMaster),
       setupRealtimeSubscription('delivery_customer_master', setDeliveryCustMaster),
     ];
@@ -1936,7 +1936,7 @@ Thank you for shopping with us!
           'AccountMaster': 'account_master',
           'UserPermission': 'user_master',
           'CreditMaster': 'credit_master',
-          'WalletMaster': 'wallet_master',
+          'WalletMaster': 'wallet_balances',
           'WalletTransactions': 'wallet_transactions',
           'PincodeMaster': 'pincode_master'
         };
