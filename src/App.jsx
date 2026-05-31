@@ -1518,22 +1518,35 @@ Thank you for shopping with us!
     min_stock_level: Number(item.min_stock_level || 10)
   });
 
+  // --- Helper for safe fetch with timeout ---
+  const safeFetch = async (tableName, options = {}) => {
+    try {
+      let query = supabase.from(tableName).select('*');
+      if (options.orderBy) {
+        query = query.order(options.orderBy, { ascending: options.ascending ?? true });
+      }
+      const { data, error } = await Promise.race([
+        query,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout fetching ${tableName}`)), 10000))
+      ]);
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      console.error(`Error fetching ${tableName}:`, error.message);
+      return { data: null, error };
+    }
+  };
+
   // --- Initial Load from Supabase + Migration ---
   useEffect(() => {
     const initializeApp = async () => {
       try {
         // 1. Fetch items from Supabase (source of truth)
         console.log("Fetching items from Supabase...");
-        const { data: itemsFromDB, error: fetchError } = await supabase
-          .from('item_master')
-          .select('*');
+        const { data: itemsFromDB } = await safeFetch('item_master');
 
-        if (fetchError) throw fetchError;
-
-        console.log(`Fetched ${itemsFromDB.length} items from Supabase`);
-
-        // 2. Update itemMaster with Supabase data if available
-        if (itemsFromDB.length > 0) {
+        if (itemsFromDB?.length > 0) {
+          console.log(`Fetched ${itemsFromDB.length} items from Supabase`);
           const mappedItems = itemsFromDB.map(mapItemDbToLocal);
           setItemMaster(mappedItems);
         } else {
@@ -1549,11 +1562,9 @@ Thank you for shopping with us!
 
         // 4. Fetch banners from Supabase
         console.log("Fetching banners from Supabase...");
-        const { data: bannersFromDB, error: bannerFetchError } = await supabase
-          .from('banner_master')
-          .select('*');
+        const { data: bannersFromDB } = await safeFetch('banner_master');
 
-        if (!bannerFetchError && bannersFromDB.length > 0) {
+        if (bannersFromDB?.length > 0) {
           console.log(`Fetched ${bannersFromDB.length} banners from Supabase`);
           // Map snake_case columns from DB to camelCase for local state
           const mappedBanners = bannersFromDB.map(banner => ({
@@ -1568,50 +1579,49 @@ Thank you for shopping with us!
           const localBanners = JSON.parse(localStorage.getItem('nm_banner_master')) || [];
           if (localBanners.length > 0) {
             setBannerMaster(localBanners);
-            // Sync local banners to Supabase (we'll handle this in handleSave, but just in case)
           }
         }
 
         // 5. Fetch all masters from Supabase
         console.log("Fetching all masters from Supabase...");
         const [
-          { data: unitsFromDB, error: unitsFetchError },
-          { data: groupsFromDB, error: groupsFetchError },
-          { data: mainCatsFromDB, error: mainCatsFetchError },
-          { data: subCatsFromDB, error: subCatsFetchError },
-          { data: brandsFromDB, error: brandsFetchError },
-          { data: staffFromDB, error: staffFetchError },
-          { data: vendorsFromDB, error: vendorFetchError },
-          { data: purchaseLogsFromDB, error: purchaseFetchError },
-          { data: deptsFromDB, error: deptFetchError },
-          { data: dboyFromDB, error: dboyFetchError },
-          { data: dcustFromDB, error: dcustFetchError },
+          unitsResult,
+          groupsResult,
+          mainCatsResult,
+          subCatsResult,
+          brandsResult,
+          staffResult,
+          vendorsResult,
+          purchaseLogsResult,
+          deptsResult,
+          dboyResult,
+          dcustResult,
         ] = await Promise.all([
-          supabase.from('unit_master').select('*'),
-          supabase.from('group_master').select('*'),
-          supabase.from('main_category_master').select('*'),
-          supabase.from('sub_category_master').select('*'),
-          supabase.from('brand_master').select('*'),
-          supabase.from('staff_master').select('*'),
-          supabase.from('vendor_master').select('*'),
-          supabase.from('purchase_log').select('*').order('purchase_date', { ascending: false }),
-          supabase.from('department_master').select('*'),
-          supabase.from('delivery_boy_master').select('*'),
-          supabase.from('delivery_customer_master').select('*'),
+          safeFetch('unit_master'),
+          safeFetch('group_master'),
+          safeFetch('main_category_master'),
+          safeFetch('sub_category_master'),
+          safeFetch('brand_master'),
+          safeFetch('staff_master'),
+          safeFetch('vendor_master'),
+          safeFetch('purchase_log', { orderBy: 'purchase_date', ascending: false }),
+          safeFetch('department_master'),
+          safeFetch('delivery_boy_master'),
+          safeFetch('delivery_customer_master'),
         ]);
 
-        if (!unitsFetchError && unitsFromDB.length > 0) setUnitMaster(unitsFromDB);
-        if (!groupsFetchError && groupsFromDB.length > 0) setGroupMaster(groupsFromDB);
-        if (!mainCatsFetchError && mainCatsFromDB.length > 0) setMainCatMaster(mainCatsFromDB);
-        if (!subCatsFetchError && subCatsFromDB.length > 0) setSubCatMaster(subCatsFromDB);
-        if (!brandsFetchError && brandsFromDB.length > 0) setBrandMaster(brandsFromDB);
-        if (!deptFetchError && deptsFromDB.length > 0) setDeptMaster(deptsFromDB);
-        if (!dboyFetchError && dboyFromDB.length > 0) setDeliveryBoyMaster(dboyFromDB);
-        if (!dcustFetchError && dcustFromDB.length > 0) setDeliveryCustMaster(dcustFromDB);
+        if (unitsResult.data?.length > 0) setUnitMaster(unitsResult.data);
+        if (groupsResult.data?.length > 0) setGroupMaster(groupsResult.data);
+        if (mainCatsResult.data?.length > 0) setMainCatMaster(mainCatsResult.data);
+        if (subCatsResult.data?.length > 0) setSubCatMaster(subCatsResult.data);
+        if (brandsResult.data?.length > 0) setBrandMaster(brandsResult.data);
+        if (deptsResult.data?.length > 0) setDeptMaster(deptsResult.data);
+        if (dboyResult.data?.length > 0) setDeliveryBoyMaster(dboyResult.data);
+        if (dcustResult.data?.length > 0) setDeliveryCustMaster(dcustResult.data);
         
         // Handle staff master
-        if (!staffFetchError && staffFromDB.length > 0) {
-          setStaffMaster(staffFromDB);
+        if (staffResult.data?.length > 0) {
+          setStaffMaster(staffResult.data);
         } else {
           const defaultAdmin = {
             id: '1',
@@ -1625,17 +1635,14 @@ Thank you for shopping with us!
           try { await supabase.from('staff_master').insert([defaultAdmin]); } catch(e) { console.error(e); }
         }
 
-        if (!vendorFetchError && vendorsFromDB.length > 0) setVendorMaster(vendorsFromDB);
-        if (!purchaseFetchError && purchaseLogsFromDB.length > 0) setVendorPurchaseLog(purchaseLogsFromDB);
+        if (vendorsResult.data?.length > 0) setVendorMaster(vendorsResult.data);
+        if (purchaseLogsResult.data?.length > 0) setVendorPurchaseLog(purchaseLogsResult.data);
 
         // 6. Fetch online orders from Supabase
         console.log("Fetching online orders from Supabase...");
-        const { data: ordersFromDB, error: orderFetchError } = await supabase
-          .from('online_orders')
-          .select('*')
-          .order('created_at', { ascending: false });
+        const { data: ordersFromDB } = await safeFetch('online_orders', { orderBy: 'created_at', ascending: false });
 
-        if (!orderFetchError && ordersFromDB.length > 0) {
+        if (ordersFromDB?.length > 0) {
           console.log(`Fetched ${ordersFromDB.length} online orders from Supabase`);
           setOnlineOrders(ordersFromDB);
         }
@@ -1643,28 +1650,22 @@ Thank you for shopping with us!
         // 7. Fetch wallet master & transactions from Supabase
         console.log("Fetching wallet data from Supabase...");
         const [
-          { data: walletsFromDB, error: walletFetchError },
-          { data: walletTxnsFromDB, error: walletTxnFetchError },
-          { data: pincodesFromDB, error: pincodeFetchError }
+          walletsResult,
+          walletTxnsResult,
+          pincodesResult
         ] = await Promise.all([
-          supabase.from('wallet_balances').select('*'),
-          supabase.from('wallet_transactions').select('*').order('created_at', { ascending: false }),
-          supabase.from('pincode_master').select('*')
+          safeFetch('wallet_balances'),
+          safeFetch('wallet_transactions', { orderBy: 'created_at', ascending: false }),
+          safeFetch('pincode_master')
         ]);
 
-        if (!walletFetchError && walletsFromDB.length > 0) {
-          setWalletMaster(walletsFromDB);
-        }
-        if (!walletTxnFetchError && walletTxnsFromDB.length > 0) {
-          setWalletTransactions(walletTxnsFromDB);
-        }
-        if (!pincodeFetchError && pincodesFromDB.length > 0) {
-          setPincodeMaster(pincodesFromDB);
-        }
+        if (walletsResult.data?.length > 0) setWalletMaster(walletsResult.data);
+        if (walletTxnsResult.data?.length > 0) setWalletTransactions(walletTxnsResult.data);
+        if (pincodesResult.data?.length > 0) setPincodeMaster(pincodesResult.data);
 
         // 8. Also sync other masters if needed (optional, but let's keep the migration for older items)
         const localItems = JSON.parse(localStorage.getItem('nm_item_master')) || [];
-        if (localItems.length > 0 && itemsFromDB.length < localItems.length) {
+        if (localItems.length > 0 && (itemsFromDB?.length || 0) < localItems.length) {
           console.log("Migrating older items from localStorage to Supabase...");
           await autoSyncItemsToSupabase(localItems);
         }
