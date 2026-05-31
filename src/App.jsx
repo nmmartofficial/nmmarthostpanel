@@ -5889,7 +5889,7 @@ Thank you for shopping with us!
           
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
             <img 
-              src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=Professional%20minimalist%20horizontal%20logo%20for%20NM%20MART%20retail%20brand%20header,%20modern%20sleek%20shopping%20trolley%20cart%20icon%20on%20left%20in%20slate%20grey%20and%20muted%20burgundy%20crimson%20red%20with%20gold%20accents,%20bold%20sans-serif%20typography%20'NM%20MART'%20on%20right%20with%20'NM'%20standing%20out,%20clean%20corporate%20design,%20high%20resolution&image_size=landscape_16_9" 
+              src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=NM%20MART%20logo,%20red%20gold%20colors,%20shopping%20cart,%20gift,%20elegant%20retail%20design%20with%203D%20style,%20clean%20background,%20professional%20logo&image_size=square_hd" 
               alt="NM MART Logo" 
               className="h-10 object-contain"
             />
