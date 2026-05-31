@@ -1735,10 +1735,39 @@ Thank you for shopping with us!
 
   const handleSave = async (tab, data, setter) => {
     setIsSaving(true);
+    
+    console.log('======= SAVE DIAGNOSTICS START =======');
+    console.log('1. Tab:', tab);
+    console.log('2. Full Raw Data:', JSON.stringify(data, null, 2));
+
     // Ensure data has a valid UUID
     const processedData = { ...data };
     if (!processedData.id || !isValidUUID(processedData.id)) {
       processedData.id = generateUUID();
+      console.log('3. Generated new UUID:', processedData.id);
+    } else {
+      console.log('3. Using existing UUID:', processedData.id);
+    }
+
+    // --- VALIDATION CHECKS ---
+    let validationErrors = [];
+    if (tab === 'ItemMaster') {
+      if (!processedData.name || processedData.name.trim() === '') {
+        validationErrors.push('Item Name is required');
+      }
+      if (!processedData.main_category && !processedData.mainCategory) {
+        validationErrors.push('Main Category is required');
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      console.warn('4. VALIDATION ERRORS:', validationErrors);
+      validationErrors.forEach(err => addToast(err, 'error'));
+      setIsSaving(false);
+      console.log('======= SAVE DIAGNOSTICS END (VALIDATION FAILED) =======');
+      return;
+    } else {
+      console.log('4. Validation passed!');
     }
 
     // Update local state first
@@ -1749,6 +1778,8 @@ Thank you for shopping with us!
     });
 
     try {
+      console.log('5. Starting Supabase operations...');
+
       if (tab === 'ItemMaster') {
         // 1. item_master के लिए 100% सेफ डेटा टाइप्स
         const cleanItem = {
@@ -1775,6 +1806,8 @@ Thank you for shopping with us!
           min_stock_level: parseFloat(processedData.min_stock_level) || 10
         };
 
+        console.log('6. Clean ItemMaster Data:', JSON.stringify(cleanItem, null, 2));
+
         // 2. products के लिए 100% सेफ डेटा टाइप్స (NM App के लिए)
         const cleanProduct = {
           id: String(processedData.id),
@@ -1794,11 +1827,38 @@ Thank you for shopping with us!
           min_stock_level: parseFloat(processedData.min_stock_level) || 10
         };
 
+        console.log('7. Clean Products Data:', JSON.stringify(cleanProduct, null, 2));
+
         // Upsert to item_master and products in parallel for speed
-        await Promise.all([
+        console.log('8. Sending to Supabase...');
+        const [itemResult, productResult] = await Promise.all([
           supabase.from('item_master').upsert(cleanItem, { onConflict: 'id' }),
           supabase.from('products').upsert(cleanProduct, { onConflict: 'id' })
         ]);
+
+        console.log('9. ItemMaster Result:', itemResult);
+        console.log('10. Products Result:', productResult);
+
+        if (itemResult.error) {
+          console.error('11. ItemMaster Supabase Error:', {
+            code: itemResult.error.code,
+            message: itemResult.error.message,
+            details: itemResult.error.details,
+            hint: itemResult.error.hint,
+            fullError: itemResult.error
+          });
+          throw itemResult.error;
+        }
+        if (productResult.error) {
+          console.error('11. Products Supabase Error:', {
+            code: productResult.error.code,
+            message: productResult.error.message,
+            details: productResult.error.details,
+            hint: productResult.error.hint,
+            fullError: productResult.error
+          });
+          throw productResult.error;
+        }
       } else if (tab === 'BannerMaster') {
         const cleanBanner = {
           id: String(processedData.id),
@@ -1828,8 +1888,18 @@ Thank you for shopping with us!
         const cleanData = config.toDb(processedData);
         await supabase.from(config.table).upsert(cleanData, { onConflict: 'id' });
       }
+      
+      console.log('======= SAVE DIAGNOSTICS END (SUCCESS) =======');
       addToast('Record saved successfully!', 'success');
     } catch (error) {
+      console.error('======= SAVE DIAGNOSTICS END (ERROR) =======');
+      console.error('Final Error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        fullError: error
+      });
       logError(error, `Save Failed (${tab})`);
     } finally {
       setIsSaving(false);
