@@ -353,6 +353,13 @@ export default function App() {
   }, []);
 
   const [saleLogs, setSaleLogs] = useLocalStorage('nm_sale_logs', []);
+  // --- RBAC Login States ---
+  const [currentStaff, setCurrentStaff] = useLocalStorage('nm_current_staff', null);
+  const [staffMaster, setStaffMaster] = useLocalStorage('nm_staff_master', []);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  
   const [activeTab, setActiveTab] = useLocalStorage('nm_active_view', 'dashboard');
   const [isMasterOpen, setIsMasterOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -1445,12 +1452,14 @@ Thank you for shopping with us!
           { data: mainCatsFromDB, error: mainCatsFetchError },
           { data: subCatsFromDB, error: subCatsFetchError },
           { data: brandsFromDB, error: brandsFetchError },
+          { data: staffFromDB, error: staffFetchError },
         ] = await Promise.all([
           supabase.from('unit_master').select('*'),
           supabase.from('group_master').select('*'),
           supabase.from('main_cat_master').select('*'),
           supabase.from('sub_cat_master').select('*'),
           supabase.from('brand_master').select('*'),
+          supabase.from('staff_master').select('*'),
         ]);
 
         if (!unitsFetchError && unitsFromDB.length > 0) setUnitMaster(unitsFromDB);
@@ -1458,6 +1467,22 @@ Thank you for shopping with us!
         if (!mainCatsFetchError && mainCatsFromDB.length > 0) setMainCatMaster(mainCatsFromDB);
         if (!subCatsFetchError && subCatsFromDB.length > 0) setSubCatMaster(subCatsFromDB);
         if (!brandsFetchError && brandsFromDB.length > 0) setBrandMaster(brandsFromDB);
+        
+        // Handle staff master
+        if (!staffFetchError && staffFromDB.length > 0) {
+          setStaffMaster(staffFromDB);
+        } else {
+          const defaultAdmin = {
+            id: '1',
+            username: 'admin',
+            password: 'admin123',
+            staff_name: 'Super Admin',
+            role: 'super_admin',
+            is_active: true
+          };
+          setStaffMaster([defaultAdmin]);
+          try { await supabase.from('staff_master').insert([defaultAdmin]); } catch(e) { console.error(e); }
+        }
 
         // 6. Fetch online orders from Supabase
         console.log("Fetching online orders from Supabase...");
@@ -1558,6 +1583,7 @@ Thank you for shopping with us!
       setupRealtimeSubscription('main_cat_master', setMainCatMaster),
       setupRealtimeSubscription('sub_cat_master', setSubCatMaster),
       setupRealtimeSubscription('brand_master', setBrandMaster),
+      setupRealtimeSubscription('staff_master', setStaffMaster),
     ];
 
     // Cleanup subscriptions when component unmounts
@@ -1744,6 +1770,16 @@ Thank you for shopping with us!
           name: String(processedData.name || '')
         };
         await supabase.from('brand_master').upsert(cleanBrand, { onConflict: 'id' });
+      } else if (tab === 'StaffMaster') {
+        const cleanStaff = {
+          id: String(processedData.id),
+          username: String(processedData.username),
+          password: String(processedData.password),
+          staff_name: String(processedData.staff_name),
+          role: String(processedData.role),
+          is_active: Boolean(processedData.is_active !== undefined ? processedData.is_active : true)
+        };
+        await supabase.from('staff_master').upsert(cleanStaff, { onConflict: 'id' });
       }
     } catch (error) {
       console.error('Error saving to Supabase:', error);
@@ -1766,6 +1802,7 @@ Thank you for shopping with us!
     else if (tab === 'Item-main-Category') currentData = mainCatMaster;
     else if (tab === 'Item-Sub-Category') currentData = subCatMaster;
     else if (tab === 'BrandMaster') currentData = brandMaster;
+    else if (tab === 'StaffMaster') currentData = staffMaster;
 
     // Find the item to delete from current data
     const itemToDelete = currentData.find(i => i.id === id);
@@ -1815,11 +1852,54 @@ Thank you for shopping with us!
         await supabase.from('sub_cat_master').delete().eq('id', String(id));
       } else if (tab === 'BrandMaster') {
         await supabase.from('brand_master').delete().eq('id', String(id));
+      } else if (tab === 'StaffMaster') {
+        await supabase.from('staff_master').delete().eq('id', String(id));
       }
     } catch (error) {
       console.error('Error deleting from Supabase:', error);
     }
   };
+  
+  // --- RBAC: Login/Logout ---
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    const staff = staffMaster.find(
+      s => s.username === loginUsername && s.password === loginPassword && s.is_active
+    );
+    if (staff) {
+      setCurrentStaff(staff);
+      setActiveTab('dashboard');
+    } else {
+      setLoginError('Invalid username or password');
+    }
+  };
+  
+  const handleLogout = () => {
+    setCurrentStaff(null);
+  };
+  
+  // --- RBAC: Allow tab check ---
+  const getAllowedTabs = () => {
+    if (!currentStaff) return [];
+    switch(currentStaff.role) {
+      case 'super_admin':
+        return ['dashboard', 'sale', 'purchase', 'ItemMaster', 'ItemUnit_View', 'ItemGroupMaster', 'Item-main-Category', 'Item-Sub-Category', 'BrandMaster', 'StaffMaster', 'DepartmentMas', 'AccountMaster', 'UserPermission', 'BannerMaster', 'CreditMaster', 'WalletMaster', 'DeliveryBoyMaster', 'Delivery_cust_Master', 'KotView', 'RestBillView', 'RestBillViewDelivery', 'BranchBill', 'Payment_View', 'WalletRecharge', 'Rpt_SaleSummary', 'Rpt_SaleReport', 'Rpt_SaleReportItem_wise', 'RptSaleItemSummary', 'RestBillViewTrash', 'RestBillViewCancelled', 'Rpt_PurchaseReport', 'Rpt_Stock_Report', 'Rpt_Item_Statement_report', 'Logbook', 'LedgerView', 'Rpt_Delivery_boy_Payment', 'Rpt_CreditCustomer_Report', 'Payment_remind', 'Bom', 'Production', 'StockTRF', 'StockTRFWastage', 'PoEntry', 'Rpt_CostingReport', 'Rpt_StockTRF', 'Rpt_Stockwastage', 'Rpt_RO_Detail', 'Rpt_Po_Item_Report', 'ToolPass', 'LocationItemDisplay', 'Location-sub-category', 'Location-main-category', 'BluetoothTerminal', 'AppPerformanceTracker', 'PincodeBlocker', 'transaction'];
+      case 'billing_staff':
+        return ['dashboard', 'sale', 'KotView', 'RestBillView', 'RestBillViewDelivery', 'PincodeBlocker'];
+      case 'inventory_manager':
+        return ['dashboard', 'ItemMaster', 'ItemUnit_View', 'ItemGroupMaster', 'Item-main-Category', 'Item-Sub-Category', 'BrandMaster'];
+      default:
+        return ['dashboard'];
+    }
+  };
+  
+  // --- RBAC: Redirect if active tab not allowed ---
+  useEffect(() => {
+    if (currentStaff && !getAllowedTabs().includes(activeTab)) {
+      setActiveTab('dashboard');
+    }
+  }, [currentStaff, activeTab]);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -5005,6 +5085,158 @@ Thank you for shopping with us!
             { name: 'coordinates', label: 'Coordinates (Lat, Lng)' },
           ]}
         />;
+        
+      case 'StaffMaster':
+        return (
+          <div className="p-6 space-y-6 animate-in fade-in duration-300">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-600/10 rounded-2xl">
+                  <UserCircle size={28} className="text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Staff Master</h2>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Manage your team</p>
+                </div>
+              </div>
+            </div>
+            {/* Add New Staff Form */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[32px] shadow-sm">
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-widest mb-4">Add New Staff</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Staff Name</label>
+                  <input 
+                    id="new-staff-name"
+                    type="text"
+                    placeholder="e.g., John Doe"
+                    className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Username</label>
+                  <input 
+                    id="new-staff-username"
+                    type="text"
+                    placeholder="e.g., john123"
+                    className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Password</label>
+                  <input 
+                    id="new-staff-password"
+                    type="text"
+                    placeholder="e.g., password"
+                    className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Role</label>
+                  <select 
+                    id="new-staff-role"
+                    className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm"
+                    defaultValue="billing_staff"
+                  >
+                    <option value="billing_staff">Billing Staff</option>
+                    <option value="inventory_manager">Inventory Manager</option>
+                  </select>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  const name = document.getElementById('new-staff-name').value;
+                  const username = document.getElementById('new-staff-username').value;
+                  const password = document.getElementById('new-staff-password').value;
+                  const role = document.getElementById('new-staff-role').value;
+                  if (!name || !username || !password) return;
+                  const newStaff = { 
+                    id: generateUUID(), 
+                    staff_name: name, 
+                    username, 
+                    password, 
+                    role, 
+                    is_active: true 
+                  };
+                  handleSave('StaffMaster', newStaff, setStaffMaster);
+                  // Reset fields
+                  document.getElementById('new-staff-name').value = '';
+                  document.getElementById('new-staff-username').value = '';
+                  document.getElementById('new-staff-password').value = '';
+                }}
+                className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl text-sm font-black uppercase tracking-widest transition-all flex items-center gap-2"
+              >
+                <Plus size={18} />
+                Add Staff
+              </button>
+            </div>
+            {/* Staff List */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-sm">
+              <table className="w-full text-left text-sm table-striped">
+                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase text-[10px] font-black tracking-widest">
+                  <tr>
+                    <th className="px-6 py-4">Staff Name</th>
+                    <th className="px-6 py-4">Username</th>
+                    <th className="px-6 py-4">Role</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {staffMaster.map(staff => (
+                    <tr key={staff.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-6 py-4 text-sm font-bold">{staff.staff_name}</td>
+                      <td className="px-6 py-4 text-sm">{staff.username}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                          staff.role === 'super_admin' ? 'bg-purple-500/10 text-purple-500' :
+                          staff.role === 'inventory_manager' ? 'bg-blue-500/10 text-blue-500' : 
+                          'bg-orange-500/10 text-orange-500'
+                        }`}>
+                          {staff.role.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${staff.is_active ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                          {staff.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => {
+                            const updated = { ...staff, is_active: !staff.is_active };
+                            handleSave('StaffMaster', updated, setStaffMaster);
+                          }}
+                          className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase transition-all ${staff.is_active ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white'}`}
+                          disabled={staff.role === 'super_admin' && staffMaster.filter(s => s.role === 'super_admin').length === 1}
+                        >
+                          {staff.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(staff.id, setStaffMaster, 'StaffMaster')}
+                          className="p-1.5 text-slate-400 hover:text-rose-500 transition-all"
+                          disabled={staff.role === 'super_admin' && staffMaster.filter(s => s.role === 'super_admin').length === 1}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {staffMaster.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-20 text-center opacity-30">
+                        <div className="flex flex-col items-center">
+                          <UserCircle size={48} />
+                          <p className="text-[10px] font-black uppercase mt-4">No Staff Added</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
 
       case 'sale':
         return (
@@ -5229,6 +5461,60 @@ Thank you for shopping with us!
     );
   }
   
+  // --- Login Screen ---
+  if (!currentStaff) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#0f172a]">
+        <div className="w-full max-w-md p-8 bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl border border-slate-200 dark:border-slate-800">
+          <div className="text-center space-y-3 mb-8">
+            <h1 className="text-3xl font-black text-blue-600 uppercase tracking-tighter">{BRAND_NAME}</h1>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Admin Panel</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Username</label>
+              <input 
+                type="text" 
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[20px] text-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                placeholder="Enter username"
+                autoComplete="off"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Password</label>
+              <input 
+                type="password" 
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-[20px] text-sm focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                placeholder="Enter password"
+                autoComplete="off"
+                required
+              />
+            </div>
+            {loginError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-center text-rose-500 text-xs font-bold">
+                {loginError}
+              </div>
+            )}
+            <button 
+              type="submit"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-[20px] font-black uppercase tracking-widest text-sm shadow-xl shadow-blue-500/20 transition-all"
+            >
+              Login
+            </button>
+          </form>
+          <div className="mt-8 text-center text-xs text-slate-400 font-bold">
+            Default: admin / admin123
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0f172a] text-slate-900 dark:text-white font-sans selection:bg-blue-500/30">
       {/* --- Navbar --- */}
@@ -5249,153 +5535,175 @@ Thank you for shopping with us!
             />
           </div>
           
-            <div className="hidden lg:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-1">
             {/* Master Dropdown */}
-            <div className="relative">
-              <button 
-                onClick={() => { setIsMasterOpen(!isMasterOpen); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${masters.some(m => m.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              >
-                Master <ChevronDown size={14} className={`transition-transform ${isMasterOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isMasterOpen && (
-                <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 overflow-hidden z-[90]">
-                  {masters.map(master => (
-                    <button 
-                      key={master.id}
-                      onClick={() => { setActiveTab(master.id); setIsMasterOpen(false); }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === master.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                    >
-                      {master.icon} {master.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {masters.filter(m => getAllowedTabs().includes(m.id)).length > 0 && (
+              <div className="relative">
+                <button 
+                  onClick={() => { setIsMasterOpen(!isMasterOpen); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${masters.some(m => m.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  Master <ChevronDown size={14} className={`transition-transform ${isMasterOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isMasterOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 overflow-hidden z-[90]">
+                    {masters.filter(m => getAllowedTabs().includes(m.id)).map(master => (
+                      <button 
+                        key={master.id}
+                        onClick={() => { setActiveTab(master.id); setIsMasterOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === master.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      >
+                        {master.icon} {master.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-            <NavItem active={activeTab === 'sale'} onClick={() => { setActiveTab('sale'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<ShoppingCart size={18} />} label="Sale Entry" />
-            <NavItem active={activeTab === 'purchase'} onClick={() => { setActiveTab('purchase'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<Wallet size={18} />} label="Purchase" />
+            {getAllowedTabs().includes('sale') && (
+              <NavItem active={activeTab === 'sale'} onClick={() => { setActiveTab('sale'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<ShoppingCart size={18} />} label="Sale Entry" />
+            )}
+            {getAllowedTabs().includes('purchase') && (
+              <NavItem active={activeTab === 'purchase'} onClick={() => { setActiveTab('purchase'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<Wallet size={18} />} label="Purchase" />
+            )}
             
-            <div className="relative">
-              <button 
-                onClick={() => { setIsMasterOpen(false); setIsViewOpen(!isViewOpen); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${viewRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              >
-                <Eye size={18} /> View <ChevronDown size={14} className={`transition-transform ${isViewOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isViewOpen && (
-                <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 overflow-hidden z-[90]">
-                  {viewRoutes.map(route => (
-                    <button 
-                      key={route.id}
-                      onClick={() => { setActiveTab(route.id); setIsViewOpen(false); }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                    >
-                      {route.icon} {route.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {viewRoutes.filter(r => getAllowedTabs().includes(r.id)).length > 0 && (
+              <div className="relative">
+                <button 
+                  onClick={() => { setIsMasterOpen(false); setIsViewOpen(!isViewOpen); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${viewRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <Eye size={18} /> View <ChevronDown size={14} className={`transition-transform ${isViewOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isViewOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 overflow-hidden z-[90]">
+                    {viewRoutes.filter(r => getAllowedTabs().includes(r.id)).map(route => (
+                      <button 
+                        key={route.id}
+                        onClick={() => { setActiveTab(route.id); setIsViewOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      >
+                        {route.icon} {route.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-            <div className="relative">
-              <button 
-                onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(!isReportOpen); setIsStoreOpen(false); setIsToolOpen(false); }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${reportRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              >
-                <FileText size={18} /> Report <ChevronDown size={14} className={`transition-transform ${isReportOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isReportOpen && (
-                <div className="absolute top-full left-0 mt-1 w-64 max-h-[70vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] scrollbar-hide">
-                  {reportRoutes.map(route => (
-                    <button 
-                      key={route.id}
-                      onClick={() => { setActiveTab(route.id); setIsReportOpen(false); }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                    >
-                      {route.icon} {route.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {reportRoutes.filter(r => getAllowedTabs().includes(r.id)).length > 0 && (
+              <div className="relative">
+                <button 
+                  onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(!isReportOpen); setIsStoreOpen(false); setIsToolOpen(false); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${reportRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <FileText size={18} /> Report <ChevronDown size={14} className={`transition-transform ${isReportOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isReportOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-64 max-h-[70vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] scrollbar-hide">
+                    {reportRoutes.filter(r => getAllowedTabs().includes(r.id)).map(route => (
+                      <button 
+                        key={route.id}
+                        onClick={() => { setActiveTab(route.id); setIsReportOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      >
+                        {route.icon} {route.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             
-            <div className="relative">
-              <button 
-                onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(!isStoreOpen); setIsToolOpen(false); }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${storeRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              >
-                <Store size={18} /> Store <ChevronDown size={14} className={`transition-transform ${isStoreOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isStoreOpen && (
-                <div className="absolute top-full left-0 mt-1 w-64 max-h-[70vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] scrollbar-hide">
-                  {storeRoutes.map(route => (
-                    <button 
-                      key={route.id}
-                      onClick={() => { setActiveTab(route.id); setIsStoreOpen(false); }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                    >
-                      {route.icon} {route.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {storeRoutes.filter(r => getAllowedTabs().includes(r.id)).length > 0 && (
+              <div className="relative">
+                <button 
+                  onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(!isStoreOpen); setIsToolOpen(false); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${storeRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <Store size={18} /> Store <ChevronDown size={14} className={`transition-transform ${isStoreOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isStoreOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-64 max-h-[70vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] scrollbar-hide">
+                    {storeRoutes.filter(r => getAllowedTabs().includes(r.id)).map(route => (
+                      <button 
+                        key={route.id}
+                        onClick={() => { setActiveTab(route.id); setIsStoreOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      >
+                        {route.icon} {route.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-            <NavItem active={activeTab === 'transaction'} onClick={() => { setActiveTab('transaction'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<Repeat size={18} />} label="Transaction" />
+            {getAllowedTabs().includes('transaction') && (
+              <NavItem active={activeTab === 'transaction'} onClick={() => { setActiveTab('transaction'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<Repeat size={18} />} label="Transaction" />
+            )}
             
-            <div className="relative">
-              <button 
-                onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(!isToolOpen); }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${toolRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              >
-                <Settings size={18} /> Tools <ChevronDown size={14} className={`transition-transform ${isToolOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isToolOpen && (
-                <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] overflow-hidden">
-                  {toolRoutes.map(route => (
-                    <button 
-                      key={route.id}
-                      onClick={() => { setActiveTab(route.id); setIsToolOpen(false); }}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                    >
-                      {route.icon} {route.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {toolRoutes.filter(r => getAllowedTabs().includes(r.id)).length > 0 && (
+              <div className="relative">
+                <button 
+                  onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(!isToolOpen); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${toolRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                >
+                  <Settings size={18} /> Tools <ChevronDown size={14} className={`transition-transform ${isToolOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isToolOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] overflow-hidden">
+                    {toolRoutes.filter(r => getAllowedTabs().includes(r.id)).map(route => (
+                      <button 
+                        key={route.id}
+                        onClick={() => { setActiveTab(route.id); setIsToolOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                      >
+                        {route.icon} {route.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <a
-            href="https://pqmgfxntxhnvknrvdyub.supabase.co/storage/v1/object/public/NMMart%20apk/app-releases/NMMart.apk"
-            target="_blank"
-            rel="noopener noreferrer"
-            download="nm-mart-app-release.apk"
-            className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
-          >
-            📥 Download NM App
-          </a>
-          <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"><Maximize size={20} /></button>
-          <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all relative">
-            <Bell size={20} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900"></span>
-          </button>
-          <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
-          <div className="flex items-center gap-2 pl-2 cursor-pointer group">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-black text-blue-600 dark:text-blue-500 leading-none">{BRAND_NAME}</p>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300 leading-none">Hi, {currentStaff.staff_name}</p>
+              <p className="text-[10px] font-bold uppercase text-slate-400">{currentStaff.role.replace('_', ' ')}</p>
             </div>
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-              <User size={18} />
-            </div>
+            <button 
+              onClick={handleLogout}
+              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-[20px] text-xs font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
+            >
+              Logout
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <a
+              href="https://pqmgfxntxhnvknrvdyub.supabase.co/storage/v1/object/public/NMMart%20apk/app-releases/NMMart.apk"
+              target="_blank"
+              rel="noopener noreferrer"
+              download="nm-mart-app-release.apk"
+              className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
+            >
+              📥 Download NM App
+            </a>
+            <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"><Maximize size={20} /></button>
+            <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all relative">
+              <Bell size={20} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+            </button>
           </div>
         </div>
       </nav>
