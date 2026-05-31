@@ -356,6 +356,8 @@ export default function App() {
   // --- RBAC Login States ---
   const [currentStaff, setCurrentStaff] = useLocalStorage('nm_current_staff', null);
   const [staffMaster, setStaffMaster] = useLocalStorage('nm_staff_master', []);
+  const [vendorMaster, setVendorMaster] = useLocalStorage('nm_vendor_master', []);
+  const [vendorPurchaseLog, setVendorPurchaseLog] = useLocalStorage('nm_vendor_purchase_log', []);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -557,6 +559,8 @@ export default function App() {
     { id: 'Item-main-Category', label: 'Item Main Category', icon: <List size={16} /> },
     { id: 'Item-Sub-Category', label: 'Item Sub Category', icon: <Tag size={16} /> },
     { id: 'BrandMaster', label: 'Brand Master', icon: <Building2 size={16} /> },
+    { id: 'VendorMaster', label: 'Vendor Master', icon: <Users size={16} /> },
+    { id: 'PurchaseLog', label: 'Purchase Log', icon: <ShoppingCart size={16} /> },
     { id: 'DepartmentMas', label: 'Department Master', icon: <Users size={16} /> },
     { id: 'AccountMaster', label: 'Account Master', icon: <UserPlus size={16} /> },
     { id: 'UserPermission', label: 'User Master', icon: <UserCircle size={16} /> },
@@ -1342,7 +1346,8 @@ Thank you for shopping with us!
           brand: item.brand ? String(item.brand) : null,
           is_favourite: Boolean(item.is_favourite || item.isFavourite),
           is_discountable: Boolean(item.is_discountable || item.isDiscountable),
-          description: item.description ? String(item.description) : null
+          description: item.description ? String(item.description) : null,
+          min_stock_level: parseFloat(item.min_stock_level) || 10
         }));
 
         // Map to products schema (NM App)
@@ -1360,7 +1365,8 @@ Thank you for shopping with us!
           unit: item.unit ? String(item.unit) : '',
           stock: parseInt(item.stock_qty || item.stockQty || item.stock) || 0,
           is_featured: Boolean(item.is_favourite || item.isFavourite || item.is_featured),
-          badge: item.badge ? String(item.badge) : ''
+          badge: item.badge ? String(item.badge) : '',
+          min_stock_level: parseFloat(item.min_stock_level) || 10
         }));
 
         // Upsert both in parallel
@@ -1387,7 +1393,8 @@ Thank you for shopping with us!
     itemGroup: item.item_group || item.itemGroup || item.group || '',
     isFavourite: Boolean(item.is_favourite || item.isFavourite || false),
     isDiscountable: Boolean(item.is_discountable || item.isDiscountable || false),
-    gstRate: Number(item.gst || item.gst_rate || item.gstRate || 0) // Map GST fields
+    gstRate: Number(item.gst || item.gst_rate || item.gstRate || 0), // Map GST fields
+    min_stock_level: Number(item.min_stock_level || 10)
   });
 
   // --- Initial Load from Supabase + Migration ---
@@ -1453,6 +1460,8 @@ Thank you for shopping with us!
           { data: subCatsFromDB, error: subCatsFetchError },
           { data: brandsFromDB, error: brandsFetchError },
           { data: staffFromDB, error: staffFetchError },
+          { data: vendorsFromDB, error: vendorFetchError },
+          { data: purchaseLogsFromDB, error: purchaseFetchError },
         ] = await Promise.all([
           supabase.from('unit_master').select('*'),
           supabase.from('group_master').select('*'),
@@ -1460,6 +1469,8 @@ Thank you for shopping with us!
           supabase.from('sub_cat_master').select('*'),
           supabase.from('brand_master').select('*'),
           supabase.from('staff_master').select('*'),
+          supabase.from('vendor_master').select('*'),
+          supabase.from('purchase_log').select('*').order('purchase_date', { ascending: false }),
         ]);
 
         if (!unitsFetchError && unitsFromDB.length > 0) setUnitMaster(unitsFromDB);
@@ -1483,6 +1494,9 @@ Thank you for shopping with us!
           setStaffMaster([defaultAdmin]);
           try { await supabase.from('staff_master').insert([defaultAdmin]); } catch(e) { console.error(e); }
         }
+
+        if (!vendorFetchError && vendorsFromDB.length > 0) setVendorMaster(vendorsFromDB);
+        if (!purchaseFetchError && purchaseLogsFromDB.length > 0) setVendorPurchaseLog(purchaseLogsFromDB);
 
         // 6. Fetch online orders from Supabase
         console.log("Fetching online orders from Supabase...");
@@ -1584,6 +1598,8 @@ Thank you for shopping with us!
       setupRealtimeSubscription('sub_cat_master', setSubCatMaster),
       setupRealtimeSubscription('brand_master', setBrandMaster),
       setupRealtimeSubscription('staff_master', setStaffMaster),
+      setupRealtimeSubscription('vendor_master', setVendorMaster),
+      setupRealtimeSubscription('purchase_log', setVendorPurchaseLog),
     ];
 
     // Cleanup subscriptions when component unmounts
@@ -1645,7 +1661,8 @@ Thank you for shopping with us!
           brand: processedData.brand ? String(processedData.brand) : null,
           is_favourite: Boolean(processedData.is_favourite || processedData.isFavourite),
           is_discountable: Boolean(processedData.is_discountable || processedData.isDiscountable),
-          description: processedData.description ? String(processedData.description) : null
+          description: processedData.description ? String(processedData.description) : null,
+          min_stock_level: parseFloat(processedData.min_stock_level) || 10
         };
 
         // 2. products के लिए 100% सेफ डेटा टाइप్స (NM App के लिए)
@@ -1663,7 +1680,8 @@ Thank you for shopping with us!
           unit: processedData.unit ? String(processedData.unit) : '',
           stock: parseInt(processedData.stock_qty || processedData.stockQty || processedData.stock) || 0,
           is_featured: Boolean(processedData.is_favourite || processedData.isFavourite || processedData.is_featured),
-          badge: processedData.badge ? String(processedData.badge) : ''
+          badge: processedData.badge ? String(processedData.badge) : '',
+          min_stock_level: parseFloat(processedData.min_stock_level) || 10
         };
         
         // Upsert to item_master and products in parallel for speed
@@ -1780,6 +1798,38 @@ Thank you for shopping with us!
           is_active: Boolean(processedData.is_active !== undefined ? processedData.is_active : true)
         };
         await supabase.from('staff_master').upsert(cleanStaff, { onConflict: 'id' });
+      } else if (tab === 'VendorMaster') {
+        const cleanVendor = {
+          id: String(processedData.id),
+          vendor_name: String(processedData.vendor_name),
+          contact_person: processedData.contact_person ? String(processedData.contact_person) : null,
+          mobile: processedData.mobile ? String(processedData.mobile) : null,
+          address: processedData.address ? String(processedData.address) : null,
+          pending_dues: parseFloat(processedData.pending_dues || 0)
+        };
+        await supabase.from('vendor_master').upsert(cleanVendor, { onConflict: 'id' });
+      } else if (tab === 'PurchaseLog') {
+        const cleanPurchase = {
+          id: String(processedData.id),
+          vendor_id: String(processedData.vendor_id),
+          bill_number: processedData.bill_number ? String(processedData.bill_number) : null,
+          total_amount: parseFloat(processedData.total_amount || 0),
+          paid_amount: parseFloat(processedData.paid_amount || 0),
+          payment_mode: String(processedData.payment_mode || 'Cash'),
+          purchase_date: processedData.purchase_date ? String(processedData.purchase_date) : new Date().toISOString().split('T')[0]
+        };
+        
+        // Update vendor's pending dues when saving purchase!
+        const vendor = vendorMaster.find(v => v.id === cleanPurchase.vendor_id);
+        if (vendor) {
+          const newPendingDues = parseFloat(vendor.pending_dues || 0) + (cleanPurchase.total_amount - cleanPurchase.paid_amount);
+          await supabase.from('vendor_master').upsert({
+            ...vendor,
+            pending_dues: newPendingDues
+          }, { onConflict: 'id' });
+        }
+        
+        await supabase.from('purchase_log').upsert(cleanPurchase, { onConflict: 'id' });
       }
     } catch (error) {
       console.error('Error saving to Supabase:', error);
@@ -1803,6 +1853,8 @@ Thank you for shopping with us!
     else if (tab === 'Item-Sub-Category') currentData = subCatMaster;
     else if (tab === 'BrandMaster') currentData = brandMaster;
     else if (tab === 'StaffMaster') currentData = staffMaster;
+    else if (tab === 'VendorMaster') currentData = vendorMaster;
+    else if (tab === 'PurchaseLog') currentData = vendorPurchaseLog;
 
     // Find the item to delete from current data
     const itemToDelete = currentData.find(i => i.id === id);
@@ -1854,6 +1906,22 @@ Thank you for shopping with us!
         await supabase.from('brand_master').delete().eq('id', String(id));
       } else if (tab === 'StaffMaster') {
         await supabase.from('staff_master').delete().eq('id', String(id));
+      } else if (tab === 'VendorMaster') {
+        await supabase.from('vendor_master').delete().eq('id', String(id));
+      } else if (tab === 'PurchaseLog') {
+        // If deleting purchase, subtract the due from vendor's pending dues!
+        const purchase = vendorPurchaseLog.find(p => p.id === id);
+        if (purchase) {
+          const vendor = vendorMaster.find(v => v.id === purchase.vendor_id);
+          if (vendor) {
+            const newPendingDues = parseFloat(vendor.pending_dues || 0) - (purchase.total_amount - purchase.paid_amount);
+            await supabase.from('vendor_master').upsert({
+              ...vendor,
+              pending_dues: newPendingDues
+            }, { onConflict: 'id' });
+          }
+        }
+        await supabase.from('purchase_log').delete().eq('id', String(id));
       }
     } catch (error) {
       console.error('Error deleting from Supabase:', error);
@@ -1884,7 +1952,7 @@ Thank you for shopping with us!
     if (!currentStaff) return [];
     switch(currentStaff.role) {
       case 'super_admin':
-        return ['dashboard', 'sale', 'purchase', 'ItemMaster', 'ItemUnit_View', 'ItemGroupMaster', 'Item-main-Category', 'Item-Sub-Category', 'BrandMaster', 'StaffMaster', 'DepartmentMas', 'AccountMaster', 'UserPermission', 'BannerMaster', 'CreditMaster', 'WalletMaster', 'DeliveryBoyMaster', 'Delivery_cust_Master', 'KotView', 'RestBillView', 'RestBillViewDelivery', 'BranchBill', 'Payment_View', 'WalletRecharge', 'Rpt_SaleSummary', 'Rpt_SaleReport', 'Rpt_SaleReportItem_wise', 'RptSaleItemSummary', 'RestBillViewTrash', 'RestBillViewCancelled', 'Rpt_PurchaseReport', 'Rpt_Stock_Report', 'Rpt_Item_Statement_report', 'Logbook', 'LedgerView', 'Rpt_Delivery_boy_Payment', 'Rpt_CreditCustomer_Report', 'Payment_remind', 'Bom', 'Production', 'StockTRF', 'StockTRFWastage', 'PoEntry', 'Rpt_CostingReport', 'Rpt_StockTRF', 'Rpt_Stockwastage', 'Rpt_RO_Detail', 'Rpt_Po_Item_Report', 'ToolPass', 'LocationItemDisplay', 'Location-sub-category', 'Location-main-category', 'BluetoothTerminal', 'AppPerformanceTracker', 'PincodeBlocker', 'transaction'];
+        return ['dashboard', 'sale', 'purchase', 'ItemMaster', 'ItemUnit_View', 'ItemGroupMaster', 'Item-main-Category', 'Item-Sub-Category', 'BrandMaster', 'StaffMaster', 'VendorMaster', 'PurchaseLog', 'DepartmentMas', 'AccountMaster', 'UserPermission', 'BannerMaster', 'CreditMaster', 'WalletMaster', 'DeliveryBoyMaster', 'Delivery_cust_Master', 'KotView', 'RestBillView', 'RestBillViewDelivery', 'BranchBill', 'Payment_View', 'WalletRecharge', 'Rpt_SaleSummary', 'Rpt_SaleReport', 'Rpt_SaleReportItem_wise', 'RptSaleItemSummary', 'RestBillViewTrash', 'RestBillViewCancelled', 'Rpt_PurchaseReport', 'Rpt_Stock_Report', 'Rpt_Item_Statement_report', 'Logbook', 'LedgerView', 'Rpt_Delivery_boy_Payment', 'Rpt_CreditCustomer_Report', 'Payment_remind', 'Bom', 'Production', 'StockTRF', 'StockTRFWastage', 'PoEntry', 'Rpt_CostingReport', 'Rpt_StockTRF', 'Rpt_Stockwastage', 'Rpt_RO_Detail', 'Rpt_Po_Item_Report', 'ToolPass', 'LocationItemDisplay', 'Location-sub-category', 'Location-main-category', 'BluetoothTerminal', 'AppPerformanceTracker', 'PincodeBlocker', 'transaction'];
       case 'billing_staff':
         return ['dashboard', 'sale', 'KotView', 'RestBillView', 'RestBillViewDelivery', 'PincodeBlocker'];
       case 'inventory_manager':
@@ -1903,42 +1971,93 @@ Thank you for shopping with us!
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return (
-          <div className="relative min-h-[calc(100vh-120px)] w-full overflow-hidden flex flex-col items-center justify-center">
-            {/* Background Image */}
-            <div 
-              className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-40"
-              style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=2070&auto=format&fit=crop")' }}
-            ></div>
-            
-            {/* Overlay Content */}
-            <div className="relative z-10 w-full max-w-6xl px-10 flex flex-col md:flex-row justify-between items-start gap-12 text-slate-900 dark:text-white">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black tracking-tight uppercase">Call for support..</h2>
-                <div className="text-2xl font-bold space-y-1">
-                  <p>{SUPPORT_PHONE}</p>
-                </div>
-              </div>
+      case 'dashboard': {
+        // Find items where current stock (stock_qty) is less than min_stock_level
+        // If items don't have min_stock_level, default to 10
+        const lowStockItems = itemMaster.filter(item => {
+          const minStock = item.min_stock_level ?? 10;
+          const currentStock = Number(item.stock_qty || item.stockQty || 0);
+          return currentStock < minStock;
+        });
 
-              <div className="max-w-md space-y-8">
-                <h2 className="text-4xl font-black leading-tight tracking-tighter">
-                  We have multiple software products with us with all required modules.
-                </h2>
-                
-                <div className="space-y-2">
-                  <h3 className="text-3xl font-black tracking-tight uppercase">Call for enquiry..</h3>
-                  <p className="text-3xl font-bold">{SUPPORT_PHONE}</p>
+        return (
+          <div className="p-6 space-y-6 animate-in fade-in duration-300">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-600/10 rounded-2xl">
+                  <Home size={28} className="text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Dashboard</h2>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{BRAND_NAME} Admin Panel</p>
                 </div>
               </div>
             </div>
-            
-            <div className="absolute bottom-10 right-10 text-right opacity-20">
-              <h1 className="text-6xl font-black italic tracking-tighter uppercase leading-none">{BRAND_NAME}</h1>
-              <p className="text-xs font-black uppercase tracking-[0.5em]">{SUPPORT_PHONE}</p>
+
+            {/* Low Stock Alerts */}
+            {lowStockItems.length > 0 && (
+              <div className="bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 p-6 rounded-[32px] shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-rose-500/10 rounded-xl">
+                    <TrendingUp size={24} className="text-rose-500" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Low Stock Alerts</h3>
+                  <span className="px-3 py-1 bg-rose-500 text-white rounded-full text-xs font-black">{lowStockItems.length} Items</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {lowStockItems.map(item => (
+                    <div 
+                      key={item.id} 
+                      className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-2xl flex flex-col gap-2"
+                    >
+                      <div className="flex justify-between items-start">
+                        <h4 className="text-sm font-bold text-slate-800 dark:text-white">{item.name}</h4>
+                        {item.barcode && <span className="text-xs text-slate-500 font-mono">{item.barcode}</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-slate-500 font-bold uppercase">Stock:</span>
+                        <span className="text-lg font-black text-rose-600">{Number(item.stock_qty || item.stockQty || 0)}</span>
+                        <span className="text-xs text-slate-400 font-bold">/ {item.min_stock_level ?? 10}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[32px] shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-blue-500/10 rounded-xl">
+                    <Package size={24} className="text-blue-600" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Total Products</p>
+                </div>
+                <p className="text-3xl font-black text-slate-800 dark:text-white">{itemMaster.length}</p>
+              </div>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[32px] shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-emerald-500/10 rounded-xl">
+                    <Users size={24} className="text-emerald-600" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Total Vendors</p>
+                </div>
+                <p className="text-3xl font-black text-slate-800 dark:text-white">{vendorMaster.length}</p>
+              </div>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[32px] shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-orange-500/10 rounded-xl">
+                    <ShoppingCart size={24} className="text-orange-600" />
+                  </div>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Total Purchases</p>
+                </div>
+                <p className="text-3xl font-black text-slate-800 dark:text-white">{vendorPurchaseLog.length}</p>
+              </div>
             </div>
           </div>
         );
+      }
 
       case 'ToolPass':
         return (
@@ -4462,6 +4581,10 @@ Thank you for shopping with us!
                     <input type="number" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 text-sm outline-none" value={itemFormData.openingStock || ''} onChange={(e) => setItemFormData({...itemFormData, openingStock: e.target.value, stockQty: e.target.value})} />
                   </div>
                   <div className="lg:col-span-2 space-y-1">
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Min Stock Level</label>
+                    <input type="number" className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-3 py-2 text-sm outline-none" value={itemFormData.min_stock_level ?? 10} onChange={(e) => setItemFormData({...itemFormData, min_stock_level: Number(e.target.value)})} />
+                  </div>
+                  <div className="lg:col-span-2 space-y-1">
                     <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Is favourite</label>
                     <select className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-2 text-sm outline-none cursor-pointer" value={itemFormData.isFavourite || 0} onChange={(e) => setItemFormData({...itemFormData, isFavourite: Number(e.target.value)})}>
                       <option value={0}>No</option>
@@ -4475,6 +4598,7 @@ Thank you for shopping with us!
                       <option value={1}>No</option>
                     </select>
                   </div>
+                  <div className="lg:col-span-4"></div>
 
                   {/* Row 5 */}
                   <div className="lg:col-span-12 space-y-1">
@@ -4614,6 +4738,242 @@ Thank you for shopping with us!
           onDelete={(id) => handleDelete(id, setBrandMaster, "BrandMaster")}
           fields={[{ name: 'name', label: 'Brand Name', fullWidth: true }]}
         />;
+
+      case 'VendorMaster':
+        return <MasterView 
+          title="Vendor Master" 
+          data={vendorMaster}
+          onSave={(d) => handleSave('VendorMaster', d, setVendorMaster)}
+          onDelete={(id) => handleDelete(id, setVendorMaster, "VendorMaster")}
+          fields={[
+            { name: 'vendor_name', label: 'Vendor Name' },
+            { name: 'contact_person', label: 'Contact Person' },
+            { name: 'mobile', label: 'Mobile Number' },
+            { name: 'address', label: 'Address', fullWidth: true },
+            { name: 'pending_dues', label: 'Pending Dues', type: 'number', disabled: true },
+          ]}
+        />;
+
+      case 'PurchaseLog': {
+        const [activeSubTab, setActiveSubTab] = useState('list');
+        const [formData, setFormData] = useState({
+          vendor_id: '',
+          bill_number: '',
+          total_amount: 0,
+          paid_amount: 0,
+          payment_mode: 'Cash',
+          purchase_date: new Date().toISOString().split('T')[0]
+        });
+
+        if (activeSubTab === 'add') {
+          return (
+            <div className="p-6 space-y-6 animate-in fade-in duration-300">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-blue-600/10 rounded-2xl">
+                    <ShoppingCart size={28} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Add New Purchase</h2>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Record vendor transactions</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setActiveSubTab('list')}
+                  className="px-6 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-all"
+                >
+                  Back to List
+                </button>
+              </div>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[32px] shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Vendor</label>
+                    <select 
+                      className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold"
+                      value={formData.vendor_id}
+                      onChange={(e) => setFormData({ ...formData, vendor_id: e.target.value })}
+                    >
+                      <option value="">Select Vendor</option>
+                      {vendorMaster.map(vendor => <option key={vendor.id} value={vendor.id}>{vendor.vendor_name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Bill Number</label>
+                    <input 
+                      type="text" 
+                      className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm"
+                      value={formData.bill_number}
+                      onChange={(e) => setFormData({ ...formData, bill_number: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Purchase Date</label>
+                    <input 
+                      type="date" 
+                      className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm"
+                      value={formData.purchase_date}
+                      onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Total Amount</label>
+                    <input 
+                      type="number" 
+                      className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold text-blue-600"
+                      value={formData.total_amount}
+                      onChange={(e) => setFormData({ ...formData, total_amount: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Paid Amount</label>
+                    <input 
+                      type="number" 
+                      className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold text-emerald-600"
+                      value={formData.paid_amount}
+                      onChange={(e) => setFormData({ ...formData, paid_amount: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Payment Mode</label>
+                    <select 
+                      className="w-full mt-1 px-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-sm font-bold"
+                      value={formData.payment_mode}
+                      onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Bank">Bank</option>
+                      <option value="Udhaar">Udhaar</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button 
+                    onClick={() => {
+                      setActiveSubTab('list');
+                      setFormData({
+                        vendor_id: '',
+                        bill_number: '',
+                        total_amount: 0,
+                        paid_amount: 0,
+                        payment_mode: 'Cash',
+                        purchase_date: new Date().toISOString().split('T')[0]
+                      });
+                    }}
+                    className="px-6 py-3 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (!formData.vendor_id) return alert('Please select a vendor');
+                      const newPurchase = { 
+                        ...formData, 
+                        id: generateUUID(),
+                        total_amount: Number(formData.total_amount),
+                        paid_amount: Number(formData.paid_amount)
+                      };
+                      handleSave('PurchaseLog', newPurchase, setVendorPurchaseLog);
+                      setActiveSubTab('list');
+                      setFormData({
+                        vendor_id: '',
+                        bill_number: '',
+                        total_amount: 0,
+                        paid_amount: 0,
+                        payment_mode: 'Cash',
+                        purchase_date: new Date().toISOString().split('T')[0]
+                      });
+                    }}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                  >
+                    <Plus size={18} />
+                    Save Purchase
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="p-6 space-y-6 animate-in fade-in duration-300">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-600/10 rounded-2xl">
+                  <ShoppingCart size={28} className="text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Purchase Log</h2>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Track vendor purchases</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setActiveSubTab('add')}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-black uppercase tracking-widest transition-all flex items-center gap-2"
+              >
+                <Plus size={18} />
+                New Purchase
+              </button>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-sm">
+              <table className="w-full text-left text-sm table-striped">
+                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase text-[10px] font-black tracking-widest">
+                  <tr>
+                    <th className="px-6 py-4">Date</th>
+                    <th className="px-6 py-4">Vendor</th>
+                    <th className="px-6 py-4">Bill No</th>
+                    <th className="px-6 py-4">Total</th>
+                    <th className="px-6 py-4">Paid</th>
+                    <th className="px-6 py-4">Mode</th>
+                    <th className="px-6 py-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {vendorPurchaseLog.map(log => {
+                    const vendor = vendorMaster.find(v => v.id === log.vendor_id);
+                    return (
+                      <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-6 py-4 text-sm font-bold">{log.purchase_date}</td>
+                        <td className="px-6 py-4 text-sm">{vendor?.vendor_name || 'Unknown Vendor'}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">{log.bill_number}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-blue-600">₹{Number(log.total_amount || 0).toFixed(2)}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-emerald-600">₹{Number(log.paid_amount || 0).toFixed(2)}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                            log.payment_mode === 'Cash' ? 'bg-green-500/10 text-green-500' :
+                            log.payment_mode === 'Bank' ? 'bg-blue-500/10 text-blue-500' :
+                            'bg-orange-500/10 text-orange-500'
+                          }`}>
+                            {log.payment_mode}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button 
+                            onClick={() => handleDelete(log.id, setVendorPurchaseLog, 'PurchaseLog')}
+                            className="p-1.5 text-slate-400 hover:text-rose-500 transition-all"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {vendorPurchaseLog.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-20 text-center opacity-30">
+                        <div className="flex flex-col items-center">
+                          <ShoppingCart size={48} />
+                          <p className="text-[10px] font-black uppercase mt-4">No Purchases Yet</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      }
 
       case 'DepartmentMas':
         return <MasterView 
