@@ -1518,110 +1518,65 @@ Thank you for shopping with us!
     min_stock_level: Number(item.min_stock_level || 10)
   });
 
-  // --- Helper for safe fetch with timeout ---
-  const safeFetch = async (tableName, options = {}) => {
-    try {
-      let query = supabase.from(tableName).select('*');
-      if (options.orderBy) {
-        query = query.order(options.orderBy, { ascending: options.ascending ?? true });
-      }
-      const { data, error } = await Promise.race([
-        query,
-        new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout fetching ${tableName}`)), 10000))
-      ]);
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      console.error(`Error fetching ${tableName}:`, error.message);
-      return { data: null, error };
-    }
-  };
-
-  // --- Initial Load from Supabase + Migration ---
+  // --- Initial Load: Load localStorage FIRST for instant UI, then try Supabase ---
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        // 1. Fetch items from Supabase (source of truth)
-        console.log("Fetching items from Supabase...");
-        const { data: itemsFromDB } = await safeFetch('item_master');
-
-        if (itemsFromDB?.length > 0) {
-          console.log(`Fetched ${itemsFromDB.length} items from Supabase`);
-          const mappedItems = itemsFromDB.map(mapItemDbToLocal);
-          setItemMaster(mappedItems);
-        } else {
-          // 3. If no items in Supabase, check localStorage
-          console.log("No items in Supabase, checking localStorage...");
-          const localItems = JSON.parse(localStorage.getItem('nm_item_master')) || [];
-          if (localItems.length > 0) {
-            setItemMaster(localItems);
-            // Sync local items to Supabase
-            await autoSyncItemsToSupabase(localItems);
-          }
-        }
-
-        // 4. Fetch banners from Supabase
-        console.log("Fetching banners from Supabase...");
-        const { data: bannersFromDB } = await safeFetch('banner_master');
-
-        if (bannersFromDB?.length > 0) {
-          console.log(`Fetched ${bannersFromDB.length} banners from Supabase`);
-          // Map snake_case columns from DB to camelCase for local state
-          const mappedBanners = bannersFromDB.map(banner => ({
-            ...banner,
-            imageUrl: banner.image_url,
-            redirect: banner.redirect_path,
-            active: banner.is_active
-          }));
-          setBannerMaster(mappedBanners);
-        } else {
-          // If no banners in DB, check localStorage
-          const localBanners = JSON.parse(localStorage.getItem('nm_banner_master')) || [];
-          if (localBanners.length > 0) {
-            setBannerMaster(localBanners);
-          }
-        }
-
-        // 5. Fetch all masters from Supabase
-        console.log("Fetching all masters from Supabase...");
-        const [
-          unitsResult,
-          groupsResult,
-          mainCatsResult,
-          subCatsResult,
-          brandsResult,
-          staffResult,
-          vendorsResult,
-          purchaseLogsResult,
-          deptsResult,
-          dboyResult,
-          dcustResult,
-        ] = await Promise.all([
-          safeFetch('unit_master'),
-          safeFetch('group_master'),
-          safeFetch('main_category_master'),
-          safeFetch('sub_category_master'),
-          safeFetch('brand_master'),
-          safeFetch('staff_master'),
-          safeFetch('vendor_master'),
-          safeFetch('purchase_log', { orderBy: 'purchase_date', ascending: false }),
-          safeFetch('department_master'),
-          safeFetch('delivery_boy_master'),
-          safeFetch('delivery_customer_master'),
-        ]);
-
-        if (unitsResult.data?.length > 0) setUnitMaster(unitsResult.data);
-        if (groupsResult.data?.length > 0) setGroupMaster(groupsResult.data);
-        if (mainCatsResult.data?.length > 0) setMainCatMaster(mainCatsResult.data);
-        if (subCatsResult.data?.length > 0) setSubCatMaster(subCatsResult.data);
-        if (brandsResult.data?.length > 0) setBrandMaster(brandsResult.data);
-        if (deptsResult.data?.length > 0) setDeptMaster(deptsResult.data);
-        if (dboyResult.data?.length > 0) setDeliveryBoyMaster(dboyResult.data);
-        if (dcustResult.data?.length > 0) setDeliveryCustMaster(dcustResult.data);
+        // 1. Load everything from localStorage FIRST - so UI opens immediately!
+        console.log("Loading data from localStorage...");
         
-        // Handle staff master
-        if (staffResult.data?.length > 0) {
-          setStaffMaster(staffResult.data);
+        const localItems = JSON.parse(localStorage.getItem('nm_item_master')) || [];
+        if (localItems.length > 0) setItemMaster(localItems);
+
+        const localBanners = JSON.parse(localStorage.getItem('nm_banner_master')) || [];
+        if (localBanners.length > 0) setBannerMaster(localBanners);
+
+        const localUnits = JSON.parse(localStorage.getItem('nm_unit_master')) || [];
+        if (localUnits.length > 0) setUnitMaster(localUnits);
+
+        const localGroups = JSON.parse(localStorage.getItem('nm_group_master')) || [];
+        if (localGroups.length > 0) setGroupMaster(localGroups);
+
+        const localMainCats = JSON.parse(localStorage.getItem('nm_main_category_master')) || [];
+        if (localMainCats.length > 0) setMainCatMaster(localMainCats);
+
+        const localSubCats = JSON.parse(localStorage.getItem('nm_sub_category_master')) || [];
+        if (localSubCats.length > 0) setSubCatMaster(localSubCats);
+
+        const localBrands = JSON.parse(localStorage.getItem('nm_brand_master')) || [];
+        if (localBrands.length > 0) setBrandMaster(localBrands);
+
+        const localVendors = JSON.parse(localStorage.getItem('nm_vendor_master')) || [];
+        if (localVendors.length > 0) setVendorMaster(localVendors);
+
+        const localPurchaseLogs = JSON.parse(localStorage.getItem('nm_vendor_purchase_log')) || [];
+        if (localPurchaseLogs.length > 0) setVendorPurchaseLog(localPurchaseLogs);
+
+        const localDepts = JSON.parse(localStorage.getItem('nm_dept_master')) || [];
+        if (localDepts.length > 0) setDeptMaster(localDepts);
+
+        const localDBoys = JSON.parse(localStorage.getItem('nm_delivery_boy_master')) || [];
+        if (localDBoys.length > 0) setDeliveryBoyMaster(localDBoys);
+
+        const localDCust = JSON.parse(localStorage.getItem('nm_delivery_customer_master')) || [];
+        if (localDCust.length > 0) setDeliveryCustMaster(localDCust);
+
+        const localOrders = JSON.parse(localStorage.getItem('nm_online_orders')) || [];
+        if (localOrders.length > 0) setOnlineOrders(localOrders);
+
+        const localWallets = JSON.parse(localStorage.getItem('nm_wallet_master')) || [];
+        if (localWallets.length > 0) setWalletMaster(localWallets);
+
+        const localWalletTxns = JSON.parse(localStorage.getItem('nm_wallet_transactions')) || [];
+        if (localWalletTxns.length > 0) setWalletTransactions(localWalletTxns);
+
+        const localPincodes = JSON.parse(localStorage.getItem('nm_pincode_master')) || [];
+        if (localPincodes.length > 0) setPincodeMaster(localPincodes);
+
+        // Default admin user if no staff master
+        const localStaff = JSON.parse(localStorage.getItem('nm_staff_master')) || [];
+        if (localStaff.length > 0) {
+          setStaffMaster(localStaff);
         } else {
           const defaultAdmin = {
             id: '1',
@@ -1632,46 +1587,64 @@ Thank you for shopping with us!
             is_active: true
           };
           setStaffMaster([defaultAdmin]);
-          try { await supabase.from('staff_master').insert([defaultAdmin]); } catch(e) { console.error(e); }
         }
 
-        if (vendorsResult.data?.length > 0) setVendorMaster(vendorsResult.data);
-        if (purchaseLogsResult.data?.length > 0) setVendorPurchaseLog(purchaseLogsResult.data);
+        // NOW: Turn off loading immediately!
+        setIsLoading(false);
+        console.log("App loaded from localStorage! Now syncing with Supabase in background...");
 
-        // 6. Fetch online orders from Supabase
-        console.log("Fetching online orders from Supabase...");
-        const { data: ordersFromDB } = await safeFetch('online_orders', { orderBy: 'created_at', ascending: false });
+        // 2. Try to sync with Supabase in the background (won't block UI)
+        try {
+          // Helper for safe background fetch
+          const bgFetch = async (table) => {
+            try {
+              const { data, error } = await supabase.from(table).select('*').timeout(5000);
+              if (!error && data?.length > 0) return data;
+            } catch (e) { console.log(`Background fetch for ${table} failed:`, e.message); }
+            return null;
+          };
 
-        if (ordersFromDB?.length > 0) {
-          console.log(`Fetched ${ordersFromDB.length} online orders from Supabase`);
-          setOnlineOrders(ordersFromDB);
-        }
+          // Fetch items
+          const itemsFromDB = await bgFetch('item_master');
+          if (itemsFromDB?.length > 0) setItemMaster(itemsFromDB.map(mapItemDbToLocal));
 
-        // 7. Fetch wallet master & transactions from Supabase
-        console.log("Fetching wallet data from Supabase...");
-        const [
-          walletsResult,
-          walletTxnsResult,
-          pincodesResult
-        ] = await Promise.all([
-          safeFetch('wallet_balances'),
-          safeFetch('wallet_transactions', { orderBy: 'created_at', ascending: false }),
-          safeFetch('pincode_master')
-        ]);
+          // Fetch banners
+          const bannersFromDB = await bgFetch('banner_master');
+          if (bannersFromDB?.length > 0) {
+            const mapped = bannersFromDB.map(b => ({ ...b, imageUrl: b.image_url, redirect: b.redirect_path, active: b.is_active }));
+            setBannerMaster(mapped);
+          }
 
-        if (walletsResult.data?.length > 0) setWalletMaster(walletsResult.data);
-        if (walletTxnsResult.data?.length > 0) setWalletTransactions(walletTxnsResult.data);
-        if (pincodesResult.data?.length > 0) setPincodeMaster(pincodesResult.data);
+          // Fetch other masters
+          const mastersToFetch = [
+            'unit_master', 'group_master', 'main_category_master', 'sub_category_master',
+            'brand_master', 'vendor_master', 'purchase_log', 'department_master',
+            'delivery_boy_master', 'delivery_customer_master', 'staff_master',
+            'online_orders', 'wallet_balances', 'wallet_transactions', 'pincode_master'
+          ];
 
-        // 8. Also sync other masters if needed (optional, but let's keep the migration for older items)
-        const localItems = JSON.parse(localStorage.getItem('nm_item_master')) || [];
-        if (localItems.length > 0 && (itemsFromDB?.length || 0) < localItems.length) {
-          console.log("Migrating older items from localStorage to Supabase...");
-          await autoSyncItemsToSupabase(localItems);
+          const masterSetters = {
+            'unit_master': setUnitMaster, 'group_master': setGroupMaster,
+            'main_category_master': setMainCatMaster, 'sub_category_master': setSubCatMaster,
+            'brand_master': setBrandMaster, 'vendor_master': setVendorMaster,
+            'purchase_log': setVendorPurchaseLog, 'department_master': setDeptMaster,
+            'delivery_boy_master': setDeliveryBoyMaster, 'delivery_customer_master': setDeliveryCustMaster,
+            'staff_master': setStaffMaster, 'online_orders': setOnlineOrders,
+            'wallet_balances': setWalletMaster, 'wallet_transactions': setWalletTransactions,
+            'pincode_master': setPincodeMaster
+          };
+
+          for (const table of mastersToFetch) {
+            const data = await bgFetch(table);
+            if (data?.length > 0) masterSetters[table](data);
+          }
+
+          console.log("Background sync complete!");
+        } catch (bgErr) {
+          console.log("Background sync failed (no problem, app still works):", bgErr);
         }
       } catch (err) {
         console.error("Initialization failed:", err.message);
-      } finally {
         setIsLoading(false);
       }
     };
