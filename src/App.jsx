@@ -1781,7 +1781,19 @@ Thank you for shopping with us!
       console.log('5. Starting Supabase operations...');
 
       if (tab === 'ItemMaster') {
-        // 1. item_master के लिए 100% सेफ डेटा टाइप्स
+        // --------------------------
+        // 1. PREPARE DATA FOR SUPABASE
+        // --------------------------
+        // Log foreign keys explicitly to ensure they are correct
+        console.log('🔍 Checking foreign keys for item_master:', {
+          main_category: processedData.main_category || processedData.mainCategory,
+          sub_category: processedData.sub_category || processedData.subCategory,
+          brand: processedData.brand,
+          unit: processedData.unit,
+          item_group: processedData.item_group || processedData.group
+        });
+
+        // Prepare clean item data
         const cleanItem = {
           id: String(processedData.id),
           name: String(processedData.name || 'Unknown Item'),
@@ -1806,9 +1818,9 @@ Thank you for shopping with us!
           min_stock_level: parseFloat(processedData.min_stock_level) || 10
         };
 
-        console.log('6. Clean ItemMaster Data:', JSON.stringify(cleanItem, null, 2));
+        console.log('✅ Clean ItemMaster Data:', JSON.stringify(cleanItem, null, 2));
 
-        // 2. products के लिए 100% सेफ डेटा टाइप్స (NM App के लिए)
+        // Prepare clean product data
         const cleanProduct = {
           id: String(processedData.id),
           name: String(processedData.name || 'Unknown Item'),
@@ -1827,38 +1839,58 @@ Thank you for shopping with us!
           min_stock_level: parseFloat(processedData.min_stock_level) || 10
         };
 
-        console.log('7. Clean Products Data:', JSON.stringify(cleanProduct, null, 2));
+        console.log('✅ Clean Products Data:', JSON.stringify(cleanProduct, null, 2));
 
-        // Upsert to item_master and products in parallel for speed
-        console.log('8. Sending to Supabase...');
-        const [itemResult, productResult] = await Promise.all([
-          supabase.from('item_master').upsert(cleanItem, { onConflict: 'id' }),
-          supabase.from('products').upsert(cleanProduct, { onConflict: 'id' })
-        ]);
+        // --------------------------
+        // 2. SEND TO SUPABASE
+        // --------------------------
+        console.log('🚀 Sending data to Supabase (insert with onConflict)...');
 
-        console.log('9. ItemMaster Result:', itemResult);
-        console.log('10. Products Result:', productResult);
+        // --------------------------
+        // STEP 1: SAVE item_master
+        // --------------------------
+        console.log('📝 Saving to item_master...');
+        const { data: itemData, error: itemError } = await supabase
+          .from('item_master')
+          .insert(cleanItem, { onConflict: 'id' })
+          .select();
 
-        if (itemResult.error) {
-          console.error('11. ItemMaster Supabase Error:', {
-            code: itemResult.error.code,
-            message: itemResult.error.message,
-            details: itemResult.error.details,
-            hint: itemResult.error.hint,
-            fullError: itemResult.error
+        if (itemError) {
+          console.error('❌ item_master ERROR:', {
+            code: itemError.code,
+            message: itemError.message,
+            details: itemError.details,
+            hint: itemError.hint,
+            fullError: itemError
           });
-          throw itemResult.error;
+          addToast(`Item Master Save Failed: ${itemError.message}`, 'error');
+          throw itemError;
         }
-        if (productResult.error) {
-          console.error('11. Products Supabase Error:', {
-            code: productResult.error.code,
-            message: productResult.error.message,
-            details: productResult.error.details,
-            hint: productResult.error.hint,
-            fullError: productResult.error
+        console.log('✅ item_master SAVED:', itemData);
+
+        // --------------------------
+        // STEP 2: SAVE products
+        // --------------------------
+        console.log('📝 Saving to products...');
+        const { data: productData, error: productError } = await supabase
+          .from('products')
+          .insert(cleanProduct, { onConflict: 'id' })
+          .select(); // Get back the saved record
+
+        if (productError) {
+          console.error('❌ products ERROR:', {
+            code: productError.code,
+            message: productError.message,
+            details: productError.details,
+            hint: productError.hint,
+            fullError: productError
           });
-          throw productResult.error;
+          addToast(`Products Save Failed: ${productError.message}`, 'error');
+          throw productError;
         }
+        console.log('✅ products SAVED:', productData);
+
+        console.log('🎉 BOTH TABLES SAVED SUCCESSFULLY!');
       } else if (tab === 'BannerMaster') {
         const cleanBanner = {
           id: String(processedData.id),
