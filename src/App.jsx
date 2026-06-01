@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from './supabase';
+import { createActionRegistry } from './ActionRegistry';
+import Navbar from './components/Navbar';
+import MasterViewControls from './components/MasterViewControls';
+import AdminPanel from './components/AdminPanel';
 import { 
   Package, Layers, Grid, List, Tag, Building2, 
   Users, UserPlus, Image as ImageIcon, CreditCard, 
@@ -195,29 +199,12 @@ const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceho
             ))}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <button 
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="px-8 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </button>
-            <button 
-              onClick={() => { setShowForm(false); setFormData({}); setEditingId(null); }}
-              disabled={isSubmitting}
-              className="px-8 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-700 dark:text-slate-300"
-            >
-              Cancel
-            </button>
-          </div>
+          <MasterViewControls
+            variant="form"
+            onSave={handleSubmit}
+            onCancel={() => { setShowForm(false); setFormData({}); setEditingId(null); }}
+            isSubmitting={isSubmitting}
+          />
         </div>
       </div>
     );
@@ -232,12 +219,10 @@ const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceho
             <div className="text-slate-700 dark:text-slate-300">{icon || <Package size={28} />}</div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">{title}</h2>
           </div>
-          <button 
-            onClick={() => { setShowForm(true); setEditingId(null); setFormData({}); }}
-            className="flex items-center gap-2 px-6 py-2 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-sm font-bold transition-all"
-          >
-            <Plus size={18} /> Create New
-          </button>
+          <MasterViewControls
+            variant="header"
+            onCreateNew={() => { setShowForm(true); setEditingId(null); setFormData({}); }}
+          />
         </div>
 
         <div className="w-full max-w-xl relative">
@@ -274,18 +259,11 @@ const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceho
                     </td>
                   ))}
                   <td className="px-6 py-4 text-right space-x-2">
-                    <button 
-                      onClick={() => handleEdit(item)} 
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-all"
-                    >
-                      <Edit2 size={14} /> Edit
-                    </button>
-                    <button 
-                      onClick={() => onDelete(item.id)} 
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold hover:bg-rose-600 transition-all shadow-sm"
-                    >
-                      <Trash2 size={14} /> Delete
-                    </button>
+                    <MasterViewControls
+                      variant="row"
+                      onEdit={() => handleEdit(item)}
+                      onDelete={() => onDelete(item.id)}
+                    />
                   </td>
                 </tr>
               ))}
@@ -300,39 +278,17 @@ const MasterView = ({ title, fields, data, onSave, onDelete, icon, searchPlaceho
         </div>
         
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-6 text-xs text-slate-500 font-medium">
-          <div className="flex items-center gap-2">
-            <span>Rows per page:</span>
-            <select 
-              className="bg-transparent border border-slate-300 dark:border-slate-600 px-2 py-1 rounded outline-none cursor-pointer"
-              value={rowsPerPage}
-              onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-          <span>{startIndex + 1}-{Math.min(startIndex + rowsPerPage, filteredData.length)} of {filteredData.length}</span>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className={`px-3 py-1 rounded border transition-all ${currentPage === 1 ? 'opacity-30 cursor-not-allowed border-slate-200' : 'hover:bg-slate-100 border-slate-300 dark:border-slate-600 dark:hover:bg-slate-800'}`}
-            >
-              ❮
-            </button>
-            <button 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage >= totalPages || totalPages === 0}
-              className={`px-3 py-1 rounded border transition-all ${currentPage >= totalPages || totalPages === 0 ? 'opacity-30 cursor-not-allowed border-slate-200' : 'hover:bg-slate-100 border-slate-300 dark:border-slate-600 dark:hover:bg-slate-800'}`}
-            >
-              ❯
-            </button>
-          </div>
-        </div>
+        <MasterViewControls
+          variant="pagination"
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+          startIndex={startIndex}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          filteredCount={filteredData.length}
+          onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
+          onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+        />
       </div>
     </div>
   );
@@ -1732,300 +1688,41 @@ Thank you for shopping with us!
 
   // --- Critical Tabs for Verification Prompt ---
   const criticalTabs = ['PurchaseLog', 'StaffMaster', 'ItemMaster'];
-
-  const handleSave = async (tab, data, setter) => {
-    setIsSaving(true);
-    
-    console.log('======= SAVE DIAGNOSTICS START =======');
-    console.log('1. Tab:', tab);
-    console.log('2. Full Raw Data:', JSON.stringify(data, null, 2));
-
-    // Ensure data has a valid UUID
-    const processedData = { ...data };
-    if (!processedData.id || !isValidUUID(processedData.id)) {
-      processedData.id = generateUUID();
-      console.log('3. Generated new UUID:', processedData.id);
-    } else {
-      console.log('3. Using existing UUID:', processedData.id);
-    }
-
-    // --- VALIDATION CHECKS ---
-    let validationErrors = [];
-    if (tab === 'ItemMaster') {
-      if (!processedData.name || processedData.name.trim() === '') {
-        validationErrors.push('Item Name is required');
-      }
-      if (!processedData.main_category && !processedData.mainCategory) {
-        validationErrors.push('Main Category is required');
-      }
-    }
-
-    if (validationErrors.length > 0) {
-      console.warn('4. VALIDATION ERRORS:', validationErrors);
-      validationErrors.forEach(err => addToast(err, 'error'));
-      setIsSaving(false);
-      console.log('======= SAVE DIAGNOSTICS END (VALIDATION FAILED) =======');
-      return;
-    } else {
-      console.log('4. Validation passed!');
-    }
-
-    // Update local state first
-    setter(prev => {
-      const exists = prev.find(i => i.id === processedData.id);
-      if (exists) return prev.map(i => i.id === processedData.id ? processedData : i);
-      return [processedData, ...prev];
-    });
-
-    try {
-      console.log('5. Starting Supabase operations...');
-
-      if (tab === 'ItemMaster') {
-        // --------------------------
-        // 1. PREPARE DATA FOR SUPABASE
-        // --------------------------
-        // Log foreign keys explicitly to ensure they are correct
-        console.log('🔍 Checking foreign keys for item_master:', {
-          main_category: processedData.main_category || processedData.mainCategory,
-          sub_category: processedData.sub_category || processedData.subCategory,
-          brand: processedData.brand,
-          unit: processedData.unit,
-          item_group: processedData.item_group || processedData.group
-        });
-
-        // Prepare clean item data
-        const cleanItem = {
-          id: String(processedData.id),
-          name: String(processedData.name || 'Unknown Item'),
-          barcode: processedData.barcode ? String(processedData.barcode) : null,
-          hsn_code: processedData.hsn_code || processedData.hsnCode || null,
-          selling_price: parseFloat(processedData.selling_price || processedData.sellingPrice) || 0,
-          mrp: parseFloat(processedData.mrp) || 0,
-          purchase_rate: parseFloat(processedData.purchase_rate || processedData.purchaseRate) || 0,
-          gst: parseFloat(processedData.gst) || 0,
-          cess: parseFloat(processedData.cess) || 0,
-          discount: parseFloat(processedData.discount) || 0,
-          opening_stock: parseFloat(processedData.opening_stock || processedData.openingStock) || 0,
-          stock_qty: parseFloat(processedData.stock_qty || processedData.stockQty) || 0,
-          unit: processedData.unit ? String(processedData.unit) : null,
-          item_group: processedData.item_group || processedData.group || null,
-          main_category: processedData.main_category || processedData.mainCategory || null,
-          sub_category: processedData.sub_category || processedData.subCategory || null,
-          brand: processedData.brand ? String(processedData.brand) : null,
-          is_favourite: Boolean(processedData.is_favourite || processedData.isFavourite),
-          is_discountable: Boolean(processedData.is_discountable || processedData.isDiscountable),
-          description: processedData.description ? String(processedData.description) : null,
-          min_stock_level: parseFloat(processedData.min_stock_level) || 10
-        };
-
-        console.log('✅ Clean ItemMaster Data:', JSON.stringify(cleanItem, null, 2));
-
-        // Prepare clean product data
-        const cleanProduct = {
-          id: String(processedData.id),
-          name: String(processedData.name || 'Unknown Item'),
-          description: processedData.description ? String(processedData.description) : null,
-          "ItemGroupName": processedData.main_category || processedData.mainCategory || processedData.item_group || processedData.group || '',
-          "MRP": parseFloat(processedData.mrp) || 0,
-          "Rate": parseFloat(processedData.selling_price || processedData.sellingPrice) || 0,
-          "discountPerc": parseFloat(processedData.discount) || 0,
-          "ImageUrl": processedData.picture || processedData.image_url || processedData.ImageUrl || '',
-          "RawCodeNew": processedData.barcode ? String(processedData.barcode) : '',
-          "RawName": String(processedData.name || 'Unknown Item'),
-          unit: processedData.unit ? String(processedData.unit) : '',
-          stock: parseInt(processedData.stock_qty || processedData.stockQty || processedData.stock) || 0,
-          is_featured: Boolean(processedData.is_favourite || processedData.isFavourite || processedData.is_featured),
-          badge: processedData.badge ? String(processedData.badge) : '',
-          min_stock_level: parseFloat(processedData.min_stock_level) || 10
-        };
-
-        console.log('✅ Clean Products Data:', JSON.stringify(cleanProduct, null, 2));
-
-        // --------------------------
-        // 2. SEND TO SUPABASE
-        // --------------------------
-        console.log('🚀 Sending data to Supabase (insert with onConflict)...');
-
-        // --------------------------
-        // STEP 1: SAVE item_master
-        // --------------------------
-        console.log('📝 Saving to item_master...');
-        const { data: itemData, error: itemError } = await supabase
-          .from('item_master')
-          .insert(cleanItem, { onConflict: 'id' })
-          .select();
-
-        if (itemError) {
-          console.error('❌ item_master ERROR:', {
-            code: itemError.code,
-            message: itemError.message,
-            details: itemError.details,
-            hint: itemError.hint,
-            fullError: itemError
-          });
-          addToast(`Item Master Save Failed: ${itemError.message}`, 'error');
-          throw itemError;
-        }
-        console.log('✅ item_master SAVED:', itemData);
-
-        // --------------------------
-        // STEP 2: SAVE products
-        // --------------------------
-        console.log('📝 Saving to products...');
-        const { data: productData, error: productError } = await supabase
-          .from('products')
-          .insert(cleanProduct, { onConflict: 'id' })
-          .select(); // Get back the saved record
-
-        if (productError) {
-          console.error('❌ products ERROR:', {
-            code: productError.code,
-            message: productError.message,
-            details: productError.details,
-            hint: productError.hint,
-            fullError: productError
-          });
-          addToast(`Products Save Failed: ${productError.message}`, 'error');
-          throw productError;
-        }
-        console.log('✅ products SAVED:', productData);
-
-        console.log('🎉 BOTH TABLES SAVED SUCCESSFULLY!');
-      } else if (tab === 'BannerMaster') {
-        const cleanBanner = {
-          id: String(processedData.id),
-          title: String(processedData.title || ''),
-          image_url: processedData.imageUrl ? String(processedData.imageUrl) : null,
-          redirect_path: processedData.redirect ? String(processedData.redirect) : null,
-          is_active: Boolean(processedData.active !== undefined ? processedData.active : true)
-        };
-        const { error } = await supabase.from('banner_master').upsert(cleanBanner, { onConflict: 'id' });
-        if (error) {
-          throw error;
-        }
-      } else if (tab === 'PurchaseLog') {
-        const cleanPurchase = masterConfig.PurchaseLog.toDb(processedData);
-        // Update vendor's pending dues when saving purchase!
-        const vendor = vendorMaster.find(v => v.id === cleanPurchase.vendor_id);
-        if (vendor) {
-          const newPendingDues = parseFloat(vendor.pending_dues || 0) + (cleanPurchase.total_amount - cleanPurchase.paid_amount);
-          await supabase.from('vendor_master').upsert({
-            ...vendor,
-            pending_dues: newPendingDues
-          }, { onConflict: 'id' });
-        }
-        await supabase.from('purchase_log').upsert(cleanPurchase, { onConflict: 'id' });
-      } else if (masterConfig[tab]) {
-        const config = masterConfig[tab];
-        const cleanData = config.toDb(processedData);
-        await supabase.from(config.table).upsert(cleanData, { onConflict: 'id' });
-      }
-      
-      console.log('======= SAVE DIAGNOSTICS END (SUCCESS) =======');
-      addToast('Record saved successfully!', 'success');
-    } catch (error) {
-      console.error('======= SAVE DIAGNOSTICS END (ERROR) =======');
-      console.error('Final Error:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        fullError: error
-      });
-      logError(error, `Save Failed (${tab})`);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async (id, setter, tab) => {
-    // Verification prompt for critical tabs
-    if (criticalTabs.includes(tab)) {
-      const confirmed = window.confirm(`Warning: Deleting this record (${tab}) is permanent and may affect other data. Are you sure you want to continue?`);
-      if (!confirmed) return;
-    }
-
-    setIsDeleting(true);
-    try {
-      // Create a state lookup map for cleaner code
-      const stateLookup = {
-        'ItemMaster': itemMaster,
-        'BannerMaster': bannerMaster,
-        'AccountMaster': accountMaster,
-        'UserPermission': userMaster,
-        'CreditMaster': creditMaster,
-        'WalletMaster': walletMaster,
-        'WalletTransactions': walletTransactions,
-        'PincodeMaster': pincodeMaster,
-        'ItemUnit_View': unitMaster,
-        'ItemGroupMaster': groupMaster,
-        'Item-main-Category': mainCatMaster,
-        'Item-Sub-Category': subCatMaster,
-        'BrandMaster': brandMaster,
-        'StaffMaster': staffMaster,
-        'VendorMaster': vendorMaster,
-        'PurchaseLog': vendorPurchaseLog,
-        'DepartmentMas': deptMaster,
-        'DeliveryBoyMaster': deliveryBoyMaster,
-        'Delivery_cust_Master': deliveryCustMaster
-      };
-      const currentData = stateLookup[tab] || [];
-
-      const itemToDelete = currentData.find(i => i.id === id);
-      if (itemToDelete) {
-        if (tab === 'ItemMaster') {
-          const itemImage = itemToDelete.picture || itemToDelete.image_url;
-          if (itemImage) await deleteMediaFromSupabase(itemImage);
-        } else if (tab === 'BannerMaster') {
-          const bannerImage = itemToDelete.imageUrl || itemToDelete.image_url;
-          if (bannerImage) await deleteMediaFromSupabase(bannerImage);
-        }
-      }
-
-      setter(prev => prev.filter(i => i.id !== id));
-
-      if (tab === 'ItemMaster') {
-        await Promise.all([
-          supabase.from('item_master').delete().eq('id', String(id)),
-          supabase.from('products').delete().eq('id', String(id))
-        ]);
-      } else if (tab === 'PurchaseLog') {
-        const purchase = vendorPurchaseLog.find(p => p.id === id);
-        if (purchase) {
-          const vendor = vendorMaster.find(v => v.id === purchase.vendor_id);
-          if (vendor) {
-            const newPendingDues = parseFloat(vendor.pending_dues || 0) - (purchase.total_amount - purchase.paid_amount);
-            await supabase.from('vendor_master').upsert({
-              ...vendor,
-              pending_dues: newPendingDues
-            }, { onConflict: 'id' });
-          }
-        }
-        await supabase.from('purchase_log').delete().eq('id', String(id));
-      } else if (masterConfig[tab]) {
-        const config = masterConfig[tab];
-        await supabase.from(config.table).delete().eq('id', String(id));
-      } else if (['BannerMaster', 'AccountMaster', 'UserPermission', 'CreditMaster', 'WalletMaster', 'WalletTransactions', 'PincodeMaster'].includes(tab)) {
-        // Fallback for remaining tabs not in masterConfig yet
-        const tableMap = {
-          'BannerMaster': 'banner_master',
-          'AccountMaster': 'account_master',
-          'UserPermission': 'user_master',
-          'CreditMaster': 'credit_master',
-          'WalletMaster': 'wallet_balances',
-          'WalletTransactions': 'wallet_transactions',
-          'PincodeMaster': 'pincode_master'
-        };
-        await supabase.from(tableMap[tab]).delete().eq('id', String(id));
-      }
-
-      addToast('Record deleted successfully!', 'success');
-    } catch (error) {
-      logError(error, `Delete Failed (${tab})`);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  const { handleSave, handleDelete, handleLogin } = createActionRegistry({
+    supabase,
+    setIsSaving,
+    setIsDeleting,
+    addToast,
+    logError,
+    isValidUUID,
+    generateUUID,
+    masterConfig,
+    vendorMaster,
+    vendorPurchaseLog,
+    itemMaster,
+    bannerMaster,
+    accountMaster,
+    userMaster,
+    creditMaster,
+    walletMaster,
+    walletTransactions,
+    pincodeMaster,
+    unitMaster,
+    groupMaster,
+    mainCatMaster,
+    subCatMaster,
+    brandMaster,
+    staffMaster,
+    deptMaster,
+    deliveryBoyMaster,
+    deliveryCustMaster,
+    deleteMediaFromSupabase,
+    criticalTabs,
+    loginUsername,
+    loginPassword,
+    setLoginError,
+    setActiveTab,
+  });
   
   // --- RBAC: Login/Logout ---
   // Auth Listener to sync Supabase session to local state
@@ -2073,23 +1770,6 @@ Thank you for shopping with us!
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoginError('');
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginUsername,
-        password: loginPassword,
-      });
-
-      if (error) throw error;
-      setActiveTab('dashboard');
-    } catch (error) {
-      setLoginError(error.message || 'Invalid email or password');
-      logError(error, 'Login Failed');
-    }
-  };
-  
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -2243,14 +1923,12 @@ Thank you for shopping with us!
                 </button>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-[24px] text-center">
-                  <p className="text-xs font-black text-emerald-600 uppercase tracking-widest">System Authorized</p>
-                </div>
-                <button onClick={handleSystemReset} className="w-full bg-rose-600/10 text-rose-600 hover:bg-rose-600 hover:text-white py-4 rounded-2xl font-black uppercase text-xs transition-all border border-rose-600/20">Clear All Transactional Logs</button>
-                <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 py-4 rounded-2xl font-black uppercase text-xs transition-all">Factory Reset Cache</button>
-                <button onClick={() => setIsAdminAuthorized(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase text-xs transition-all mt-4">Lock Utilities</button>
-              </div>
+              <AdminPanel
+                isAdminAuthorized={isAdminAuthorized}
+                onClearTransactionalLogs={handleSystemReset}
+                onFactoryResetCache={() => { localStorage.clear(); window.location.reload(); }}
+                onLockUtilities={() => setIsAdminAuthorized(false)}
+              />
             )}
           </div>
         );
@@ -6029,195 +5707,28 @@ Thank you for shopping with us!
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-[#0f172a] text-slate-900 dark:text-white font-sans selection:bg-blue-500/30">
       {/* --- Navbar --- */}
-      <nav className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-[80] flex items-center justify-between px-4 shadow-sm">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`p-2 rounded-lg transition-all ${activeTab === 'dashboard' ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-          >
-            <Home size={20} />
-          </button>
-          
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('dashboard')}>
-            <img 
-              src="https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=NM%20MART%20logo,%20red%20gold%20colors,%20shopping%20cart,%20gift,%20elegant%20retail%20design%20with%203D%20style,%20clean%20background,%20professional%20logo&image_size=square_hd" 
-              alt="NM MART Logo" 
-              className="h-10 object-contain"
-            />
-          </div>
-          
-          <div className="hidden lg:flex items-center gap-1">
-            {/* Master Dropdown */}
-            {masters.filter(m => getAllowedTabs().includes(m.id)).length > 0 && (
-              <div className="relative">
-                <button 
-                  onClick={() => { setIsMasterOpen(!isMasterOpen); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${masters.some(m => m.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  Master <ChevronDown size={14} className={`transition-transform ${isMasterOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {isMasterOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 overflow-hidden z-[90]">
-                    {masters.filter(m => getAllowedTabs().includes(m.id)).map(master => (
-                      <button 
-                        key={master.id}
-                        onClick={() => { setActiveTab(master.id); setIsMasterOpen(false); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === master.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                      >
-                        {master.icon} {master.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {getAllowedTabs().includes('sale') && (
-              <NavItem active={activeTab === 'sale'} onClick={() => { setActiveTab('sale'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<ShoppingCart size={18} />} label="Sale Entry" />
-            )}
-            {getAllowedTabs().includes('purchase') && (
-              <NavItem active={activeTab === 'purchase'} onClick={() => { setActiveTab('purchase'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<Wallet size={18} />} label="Purchase" />
-            )}
-            
-            {viewRoutes.filter(r => getAllowedTabs().includes(r.id)).length > 0 && (
-              <div className="relative">
-                <button 
-                  onClick={() => { setIsMasterOpen(false); setIsViewOpen(!isViewOpen); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${viewRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <Eye size={18} /> View <ChevronDown size={14} className={`transition-transform ${isViewOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {isViewOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 overflow-hidden z-[90]">
-                    {viewRoutes.filter(r => getAllowedTabs().includes(r.id)).map(route => (
-                      <button 
-                        key={route.id}
-                        onClick={() => { setActiveTab(route.id); setIsViewOpen(false); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                      >
-                        {route.icon} {route.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {reportRoutes.filter(r => getAllowedTabs().includes(r.id)).length > 0 && (
-              <div className="relative">
-                <button 
-                  onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(!isReportOpen); setIsStoreOpen(false); setIsToolOpen(false); }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${reportRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <FileText size={18} /> Report <ChevronDown size={14} className={`transition-transform ${isReportOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {isReportOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-64 max-h-[70vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] scrollbar-hide">
-                    {reportRoutes.filter(r => getAllowedTabs().includes(r.id)).map(route => (
-                      <button 
-                        key={route.id}
-                        onClick={() => { setActiveTab(route.id); setIsReportOpen(false); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                      >
-                        {route.icon} {route.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {storeRoutes.filter(r => getAllowedTabs().includes(r.id)).length > 0 && (
-              <div className="relative">
-                <button 
-                  onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(!isStoreOpen); setIsToolOpen(false); }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${storeRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <Store size={18} /> Store <ChevronDown size={14} className={`transition-transform ${isStoreOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {isStoreOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-64 max-h-[70vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] scrollbar-hide">
-                    {storeRoutes.filter(r => getAllowedTabs().includes(r.id)).map(route => (
-                      <button 
-                        key={route.id}
-                        onClick={() => { setActiveTab(route.id); setIsStoreOpen(false); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                      >
-                        {route.icon} {route.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {getAllowedTabs().includes('transaction') && (
-              <NavItem active={activeTab === 'transaction'} onClick={() => { setActiveTab('transaction'); setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(false); }} icon={<Repeat size={18} />} label="Transaction" />
-            )}
-            
-            {toolRoutes.filter(r => getAllowedTabs().includes(r.id)).length > 0 && (
-              <div className="relative">
-                <button 
-                  onClick={() => { setIsMasterOpen(false); setIsViewOpen(false); setIsReportOpen(false); setIsStoreOpen(false); setIsToolOpen(!isToolOpen); }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${toolRoutes.some(r => r.id === activeTab) ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                >
-                  <Settings size={18} /> Tools <ChevronDown size={14} className={`transition-transform ${isToolOpen ? 'rotate-180' : ''}`} />
-                </button>
-                
-                {isToolOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-[90] overflow-hidden">
-                    {toolRoutes.filter(r => getAllowedTabs().includes(r.id)).map(route => (
-                      <button 
-                        key={route.id}
-                        onClick={() => { setActiveTab(route.id); setIsToolOpen(false); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium transition-all ${activeTab === route.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                      >
-                        {route.icon} {route.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-bold text-slate-600 dark:text-slate-300 leading-none">Hi, {currentStaff.staff_name}</p>
-              <p className="text-[10px] font-bold uppercase text-slate-400">{currentStaff.role.replace('_', ' ')}</p>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-[20px] text-xs font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
-            >
-              Logout
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <a
-              href="https://pqmgfxntxhnvknrvdyub.supabase.co/storage/v1/object/public/NMMart%20apk/app-releases/NMMart.apk"
-              target="_blank"
-              rel="noopener noreferrer"
-              download="nm-mart-app-release.apk"
-              className="hidden sm:flex items-center gap-2 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
-            >
-              📥 Download NM App
-            </a>
-            <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"><Maximize size={20} /></button>
-            <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all relative">
-              <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white dark:border-slate-900"></span>
-            </button>
-          </div>
-        </div>
-      </nav>
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        getAllowedTabs={getAllowedTabs}
+        masters={masters}
+        viewRoutes={viewRoutes}
+        reportRoutes={reportRoutes}
+        storeRoutes={storeRoutes}
+        toolRoutes={toolRoutes}
+        isMasterOpen={isMasterOpen}
+        setIsMasterOpen={setIsMasterOpen}
+        isViewOpen={isViewOpen}
+        setIsViewOpen={setIsViewOpen}
+        isReportOpen={isReportOpen}
+        setIsReportOpen={setIsReportOpen}
+        isStoreOpen={isStoreOpen}
+        setIsStoreOpen={setIsStoreOpen}
+        isToolOpen={isToolOpen}
+        setIsToolOpen={setIsToolOpen}
+        currentStaff={currentStaff}
+        handleLogout={handleLogout}
+      />
 
       {/* Printable Receipt */}
       <div id="printable-receipt" className="hidden print:block p-8 max-w-md mx-auto font-mono text-sm">
@@ -6329,18 +5840,3 @@ Thank you for shopping with us!
     </div>
   );
 }
-
-const NavItem = ({ active, onClick, icon, label }) => (
-  <button 
-    onClick={onClick}
-    className={`px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${active ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-  >
-    {icon} {label}
-  </button>
-);
-
-const NavDropdown = ({ label, icon }) => (
-  <button className="px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-    {icon} {label} <ChevronDown size={14} />
-  </button>
-);
