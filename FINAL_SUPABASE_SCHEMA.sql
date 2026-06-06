@@ -194,7 +194,8 @@ CREATE TABLE IF NOT EXISTS delivery_boy_master (
 CREATE TABLE IF NOT EXISTS delivery_customer_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
-    mobile TEXT NOT NULL,
+    mob_no TEXT NOT NULL,
+    gst_no TEXT,
     address TEXT,
     pincode TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,

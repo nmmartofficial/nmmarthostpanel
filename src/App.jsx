@@ -6600,7 +6600,7 @@ function DeliveryCustomerView({ title, table, data, fetchInitialData }) {
                         type="text" 
                         value={formData.mob_no || ''} 
                         onChange={(e) => setFormData({ ...formData, mob_no: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                     <div className="space-y-2">
@@ -6609,7 +6609,7 @@ function DeliveryCustomerView({ title, table, data, fetchInitialData }) {
                         type="text" 
                         value={formData.gst_no || ''} 
                         onChange={(e) => setFormData({ ...formData, gst_no: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                   </div>
@@ -6619,7 +6619,7 @@ function DeliveryCustomerView({ title, table, data, fetchInitialData }) {
                     <textarea 
                       value={formData.address || ''} 
                       onChange={(e) => setFormData({ ...formData, address: e.target.value })} 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold min-h-[80px]" 
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm min-h-[80px]" 
                     />
                   </div>
 
