@@ -1000,7 +1000,7 @@ export default function App() {
                 purchases, departments, units, accounts,
                 setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setUsers, setCoupons,
                 setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
-                uploadImage, fetchInitialData
+                uploadImage, fetchInitialData, setLoading
               })}
           </motion.div>
         </AnimatePresence>
