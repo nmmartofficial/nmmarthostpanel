@@ -4692,10 +4692,10 @@ function StockReportView({ products, purchases, orders, categories, departments 
         const stockIn = inItems.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
         const stockOut = outItems.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
 
-        // Opening stock calculation (Simplified: Current - In since fromDate + Out since fromDate)
-        // Note: For a precise report, one would need a stock_ledger table
-        const opening = parseFloat(product.stock || 0) - stockIn + stockOut; 
-        const closing = opening + stockIn - stockOut;
+        // --- DIRECT STOCK DISPLAY ---
+        // For imported data, the 'stock' field in the product table is the ground truth
+        const closing = parseFloat(product.stock || 0);
+        const opening = closing - stockIn + stockOut; 
 
         return {
           srNo: 0,
@@ -9027,7 +9027,7 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
       
       try {
         setLoading(true);
-        // Column mapping based on exact Excel headers
+        // EXACT mapping of your Excel headers to Database fields
         const columnMapping = {
           'Item Name': 'name',
           'BARCODE': 'barcode',
@@ -9053,28 +9053,19 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
         const parsedData = await parseERPCSV(file, columnMapping);
         if (!parsedData || parsedData.length === 0) throw new Error("No data found in file");
 
-        // --- STEP 1: AUTOMATIC MASTER UPDATE ---
+        // --- STEP 1: AUTOMATIC MASTER UPDATE (BY NAME) ---
         const uniqueCats = [...new Set(parsedData.map(item => item.category_name).filter(Boolean))];
         const uniqueSubCats = [...new Set(parsedData.map(item => item.subcategory_name).filter(Boolean))];
         const uniqueBrands = [...new Set(parsedData.map(item => item.brand_name).filter(Boolean))];
         const uniqueUnits = [...new Set(parsedData.map(item => item.unit_name).filter(Boolean))];
 
-        // Upsert masters - DB uses 'name' as conflict key as defined in dbSync.js
-        if (uniqueCats.length > 0) {
-          await dbSync.upsert(DB_SCHEMA.CATEGORIES.table, uniqueCats.map(name => ({ name, is_active: true })));
-        }
-        if (uniqueSubCats.length > 0) {
-          await dbSync.upsert(DB_SCHEMA.SUBCATEGORIES.table, uniqueSubCats.map(name => ({ name, is_active: true })));
-        }
-        if (uniqueBrands.length > 0) {
-          await dbSync.upsert(DB_SCHEMA.BRANDS.table, uniqueBrands.map(name => ({ name, is_active: true })));
-        }
-        if (uniqueUnits.length > 0) {
-          await dbSync.upsert(DB_SCHEMA.UNITS.table, uniqueUnits.map(name => ({ name, is_active: true })));
-        }
+        // Ensure these exist in Master Tables (using name as conflict key)
+        if (uniqueCats.length > 0) await dbSync.upsert(DB_SCHEMA.CATEGORIES.table, uniqueCats.map(name => ({ name, is_active: true })));
+        if (uniqueSubCats.length > 0) await dbSync.upsert(DB_SCHEMA.SUBCATEGORIES.table, uniqueSubCats.map(name => ({ name, is_active: true })));
+        if (uniqueBrands.length > 0) await dbSync.upsert(DB_SCHEMA.BRANDS.table, uniqueBrands.map(name => ({ name, is_active: true })));
+        if (uniqueUnits.length > 0) await dbSync.upsert(DB_SCHEMA.UNITS.table, uniqueUnits.map(name => ({ name, is_active: true })));
 
-        // --- STEP 2: DATA CONSISTENCY ---
-        // Fetch masters to get the actual IDs (whether they are names or UUIDs/Serial)
+        // --- STEP 2: FETCH FRESH IDS FOR LINKING ---
         const [dbCats, dbSubCats, dbBrands, dbUnits] = await Promise.all([
           dbSync.fetch(DB_SCHEMA.CATEGORIES.table),
           dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table),
@@ -9087,20 +9078,21 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
         const brandMap = Object.fromEntries(dbBrands.map(b => [b.name.toLowerCase().trim(), b.id]));
         const unitMap = Object.fromEntries(dbUnits.map(u => [u.name.toLowerCase().trim(), u.id]));
 
-        // Prepare products with proper linking
+        // --- STEP 3: PREPARE PRODUCTS WITH FULL CONSISTENCY ---
         const productsToUpload = parsedData.map(item => {
-          const catName = item.category_name?.toLowerCase().trim();
-          const subCatName = item.subcategory_name?.toLowerCase().trim();
-          const brandName = item.brand_name?.toLowerCase().trim();
-          const unitName = item.unit_name?.toLowerCase().trim();
+          const cName = item.category_name?.toLowerCase().trim();
+          const sName = item.subcategory_name?.toLowerCase().trim();
+          const bName = item.brand_name?.toLowerCase().trim();
+          const uName = item.unit_name?.toLowerCase().trim();
 
           return {
             ...item,
-            category_id: catName ? catMap[catName] : null,
-            subcategory_id: subCatName ? subCatMap[subCatName] : null,
-            brand_id: brandName ? brandMap[brandName] : null,
-            unit_id: unitName ? unitMap[unitName] : null,
-            // Keep names for backward compatibility and reports
+            // IDs for dropdowns and linking
+            category_id: cName ? catMap[cName] : null,
+            subcategory_id: sName ? subCatMap[sName] : null,
+            brand_id: bName ? brandMap[bName] : null,
+            unit_id: uName ? unitMap[uName] : null,
+            // Direct names for Reports (Backup)
             category: item.category_name,
             subcategory: item.subcategory_name,
             brand: item.brand_name,
@@ -9108,13 +9100,13 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
           };
         });
 
-        // --- STEP 3: BULK UPLOAD PRODUCTS ---
+        // --- STEP 4: BULK UPLOAD PRODUCTS ---
         await dbSync.upsert(DB_SCHEMA.PRODUCTS.table, productsToUpload);
         
-        alert(`Success! ${productsToUpload.length} Products imported.\nCategories, Brands, and Reports are now synchronized.`);
+        alert(`SUCCESS! ${productsToUpload.length} items imported.\nCategories, Brands, and Reports are now fully synchronized.`);
         
-        // Force a complete data reload to update all UI dropdowns and reports
-        await fetchInitialData(true);
+        // --- STEP 5: ABSOLUTE GLOBAL REFRESH ---
+        window.location.reload(); 
       } catch (error) {
         console.error("Import Error:", error);
         alert(`Import Failed: ${error.message}`);
