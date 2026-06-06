@@ -5636,7 +5636,32 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   const [deliveryChargePercent, setDeliveryChargePercent] = useState(0);
   const [flatDiscount, setFlatDiscount] = useState(0);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const searchInputRef = useRef(null);
+
+  // Search Results
+  const searchResults = useMemo(() => {
+    if (!searchTerm || searchTerm.length < 1) return [];
+    return products.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (p.barcode && p.barcode.includes(searchTerm))
+    ).slice(0, 10);
+  }, [searchTerm, products]);
+
+  const handleProductSelect = (product) => {
+    setSelectedProduct(product);
+    setSearchTerm(product.name);
+    setShowSearchDropdown(false);
+  };
+
+  const handleSerialClick = () => {
+    if (searchTerm) {
+      const product = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase() || p.barcode === searchTerm);
+      if (product) setSelectedProduct(product);
+      else alert("Product not found!");
+    }
+  };
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -5806,15 +5831,39 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
 
       {/* CENTER - Product Grid */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="p-2 flex gap-2 bg-[#A5D1E1]">
-          <input 
-            ref={searchInputRef}
-            type="text" 
-            placeholder="Search Name (F1)" 
-            className="flex-1 bg-white border-none rounded px-3 py-1.5 text-xs font-black text-black shadow-sm outline-none"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="p-2 flex gap-2 bg-[#A5D1E1] relative">
+          <div className="flex-1 relative">
+            <input 
+              ref={searchInputRef}
+              type="text" 
+              placeholder="Search Name (F1)" 
+              className="w-full bg-white border-none rounded px-3 py-1.5 text-xs font-black text-black shadow-sm outline-none"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowSearchDropdown(true);
+              }}
+              onFocus={() => setShowSearchDropdown(true)}
+            />
+            {/* Search Dropdown */}
+            {showSearchDropdown && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white shadow-xl rounded-b-lg mt-0.5 z-[100] border border-slate-200 overflow-hidden">
+                {searchResults.map(p => (
+                  <button 
+                    key={p.id}
+                    onClick={() => handleProductSelect(p)}
+                    className="w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-slate-50 last:border-none flex justify-between items-center group"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-black text-slate-800 group-hover:text-blue-700">{p.name}</span>
+                      <span className="text-[9px] text-slate-500">Barcode: {p.barcode || 'N/A'}</span>
+                    </div>
+                    <span className="text-xs font-black text-red-600">₹{p.sale_rate}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <input 
             type="text" 
             placeholder="Scan Barcode..." 
@@ -5824,7 +5873,10 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
             onKeyDown={handleBarcodeScan}
             autoFocus
           />
-          <button className="bg-[#2563EB] text-white px-4 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap">
+          <button 
+            onClick={handleSerialClick}
+            className="bg-[#2563EB] text-white px-4 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap active:scale-95 transition-transform"
+          >
             Serial
           </button>
         </div>
@@ -5929,7 +5981,41 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className="flex-1 overflow-y-auto bg-white relative">
+          {selectedProduct && (
+            <div className="absolute inset-0 bg-[#F0FDFA] z-50 p-4 border-b-2 border-emerald-200 animate-in fade-in slide-in-from-right duration-300">
+              <div className="flex justify-between items-start mb-4">
+                <h4 className="text-sm font-black text-emerald-900 uppercase">Product Details</h4>
+                <button onClick={() => setSelectedProduct(null)} className="p-1 hover:bg-emerald-100 rounded-full text-emerald-600"><X size={16}/></button>
+              </div>
+              <div className="space-y-3">
+                <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+                  <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Item Name</p>
+                  <p className="text-xs font-black text-slate-900 uppercase">{selectedProduct.name}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Rate</p>
+                    <p className="text-lg font-black text-slate-900">₹{selectedProduct.sale_rate}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">GST %</p>
+                    <p className="text-lg font-black text-slate-900">{selectedProduct.gst || 0}%</p>
+                  </div>
+                </div>
+                <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
+                  <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Current Stock</p>
+                  <p className="text-xs font-black text-slate-900">{selectedProduct.stock} Units</p>
+                </div>
+                <button 
+                  onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }}
+                  className="w-full bg-[#E11D48] text-white py-3 rounded-xl font-black uppercase text-xs shadow-lg mt-4 flex items-center justify-center gap-2 hover:bg-red-700"
+                >
+                  <ShoppingCart size={16} /> Add to Cart
+                </button>
+              </div>
+            </div>
+          )}
           {cart.map((item, idx) => (
             <div key={idx} className="px-3 py-2 flex justify-between border-b border-slate-100 text-[10px] font-bold hover:bg-slate-50 group">
               <span className="w-1/2 text-slate-800 uppercase leading-tight">{item.name}</span>
