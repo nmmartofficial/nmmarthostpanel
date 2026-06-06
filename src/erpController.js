@@ -185,7 +185,9 @@ export const parseERPCSV = async (file, columnMapping) => {
               if (cleanValue !== '' && !isNaN(Number(cleanValue))) {
                 record[dbColumn] = Number(cleanValue);
               } else {
-                record[dbColumn] = cleanValue;
+                // IMPORTANT: If value is empty, use null instead of empty string
+                // This prevents "invalid input syntax for type numeric: """ error in Supabase
+                record[dbColumn] = cleanValue === '' ? null : cleanValue;
               }
             }
           });
