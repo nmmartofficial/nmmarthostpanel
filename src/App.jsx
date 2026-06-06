@@ -6791,7 +6791,7 @@ function DeliveryBoyView({ title, table, data, fetchInitialData }) {
                         type="text" 
                         value={formData.name || ''} 
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-                        className="w-full bg-white border-2 border-blue-100 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-white border-2 border-blue-100 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                         required
                       />
                     </div>
@@ -6802,7 +6802,7 @@ function DeliveryBoyView({ title, table, data, fetchInitialData }) {
                         value={formData.username || ''} 
                         onChange={(e) => setFormData({ ...formData, username: e.target.value })} 
                         placeholder="20"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                     <div className="space-y-2">
@@ -6811,7 +6811,7 @@ function DeliveryBoyView({ title, table, data, fetchInitialData }) {
                         type="password" 
                         value={formData.password || ''} 
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                   </div>
@@ -6972,7 +6972,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                         type="text" 
                         value={formData.account_name || ''} 
                         onChange={(e) => setFormData({ ...formData, account_name: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-900 font-bold focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-black font-bold focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -6981,7 +6981,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                         type="number" 
                         value={formData.cr_days || ''} 
                         onChange={(e) => setFormData({ ...formData, cr_days: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-900 font-bold focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-black font-bold focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -6990,7 +6990,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                         type="number" 
                         value={formData.cr_amount || ''} 
                         onChange={(e) => setFormData({ ...formData, cr_amount: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-900 font-bold focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-black font-bold focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                   </div>
@@ -7006,7 +7006,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                               type="text" 
                               value={customer.mobile} 
                               onChange={(e) => updateCustomerField(index, 'mobile', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 font-bold"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-black font-bold"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -7015,7 +7015,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                               type="text" 
                               value={customer.name} 
                               onChange={(e) => updateCustomerField(index, 'name', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 font-bold"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-black font-bold"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -7024,7 +7024,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                               type="text" 
                               value={customer.address} 
                               onChange={(e) => updateCustomerField(index, 'address', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 font-bold"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-black font-bold"
                             />
                           </div>
                           {formData.customers.length > 1 && (
@@ -7505,7 +7505,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                       type="text" 
                       value={formData.name || ''} 
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
-                      className="w-full bg-white border-2 border-blue-100 rounded-lg px-4 py-2.5 text-xs font-black text-slate-900 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 outline-none transition-all shadow-sm" 
+                      className="w-full bg-white border-2 border-blue-100 rounded-lg px-4 py-2.5 text-xs font-black text-black focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 outline-none transition-all shadow-sm" 
                       required 
                     />
                   </div>
@@ -7515,7 +7515,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                       type="text" 
                       value={formData.address1 || ''} 
                       onChange={(e) => setFormData({ ...formData, address1: e.target.value })} 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                     />
                   </div>
                   <div className="space-y-2">
@@ -7524,7 +7524,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                       type="text" 
                       value={formData.address2 || ''} 
                       onChange={(e) => setFormData({ ...formData, address2: e.target.value })} 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                     />
                   </div>
                   <div className="space-y-2">
@@ -7533,7 +7533,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                       type="text" 
                       value={formData.pincode || ''} 
                       onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                     />
                   </div>
                 </div>
@@ -7545,7 +7545,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                       type="text" 
                       value={formData.gst_no || ''} 
                       onChange={(e) => setFormData({ ...formData, gst_no: e.target.value })} 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                     />
                   </div>
                   <div className="space-y-2">
@@ -7554,7 +7554,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                       type="text" 
                       value={formData.mobile || ''} 
                       onChange={(e) => setFormData({ ...formData, mobile: e.target.value })} 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                     />
                   </div>
                   <div className="space-y-2">
@@ -7563,7 +7563,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                       type="email" 
                       value={formData.email || ''} 
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm" 
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm" 
                     />
                   </div>
                   <div className="space-y-2">
@@ -7571,7 +7571,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                     <select 
                       value={formData.account_type || 'Cash'} 
                       onChange={(e) => setFormData({ ...formData, account_type: e.target.value })} 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:border-blue-400 outline-none shadow-sm"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs font-black text-black focus:border-blue-400 outline-none shadow-sm"
                     >
                       <option value="Cash">Cash</option>
                       <option value="UPI">UPI</option>

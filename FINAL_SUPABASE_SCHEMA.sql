@@ -172,7 +172,7 @@ CREATE TABLE IF NOT EXISTS credit_master (
 -- 13. delivery_boy_master – Delivery Boys
 CREATE TABLE IF NOT EXISTS delivery_boy_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    full_name TEXT NOT NULL,
+    name TEXT NOT NULL,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     mobile TEXT,

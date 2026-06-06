@@ -172,7 +172,7 @@ CREATE TABLE credit_master (
 -- 13. Delivery Boys Table
 CREATE TABLE delivery_boy_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    full_name TEXT NOT NULL,
+    name TEXT NOT NULL,
     username TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     mobile TEXT,
