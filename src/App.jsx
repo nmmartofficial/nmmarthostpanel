@@ -9079,24 +9079,32 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
         const unitMap = Object.fromEntries(dbUnits.map(u => [u.name.toLowerCase().trim(), u.id]));
 
         // --- STEP 3: PREPARE PRODUCTS WITH FULL CONSISTENCY ---
+        // We ensure Excel names are directly uploaded to Supabase columns
         const productsToUpload = parsedData.map(item => {
-          const cName = item.category_name?.toLowerCase().trim();
-          const sName = item.subcategory_name?.toLowerCase().trim();
-          const bName = item.brand_name?.toLowerCase().trim();
-          const uName = item.unit_name?.toLowerCase().trim();
+          const cName = item.category_name?.trim();
+          const sName = item.subcategory_name?.trim();
+          const bName = item.brand_name?.trim();
+          const uName = item.unit_name?.trim();
 
           return {
             ...item,
-            // IDs for dropdowns and linking - Matching your EXACT Supabase Schema
-            category_id: cName ? catMap[cName] : null,
-            sub_category_id: sName ? subCatMap[sName] : null, // Fixed: Schema uses sub_category_id
-            brand_id: bName ? brandMap[bName] : null,
-            unit_id: uName ? unitMap[uName] : null,
-            // Direct names for Reports (Backup)
-            category: item.category_name,
-            subcategory: item.subcategory_name,
-            brand: item.brand_name,
-            unit: item.unit_name
+            // 1. Direct Name Columns (GROUND TRUTH in your Supabase Schema)
+            category_name: cName || null,
+            subcategory_name: sName || null,
+            brand_name: bName || null,
+            unit_name: uName || null,
+            
+            // 2. Linking IDs for dropdowns (using mapped IDs from Step 2)
+            category_id: cName ? catMap[cName.toLowerCase()] : null,
+            sub_category_id: sName ? subCatMap[sName.toLowerCase()] : null,
+            brand_id: bName ? brandMap[bName.toLowerCase()] : null,
+            unit_id: uName ? unitMap[uName.toLowerCase()] : null,
+            
+            // 3. Compatibility fields
+            category: cName || null,
+            subcategory: sName || null,
+            brand: bName || null,
+            unit: uName || null
           };
         });
 
