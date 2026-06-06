@@ -9082,10 +9082,19 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
           await handleERPAction(DB_SCHEMA.UNITS.table, ACTION_TYPES.BULK_UPSERT, uniqueUnits.map(name => ({ id: generateSyncId(name), name, is_active: true })));
         }
 
-        // 3. Now upload the products
-        const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.BULK_UPSERT, parsedData);
+        // 3. Prepare products with consistent category/brand mapping
+        const productsToUpload = parsedData.map(item => ({
+          ...item,
+          category_id: item.category_name ? generateSyncId(item.category_name) : null,
+          subcategory_id: item.subcategory_name ? generateSyncId(item.subcategory_name) : null,
+          brand_id: item.brand_name ? generateSyncId(item.brand_name) : null,
+          unit_id: item.unit_name ? generateSyncId(item.unit_name) : null
+        }));
+
+        // 4. Now upload the products
+        const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.BULK_UPSERT, productsToUpload);
         if (res.success) {
-          alert(`Successfully imported ${parsedData.length} products and synchronized masters!`);
+          alert(`Successfully imported ${productsToUpload.length} products and synchronized masters!`);
           // Wait 1s for DB indexing then force refresh
           setTimeout(() => fetchInitialData(true), 1000);
         } else {
