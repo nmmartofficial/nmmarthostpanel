@@ -5630,6 +5630,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   const [paymentMethod, setPaymentMethod] = useState('Online');
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [barcode, setBarcode] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [billDiscount, setBillDiscount] = useState(0);
   const [deliveryChargePercent, setDeliveryChargePercent] = useState(0);
@@ -5664,6 +5665,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   );
 
   const addToCart = (product) => {
+    if (!product) return;
     if (product.stock <= 0) {
       alert("Item out of stock!");
       return;
@@ -5680,6 +5682,18 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
     }
   };
 
+  const handleBarcodeScan = (e) => {
+    if (e.key === 'Enter') {
+      const product = products.find(p => p.barcode === barcode || p.hsn_code === barcode);
+      if (product) {
+        addToCart(product);
+        setBarcode(''); // Clear after add
+      } else {
+        alert("Product not found with this barcode!");
+      }
+    }
+  };
+
   const subTotal = cart.reduce((sum, item) => sum + (item.sale_rate * item.quantity), 0);
   const discountAmount = (subTotal * billDiscount) / 100;
   const deliveryChargeAmount = (subTotal * deliveryChargePercent) / 100;
@@ -5689,11 +5703,58 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
-    // Simulating save
-    setTimeout(() => {
+    
+    try {
+      // 1. Create Order
+      const orderData = {
+        order_number: `POS-${Date.now()}`,
+        user_id: customerInfo.mob || 'POS-CUST',
+        customer_name: customerInfo.name || 'Walk-in Customer',
+        user_mobile: customerInfo.mob || '',
+        address: customerInfo.add || '',
+        total_amount: finalTotal,
+        payment_method: paymentMethod,
+        payment_status: 'paid',
+        order_status: 'completed',
+        discount: discountAmount + flatDiscount,
+        delivery_charge: deliveryChargeAmount
+      };
+
+      const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.INSERT, orderData);
+      
+      if (!orderRes.success) throw new Error(orderRes.error);
+
+      // 2. Create Order Items
+      const orderItems = cart.map(item => ({
+        order_id: orderRes.data[0].id,
+        product_id: item.id,
+        product_name: item.name,
+        quantity: item.quantity,
+        rate: item.sale_rate,
+        total: item.sale_rate * item.quantity
+      }));
+
+      for (const item of orderItems) {
+        await handleERPAction(ERP_MODULES.ORDER_ITEMS, ACTION_TYPES.INSERT, item);
+        
+        // 3. Update Stock
+        const product = products.find(p => p.id === item.product_id);
+        if (product) {
+          await handleERPAction(ERP_MODULES.ITEM_MASTER, ACTION_TYPES.UPDATE, {
+            id: product.id,
+            stock: product.stock - item.quantity
+          });
+        }
+      }
+
       setIsProcessing(false);
       setShowReceipt(true);
-    }, 800);
+      fetchInitialData(); // Refresh stock in frontend
+    } catch (error) {
+      console.error("Checkout Error:", error);
+      alert("Billing failed: " + error.message);
+      setIsProcessing(false);
+    }
   };
 
   const handlePrint = () => {
@@ -5749,17 +5810,21 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
           <input 
             ref={searchInputRef}
             type="text" 
-            placeholder="Search (F1)" 
-            className="flex-1 bg-white border-none rounded px-3 py-1.5 text-xs font-bold shadow-sm outline-none"
+            placeholder="Search Name (F1)" 
+            className="flex-1 bg-white border-none rounded px-3 py-1.5 text-xs font-black text-black shadow-sm outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <input 
             type="text" 
             placeholder="Scan Barcode..." 
-            className="w-32 bg-white border-none rounded px-3 py-1.5 text-xs font-bold shadow-sm outline-none"
+            className="w-48 bg-white border-none rounded px-3 py-1.5 text-xs font-black text-black shadow-sm outline-none"
+            value={barcode}
+            onChange={(e) => setBarcode(e.target.value)}
+            onKeyDown={handleBarcodeScan}
+            autoFocus
           />
-          <button className="bg-[#2563EB] text-white px-4 py-1.5 rounded text-xs font-bold shadow-md whitespace-nowrap">
+          <button className="bg-[#2563EB] text-white px-4 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap">
             Serial
           </button>
         </div>
@@ -5825,16 +5890,34 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
       {/* RIGHT SIDEBAR - Billing */}
       <div className="w-80 bg-white flex flex-col border-l border-slate-300">
         {/* Customer Header */}
-        <div className="bg-[#1E293B] text-white p-3 relative">
-          <div className="space-y-0.5">
-            <p className="text-[10px] font-bold">Cust Name : , Mob :</p>
-            <p className="text-[10px] font-bold">Add :</p>
+        <div className="bg-[#1E293B] text-white p-3 space-y-2 relative">
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Customer Name" 
+              className="flex-1 bg-white/10 border border-white/20 rounded px-2 py-1 text-[10px] font-black placeholder-white/40 outline-none focus:bg-white/20"
+              value={customerInfo.name}
+              onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
+            />
+            <input 
+              type="text" 
+              placeholder="Mobile No" 
+              className="w-24 bg-white/10 border border-white/20 rounded px-2 py-1 text-[10px] font-black placeholder-white/40 outline-none focus:bg-white/20"
+              value={customerInfo.mob}
+              onChange={(e) => setCustomerInfo({...customerInfo, mob: e.target.value})}
+            />
           </div>
-          <button className="absolute top-2 right-2 flex flex-col items-center">
-            <div className="bg-[#E11D48] p-1.5 rounded-full shadow-lg border-2 border-white/20">
-              <Monitor size={14} />
+          <textarea 
+            placeholder="Address" 
+            className="w-full bg-white/10 border border-white/20 rounded px-2 py-1 text-[10px] font-black placeholder-white/40 outline-none focus:bg-white/20 h-10 resize-none"
+            value={customerInfo.add}
+            onChange={(e) => setCustomerInfo({...customerInfo, add: e.target.value})}
+          />
+          <button className="absolute top-2 right-2 flex flex-col items-center opacity-50 hover:opacity-100 transition-opacity">
+            <div className="bg-[#E11D48] p-1 rounded-full shadow-lg border border-white/20">
+              <Monitor size={10} />
             </div>
-            <span className="text-[8px] font-black mt-0.5">Online</span>
+            <span className="text-[7px] font-black mt-0.5">Online</span>
           </button>
         </div>
 
@@ -5881,23 +5964,23 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
             <div className="text-right space-y-0.5">
               <div className="flex items-center justify-end gap-2">
                 <span className="font-bold text-slate-500">% Bill Discount :</span>
-                <input type="number" value={billDiscount} onChange={(e) => setBillDiscount(e.target.value)} className="w-8 h-4 bg-white border border-slate-300 rounded text-right px-0.5 text-[9px]" />
-                <span className="w-12 font-black">{discountAmount.toFixed(2)}</span>
+                <input type="number" value={billDiscount} onChange={(e) => setBillDiscount(e.target.value)} className="w-8 h-4 bg-white border border-slate-300 rounded text-right px-0.5 text-[9px] font-black text-black" />
+                <span className="w-12 font-black text-black">{discountAmount.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-end gap-2">
                 <Truck size={10} className="text-slate-400" />
                 <span className="font-bold text-slate-500">Delivery charge :</span>
-                <input type="number" value={deliveryChargePercent} onChange={(e) => setDeliveryChargePercent(e.target.value)} className="w-8 h-4 bg-white border border-slate-300 rounded text-right px-0.5 text-[9px]" />
-                <span className="w-12 font-black">0.00</span>
+                <input type="number" value={deliveryChargePercent} onChange={(e) => setDeliveryChargePercent(e.target.value)} className="w-8 h-4 bg-white border border-slate-300 rounded text-right px-0.5 text-[9px] font-black text-black" />
+                <span className="w-12 font-black text-black">0.00</span>
               </div>
               <div className="flex items-center justify-end gap-2">
                 <Truck size={10} className="text-slate-400" />
                 <span className="font-bold text-slate-500">Delivery charge Amount :</span>
-                <input type="number" className="w-16 h-4 bg-white border border-slate-300 rounded text-right px-0.5 text-[9px]" />
+                <input type="number" className="w-16 h-4 bg-white border border-slate-300 rounded text-right px-0.5 text-[9px] font-black text-black" />
               </div>
               <div className="flex items-center justify-end gap-2">
                 <span className="font-bold text-slate-500">% Flat Discount :</span>
-                <input type="number" value={flatDiscount} onChange={(e) => setFlatDiscount(e.target.value)} className="w-16 h-4 bg-white border border-slate-300 rounded text-right px-0.5 text-[9px]" />
+                <input type="number" value={flatDiscount} onChange={(e) => setFlatDiscount(e.target.value)} className="w-16 h-4 bg-white border border-slate-300 rounded text-right px-0.5 text-[9px] font-black text-black" />
               </div>
               <div className="flex items-center justify-end gap-2 text-blue-600">
                 <X size={10} />
@@ -5919,10 +6002,11 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
         {/* Footer Actions */}
         <div className="grid grid-cols-2 gap-2 p-2 bg-white">
           <button 
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || isProcessing}
+            onClick={handleCheckout}
             className="bg-[#E11D48] text-white py-2 rounded font-black text-xs uppercase shadow-lg hover:bg-red-700 transition-all disabled:opacity-50"
           >
-            Save
+            {isProcessing ? 'Processing...' : 'Save'}
           </button>
           <button 
             onClick={() => setActiveTab('Dashboard')}
