@@ -285,7 +285,7 @@ CREATE TABLE IF NOT EXISTS addresses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
     full_name TEXT NOT NULL,
-    mobile TEXT NOT NULL,
+    mobile TEXT,
     house_no TEXT,
     city TEXT,
     pincode TEXT,

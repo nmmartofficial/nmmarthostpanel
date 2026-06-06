@@ -12677,9 +12677,15 @@ function AddressMasterView({ title, table, data, fetchInitialData }) {
                     <input type="text" value={formData.city || ''} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Pincode</label>
-                  <input type="text" value={formData.pincode || ''} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} maxLength="6" className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Mobile No</label>
+                    <input type="text" value={formData.mobile || ''} onChange={(e) => setFormData({ ...formData, mobile: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Pincode</label>
+                    <input type="text" value={formData.pincode || ''} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} maxLength="6" className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <input type="checkbox" checked={formData.is_default} onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })} id="addr_default" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
