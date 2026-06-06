@@ -259,12 +259,12 @@ export default function App() {
     try {
       const results = await Promise.allSettled([
         dbSync.fetch(DB_SCHEMA.PRODUCTS.table),
-        dbSync.fetch(DB_SCHEMA.CATEGORIES.table, { order: { column: 'position', ascending: true } }),
+        dbSync.fetch(DB_SCHEMA.CATEGORIES.table, { order: { column: 'name', ascending: true } }),
         dbSync.fetch(DB_SCHEMA.ORDERS.table, { order: { column: 'created_at', ascending: false } }),
         dbSync.fetch(DB_SCHEMA.APP_CONFIG.table),
-        dbSync.fetch(DB_SCHEMA.BANNERS.table, { order: { column: 'position', ascending: true } }),
-        dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table, { order: { column: 'position', ascending: true } }),
-        dbSync.fetch(DB_SCHEMA.BRANDS.table, { order: { column: 'position', ascending: true } }),
+        dbSync.fetch(DB_SCHEMA.BANNERS.table),
+        dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table, { order: { column: 'name', ascending: true } }),
+        dbSync.fetch(DB_SCHEMA.BRANDS.table, { order: { column: 'name', ascending: true } }),
         dbSync.fetch(DB_SCHEMA.COUPONS.table),
         dbSync.fetch(DB_SCHEMA.NOTIFICATIONS.table, { order: { column: 'created_at', ascending: false }, limit: 20 }),
         dbSync.fetch(DB_SCHEMA.WALLET_MASTER.table),
@@ -9026,12 +9026,8 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
       if (!file) return;
       
       try {
-        // Check if file is an image
-        if (file.type.startsWith('image/')) {
-          throw new Error("यह फ़ाइल इमेज है! इमेज अपलोड करने के लिए 'Create New' बटन पर क्लिक करें, फिर फॉर्म में इमेज फील्ड चुनें!");
-        }
-
-        // Column mapping based on your exact Excel headers
+        setLoading(true);
+        // Column mapping based on exact Excel headers
         const columnMapping = {
           'Item Name': 'name',
           'BARCODE': 'barcode',
@@ -9048,8 +9044,6 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
           'Size': 'size',
           'Colour': 'color',
           'Counter': 'counter_name',
-          // Mappings for reference (Category/Subcat/Brand need IDs in DB, 
-          // but we map them so they don't cause errors if present)
           'MAIN CATEGORY': 'category_name',
           'SUBC ATEGORY': 'subcategory_name',
           'Brand name': 'brand_name',
@@ -9057,52 +9051,75 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
         };
         
         const parsedData = await parseERPCSV(file, columnMapping);
-        if (parsedData.length === 0) throw new Error("No data found in file");
+        if (!parsedData || parsedData.length === 0) throw new Error("No data found in file");
 
-        // --- AUTOMATIC MASTER SYNC LOGIC ---
-        // 1. Extract unique Categories, Subcategories, Brands from Excel
+        // --- STEP 1: AUTOMATIC MASTER UPDATE ---
         const uniqueCats = [...new Set(parsedData.map(item => item.category_name).filter(Boolean))];
         const uniqueSubCats = [...new Set(parsedData.map(item => item.subcategory_name).filter(Boolean))];
         const uniqueBrands = [...new Set(parsedData.map(item => item.brand_name).filter(Boolean))];
         const uniqueUnits = [...new Set(parsedData.map(item => item.unit_name).filter(Boolean))];
 
-        // 2. Sync them to their respective Master tables first (using name as conflict key)
-        const generateSyncId = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '-');
-
+        // Upsert masters - DB uses 'name' as conflict key as defined in dbSync.js
         if (uniqueCats.length > 0) {
-          await handleERPAction(DB_SCHEMA.CATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueCats.map(name => ({ id: generateSyncId(name), name, is_active: true })));
+          await dbSync.upsert(DB_SCHEMA.CATEGORIES.table, uniqueCats.map(name => ({ name, is_active: true })));
         }
         if (uniqueSubCats.length > 0) {
-          await handleERPAction(DB_SCHEMA.SUBCATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueSubCats.map(name => ({ id: generateSyncId(name), name, is_active: true })));
+          await dbSync.upsert(DB_SCHEMA.SUBCATEGORIES.table, uniqueSubCats.map(name => ({ name, is_active: true })));
         }
         if (uniqueBrands.length > 0) {
-          await handleERPAction(DB_SCHEMA.BRANDS.table, ACTION_TYPES.BULK_UPSERT, uniqueBrands.map(name => ({ id: generateSyncId(name), name, is_active: true })));
+          await dbSync.upsert(DB_SCHEMA.BRANDS.table, uniqueBrands.map(name => ({ name, is_active: true })));
         }
         if (uniqueUnits.length > 0) {
-          await handleERPAction(DB_SCHEMA.UNITS.table, ACTION_TYPES.BULK_UPSERT, uniqueUnits.map(name => ({ id: generateSyncId(name), name, is_active: true })));
+          await dbSync.upsert(DB_SCHEMA.UNITS.table, uniqueUnits.map(name => ({ name, is_active: true })));
         }
 
-        // 3. Prepare products with consistent category/brand mapping
-        const productsToUpload = parsedData.map(item => ({
-          ...item,
-          category_id: item.category_name ? generateSyncId(item.category_name) : null,
-          subcategory_id: item.subcategory_name ? generateSyncId(item.subcategory_name) : null,
-          brand_id: item.brand_name ? generateSyncId(item.brand_name) : null,
-          unit_id: item.unit_name ? generateSyncId(item.unit_name) : null
-        }));
+        // --- STEP 2: DATA CONSISTENCY ---
+        // Fetch masters to get the actual IDs (whether they are names or UUIDs/Serial)
+        const [dbCats, dbSubCats, dbBrands, dbUnits] = await Promise.all([
+          dbSync.fetch(DB_SCHEMA.CATEGORIES.table),
+          dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table),
+          dbSync.fetch(DB_SCHEMA.BRANDS.table),
+          dbSync.fetch(DB_SCHEMA.UNITS.table)
+        ]);
 
-        // 4. Now upload the products
-        const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.BULK_UPSERT, productsToUpload);
-        if (res.success) {
-          alert(`Successfully imported ${productsToUpload.length} products and synchronized masters!`);
-          // Wait 1s for DB indexing then force refresh
-          setTimeout(() => fetchInitialData(true), 1000);
-        } else {
-          throw new Error(res.error);
-        }
+        const catMap = Object.fromEntries(dbCats.map(c => [c.name.toLowerCase().trim(), c.id]));
+        const subCatMap = Object.fromEntries(dbSubCats.map(s => [s.name.toLowerCase().trim(), s.id]));
+        const brandMap = Object.fromEntries(dbBrands.map(b => [b.name.toLowerCase().trim(), b.id]));
+        const unitMap = Object.fromEntries(dbUnits.map(u => [u.name.toLowerCase().trim(), u.id]));
+
+        // Prepare products with proper linking
+        const productsToUpload = parsedData.map(item => {
+          const catName = item.category_name?.toLowerCase().trim();
+          const subCatName = item.subcategory_name?.toLowerCase().trim();
+          const brandName = item.brand_name?.toLowerCase().trim();
+          const unitName = item.unit_name?.toLowerCase().trim();
+
+          return {
+            ...item,
+            category_id: catName ? catMap[catName] : null,
+            subcategory_id: subCatName ? subCatMap[subCatName] : null,
+            brand_id: brandName ? brandMap[brandName] : null,
+            unit_id: unitName ? unitMap[unitName] : null,
+            // Keep names for backward compatibility and reports
+            category: item.category_name,
+            subcategory: item.subcategory_name,
+            brand: item.brand_name,
+            unit: item.unit_name
+          };
+        });
+
+        // --- STEP 3: BULK UPLOAD PRODUCTS ---
+        await dbSync.upsert(DB_SCHEMA.PRODUCTS.table, productsToUpload);
+        
+        alert(`Success! ${productsToUpload.length} Products imported.\nCategories, Brands, and Reports are now synchronized.`);
+        
+        // Force a complete data reload to update all UI dropdowns and reports
+        await fetchInitialData(true);
       } catch (error) {
         console.error("Import Error:", error);
         alert(`Import Failed: ${error.message}`);
+      } finally {
+        setLoading(false);
       }
     };
     input.click();
