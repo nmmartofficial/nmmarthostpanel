@@ -140,6 +140,10 @@ CREATE TABLE IF NOT EXISTS account_master (
     mobile TEXT UNIQUE,
     email TEXT,
     address TEXT,
+    address1 TEXT,
+    address2 TEXT,
+    pincode TEXT,
+    gst_no TEXT,
     account_type TEXT DEFAULT 'Customer',
     opening_balance NUMERIC(12,2) DEFAULT 0.00,
     current_balance NUMERIC(12,2) DEFAULT 0.00,
@@ -383,36 +387,28 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT USAGE ON SCHEMA public TO authenticated;
 
--- Disable RLS for easy testing initially
-ALTER TABLE app_config DISABLE ROW LEVEL SECURITY;
-ALTER TABLE home_config DISABLE ROW LEVEL SECURITY;
-ALTER TABLE banners DISABLE ROW LEVEL SECURITY;
-ALTER TABLE categories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE subcategories DISABLE ROW LEVEL SECURITY;
-ALTER TABLE brands DISABLE ROW LEVEL SECURITY;
-ALTER TABLE unit_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE department_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE products DISABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE account_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE credit_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE delivery_boy_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE delivery_customer_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE purchases DISABLE ROW LEVEL SECURITY;
-ALTER TABLE purchase_items DISABLE ROW LEVEL SECURITY;
-ALTER TABLE orders DISABLE ROW LEVEL SECURITY;
-ALTER TABLE order_items DISABLE ROW LEVEL SECURITY;
-ALTER TABLE wallet_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE wallet_transactions DISABLE ROW LEVEL SECURITY;
-ALTER TABLE addresses DISABLE ROW LEVEL SECURITY;
-ALTER TABLE pincode_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE coupons DISABLE ROW LEVEL SECURITY;
-ALTER TABLE offers_master DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cart DISABLE ROW LEVEL SECURITY;
-ALTER TABLE wishlist DISABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
-ALTER TABLE system_logs DISABLE ROW LEVEL SECURITY;
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+-- Enable RLS and Add Public Access Policies (Safe but accessible)
+DO $$ 
+DECLARE 
+    t TEXT;
+    tables TEXT[] := ARRAY[
+        'app_config', 'home_config', 'banners', 'categories', 'subcategories', 
+        'brands', 'unit_master', 'department_master', 'products', 'admin_users', 
+        'account_master', 'credit_master', 'delivery_boy_master', 'delivery_customer_master', 
+        'purchases', 'purchase_items', 'orders', 'order_items', 'wallet_master', 
+        'wallet_transactions', 'addresses', 'pincode_master', 'coupons', 'offers_master', 
+        'cart', 'wishlist', 'notifications', 'system_logs', 'users'
+    ];
+BEGIN 
+    FOREACH t IN ARRAY tables LOOP 
+        -- Enable RLS
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+        
+        -- Drop policy if exists and recreate
+        EXECUTE format('DROP POLICY IF EXISTS "Public Full Access" ON %I', t);
+        EXECUTE format('CREATE POLICY "Public Full Access" ON %I FOR ALL USING (true) WITH CHECK (true)', t);
+    END LOOP; 
+END $$;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);

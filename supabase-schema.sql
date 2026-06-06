@@ -140,6 +140,10 @@ CREATE TABLE account_master (
     mobile TEXT UNIQUE,
     email TEXT,
     address TEXT,
+    address1 TEXT,
+    address2 TEXT,
+    pincode TEXT,
+    gst_no TEXT,
     account_type TEXT DEFAULT 'Customer',
     opening_balance DECIMAL(12,2) DEFAULT 0.00,
     current_balance DECIMAL(12,2) DEFAULT 0.00,
@@ -370,64 +374,22 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Enable RLS for all tables
-ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
-ALTER TABLE home_config ENABLE ROW LEVEL SECURITY;
-ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subcategories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE brands ENABLE ROW LEVEL SECURITY;
-ALTER TABLE unit_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE department_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE account_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE credit_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE delivery_boy_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE delivery_customer_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
-ALTER TABLE purchase_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE wallet_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE wallet_transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE addresses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pincode_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
-ALTER TABLE offers_master ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cart ENABLE ROW LEVEL SECURITY;
-ALTER TABLE wishlist ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
--- Create RLS policies (Allow all for authenticated users - modify based on your needs)
-CREATE POLICY "Enable all access for authenticated users" ON app_config FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON home_config FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON banners FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON categories FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON subcategories FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON brands FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON unit_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON department_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON products FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON admin_users FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON account_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON credit_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON delivery_boy_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON delivery_customer_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON purchases FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON purchase_items FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON orders FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON order_items FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON wallet_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON wallet_transactions FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON addresses FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON pincode_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON coupons FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON offers_master FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON cart FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON wishlist FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON notifications FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON system_logs FOR ALL USING (true);
-CREATE POLICY "Enable all access for authenticated users" ON users FOR ALL USING (true);
+-- Enable RLS and Add Public Access Policies
+DO $$ 
+DECLARE 
+    t TEXT;
+    tables TEXT[] := ARRAY[
+        'app_config', 'home_config', 'banners', 'categories', 'subcategories', 
+        'brands', 'unit_master', 'department_master', 'products', 'admin_users', 
+        'account_master', 'credit_master', 'delivery_boy_master', 'delivery_customer_master', 
+        'purchases', 'purchase_items', 'orders', 'order_items', 'wallet_master', 
+        'wallet_transactions', 'addresses', 'pincode_master', 'coupons', 'offers_master', 
+        'cart', 'wishlist', 'notifications', 'system_logs', 'users'
+    ];
+BEGIN 
+    FOREACH t IN ARRAY tables LOOP 
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+        EXECUTE format('DROP POLICY IF EXISTS "Public Full Access" ON %I', t);
+        EXECUTE format('CREATE POLICY "Public Full Access" ON %I FOR ALL USING (true) WITH CHECK (true)', t);
+    END LOOP; 
+END $$;
