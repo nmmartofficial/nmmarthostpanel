@@ -4667,8 +4667,8 @@ function StockReportView({ products, purchases, orders, categories, departments 
 
       // 2. Process products one by one
       const stockSummary = products.map(product => {
-        // Filter by group (category)
-        const productCategory = product.category_name || product.category;
+        // Filter by group (category) - Support both ID and Name
+        const productCategory = product.category_name || product.category || 'No Category';
         if (group !== 'All' && productCategory !== group) return null;
         
         // Filter by search
@@ -4679,21 +4679,21 @@ function StockReportView({ products, purchases, orders, categories, departments 
           const p = allPurchases.find(pur => pur.id === pi.purchase_id);
           if (!p) return false;
           const pDate = new Date(p.bill_date).toISOString().split('T')[0];
-          return pi.product_id === product.id && pDate >= fromDate && pDate <= toDate;
+          return (pi.product_id === product.id || pi.product_name === product.name) && pDate >= fromDate && pDate <= toDate;
         });
 
         const outItems = orderItems.filter(oi => {
           const o = allOrders.find(ord => ord.id === oi.order_id);
           if (!o || o.status === 'cancelled') return false;
           const oDate = new Date(o.created_at).toISOString().split('T')[0];
-          return oi.product_id === product.id && oDate >= fromDate && oDate <= toDate;
+          return (oi.product_id === product.id || oi.product_name === product.name) && oDate >= fromDate && oDate <= toDate;
         });
 
         const stockIn = inItems.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
         const stockOut = outItems.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
 
-        // --- DIRECT STOCK DISPLAY ---
-        // For imported data, the 'stock' field in the product table is the ground truth
+        // --- DIRECT STOCK DISPLAY (GROUND TRUTH) ---
+        // For imported data, the 'stock' field in the product table is the current stock
         const closing = parseFloat(product.stock || 0);
         const opening = closing - stockIn + stockOut; 
 
@@ -4704,7 +4704,7 @@ function StockReportView({ products, purchases, orders, categories, departments 
           stockIn: stockIn,
           stockOut: stockOut,
           closing: closing,
-          unit: product.unit || 'PCS',
+          unit: product.unit_name || product.unit || 'PCS',
           saleRate: parseFloat(product.sale_rate || 0),
           amount: closing * parseFloat(product.sale_rate || 0),
           purcRate: parseFloat(product.purchase_rate || 0),
@@ -10356,8 +10356,13 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
         if (!product && (mainCat !== 'All' || subCat !== 'All')) return false;
         
         const matchesSearch = !searchItem || item.product_name?.toLowerCase().includes(searchItem.toLowerCase());
-        const matchesMain = mainCat === 'All' || product?.category_id === mainCat || product?.category_name === mainCat;
-        const matchesSub = subCat === 'All' || product?.subcategory_id === subCat || product?.subcategory_name === subCat;
+        
+        // Match by Name or ID for Category/Subcategory
+        const productMainCat = product?.category_name || product?.category || '';
+        const productSubCat = product?.subcategory_name || product?.subcategory || '';
+
+        const matchesMain = mainCat === 'All' || product?.category_id === mainCat || productMainCat === mainCat;
+        const matchesSub = subCat === 'All' || product?.subcategory_id === subCat || productSubCat === subCat;
         
         return matchesSearch && matchesMain && matchesSub;
       });
