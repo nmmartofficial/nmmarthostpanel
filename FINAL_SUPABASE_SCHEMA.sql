@@ -169,6 +169,7 @@ CREATE TABLE IF NOT EXISTS credit_master (
     mobile TEXT,
     name TEXT,
     address TEXT,
+    customers JSONB DEFAULT '[]',
     amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     type TEXT NOT NULL DEFAULT 'Credit',
     reason TEXT,
