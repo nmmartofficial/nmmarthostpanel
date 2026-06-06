@@ -9177,11 +9177,12 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">SNo</th>
-                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Name</th>
-                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Barcode</th>
-                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">HSN Code</th>
-                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Rate</th>
-                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Discount</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Name / Category</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Barcode / HSN</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Brand / Counter</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Pricing (₹)</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Tax / Disc</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Stock / Specs</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Picture</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">Action</th>
               </tr>
@@ -9194,20 +9195,45 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-[10px] font-black text-slate-800 uppercase tracking-tighter leading-none">{product.name}</p>
-                    <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">{product.category}</p>
+                    <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">
+                      {product.category_name || 'No Category'} {product.subcategory_name ? `/ ${product.subcategory_name}` : ''}
+                    </p>
                   </td>
-                  <td className="px-4 py-3 text-center text-[10px] font-bold text-slate-600">{product.barcode || '-'}</td>
-                  <td className="px-4 py-3 text-center text-[10px] font-bold text-slate-600">{product.hsn_code || '-'}</td>
+                  <td className="px-4 py-3 text-center">
+                    <p className="text-[10px] font-bold text-slate-600">{product.barcode || '-'}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">HSN: {product.hsn_code || '-'}</p>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <p className="text-[10px] font-bold text-slate-600 uppercase">{product.brand_name || '-'}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">{product.counter_name || '-'}</p>
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px] font-black text-slate-800">₹{product.sale_rate}</span>
-                      <span className="text-[8px] text-slate-400 line-through font-bold">₹{product.mrp}</span>
+                      <span className="text-[10px] font-black text-blue-700">Sale: ₹{product.sale_rate}</span>
+                      <span className="text-[8px] text-slate-400 line-through font-bold">MRP: ₹{product.mrp}</span>
+                      <span className="text-[8px] text-slate-500 font-bold">Purc: ₹{product.purchase_rate || 0}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">
-                      {product.discount}% OFF
-                    </span>
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">
+                        {product.discount_percent || 0}% OFF
+                      </span>
+                      <span className="text-[8px] font-bold text-slate-500 uppercase">GST: {product.gst_percent || 0}%</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className={cn(
+                        "text-[10px] font-black",
+                        (product.stock || 0) <= 5 ? "text-red-600" : "text-green-600"
+                      )}>
+                        Stock: {product.stock || 0}
+                      </span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase">
+                        {product.size ? `Size: ${product.size}` : ''} {product.color ? `| ${product.color}` : ''}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="w-10 h-10 mx-auto bg-slate-50 rounded-lg border border-slate-200 overflow-hidden p-1">
@@ -9401,24 +9427,32 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
                       <input type="number" value={formData.purchase_rate || 0} onChange={(e) => setFormData({ ...formData, purchase_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Basic Sale Price</label>
+                      <input type="number" value={formData.basic_sale_price || 0} onChange={(e) => setFormData({ ...formData, basic_sale_price: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Gst %</label>
-                      <input type="number" value={formData.gst || 0} onChange={(e) => setFormData({ ...formData, gst: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                      <input type="number" value={formData.gst_percent || 0} onChange={(e) => setFormData({ ...formData, gst_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Cess %</label>
-                      <input type="number" value={formData.cess || 0} onChange={(e) => setFormData({ ...formData, cess: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Discount %</label>
-                      <input type="number" value={formData.discount_pct || 0} onChange={(e) => setFormData({ ...formData, discount_pct: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                      <input type="number" value={formData.cess_percent || 0} onChange={(e) => setFormData({ ...formData, cess_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                   </div>
 
-                  {/* Row 4: Opening Stock, Favourite, Discountable */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {/* Row 4: Opening Stock, Favourite, Discountable, Min Qty, Disc % */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Opening Stock</label>
                       <input type="number" value={formData.stock || 0} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Min Qty</label>
+                      <input type="number" value={formData.min_qty || 0} onChange={(e) => setFormData({ ...formData, min_qty: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Discount %</label>
+                      <input type="number" value={formData.discount_percent || 0} onChange={(e) => setFormData({ ...formData, discount_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is favourite</label>
@@ -9433,6 +9467,34 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Row 5: Size, Colour, Counter, Category Name, Subcat Name, Brand Name */}
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Size</label>
+                      <input type="text" value={formData.size || ''} onChange={(e) => setFormData({ ...formData, size: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Colour</label>
+                      <input type="text" value={formData.color || ''} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Counter</label>
+                      <input type="text" value={formData.counter_name || ''} onChange={(e) => setFormData({ ...formData, counter_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Category Name</label>
+                      <input type="text" value={formData.category_name || ''} onChange={(e) => setFormData({ ...formData, category_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Subcategory Name</label>
+                      <input type="text" value={formData.subcategory_name || ''} onChange={(e) => setFormData({ ...formData, subcategory_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Brand Name</label>
+                      <input type="text" value={formData.brand_name || ''} onChange={(e) => setFormData({ ...formData, brand_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                   </div>
 
