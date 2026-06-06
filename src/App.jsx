@@ -4669,7 +4669,8 @@ function StockReportView({ products, purchases, orders, categories, departments 
       // 2. Process products one by one
       const stockSummary = products.map(product => {
         // Filter by group (category)
-        if (group !== 'All' && product.category !== group) return null;
+        const productCategory = product.category_name || product.category;
+        if (group !== 'All' && productCategory !== group) return null;
         
         // Filter by search
         if (searchItem && !product.name.toLowerCase().includes(searchItem.toLowerCase())) return null;
@@ -9072,6 +9073,28 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
         const parsedData = await parseERPCSV(file, columnMapping);
         if (parsedData.length === 0) throw new Error("No data found in file");
 
+        // --- AUTOMATIC MASTER SYNC LOGIC ---
+        // 1. Extract unique Categories, Subcategories, Brands from Excel
+        const uniqueCats = [...new Set(parsedData.map(item => item.category_name).filter(Boolean))];
+        const uniqueSubCats = [...new Set(parsedData.map(item => item.subcategory_name).filter(Boolean))];
+        const uniqueBrands = [...new Set(parsedData.map(item => item.brand_name).filter(Boolean))];
+        const uniqueUnits = [...new Set(parsedData.map(item => item.unit_name).filter(Boolean))];
+
+        // 2. Sync them to their respective Master tables first
+        if (uniqueCats.length > 0) {
+          await handleERPAction(DB_SCHEMA.CATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueCats.map(name => ({ name, id: name.toLowerCase().replace(/\s+/g, '-') })));
+        }
+        if (uniqueSubCats.length > 0) {
+          await handleERPAction(DB_SCHEMA.SUBCATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueSubCats.map(name => ({ name, id: name.toLowerCase().replace(/\s+/g, '-') })));
+        }
+        if (uniqueBrands.length > 0) {
+          await handleERPAction(DB_SCHEMA.BRANDS.table, ACTION_TYPES.BULK_UPSERT, uniqueBrands.map(name => ({ name, id: name.toLowerCase().replace(/\s+/g, '-') })));
+        }
+        if (uniqueUnits.length > 0) {
+          await handleERPAction(DB_SCHEMA.UNITS.table, ACTION_TYPES.BULK_UPSERT, uniqueUnits.map(name => ({ name, id: name.toLowerCase().replace(/\s+/g, '-') })));
+        }
+
+        // 3. Now upload the products
         const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.BULK_UPSERT, parsedData);
         if (res.success) {
           alert(`Successfully imported ${parsedData.length} products!`);
