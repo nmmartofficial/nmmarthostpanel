@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS app_config (
     address TEXT,
     mobile TEXT,
     email TEXT,
-    gstin TEXT,
+    gst_no TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -221,10 +221,10 @@ CREATE TABLE IF NOT EXISTS purchase_items (
 -- 17. orders – Customer Orders
 CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    order_no TEXT,
+    order_number TEXT,
     user_id UUID,
     customer_name TEXT,
-    customer_mobile TEXT,
+    user_mobile TEXT,
     address TEXT,
     pincode TEXT,
     subtotal NUMERIC(12,2) NOT NULL,
