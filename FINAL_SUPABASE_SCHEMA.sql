@@ -521,15 +521,18 @@ CREATE TABLE IF NOT EXISTS transactions (
 );
 
 -- --- SUPABASE STORAGE BUCKETS SETUP ---
--- Run these as a separate block or in SQL Editor
--- INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true) ON CONFLICT DO NOTHING;
--- INSERT INTO storage.buckets (id, name, public) VALUES ('category-images', 'category-images', true) ON CONFLICT DO NOTHING;
--- INSERT INTO storage.buckets (id, name, public) VALUES ('brand-images', 'brand-images', true) ON CONFLICT DO NOTHING;
--- INSERT INTO storage.buckets (id, name, public) VALUES ('banner-images', 'banner-images', true) ON CONFLICT DO NOTHING;
+-- Creating buckets for images
+INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true) ON CONFLICT DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('category-images', 'category-images', true) ON CONFLICT DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('brand-images', 'brand-images', true) ON CONFLICT DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('banner-images', 'banner-images', true) ON CONFLICT DO NOTHING;
 
--- Storage RLS Policies (Simplified for Admin access)
--- CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id IN ('product-images', 'category-images', 'brand-images', 'banner-images'));
--- CREATE POLICY "Admin Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('product-images', 'category-images', 'brand-images', 'banner-images'));
+-- Storage RLS Policies (Allow Public Read and Admin Upload)
+DROP POLICY IF EXISTS "Public Read Access" ON storage.objects;
+CREATE POLICY "Public Read Access" ON storage.objects FOR SELECT USING (bucket_id IN ('product-images', 'category-images', 'brand-images', 'banner-images'));
+
+DROP POLICY IF EXISTS "Admin Full Access" ON storage.objects;
+CREATE POLICY "Admin Full Access" ON storage.objects FOR ALL USING (bucket_id IN ('product-images', 'category-images', 'brand-images', 'banner-images')) WITH CHECK (bucket_id IN ('product-images', 'category-images', 'brand-images', 'banner-images'));
 
 -- Enable RLS and Add Public Access Policies (Safe but accessible)
 DO $$ 
