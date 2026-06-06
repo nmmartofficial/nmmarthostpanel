@@ -432,19 +432,8 @@ export const dbSync = {
         upsertOptions.onConflict = 'barcode';
       }
       
-      // For Master tables (Categories, Brands, etc.), use name as conflict key to avoid duplicates
-      const masterTables = [
-        DB_SCHEMA.CATEGORIES.table, 
-        DB_SCHEMA.SUBCATEGORIES.table, 
-        DB_SCHEMA.BRANDS.table, 
-        DB_SCHEMA.UNITS.table,
-        DB_SCHEMA.DEPARTMENTS.table,
-        DB_SCHEMA.ACCOUNTS.table
-      ];
-      
-      if (masterTables.includes(tableName)) {
-        upsertOptions.onConflict = 'name';
-      }
+      // We removed the 'name' based conflict for master tables because the database 
+      // might not have the UNIQUE constraint yet. Standard 'id' based upsert will be used.
       
       const { data, error } = await supabase
         .from(tableName)
