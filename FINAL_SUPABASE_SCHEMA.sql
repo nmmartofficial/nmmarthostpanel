@@ -393,6 +393,144 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT USAGE ON SCHEMA public TO authenticated;
 
+-- 30. bom_master – Bill of Materials
+CREATE TABLE IF NOT EXISTS bom_master (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    finished_item_id UUID REFERENCES products(id),
+    qty NUMERIC(10,2) DEFAULT 1.00,
+    unit TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 31. bom_items – BOM Raw Materials
+CREATE TABLE IF NOT EXISTS bom_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bom_id UUID REFERENCES bom_master(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id),
+    qty NUMERIC(10,2) NOT NULL,
+    unit TEXT,
+    rate NUMERIC(12,2) DEFAULT 0.00,
+    amount NUMERIC(12,2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 32. production_entries – Production Entries
+CREATE TABLE IF NOT EXISTS production_entries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    date DATE DEFAULT CURRENT_DATE,
+    department TEXT,
+    finished_item_id UUID REFERENCES products(id),
+    qty NUMERIC(10,2) DEFAULT 1.00,
+    total_amount NUMERIC(12,2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 33. production_items – Production Raw Materials
+CREATE TABLE IF NOT EXISTS production_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    production_id UUID REFERENCES production_entries(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id),
+    qty NUMERIC(10,2) NOT NULL,
+    rate NUMERIC(12,2) DEFAULT 0.00,
+    dis_percent NUMERIC(5,2) DEFAULT 0.00,
+    gst_amt NUMERIC(12,2) DEFAULT 0.00,
+    amount NUMERIC(12,2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 34. stock_transfers – Stock Transfers
+CREATE TABLE IF NOT EXISTS stock_transfers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    date DATE DEFAULT CURRENT_DATE,
+    from_dept TEXT,
+    to_dept TEXT,
+    po_no TEXT,
+    total_qty NUMERIC(10,2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 35. stock_transfer_items – Stock Transfer Items
+CREATE TABLE IF NOT EXISTS stock_transfer_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    transfer_id UUID REFERENCES stock_transfers(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id),
+    qty NUMERIC(10,2) NOT NULL,
+    rate NUMERIC(12,2) DEFAULT 0.00,
+    amount NUMERIC(12,2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 36. wastage_entries – Wastage Entries
+CREATE TABLE IF NOT EXISTS wastage_entries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    date DATE DEFAULT CURRENT_DATE,
+    total_qty NUMERIC(10,2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 37. wastage_items – Wastage Items
+CREATE TABLE IF NOT EXISTS wastage_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    wastage_id UUID REFERENCES wastage_entries(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id),
+    qty NUMERIC(10,2) NOT NULL,
+    rate NUMERIC(12,2) DEFAULT 0.00,
+    remarks TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 38. purchase_orders – Purchase Orders (PO)
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    po_no TEXT UNIQUE,
+    date DATE DEFAULT CURRENT_DATE,
+    department TEXT,
+    total_qty NUMERIC(10,2) DEFAULT 0.00,
+    total_amount NUMERIC(12,2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 39. po_items – Purchase Order Items
+CREATE TABLE IF NOT EXISTS po_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    po_id UUID REFERENCES purchase_orders(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id),
+    qty NUMERIC(10,2) NOT NULL,
+    unit TEXT,
+    rate NUMERIC(12,2) DEFAULT 0.00,
+    amount NUMERIC(12,2) DEFAULT 0.00,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 40. transactions – General Transactions
+CREATE TABLE IF NOT EXISTS transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    date DATE DEFAULT CURRENT_DATE,
+    type TEXT, -- Cash, UPI, Wallet, etc.
+    category TEXT, -- Sale, Purchase, Expense, etc.
+    account_id UUID REFERENCES account_master(id),
+    amount NUMERIC(12,2) DEFAULT 0.00,
+    reference_id UUID,
+    remarks TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- --- SUPABASE STORAGE BUCKETS SETUP ---
+-- Run these as a separate block or in SQL Editor
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true) ON CONFLICT DO NOTHING;
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('category-images', 'category-images', true) ON CONFLICT DO NOTHING;
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('brand-images', 'brand-images', true) ON CONFLICT DO NOTHING;
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('banner-images', 'banner-images', true) ON CONFLICT DO NOTHING;
+
+-- Storage RLS Policies (Simplified for Admin access)
+-- CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id IN ('product-images', 'category-images', 'brand-images', 'banner-images'));
+-- CREATE POLICY "Admin Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('product-images', 'category-images', 'brand-images', 'banner-images'));
+
 -- Enable RLS and Add Public Access Policies (Safe but accessible)
 DO $$ 
 DECLARE 
@@ -403,7 +541,10 @@ DECLARE
         'account_master', 'credit_master', 'delivery_boy_master', 'delivery_customer_master', 
         'purchases', 'purchase_items', 'orders', 'order_items', 'wallet_master', 
         'wallet_transactions', 'addresses', 'pincode_master', 'coupons', 'offers_master', 
-        'cart', 'wishlist', 'notifications', 'system_logs', 'users'
+        'cart', 'wishlist', 'notifications', 'system_logs', 'users',
+        'bom_master', 'bom_items', 'production_entries', 'production_items', 
+        'stock_transfers', 'stock_transfer_items', 'wastage_entries', 'wastage_items', 
+        'purchase_orders', 'po_items', 'transactions'
     ];
 BEGIN 
     FOREACH t IN ARRAY tables LOOP 
