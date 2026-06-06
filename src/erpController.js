@@ -144,21 +144,24 @@ export const parseERPCSV = async (file, columnMapping) => {
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         
         // Convert sheet to JSON
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
         
-        if (jsonData.length === 0) {
-          reject(new Error("File is empty"));
+        // Clean up empty rows at the end and filter out rows that are entirely empty
+        const cleanRows = jsonData.filter(row => row && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== ""));
+
+        if (cleanRows.length === 0) {
+          reject(new Error("File is empty or contains no valid data rows"));
           return;
         }
         
         // Get headers from first row
-        const headers = jsonData[0].map(h => String(h).trim());
-        console.log("Excel file headers found:", headers); // Show headers in browser console
+        const headers = cleanRows[0].map(h => String(h || "").trim());
+        console.log("Excel file headers found:", headers);
         
         // Create case-insensitive header map
         const headerMap = {};
         headers.forEach((header, index) => {
-          headerMap[header.toLowerCase()] = index;
+          if (header) headerMap[header.toLowerCase()] = index;
         });
         
         // Create case-insensitive column mapping lookup
@@ -167,33 +170,39 @@ export const parseERPCSV = async (file, columnMapping) => {
           normalizedColumnMapping[key.toLowerCase()] = columnMapping[key];
         });
         
-        // Parse data rows
-        const parsedData = jsonData.slice(1).filter(row => row.some(cell => cell)).map(row => {
+        // Parse data rows (starting from row index 1)
+        const parsedData = cleanRows.slice(1).map(row => {
           const record = {};
+          let hasAnyValue = false;
           
-          headers.forEach((header) => {
-            const index = headerMap[header.toLowerCase()];
-            const value = row[index];
-            const dbColumn = normalizedColumnMapping[header.toLowerCase()];
+          Object.keys(normalizedColumnMapping).forEach((headerKey) => {
+            const dbColumn = normalizedColumnMapping[headerKey];
+            const colIndex = headerMap[headerKey];
             
-            // Only add to record if we have a valid mapped column
-            if (dbColumn) {
-              // Clean the value
-              let cleanValue = value === undefined || value === null ? '' : String(value).trim();
+            if (colIndex !== undefined) {
+              const value = row[colIndex];
+              let cleanValue = (value === undefined || value === null) ? '' : String(value).trim();
               
-              // Try to parse numbers
-              if (cleanValue !== '' && !isNaN(Number(cleanValue))) {
-                record[dbColumn] = Number(cleanValue);
+              if (cleanValue !== '') {
+                hasAnyValue = true;
+                if (!isNaN(Number(cleanValue)) && cleanValue !== '') {
+                  record[dbColumn] = Number(cleanValue);
+                } else {
+                  record[dbColumn] = cleanValue;
+                }
               } else {
-                // IMPORTANT: If value is empty, use null instead of empty string
-                // This prevents "invalid input syntax for type numeric: """ error in Supabase
-                record[dbColumn] = cleanValue === '' ? null : cleanValue;
+                record[dbColumn] = null; // Important for numeric fields in DB
               }
             }
           });
           
-          return record;
-        }).filter(row => Object.keys(row).length > 0);
+          return hasAnyValue ? record : null;
+        }).filter(record => record !== null);
+
+        if (parsedData.length === 0) {
+          reject(new Error("No data found matching the required headers. Please check your Excel column names."));
+          return;
+        }
         
         // Remove duplicates based on barcode - keep the last occurrence
         const uniqueProducts = [];
