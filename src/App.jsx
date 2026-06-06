@@ -9044,32 +9044,29 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
           throw new Error("यह फ़ाइल इमेज है! इमेज अपलोड करने के लिए 'Create New' बटन पर क्लिक करें, फिर फॉर्म में इमेज फील्ड चुनें!");
         }
 
-        // Column mapping for products with all variations and correct column names
+        // Column mapping based on your exact Excel headers
         const columnMapping = {
-          'Name': 'name',
           'Item Name': 'name',
-          'Barcode': 'barcode',
           'BARCODE': 'barcode',
-          'HSN Code': 'hsn_code',
           'HSNCODE': 'hsn_code',
-          'HSN': 'hsn_code',
-          'Sale Rate': 'sale_rate',
-          'SALE RA': 'sale_rate',
-          'Basic Sale Price': 'sale_rate',
-          'Sale Price': 'sale_rate',
           'MRP': 'mrp',
-          'Purchase Rate': 'purchase_rate',
-          'PURC RA': 'purchase_rate',
-          'Stock': 'stock',
-          'OPENIN': 'stock',
-          'Opening Stock': 'stock',
-          'Qty': 'stock',
-          'Quantity': 'stock',
-          'Opening Qty': 'stock',
-          'Stock Qty': 'stock',
+          'SALE RATE': 'sale_rate',
+          'PURC RATE': 'purchase_rate',
           'GST%': 'gst_percent',
-          'GST Percent': 'gst_percent'
-          // We'll ignore category, subcategory, brand, unit for now since they need IDs
+          'CESS%': 'cess_percent',
+          'Closing': 'stock',
+          'MinQty': 'min_qty',
+          'Dis %': 'discount_percent',
+          'Basic Sale Price': 'basic_sale_price',
+          'Size': 'size',
+          'Colour': 'color',
+          'Counter': 'counter_name',
+          // Mappings for reference (Category/Subcat/Brand need IDs in DB, 
+          // but we map them so they don't cause errors if present)
+          'MAIN CATEGORY': 'category_name',
+          'SUBC ATEGORY': 'subcategory_name',
+          'Brand name': 'brand_name',
+          'Unit': 'unit_name'
         };
         
         const parsedData = await parseERPCSV(file, columnMapping);
