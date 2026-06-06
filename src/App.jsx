@@ -604,9 +604,8 @@ export default function App() {
                   } else if (tab === 'DatabaseBackup') {
                     handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.MAINTENANCE_EXPORT, { fileName: 'Full_System_Backup' });
                   } else if (tab === 'ClearCache') {
-                    if (window.confirm("Are you sure you want to clear system cache? This will log you out and refresh the page.")) {
-                      handleERPAction(null, ACTION_TYPES.CLEAR_CACHE);
-                    }
+                    // Immediate cache clear without confirmation
+                    handleERPAction(null, ACTION_TYPES.CLEAR_CACHE);
                   } else {
                     setActiveTab(tab);
                   }
@@ -5399,11 +5398,10 @@ function PurchaseView({ title, table, data, products, departments, fetchInitialD
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }} className="text-blue-600 hover:underline font-black text-[10px] uppercase mr-3">Edit</button>
                       <button onClick={async () => {
-                        if (window.confirm('Delete purchase entry?')) {
+                          // Immediate delete without confirmation
                           await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
                           fetchInitialData();
-                        }
-                      }} className="text-red-600 hover:underline font-black text-[10px] uppercase">Delete</button>
+                        }} className="text-red-600 hover:underline font-black text-[10px] uppercase">Delete</button>
                     </td>
                   </tr>
                 )) : (
@@ -5669,10 +5667,9 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   };
 
   const clearCart = () => {
-    if (window.confirm("Are you sure you want to clear the cart?")) {
-      setCart([]);
-      setCustomerInfo({ name: '', mob: '', add: '', dob: '', doa: '', wallet: 0, points: 0 });
-    }
+    // Immediate clear without confirmation
+    setCart([]);
+    setCustomerInfo({ name: '', mob: '', add: '', dob: '', doa: '', wallet: 0, points: 0 });
   };
 
   // Keyboard Shortcuts
@@ -6440,10 +6437,9 @@ function MasterListView({ title, table, bucket, fields, data, uploadImage, fetch
                       </button>
                       <button 
                         onClick={async () => {
-                          if (window.confirm(`Are you sure you want to delete this ${title.slice(0, -1)}?`)) {
-                            await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                            fetchInitialData();
-                          }
+                      // Immediate delete without confirmation
+                      await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                      fetchInitialData();
                         }}
                         className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100 shadow-sm hover:shadow-md"
                         title="Delete"
@@ -6764,10 +6760,9 @@ function DeliveryCustomerView({ title, table, data, fetchInitialData }) {
                         </button>
                         <button 
                           onClick={async () => {
-                            if (window.confirm(`Are you sure you want to delete this customer?`)) {
-                              await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                              fetchInitialData();
-                            }
+                        // Immediate delete without confirmation
+                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                        fetchInitialData();
                           }}
                           className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 shadow-sm"
                         >
@@ -6968,10 +6963,9 @@ function DeliveryBoyView({ title, table, data, fetchInitialData }) {
                         </button>
                         <button 
                           onClick={async () => {
-                            if (window.confirm(`Are you sure you want to delete this delivery boy?`)) {
-                              await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                              fetchInitialData();
-                            }
+                        // Immediate delete without confirmation
+                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                        fetchInitialData();
                           }}
                           className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 shadow-sm"
                         >
@@ -7157,10 +7151,9 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                     <div className="flex gap-2">
                       <button onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }} className="text-blue-600 font-bold hover:underline">Edit</button>
                       <button onClick={async () => {
-                        if (window.confirm('Delete this record?')) {
-                          await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                          fetchInitialData();
-                        }
+                      // Immediate delete
+                      await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                      fetchInitialData();
                       }} className="text-red-600 font-bold hover:underline">Delete</button>
                     </div>
                   </td>
@@ -7420,10 +7413,9 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
                         </button>
                         <button 
                           onClick={async () => {
-                            if (window.confirm(`Are you sure you want to delete this user?`)) {
-                              await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                              fetchInitialData();
-                            }
+                        // Immediate delete
+                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                        fetchInitialData();
                           }}
                           className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 shadow-sm"
                         >
@@ -7683,10 +7675,9 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                       </button>
                       <button 
                         onClick={async () => {
-                          if (window.confirm(`Are you sure you want to delete this account?`)) {
-                            await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                            fetchInitialData();
-                          }
+                      // Immediate delete
+                      await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                      fetchInitialData();
                         }}
                         className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 shadow-sm"
                       >
@@ -7935,10 +7926,9 @@ function UnitView({ title, table, data, fetchInitialData }) {
                         </button>
                         <button 
                           onClick={async () => {
-                            if (window.confirm(`Are you sure you want to delete this unit?`)) {
-                              await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                              fetchInitialData();
-                            }
+                        // Immediate delete
+                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                        fetchInitialData();
                           }}
                           className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 transition-all shadow-sm"
                         >
@@ -8138,10 +8128,9 @@ function DepartmentView({ title, table, data, fetchInitialData }) {
                         </button>
                         <button 
                           onClick={async () => {
-                            if (window.confirm(`Are you sure you want to delete this department?`)) {
-                              await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                              fetchInitialData();
-                            }
+                        // Immediate delete
+                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                        fetchInitialData();
                           }}
                           className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 transition-all shadow-sm"
                         >
@@ -8337,10 +8326,9 @@ function BrandView({ title, table, bucket, fields, data, uploadImage, fetchIniti
                       </button>
                       <button 
                         onClick={async () => {
-                          if (window.confirm(`Are you sure you want to delete this brand?`)) {
-                            await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                            fetchInitialData();
-                          }
+                      // Immediate delete
+                      await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                      fetchInitialData();
                         }}
                         className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 transition-all shadow-sm"
                       >
@@ -8564,10 +8552,9 @@ function SubCategoryView({ title, table, bucket, fields, data, categories, uploa
                         </button>
                         <button 
                           onClick={async () => {
-                            if (window.confirm(`Are you sure you want to delete this sub-category?`)) {
-                              await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                              fetchInitialData();
-                            }
+                        // Immediate delete
+                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                        fetchInitialData();
                           }}
                           className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 transition-all shadow-sm"
                         >
@@ -8799,15 +8786,9 @@ function MainCategoryView({ title, table, bucket, fields, data, uploadImage, fet
                       >
                         <Edit2 size={12} /> Edit
                       </button>
-                      <button 
-                        onClick={async () => {
-                          if (window.confirm(`Are you sure you want to delete this category?`)) {
-                            await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                            fetchInitialData();
-                          }
-                        }}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 transition-all shadow-sm"
-                      >
+                    // Immediate delete
+                    await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                    fetchInitialData();
                         <Trash2 size={12} /> Delete
                       </button>
                     </div>
@@ -9080,18 +9061,18 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
         const uniqueBrands = [...new Set(parsedData.map(item => item.brand_name).filter(Boolean))];
         const uniqueUnits = [...new Set(parsedData.map(item => item.unit_name).filter(Boolean))];
 
-        // 2. Sync them to their respective Master tables first
+        // 2. Sync them to their respective Master tables first (using name as conflict key)
         if (uniqueCats.length > 0) {
-          await handleERPAction(DB_SCHEMA.CATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueCats.map(name => ({ name, id: name.toLowerCase().replace(/\s+/g, '-') })));
+          await handleERPAction(DB_SCHEMA.CATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueCats.map(name => ({ name, is_active: true })));
         }
         if (uniqueSubCats.length > 0) {
-          await handleERPAction(DB_SCHEMA.SUBCATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueSubCats.map(name => ({ name, id: name.toLowerCase().replace(/\s+/g, '-') })));
+          await handleERPAction(DB_SCHEMA.SUBCATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueSubCats.map(name => ({ name, is_active: true })));
         }
         if (uniqueBrands.length > 0) {
-          await handleERPAction(DB_SCHEMA.BRANDS.table, ACTION_TYPES.BULK_UPSERT, uniqueBrands.map(name => ({ name, id: name.toLowerCase().replace(/\s+/g, '-') })));
+          await handleERPAction(DB_SCHEMA.BRANDS.table, ACTION_TYPES.BULK_UPSERT, uniqueBrands.map(name => ({ name, is_active: true })));
         }
         if (uniqueUnits.length > 0) {
-          await handleERPAction(DB_SCHEMA.UNITS.table, ACTION_TYPES.BULK_UPSERT, uniqueUnits.map(name => ({ name, id: name.toLowerCase().replace(/\s+/g, '-') })));
+          await handleERPAction(DB_SCHEMA.UNITS.table, ACTION_TYPES.BULK_UPSERT, uniqueUnits.map(name => ({ name, is_active: true })));
         }
 
         // 3. Now upload the products
@@ -9274,10 +9255,9 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
                       </button>
                       <button 
                         onClick={async () => {
-                          if (window.confirm('Delete this product?')) {
-                            await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.DELETE, { id: product.id });
-                            fetchInitialData();
-                          }
+                      // Immediate delete without confirmation
+                      await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.DELETE, { id: product.id });
+                      fetchInitialData();
                         }}
                         className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-all"
                         title="Delete"
@@ -10050,10 +10030,9 @@ function SaleTrashBillView({ orders, fetchInitialData }) {
                         </button>
                         <button 
                           onClick={async () => {
-                            if(confirm("Are you sure you want to restore this bill?")) {
-                              await handleERPAction(DB_SCHEMA.ORDERS.table, ACTION_TYPES.UPDATE, { id: order.id, status: 'billed' });
-                              await fetchInitialData();
-                            }
+                            // Immediate restore without confirmation
+                            await handleERPAction(DB_SCHEMA.ORDERS.table, ACTION_TYPES.UPDATE, { id: order.id, status: 'billed' });
+                            await fetchInitialData();
                           }}
                           className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-all"
                           title="Restore Bill"
@@ -12421,10 +12400,9 @@ function CouponMasterView({ title, table, data, fetchInitialData }) {
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
                     <button onClick={async () => {
-                      if (window.confirm('Delete coupon?')) {
-                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                        fetchInitialData();
-                      }
+                      // Immediate delete without confirmation
+                      await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                      fetchInitialData();
                     }} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                   </div>
                 </td>
@@ -12559,10 +12537,9 @@ function OffersMasterView({ title, table, bucket, data, uploadImage, fetchInitia
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }} className="bg-white p-2 rounded-lg text-blue-600 shadow-md hover:bg-blue-50"><Edit2 size={14} /></button>
                 <button onClick={async () => {
-                  if (window.confirm('Delete offer?')) {
-                    await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                    fetchInitialData();
-                  }
+                  // Immediate delete without confirmation
+                  await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                  fetchInitialData();
                 }} className="bg-white p-2 rounded-lg text-red-600 shadow-md hover:bg-red-50"><Trash2 size={14} /></button>
               </div>
             </div>
@@ -12705,10 +12682,9 @@ function PincodeMasterView({ title, table, data, fetchInitialData }) {
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
                     <button onClick={async () => {
-                      if (window.confirm('Delete pincode?')) {
-                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                        fetchInitialData();
-                      }
+                      // Immediate delete without confirmation
+                      await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                      fetchInitialData();
                     }} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                   </div>
                 </td>
@@ -12941,10 +12917,9 @@ function AddressMasterView({ title, table, data, fetchInitialData }) {
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
                     <button onClick={async () => {
-                      if (window.confirm('Delete address?')) {
-                        await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                        fetchInitialData();
-                      }
+                      // Immediate delete without confirmation
+                      await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                      fetchInitialData();
                     }} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                   </div>
                 </td>

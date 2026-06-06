@@ -427,9 +427,23 @@ export const dbSync = {
     try {
       const upsertOptions = { onConflict: 'id' };
       
-      // For products table, use barcode as the conflict key since it's unique
+      // For products table, use barcode as the conflict key
       if (tableName === DB_SCHEMA.PRODUCTS.table) {
         upsertOptions.onConflict = 'barcode';
+      }
+      
+      // For Master tables (Categories, Brands, etc.), use name as conflict key to avoid duplicates
+      const masterTables = [
+        DB_SCHEMA.CATEGORIES.table, 
+        DB_SCHEMA.SUBCATEGORIES.table, 
+        DB_SCHEMA.BRANDS.table, 
+        DB_SCHEMA.UNITS.table,
+        DB_SCHEMA.DEPARTMENTS.table,
+        DB_SCHEMA.ACCOUNTS.table
+      ];
+      
+      if (masterTables.includes(tableName)) {
+        upsertOptions.onConflict = 'name';
       }
       
       const { data, error } = await supabase
