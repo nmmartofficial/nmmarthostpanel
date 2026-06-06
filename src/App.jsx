@@ -12142,26 +12142,26 @@ function CouponMasterView({ title, table, data, fetchInitialData }) {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2 space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Coupon Code</label>
-                    <input type="text" value={formData.code || ''} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" required />
+                    <input type="text" value={formData.code || ''} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Type</label>
-                    <select value={formData.discount_type} onChange={(e) => setFormData({ ...formData, discount_type: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-2 py-2 text-sm font-bold focus:border-blue-400 outline-none">
+                    <select value={formData.discount_type} onChange={(e) => setFormData({ ...formData, discount_type: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-black focus:border-blue-400 outline-none">
                       <option value="percentage">Percentage</option>
                       <option value="fixed">Fixed Amount</option>
                     </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Value</label>
-                    <input type="number" value={formData.discount_value || ''} onChange={(e) => setFormData({ ...formData, discount_value: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" required />
+                    <input type="number" value={formData.discount_value || ''} onChange={(e) => setFormData({ ...formData, discount_value: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Min Order</label>
-                    <input type="number" value={formData.min_order_amount || ''} onChange={(e) => setFormData({ ...formData, min_order_amount: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" />
+                    <input type="number" value={formData.min_order_amount || ''} onChange={(e) => setFormData({ ...formData, min_order_amount: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Max Discount</label>
-                    <input type="number" value={formData.max_discount || ''} onChange={(e) => setFormData({ ...formData, max_discount: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" />
+                    <input type="number" value={formData.max_discount || ''} onChange={(e) => setFormData({ ...formData, max_discount: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pt-2">
@@ -12287,16 +12287,16 @@ function OffersMasterView({ title, table, bucket, data, uploadImage, fetchInitia
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Offer Title</label>
-                  <input type="text" value={formData.title || ''} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" required />
+                  <input type="text" value={formData.title || ''} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Description</label>
-                  <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none min-h-[80px]" />
+                  <textarea value={formData.description || ''} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none min-h-[80px]" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Discount Text</label>
-                    <input type="text" value={formData.discount || ''} onChange={(e) => setFormData({ ...formData, discount: e.target.value })} placeholder="e.g. 50% OFF" className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" />
+                    <input type="text" value={formData.discount || ''} onChange={(e) => setFormData({ ...formData, discount: e.target.value })} placeholder="e.g. 50% OFF" className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Offer Image</label>
@@ -12425,7 +12425,7 @@ function PincodeMasterView({ title, table, data, fetchInitialData }) {
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Pincode</label>
-                  <input type="text" value={formData.pincode || ''} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} maxLength="6" className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" required />
+                  <input type="text" value={formData.pincode || ''} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} maxLength="6" className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <input type="checkbox" checked={formData.is_allowed} onChange={(e) => setFormData({ ...formData, is_allowed: e.target.checked })} id="pincode_active" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
@@ -12535,14 +12535,14 @@ function WalletMasterView({ users, fetchInitialData }) {
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Adjustment Type</label>
-                  <select value={walletModal.type} onChange={(e) => setWalletModal({ ...walletModal, type: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-2 py-2 text-sm font-bold focus:border-blue-400 outline-none">
+                  <select value={walletModal.type} onChange={(e) => setWalletModal({ ...walletModal, type: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-2 py-2 text-sm font-black text-black focus:border-blue-400 outline-none">
                     <option value="credit">Credit (Add Money)</option>
                     <option value="debit">Debit (Deduct Money)</option>
                   </select>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Amount (₹)</label>
-                  <input type="number" value={walletModal.amount} onChange={(e) => setWalletModal({ ...walletModal, amount: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" required />
+                  <input type="number" value={walletModal.amount} onChange={(e) => setWalletModal({ ...walletModal, amount: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button onClick={handleWalletUpdate} className="w-full bg-blue-600 text-white py-3 rounded-lg font-black uppercase text-[10px] shadow-lg hover:bg-blue-700 transition-all">Confirm Adjustment</button>
@@ -12661,25 +12661,25 @@ function AddressMasterView({ title, table, data, fetchInitialData }) {
               <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">User ID</label>
-                  <input type="text" value={formData.user_id || ''} onChange={(e) => setFormData({ ...formData, user_id: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" required />
+                  <input type="text" value={formData.user_id || ''} onChange={(e) => setFormData({ ...formData, user_id: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Full Name</label>
-                  <input type="text" value={formData.full_name || ''} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" required />
+                  <input type="text" value={formData.full_name || ''} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">House No</label>
-                    <input type="text" value={formData.house_no || ''} onChange={(e) => setFormData({ ...formData, house_no: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" />
+                    <input type="text" value={formData.house_no || ''} onChange={(e) => setFormData({ ...formData, house_no: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">City</label>
-                    <input type="text" value={formData.city || ''} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" />
+                    <input type="text" value={formData.city || ''} onChange={(e) => setFormData({ ...formData, city: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Pincode</label>
-                  <input type="text" value={formData.pincode || ''} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} maxLength="6" className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold focus:border-blue-400 outline-none" />
+                  <input type="text" value={formData.pincode || ''} onChange={(e) => setFormData({ ...formData, pincode: e.target.value })} maxLength="6" className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" />
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <input type="checkbox" checked={formData.is_default} onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })} id="addr_default" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
