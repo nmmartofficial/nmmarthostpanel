@@ -5663,6 +5663,17 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
     }
   };
 
+  const removeFromCart = (productId) => {
+    setCart(cart.filter(item => item.id !== productId));
+  };
+
+  const clearCart = () => {
+    if (window.confirm("Are you sure you want to clear the cart?")) {
+      setCart([]);
+      setCustomerInfo({ name: '', mob: '', add: '', dob: '', doa: '', wallet: 0, points: 0 });
+    }
+  };
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -5983,43 +5994,72 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
         {/* Cart Items */}
         <div className="flex-1 overflow-y-auto bg-white relative">
           {selectedProduct && (
-            <div className="absolute inset-0 bg-[#F0FDFA] z-50 p-4 border-b-2 border-emerald-200 animate-in fade-in slide-in-from-right duration-300">
-              <div className="flex justify-between items-start mb-4">
-                <h4 className="text-sm font-black text-emerald-900 uppercase">Product Details</h4>
-                <button onClick={() => setSelectedProduct(null)} className="p-1 hover:bg-emerald-100 rounded-full text-emerald-600"><X size={16}/></button>
+            <div className="absolute inset-0 bg-slate-50 z-50 p-6 animate-in fade-in slide-in-from-right duration-300 overflow-y-auto">
+              <div className="flex justify-between items-center mb-6 border-b-2 border-blue-500 pb-2">
+                <h4 className="text-lg font-black text-blue-900 uppercase">Product Details (Large View)</h4>
+                <button onClick={() => setSelectedProduct(null)} className="p-2 hover:bg-red-100 rounded-full text-red-600 transition-colors"><X size={24}/></button>
               </div>
-              <div className="space-y-3">
-                <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-                  <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Item Name</p>
-                  <p className="text-xs font-black text-slate-900 uppercase">{selectedProduct.name}</p>
+              
+              <div className="space-y-4">
+                <div className="bg-white p-4 rounded-xl border-2 border-blue-100 shadow-sm">
+                  <p className="text-[10px] font-black text-blue-600 uppercase mb-1 tracking-widest">Full Item Name</p>
+                  <p className="text-xl font-black text-slate-900 uppercase leading-tight">{selectedProduct.name}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-                    <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Rate</p>
-                    <p className="text-lg font-black text-slate-900">₹{selectedProduct.sale_rate}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded-xl border-2 border-slate-100 shadow-sm">
+                    <p className="text-[10px] font-black text-slate-500 uppercase mb-1">MRP Rate</p>
+                    <p className="text-2xl font-black text-slate-900">₹{selectedProduct.mrp}</p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-                    <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">GST %</p>
-                    <p className="text-lg font-black text-slate-900">{selectedProduct.gst || 0}%</p>
+                  <div className="bg-white p-4 rounded-xl border-2 border-emerald-100 shadow-sm">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase mb-1">Sale Rate</p>
+                    <p className="text-2xl font-black text-emerald-700">₹{selectedProduct.sale_rate}</p>
                   </div>
                 </div>
-                <div className="bg-white p-3 rounded-lg border border-emerald-100 shadow-sm">
-                  <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Current Stock</p>
-                  <p className="text-xs font-black text-slate-900">{selectedProduct.stock} Units</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded-xl border-2 border-orange-100 shadow-sm">
+                    <p className="text-[10px] font-black text-orange-600 uppercase mb-1">Purchase Rate</p>
+                    <p className="text-xl font-black text-slate-900">₹{selectedProduct.purchase_rate || 0}</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border-2 border-purple-100 shadow-sm">
+                    <p className="text-[10px] font-black text-purple-600 uppercase mb-1">GST / CESS</p>
+                    <p className="text-xl font-black text-slate-900">{selectedProduct.gst || 0}% + {selectedProduct.cess || 0}%</p>
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded-xl border-2 border-blue-100 shadow-sm">
+                    <p className="text-[10px] font-black text-blue-600 uppercase mb-1">Stock Available</p>
+                    <p className="text-xl font-black text-slate-900">{selectedProduct.stock} Units</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border-2 border-pink-100 shadow-sm">
+                    <p className="text-[10px] font-black text-pink-600 uppercase mb-1">Max Discount</p>
+                    <p className="text-xl font-black text-slate-900">{selectedProduct.discount_pct || 0}%</p>
+                  </div>
+                </div>
+
                 <button 
                   onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }}
-                  className="w-full bg-[#E11D48] text-white py-3 rounded-xl font-black uppercase text-xs shadow-lg mt-4 flex items-center justify-center gap-2 hover:bg-red-700"
+                  className="w-full bg-[#2563EB] text-white py-4 rounded-2xl font-black uppercase text-sm shadow-xl mt-6 flex items-center justify-center gap-3 hover:bg-blue-700 active:scale-95 transition-all"
                 >
-                  <ShoppingCart size={16} /> Add to Cart
+                  <ShoppingCart size={20} /> Add to Cart (Quick)
                 </button>
               </div>
             </div>
           )}
           {cart.map((item, idx) => (
-            <div key={idx} className="px-3 py-2 flex justify-between border-b border-slate-100 text-[10px] font-bold hover:bg-slate-50 group">
-              <span className="w-1/2 text-slate-800 uppercase leading-tight">{item.name}</span>
-              <div className="w-1/4 flex items-center justify-center gap-1">
+            <div key={idx} className="px-3 py-2 flex justify-between border-b border-slate-100 text-[10px] font-bold hover:bg-slate-50 group items-center">
+              <div className="w-1/2 flex items-center gap-2">
+                <button 
+                  onClick={() => removeFromCart(item.id)}
+                  className="text-red-400 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Trash2 size={12} />
+                </button>
+                <span className="text-slate-800 uppercase leading-tight truncate">{item.name}</span>
+              </div>
+              <div className="w-1/4 flex items-center justify-center">
                 <input 
                   type="number" 
                   value={item.quantity} 
@@ -6027,10 +6067,10 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                     const val = parseInt(e.target.value) || 0;
                     setCart(cart.map(c => c.id === item.id ? { ...c, quantity: val } : c));
                   }}
-                  className="w-8 text-center bg-transparent border-none p-0 focus:ring-0" 
+                  className="w-10 text-center bg-slate-100 rounded border-none p-1 font-black text-black" 
                 />
               </div>
-              <span className="w-1/4 text-right text-slate-900">₹{item.sale_rate * item.quantity}</span>
+              <span className="w-1/4 text-right text-slate-900 font-black">₹{item.sale_rate * item.quantity}</span>
             </div>
           ))}
         </div>
@@ -6086,21 +6126,35 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
         </div>
 
         {/* Footer Actions */}
-        <div className="grid grid-cols-2 gap-2 p-2 bg-white">
+        <div className="grid grid-cols-3 gap-1 p-2 bg-white">
           <button 
-            disabled={cart.length === 0 || isProcessing}
-            onClick={handleCheckout}
-            className="bg-[#E11D48] text-white py-2 rounded font-black text-xs uppercase shadow-lg hover:bg-red-700 transition-all disabled:opacity-50"
+            onClick={clearCart}
+            className="bg-slate-800 text-white py-2 rounded font-black text-[9px] uppercase flex items-center justify-center gap-1 hover:bg-slate-900"
           >
-            {isProcessing ? 'Processing...' : 'Save'}
+            <RefreshCw size={10} /> Clear
           </button>
           <button 
             onClick={() => setActiveTab('Dashboard')}
-            className="bg-[#06B6D4] text-white py-2 rounded font-black text-xs uppercase shadow-lg hover:bg-cyan-600 transition-all"
+            className="bg-emerald-600 text-white py-2 rounded font-black text-[9px] uppercase flex items-center justify-center gap-1 hover:bg-emerald-700"
           >
-            Close
+            <Edit2 size={10} /> Edit
+          </button>
+          <button 
+            disabled={cart.length === 0 || isProcessing}
+            onClick={() => handleCheckout('Online')}
+            className="bg-[#2563EB] text-white py-2 rounded font-black text-[9px] uppercase flex items-center justify-center gap-1 hover:bg-blue-700 disabled:opacity-50"
+          >
+            <CreditCard size={10} /> Payment
           </button>
         </div>
+
+        <button 
+          disabled={cart.length === 0 || isProcessing}
+          onClick={() => handleCheckout('CASH')}
+          className="w-full bg-[#E11D48] text-white py-3 font-black text-xs uppercase shadow-lg hover:bg-red-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {isProcessing ? 'Processing...' : <><Save size={16}/> Save & Print (F12)</>}
+        </button>
       </div>
     </div>
   );
