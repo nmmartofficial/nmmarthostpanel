@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS purchase_items (
 CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_number TEXT,
-    user_id UUID,
+    user_id TEXT,
     customer_name TEXT,
     user_mobile TEXT,
     address TEXT,
@@ -263,7 +263,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 -- 19. wallet_master – User Wallets
 CREATE TABLE IF NOT EXISTS wallet_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     balance NUMERIC(12,2) DEFAULT 0.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -272,7 +272,7 @@ CREATE TABLE IF NOT EXISTS wallet_master (
 -- 20. wallet_transactions – Wallet Transactions
 CREATE TABLE IF NOT EXISTS wallet_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     amount NUMERIC(12,2) NOT NULL,
     type TEXT NOT NULL,
     reason TEXT,
@@ -283,7 +283,7 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
 -- 21. addresses – User Addresses
 CREATE TABLE IF NOT EXISTS addresses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     full_name TEXT NOT NULL,
     mobile TEXT NOT NULL,
     house_no TEXT,
@@ -339,7 +339,7 @@ CREATE TABLE IF NOT EXISTS offers_master (
 -- 25. cart – Shopping Cart
 CREATE TABLE IF NOT EXISTS cart (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     product_id UUID REFERENCES products(id),
     quantity NUMERIC(10,2) DEFAULT 1.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -349,7 +349,7 @@ CREATE TABLE IF NOT EXISTS cart (
 -- 26. wishlist – User Wishlist
 CREATE TABLE IF NOT EXISTS wishlist (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     product_id UUID REFERENCES products(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

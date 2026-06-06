@@ -230,7 +230,7 @@ CREATE TABLE purchase_items (
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_number TEXT,
-    user_id UUID,
+    user_id TEXT,
     customer_name TEXT,
     user_mobile TEXT,
     address TEXT,
@@ -262,7 +262,7 @@ CREATE TABLE order_items (
 -- 19. Wallet Master (User Wallets)
 CREATE TABLE wallet_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     balance DECIMAL(12,2) DEFAULT 0.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -271,7 +271,7 @@ CREATE TABLE wallet_master (
 -- 20. Wallet Transactions
 CREATE TABLE wallet_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     amount DECIMAL(12,2) NOT NULL,
     type TEXT NOT NULL,
     reason TEXT,
@@ -282,7 +282,7 @@ CREATE TABLE wallet_transactions (
 -- 21. User Addresses
 CREATE TABLE addresses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     full_name TEXT NOT NULL,
     mobile TEXT NOT NULL,
     address_line1 TEXT NOT NULL,
@@ -342,7 +342,7 @@ CREATE TABLE offers_master (
 -- 25. Cart
 CREATE TABLE cart (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     product_id UUID REFERENCES products(id),
     quantity DECIMAL(10,2) DEFAULT 1.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -352,7 +352,7 @@ CREATE TABLE cart (
 -- 26. Wishlist
 CREATE TABLE wishlist (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
+    user_id TEXT NOT NULL,
     product_id UUID REFERENCES products(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
