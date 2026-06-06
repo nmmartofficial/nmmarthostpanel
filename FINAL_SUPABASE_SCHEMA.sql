@@ -236,7 +236,7 @@ CREATE TABLE IF NOT EXISTS orders (
     user_mobile TEXT,
     address TEXT,
     pincode TEXT,
-    subtotal NUMERIC(12,2) NOT NULL,
+    total_items INTEGER DEFAULT 0,
     delivery_charge NUMERIC(10,2) DEFAULT 0.00,
     discount NUMERIC(10,2) DEFAULT 0.00,
     total_amount NUMERIC(12,2) NOT NULL,
@@ -288,8 +288,7 @@ CREATE TABLE IF NOT EXISTS addresses (
     mobile TEXT NOT NULL,
     house_no TEXT,
     city TEXT,
-    state TEXT,
-    pincode TEXT NOT NULL,
+    pincode TEXT,
     is_default BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -336,14 +335,13 @@ CREATE TABLE IF NOT EXISTS offers_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 25. cart – Shopping Cart
+-- 25. cart – User Shopping Cart
 CREATE TABLE IF NOT EXISTS cart (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
     product_id UUID REFERENCES products(id),
     quantity NUMERIC(10,2) DEFAULT 1.00,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- 26. wishlist – User Wishlist
