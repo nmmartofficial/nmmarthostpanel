@@ -156,8 +156,14 @@ CREATE TABLE IF NOT EXISTS account_master (
 CREATE TABLE IF NOT EXISTS credit_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     account_id UUID REFERENCES account_master(id),
-    amount NUMERIC(12,2) NOT NULL,
-    type TEXT NOT NULL,
+    account_name TEXT,
+    cr_days INTEGER,
+    cr_amount NUMERIC(12,2),
+    mobile TEXT,
+    name TEXT,
+    address TEXT,
+    amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+    type TEXT NOT NULL DEFAULT 'Credit',
     reason TEXT,
     transaction_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

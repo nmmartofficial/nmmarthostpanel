@@ -6972,7 +6972,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                         type="text" 
                         value={formData.account_name || ''} 
                         onChange={(e) => setFormData({ ...formData, account_name: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-900 font-bold focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -6981,7 +6981,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                         type="number" 
                         value={formData.cr_days || ''} 
                         onChange={(e) => setFormData({ ...formData, cr_days: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-900 font-bold focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -6990,7 +6990,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                         type="number" 
                         value={formData.cr_amount || ''} 
                         onChange={(e) => setFormData({ ...formData, cr_amount: e.target.value })} 
-                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm focus:border-blue-400 outline-none shadow-sm" 
+                        className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm text-slate-900 font-bold focus:border-blue-400 outline-none shadow-sm" 
                       />
                     </div>
                   </div>
@@ -7006,7 +7006,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                               type="text" 
                               value={customer.mobile} 
                               onChange={(e) => updateCustomerField(index, 'mobile', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 font-bold"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -7015,7 +7015,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                               type="text" 
                               value={customer.name} 
                               onChange={(e) => updateCustomerField(index, 'name', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 font-bold"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -7024,7 +7024,7 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
                               type="text" 
                               value={customer.address} 
                               onChange={(e) => updateCustomerField(index, 'address', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 font-bold"
                             />
                           </div>
                           {formData.customers.length > 1 && (
