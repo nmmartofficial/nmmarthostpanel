@@ -4904,7 +4904,7 @@ function renderTabContent(tab, props) {
     case 'DeliveryCustomers': return <DeliveryCustomerView title="Delivery Customer Master" table={DB_SCHEMA.DELIVERY_CUSTOMERS.table} data={props.deliveryCustomers} {...props} />;
 
     case 'Products': 
-    case 'ProductsStock': return <ProductsView filter={tab === 'ProductsStock' ? 'low_stock' : null} subcategories={props.subcategories} {...props} />;
+    case 'ProductsStock': return <ProductsView filter={tab === 'ProductsStock' ? 'low_stock' : null} subcategories={props.subcategories} {...props} setLoading={props.setLoading} />;
     case 'Transaction': return <TransactionView {...props} />;
     case 'Orders': 
     case 'OrdersPending':
@@ -8991,7 +8991,7 @@ function AppConfigView({ appConfig, setAppConfig, fetchInitialData }) {
   );
 }
 
-function ProductsView({ products, categories, brands, subcategories, filter, uploadImage, fetchInitialData }) {
+function ProductsView({ products, categories, brands, subcategories, filter, uploadImage, fetchInitialData, setLoading }) {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({});
