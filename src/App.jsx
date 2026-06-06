@@ -9194,6 +9194,24 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
 
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button 
+            onClick={async () => {
+              if (window.confirm("KYA AAP SARE PRODUCTS DELETE KARNA CHAHTE HAIN? YEH WAPAS NAHI AAYENGE!")) {
+                setLoading(true);
+                const res = await dbSync.deleteAll(DB_SCHEMA.PRODUCTS.table);
+                if (res.success) {
+                  alert("Sare products delete ho gaye hain!");
+                  window.location.reload();
+                } else {
+                  alert("Delete failed: " + res.error);
+                }
+                setLoading(false);
+              }
+            }}
+            className="flex-1 md:flex-none bg-red-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-md border-none"
+          >
+            <Trash2 size={14} /> DELETE ALL
+          </button>
+          <button 
             onClick={handleImportCSV}
             className="flex-1 md:flex-none bg-white text-blue-600 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-blue-50 transition-all border border-blue-600 shadow-sm"
           >

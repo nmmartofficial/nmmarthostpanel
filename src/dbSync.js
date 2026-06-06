@@ -458,5 +458,24 @@ export const dbSync = {
       console.error(`[Upsert Error] ${tableName}:`, error.message);
       throw error;
     }
+  },
+
+  /**
+   * BULK DELETE ALL: Clear all records from a table
+   */
+  deleteAll: async (tableName) => {
+    try {
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deletes everything that has an ID
+
+      if (error) throw error;
+      await logTableAction(tableName, 'BULK_DELETE_ALL');
+      return { success: true };
+    } catch (error) {
+      console.error(`[Bulk Delete Error] ${tableName}:`, error.message);
+      return { success: false, error: error.message };
+    }
   }
 };
