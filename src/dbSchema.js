@@ -18,8 +18,8 @@ export const DB_SCHEMA = {
   DELIVERY_CUSTOMERS: { table: 'delivery_customer_master', pk: 'id', label: 'Delivery Customers' },
   PURCHASES: { table: 'purchases', pk: 'id', label: 'Purchase Entry' },
   PURCHASE_ITEMS: { table: 'purchase_items', pk: 'id', label: 'Purchase Items' },
-  DEPARTMENTS: { table: 'department_master', pk: 'id', label: 'Departments' },
   UNITS: { table: 'unit_master', pk: 'id', label: 'Item Units' },
+  DEPARTMENTS: { table: 'department_master', pk: 'id', label: 'Departments' },
   ACCOUNTS: { table: 'account_master', pk: 'id', label: 'Accounts' },
   
   // 2. Sales & Orders

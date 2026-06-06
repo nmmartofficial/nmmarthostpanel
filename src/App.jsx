@@ -9087,9 +9087,9 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
 
           return {
             ...item,
-            // IDs for dropdowns and linking
+            // IDs for dropdowns and linking - Matching your EXACT Supabase Schema
             category_id: cName ? catMap[cName] : null,
-            subcategory_id: sName ? subCatMap[sName] : null,
+            sub_category_id: sName ? subCatMap[sName] : null, // Fixed: Schema uses sub_category_id
             brand_id: bName ? brandMap[bName] : null,
             unit_id: uName ? unitMap[uName] : null,
             // Direct names for Reports (Backup)
