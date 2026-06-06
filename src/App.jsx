@@ -245,11 +245,11 @@ export default function App() {
     return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
   }, [handleRealtimeUpdate]);
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = async (force = false) => {
     if (isFetchingRef.current) return;
     const now = Date.now();
-    // Strict 5s debounce for global refetch to kill any lingering loops
-    if (mountRef.current && (now - mountRef.current < 5000)) return; 
+    // Strict 5s debounce for global refetch to kill any lingering loops, unless forced
+    if (!force && mountRef.current && (now - mountRef.current < 5000)) return; 
     
     isFetchingRef.current = true;
     mountRef.current = now; 
@@ -6261,7 +6261,7 @@ function MasterListView({ title, table, bucket, fields, data, uploadImage, fetch
         const res = await handleERPAction(table, ACTION_TYPES.BULK_UPSERT, parsedData);
         if (res.success) {
           alert(`Successfully imported ${parsedData.length} records!`);
-          fetchInitialData();
+          setTimeout(() => fetchInitialData(true), 1000);
         } else {
           throw new Error(res.error);
         }
@@ -9062,24 +9062,27 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
         const uniqueUnits = [...new Set(parsedData.map(item => item.unit_name).filter(Boolean))];
 
         // 2. Sync them to their respective Master tables first (using name as conflict key)
+        const generateSyncId = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
         if (uniqueCats.length > 0) {
-          await handleERPAction(DB_SCHEMA.CATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueCats.map(name => ({ name, is_active: true })));
+          await handleERPAction(DB_SCHEMA.CATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueCats.map(name => ({ id: generateSyncId(name), name, is_active: true })));
         }
         if (uniqueSubCats.length > 0) {
-          await handleERPAction(DB_SCHEMA.SUBCATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueSubCats.map(name => ({ name, is_active: true })));
+          await handleERPAction(DB_SCHEMA.SUBCATEGORIES.table, ACTION_TYPES.BULK_UPSERT, uniqueSubCats.map(name => ({ id: generateSyncId(name), name, is_active: true })));
         }
         if (uniqueBrands.length > 0) {
-          await handleERPAction(DB_SCHEMA.BRANDS.table, ACTION_TYPES.BULK_UPSERT, uniqueBrands.map(name => ({ name, is_active: true })));
+          await handleERPAction(DB_SCHEMA.BRANDS.table, ACTION_TYPES.BULK_UPSERT, uniqueBrands.map(name => ({ id: generateSyncId(name), name, is_active: true })));
         }
         if (uniqueUnits.length > 0) {
-          await handleERPAction(DB_SCHEMA.UNITS.table, ACTION_TYPES.BULK_UPSERT, uniqueUnits.map(name => ({ name, is_active: true })));
+          await handleERPAction(DB_SCHEMA.UNITS.table, ACTION_TYPES.BULK_UPSERT, uniqueUnits.map(name => ({ id: generateSyncId(name), name, is_active: true })));
         }
 
         // 3. Now upload the products
         const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.BULK_UPSERT, parsedData);
         if (res.success) {
-          alert(`Successfully imported ${parsedData.length} products!`);
-          fetchInitialData();
+          alert(`Successfully imported ${parsedData.length} products and synchronized masters!`);
+          // Wait 1s for DB indexing then force refresh
+          setTimeout(() => fetchInitialData(true), 1000);
         } else {
           throw new Error(res.error);
         }
@@ -10089,11 +10092,23 @@ function SaleReportItemSummaryView({ orders, categories, subcategories, fetchIni
       }
 
       // 2. Fetch all items for these orders
-      const allItems = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, {
+      let allItems = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, {
         in: { column: 'order_id', values: orderIds }
       });
 
-      // 3. Group by Item Name and calculate summary
+      // 3. Filter items by Category/Subcategory if needed
+      if (mainCat !== 'All' || subCat !== 'All') {
+        allItems = allItems.filter(item => {
+          const product = products.find(p => p.id === item.product_id || p.name === item.product_name);
+          if (!product) return false;
+          
+          const matchesMain = mainCat === 'All' || product.category_id === mainCat || product.category_name === mainCat;
+          const matchesSub = subCat === 'All' || product.subcategory_id === subCat || product.subcategory_name === subCat;
+          return matchesMain && matchesSub;
+        });
+      }
+
+      // 4. Group by Item Name and calculate summary
       const grouped = allItems.reduce((acc, item) => {
         const itemName = item.product_name || 'Unknown Item';
         if (!acc[itemName]) {
@@ -10314,9 +10329,14 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
           bill_amount: order.final_amount
         };
       }).filter(item => {
+        const product = products.find(p => p.id === item.product_id || p.name === item.product_name);
+        if (!product && (mainCat !== 'All' || subCat !== 'All')) return false;
+        
         const matchesSearch = !searchItem || item.product_name?.toLowerCase().includes(searchItem.toLowerCase());
-        // Category filters would go here if product details are joined
-        return matchesSearch;
+        const matchesMain = mainCat === 'All' || product?.category_id === mainCat || product?.category_name === mainCat;
+        const matchesSub = subCat === 'All' || product?.subcategory_id === subCat || product?.subcategory_name === subCat;
+        
+        return matchesSearch && matchesMain && matchesSub;
       });
 
       setFilteredData(itemReportData);
