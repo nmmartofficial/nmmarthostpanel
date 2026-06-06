@@ -8785,6 +8785,7 @@ function MainCategoryView({ title, table, bucket, fields, data, uploadImage, fet
                         className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-800 rounded text-[10px] font-black uppercase text-slate-800 hover:bg-slate-50 transition-all shadow-sm"
                       >
                         <Edit2 size={12} /> Edit
+                      </button>
                       <button 
                         onClick={async () => {
                           // Immediate delete
