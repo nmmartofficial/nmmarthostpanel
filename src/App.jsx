@@ -213,6 +213,106 @@ function NavDropdown({ label, icon, items, activeTab, setActiveTab }) {
   );
 }
 
+function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
+  const [scanTerm, setScanTerm] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [lastVerified, setLastVerified] = useState(null);
+
+  const handleVerify = async (e) => {
+    if (e) e.preventDefault();
+    if (!scanTerm) return;
+    setVerifying(true);
+    
+    try {
+      // Find order by ID or Number
+      const order = orders.find(o => o.id === scanTerm || o.order_number === scanTerm);
+      if (!order) throw new Error("Order not found!");
+
+      if (order.order_status === 'verified') {
+        alert("This order is already verified!");
+        setLastVerified(order);
+      } else {
+        await handleERPAction(DB_SCHEMA.ORDERS.table, ACTION_TYPES.UPDATE, {
+          id: order.id,
+          order_status: 'verified'
+        });
+        alert(`Order #${order.order_number} Verified Successfully!`);
+        setLastVerified({ ...order, order_status: 'verified' });
+        fetchInitialData(true, true);
+      }
+      setScanTerm('');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 pt-10">
+      <div className="bg-white p-10 rounded-[2.5rem] border-2 border-slate-100 shadow-2xl text-center space-y-8 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-blue-600" />
+        
+        <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner transform rotate-12">
+          <ShieldCheck size={48} className="-rotate-12" />
+        </div>
+        
+        <div className="space-y-2">
+          <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Guard Verification</h2>
+          <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">
+            Scan Customer's Exit Pass to verify payment
+          </p>
+        </div>
+
+        <form onSubmit={handleVerify} className="relative group max-w-sm mx-auto">
+          <div className="absolute inset-0 bg-blue-600/5 blur-2xl rounded-full scale-150 opacity-0 group-focus-within:opacity-100 transition-all duration-500" />
+          <input 
+            type="text"
+            placeholder="Scan / Enter Order ID"
+            className="relative w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-6 text-center text-xl font-black uppercase tracking-[0.1em] focus:bg-white focus:border-blue-500 focus:ring-0 transition-all outline-none shadow-inner"
+            value={scanTerm}
+            onChange={(e) => setScanTerm(e.target.value)}
+            autoFocus
+          />
+          {verifying && <RefreshCw className="absolute right-6 top-1/2 -translate-y-1/2 animate-spin text-blue-500" size={24} />}
+        </form>
+
+        <div className="pt-6 border-t border-slate-50 flex justify-center gap-4">
+          <div className="flex items-center gap-2 text-[11px] font-black text-emerald-600 uppercase bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-100">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+            Scanner Active
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {lastVerified && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }} 
+            animate={{ opacity: 1, scale: 1, y: 0 }} 
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-emerald-600 text-white p-8 rounded-[2.5rem] shadow-2xl shadow-emerald-200 flex items-center justify-between relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16" />
+            <div className="flex items-center gap-6 relative z-10">
+              <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-md"><CheckCircle size={32} /></div>
+              <div>
+                <p className="text-[10px] font-black uppercase opacity-70 tracking-[0.2em] mb-1">Last Verified Order</p>
+                <h4 className="text-xl font-black tracking-tighter leading-none">#{lastVerified.order_number}</h4>
+                <p className="text-sm font-bold opacity-90 mt-1 uppercase">{lastVerified.customer_name}</p>
+              </div>
+            </div>
+            <div className="text-right relative z-10">
+              <p className="text-[10px] font-black uppercase opacity-70 tracking-[0.2em] mb-1">Amount Paid</p>
+              <h4 className="text-3xl font-black tracking-tighter">₹{lastVerified.total_amount}</h4>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // --- App Component ---
 export default function App() {
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -584,6 +684,7 @@ export default function App() {
   ];
 
   const viewItems = [
+    { id: 'Orders', label: 'Self-Checkout Tracker', icon: <QrCode size={14} />, shortcut: 'F9' },
     { id: 'OnlineOrder', label: 'Online Order', icon: <Monitor size={14} /> },
     { id: 'BillView', label: 'Bill View', icon: <Database size={14} /> },
     { id: 'BillViewDelivery', label: 'Bill View (Delivery)', icon: <Database size={14} /> },
@@ -624,6 +725,7 @@ export default function App() {
 
   const toolsItems = [
     { id: 'AppConfig', label: 'CONFIGURATION', icon: <Settings size={14} /> },
+    { id: 'GuardVerification', label: 'GUARD VERIFICATION', icon: <ShieldCheck size={14} />, hidden: !appConfig?.enable_guard_verification },
     { id: 'StoreItemDisplay', label: 'STORE ITEM DISPLAY', icon: <ArrowLeftRight size={14} /> },
     { id: 'StoreSubCatDisplay', label: 'STORE SUB-CAT DISPLAY', icon: <ArrowLeftRight size={14} /> },
     { id: 'StoreMainCatDisplay', label: 'STORE MAIN-CAT DISPLAY', icon: <ArrowLeftRight size={14} /> },
@@ -718,7 +820,7 @@ export default function App() {
               <NavDropdown 
                 label="Tools" 
                 icon={<Wrench size={14} className="mr-1.5" />} 
-                items={[...toolsItems, { id: 'Logout', label: 'LOGOUT SYSTEM', icon: <LogOut size={14} /> }]} 
+                items={[...toolsItems.filter(i => !i.hidden), { id: 'Logout', label: 'LOGOUT SYSTEM', icon: <LogOut size={14} /> }]} 
                 activeTab={activeTab} 
                 setActiveTab={(tab) => {
                   if (tab === 'Logout') {
@@ -5083,6 +5185,7 @@ function renderTabContent(tab, props) {
     case 'Wishlist': return <MasterListView title="User Wishlists" table={DB_SCHEMA.WISHLIST.table} fields={[{name: 'user_id', label: 'User ID'}, {name: 'product_id', label: 'Product ID'}]} data={props.wishlist} {...props} />;
     case 'Notifications': return <NotificationsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
+    case 'GuardVerification': return <GuardVerificationView orders={props.orders} {...props} />;
 
     // Store Dropdown Cases (Steps 15-24)
     case 'BOM': return <BOMView {...props} />;
@@ -5119,6 +5222,7 @@ function renderTabContent(tab, props) {
     case 'StockReport': return <StockReportView {...props} />;
     case 'ItemStatement': return <ItemStatementReportView {...props} />;
     case 'Logbook': return <LogbookView {...props} />;
+    case 'GuardVerification': return <GuardVerificationView {...props} />;
     case 'LedgerView': return <LedgerView {...props} />;
     case 'PaymentReportDB': return <DeliveryBoyPaymentReportView {...props} />;
     case 'CreditReport': return <CreditReportView {...props} />;
@@ -10205,15 +10309,34 @@ function AppConfigView({ appConfig, setAppConfig, fetchInitialData }) {
             { label: 'Reward Cashback (%)', name: 'cashback_percentage', type: 'number' },
             { label: 'GST Tax Rate (%)', name: 'tax_rate', type: 'number' },
             { label: 'Security Admin PIN', name: 'security_pin', type: 'text' },
+            { label: 'Guard Verification', name: 'enable_guard_verification', type: 'checkbox' },
           ].map(f => (
             <div key={f.name} className="space-y-1">
               <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
-              <input 
-                type={f.type}
-                value={formData[f.name] || ''}
-                onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
-              />
+              {f.type === 'checkbox' ? (
+                <div className="flex items-center h-[34px]">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
+                    className={cn(
+                      "w-12 h-6 rounded-full p-1 transition-all duration-300",
+                      formData[f.name] ? "bg-blue-600" : "bg-slate-300"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 transform",
+                      formData[f.name] ? "translate-x-6" : "translate-x-0"
+                    )} />
+                  </button>
+                </div>
+              ) : (
+                <input 
+                  type={f.type}
+                  value={formData[f.name] || ''}
+                  onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
+                />
+              )}
             </div>
           ))}
         </div>
@@ -13367,7 +13490,11 @@ function OrdersView({ orders, filter, fetchInitialData }) {
 
     // Payment filter
     if (paymentFilter !== 'All') {
-      result = result.filter(o => (o.payment_method || 'Cash').toLowerCase() === paymentFilter.toLowerCase());
+      result = result.filter(o => {
+        const method = (o.payment_method || 'Cash').toLowerCase();
+        if (paymentFilter === 'Self-Checkout') return method.includes('self') || method.includes('app');
+        return method === paymentFilter.toLowerCase();
+      });
     }
 
     // Date filtering
@@ -13504,7 +13631,7 @@ function OrdersView({ orders, filter, fetchInitialData }) {
 
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pay:</span>
-          {['All', 'Cash', 'UPI'].map(m => (
+          {['All', 'Cash', 'UPI', 'Self-Checkout'].map(m => (
             <button
               key={m}
               onClick={() => setPaymentFilter(m)}

@@ -13,6 +13,8 @@ CREATE TABLE app_config (
     mobile TEXT,
     email TEXT,
     gst_no TEXT,
+    tax_rate DECIMAL(5,2) DEFAULT 5,
+    enable_guard_verification BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
