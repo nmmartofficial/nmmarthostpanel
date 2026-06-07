@@ -388,7 +388,89 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Enable RLS and Add Secure Access Policies
+-- 30. Inventory Logs (Audit Trail for stock changes)
+CREATE TABLE inventory_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+    old_stock DECIMAL(10,2),
+    new_stock DECIMAL(10,2),
+    change_type TEXT, -- 'sale', 'purchase', 'return', 'manual'
+    reference_id TEXT, -- order_number or invoice_no
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 31. Credit Notes (For Returns/Exchanges)
+CREATE TABLE credit_notes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    cn_number TEXT UNIQUE NOT NULL,
+    original_order_id UUID REFERENCES orders(id),
+    customer_mobile TEXT,
+    amount DECIMAL(12,2) NOT NULL,
+    status TEXT DEFAULT 'active', -- 'active', 'used', 'expired'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 32. Return Items (Tracking specific items returned)
+CREATE TABLE return_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID REFERENCES orders(id),
+    product_id UUID REFERENCES products(id),
+    quantity DECIMAL(10,2) NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 33. Customer Loyalty (Points & Rewards)
+CREATE TABLE customer_loyalty (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_mobile TEXT UNIQUE NOT NULL,
+    total_points INTEGER DEFAULT 0,
+    lifetime_earnings INTEGER DEFAULT 0,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 34. Sample Data & Initial Setup
+-- Run these after creating all tables
+
+-- Insert Default Categories
+INSERT INTO categories (id, name, image_url, position) VALUES 
+(uuid_generate_v4(), 'Grocery', 'https://cpipmysooynedtpreekt.supabase.co/storage/v1/object/public/category-images/grocery.png', 1),
+(uuid_generate_v4(), 'Beverages', 'https://cpipmysooynedtpreekt.supabase.co/storage/v1/object/public/category-images/beverages.png', 2),
+(uuid_generate_v4(), 'Personal Care', 'https://cpipmysooynedtpreekt.supabase.co/storage/v1/object/public/category-images/care.png', 3)
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert Default Brands
+INSERT INTO brands (id, name) VALUES 
+(uuid_generate_v4(), 'Amul'),
+(uuid_generate_v4(), 'Nestle'),
+(uuid_generate_v4(), 'Tata Consumer')
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert Default Units
+INSERT INTO unit_master (id, name, short_name) VALUES 
+(uuid_generate_v4(), 'Kilogram', 'KG'),
+(uuid_generate_v4(), 'Piece', 'PCS'),
+(uuid_generate_v4(), 'Litre', 'LTR'),
+(uuid_generate_v4(), 'Packet', 'PKT')
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert Default Departments
+INSERT INTO department_master (id, name) VALUES 
+(uuid_generate_v4(), 'FMCG'),
+(uuid_generate_v4(), 'Dairy'),
+(uuid_generate_v4(), 'Cosmetics')
+ON CONFLICT (name) DO NOTHING;
+
+-- Update App Config with detailed info
+UPDATE app_config SET 
+    address = 'Naya Nagar, First Dhata Road, Manjhanpur Kaushambi, UP',
+    mobile = '7081154604',
+    gst_no = '09CCFPR9966P1Z9',
+    email = 'nmmart@gmail.com'
+WHERE shop_name = 'NM MART';
+
+-- Final RLS and Verification
 -- NOTE: In production, change 'anon' to 'authenticated' and use Supabase Auth
 DO $$ 
 DECLARE 
@@ -399,7 +481,8 @@ DECLARE
         'account_master', 'credit_master', 'delivery_boy_master', 'delivery_customer_master', 
         'purchases', 'purchase_items', 'orders', 'order_items', 'wallet_master', 
         'wallet_transactions', 'addresses', 'pincode_master', 'coupons', 'offers_master', 
-        'cart', 'wishlist', 'notifications', 'system_logs', 'users'
+        'cart', 'wishlist', 'notifications', 'system_logs', 'users',
+        'inventory_logs', 'credit_notes', 'return_items', 'customer_loyalty'
     ];
 BEGIN 
     FOREACH t IN ARRAY tables LOOP 

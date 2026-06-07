@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { 
   Package, Layers, Grid, List, Tag, Building2, 
   Users, Image as ImageIcon, CreditCard, 
@@ -162,11 +162,11 @@ function NavDropdown({ label, icon, items, activeTab, setActiveTab }) {
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-black transition-all whitespace-nowrap uppercase tracking-tighter",
-          isActive ? "text-blue-700 bg-blue-50" : "text-slate-900 hover:bg-slate-100"
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-black transition-all whitespace-nowrap uppercase tracking-tighter shadow-sm",
+          isActive ? "text-white bg-blue-600 shadow-blue-200" : "text-slate-900 bg-white border border-slate-200 hover:bg-slate-50"
         )}
       >
-        <span className={cn(isActive ? "text-blue-700" : "text-slate-800")}>{icon}</span>
+        <span className={cn(isActive ? "text-white" : "text-slate-800")}>{icon}</span>
         <span>{label}</span>
         <ChevronDown size={12} className={cn("transition-transform opacity-70", isOpen && "rotate-180")} />
       </button>
@@ -174,11 +174,11 @@ function NavDropdown({ label, icon, items, activeTab, setActiveTab }) {
       <AnimatePresence>
         {isOpen && (
           <motion.div 
-            initial={{ opacity: 0, y: 5 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 5 }}
+            exit={{ opacity: 0, y: 10 }}
             className={cn(
-              "absolute left-0 mt-1 bg-white rounded-lg shadow-2xl border border-slate-200 py-1.5 z-[200] overflow-hidden w-64"
+              "absolute left-0 mt-2 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200 py-2 z-[200] overflow-hidden w-64"
             )}
           >
             <div className={cn(
@@ -266,6 +266,7 @@ export default function App() {
   // --- Auth Check ---
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!pin) return; // Prevent empty submit
     setIsProcessing(true);
     try {
       // Secure server-side PIN verification using RPC
@@ -277,8 +278,9 @@ export default function App() {
         setIsAuthorized(true);
         localStorage.setItem('nm_admin_auth', 'true');
         localStorage.setItem('nm_auth_time', Date.now().toString());
+        toast.success('Access Granted');
       } else {
-        alert("Invalid Security PIN!");
+        toast.error('Invalid Security PIN');
         setPin('');
       }
     } catch (error) {
@@ -288,8 +290,9 @@ export default function App() {
       if (pin === fallbackPin) {
         setIsAuthorized(true);
         localStorage.setItem('nm_admin_auth', 'true');
+        toast.success('Offline Access Granted');
       } else {
-        alert("Invalid Security PIN or Connection Error");
+        toast.error('Connection Error or Invalid PIN');
       }
     } finally {
       setIsProcessing(false);
@@ -333,35 +336,7 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => {
-    if (localStorage.getItem('nm_admin_auth') === 'true') {
-      setIsAuthorized(true);
-    }
-    
-    if (!mountRef.current) {
-      fetchInitialData();
-    }
-
-    const setupSubscriptions = () => {
-      subscriptionsRef.current.forEach(s => s.unsubscribe());
-      
-      const tablesToWatch = [
-        DB_SCHEMA.ORDERS.table,
-        DB_SCHEMA.PRODUCTS.table,
-        DB_SCHEMA.NOTIFICATIONS.table,
-        DB_SCHEMA.BANNERS.table
-      ];
-
-      subscriptionsRef.current = tablesToWatch.map(table => 
-        dbSync.subscribe(table, (payload) => handleRealtimeUpdate(table, payload))
-      );
-    };
-
-    setupSubscriptions();
-    return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
-  }, [handleRealtimeUpdate]);
-
-  const fetchInitialData = async (force = false) => {
+  const fetchInitialData = useCallback(async (force = false, silent = false) => {
     if (isFetchingRef.current) return;
     const now = Date.now();
     // Strict 5s debounce for global refetch to kill any lingering loops, unless forced
@@ -370,7 +345,7 @@ export default function App() {
     isFetchingRef.current = true;
     mountRef.current = now; 
 
-    setLoading(true);
+    if (!silent) setLoading(true);
     console.log("[Audit] Initializing Data Orchestration...");
     try {
       const results = await Promise.allSettled([
@@ -470,7 +445,39 @@ export default function App() {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (localStorage.getItem('nm_admin_auth') === 'true') {
+      setIsAuthorized(true);
+    }
+    
+    // Initial fetch only once on true mount
+    if (!mountRef.current) {
+      fetchInitialData(false, false);
+    }
+
+    const setupSubscriptions = () => {
+      subscriptionsRef.current.forEach(s => s.unsubscribe());
+      
+      const tablesToWatch = [
+        DB_SCHEMA.ORDERS.table,
+        DB_SCHEMA.PRODUCTS.table,
+        DB_SCHEMA.NOTIFICATIONS.table,
+        DB_SCHEMA.BANNERS.table,
+        DB_SCHEMA.BRANDS.table,
+        DB_SCHEMA.CATEGORIES.table,
+        DB_SCHEMA.WALLET_MASTER.table
+      ];
+
+      subscriptionsRef.current = tablesToWatch.map(table => 
+        dbSync.subscribe(table, (payload) => handleRealtimeUpdate(table, payload))
+      );
+    };
+
+    setupSubscriptions();
+    return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
+  }, [handleRealtimeUpdate, fetchInitialData]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -711,12 +718,16 @@ export default function App() {
               <NavDropdown 
                 label="Tools" 
                 icon={<Wrench size={14} className="mr-1.5" />} 
-                items={toolsItems} 
+                items={[...toolsItems, { id: 'Logout', label: 'LOGOUT SYSTEM', icon: <LogOut size={14} /> }]} 
                 activeTab={activeTab} 
                 setActiveTab={(tab) => {
                   if (tab === 'Logout') {
-                    localStorage.removeItem('nm_admin_auth');
-                    setIsAuthorized(false);
+                    if (window.confirm("Are you sure you want to Logout?")) {
+                      localStorage.removeItem('nm_admin_auth');
+                      localStorage.removeItem('nm_auth_time');
+                      setIsAuthorized(false);
+                      toast.info('Logged out successfully');
+                    }
                   } else if (tab === 'DatabaseBackup') {
                     handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.MAINTENANCE_EXPORT, { fileName: 'Full_System_Backup' });
                   } else if (tab === 'ClearCache') {
@@ -5539,21 +5550,23 @@ function PurchaseView({ title, table, data, products, departments, fetchInitialD
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="relative w-48">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input 
-                  type="text"
-                  placeholder="Search Bill No"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500/20 outline-none"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                <span>From :</span>
-                <input type="date" className="bg-white border border-slate-200 rounded px-2 py-1" />
-                <span>To :</span>
-                <input type="date" className="bg-white border border-slate-200 rounded px-2 py-1" />
+              <div className="flex items-center gap-4">
+                <div className="relative w-64 group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+                  <input 
+                    type="text"
+                    placeholder="Search Bill No"
+                    className="w-full bg-slate-100 border border-transparent rounded-xl pl-10 pr-4 py-2 text-xs font-black uppercase tracking-tighter focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-600 tracking-tighter">
+                  <span className="opacity-60">From :</span>
+                  <input type="date" className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:border-blue-500 outline-none transition-all shadow-inner" />
+                  <span className="opacity-60">To :</span>
+                  <input type="date" className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 focus:border-blue-500 outline-none transition-all shadow-inner" />
+                </div>
               </div>
             </div>
 
@@ -5812,6 +5825,78 @@ function PurchaseView({ title, table, data, products, departments, fetchInitialD
   );
 }
 
+// --- Sub-components for POS Optimization ---
+const ProductCard = memo(({ product, addToCart }) => (
+  <button 
+    onClick={() => addToCart(product)}
+    className={cn(
+      "bg-white p-2 rounded border shadow-sm transition-all flex flex-col justify-between h-24 relative group",
+      product.stock <= 5 ? "border-amber-400 bg-amber-50/30" : "border-slate-300",
+      product.stock <= 0 && "opacity-50 grayscale cursor-not-allowed"
+    )}
+  >
+    <div className="flex flex-col items-center">
+      <span className="text-[10px] font-black text-slate-800 uppercase leading-tight text-center w-full px-1">
+        {product.name}
+      </span>
+      {product.stock <= 10 && (
+        <span className="text-[7px] font-black text-amber-600 uppercase mt-0.5">
+          Stock: {product.stock}
+        </span>
+      )}
+    </div>
+    <span className="text-[10px] font-black text-[#E11D48] self-end mt-auto">
+      ₹{product.sale_rate}
+    </span>
+  </button>
+));
+
+const CartItem = memo(({ item, removeFromCart, updateQty }) => (
+  <div className="px-4 py-3 flex justify-between border-b border-slate-50 text-sm font-semibold hover:bg-blue-50/30 group items-center transition-colors">
+    <div className="w-1/2 flex items-center gap-3">
+      <button 
+        onClick={() => removeFromCart(item.id)}
+        className="text-slate-300 hover:text-red-500 transition-colors"
+      >
+        <Trash2 size={16} />
+      </button>
+      <div className="flex flex-col">
+        <span className="text-slate-800 uppercase leading-tight truncate w-32" title={item.name}>{item.name}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-400 font-bold">₹{item.sale_rate} / unit</span>
+          {item.stock <= 5 && (
+            <span className={cn(
+              "text-[7px] font-black px-1 rounded uppercase tracking-tighter",
+              item.stock <= 0 ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"
+            )}>
+              {item.stock <= 0 ? 'Out of Stock' : `Stock: ${item.stock}`}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+    <div className="w-1/4 flex items-center justify-center">
+      <div className="flex items-center bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+        <button 
+          onClick={() => updateQty(item.id, item.quantity - 1)}
+          className="px-2 py-1 hover:bg-slate-200 text-slate-600"
+        >-</button>
+        <input 
+          type="number" 
+          value={item.quantity} 
+          onChange={(e) => updateQty(item.id, parseInt(e.target.value) || 0)}
+          className="w-10 text-center bg-transparent border-none p-1 text-xs font-bold text-slate-800 focus:ring-0" 
+        />
+        <button 
+          onClick={() => updateQty(item.id, item.quantity + 1)}
+          className="px-2 py-1 hover:bg-slate-200 text-slate-600"
+        >+</button>
+      </div>
+    </div>
+    <span className="w-1/4 text-right text-slate-900 font-bold">₹{(item.sale_rate * item.quantity).toLocaleString()}</span>
+  </div>
+));
+
 function POSView({ products, categories, fetchInitialData, appConfig, setActiveTab, orders }) {
   const [cart, setCart] = useState([]);
   const [customerInfo, setCustomerInfo] = useState({ name: '', mob: '', add: '' });
@@ -5832,6 +5917,17 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   const [isCreditNote, setIsCreditNote] = useState(false);
   const [posFilter, setPosFilter] = useState('All'); // 'All', 'TopSale', 'Favourite'
   const searchInputRef = useRef(null);
+  const barcodeInputRef = useRef(null);
+
+  // --- Optimization: Barcode Map for Instant Lookup ---
+  const barcodeMap = useMemo(() => {
+    const map = new Map();
+    (products || []).forEach(p => {
+      if (p.barcode) map.set(p.barcode.trim(), p);
+      if (p.hsn_code) map.set(p.hsn_code.trim(), p);
+    });
+    return map;
+  }, [products]);
 
   // --- Step 1 State: Split Payment & Hold Bill ---
   const [cashAmount, setCashAmount] = useState(0);
@@ -5841,11 +5937,52 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
     return saved ? JSON.parse(saved) : [];
   });
   const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [showAlertsDropdown, setShowAlertsDropdown] = useState(false);
+
+  // --- Step 1 Feature: Low Stock & Expiry Alerts Logic ---
+  const posAlerts = useMemo(() => {
+    const lowStock = (products || []).filter(p => p.stock > 0 && p.stock <= 10).map(p => ({
+      type: 'low_stock',
+      id: p.id,
+      name: p.name,
+      value: p.stock,
+      msg: `Low Stock: ${p.stock} remaining`
+    }));
+
+    const outOfStock = (products || []).filter(p => p.stock <= 0).map(p => ({
+      type: 'out_of_stock',
+      id: p.id,
+      name: p.name,
+      value: 0,
+      msg: `Out of Stock!`
+    }));
+
+    // Mocking Expiry (assuming products have expiry_date column)
+    const expiringSoon = (products || []).filter(p => {
+      if (!p.expiry_date) return false;
+      const daysToExpiry = Math.ceil((new Date(p.expiry_date) - new Date()) / (1000 * 60 * 60 * 24));
+      return daysToExpiry > 0 && daysToExpiry <= 30; // Expiring in next 30 days
+    }).map(p => ({
+      type: 'expiry',
+      id: p.id,
+      name: p.name,
+      value: p.expiry_date,
+      msg: `Expiring soon: ${new Date(p.expiry_date).toLocaleDateString()}`
+    }));
+
+    return [...outOfStock, ...lowStock, ...expiringSoon];
+  }, [products]);
 
   // --- Step 3 State: Customer History & Loyalty ---
   const [customerHistory, setCustomerHistory] = useState([]);
   const [customerLoyalty, setCustomerLoyalty] = useState({ points: 0, wallet: 0 });
   const [redeemPoints, setRedeemPoints] = useState(0);
+
+  // --- Loyalty Points Configuration ---
+  const POINTS_PER_RUPEE = 0.01; // ₹100 spend = 1 point
+  const RUPEE_PER_POINT = 1;     // 1 point = ₹1 discount
+
+  const pointsDiscount = redeemPoints * RUPEE_PER_POINT;
 
   // Fetch Customer Data when mobile number changes
   useEffect(() => {
@@ -5854,6 +5991,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
     } else {
       setCustomerHistory([]);
       setCustomerLoyalty({ points: 0, wallet: 0 });
+      setRedeemPoints(0);
     }
   }, [customerInfo.mob]);
 
@@ -6004,14 +6142,21 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
     }
   };
 
-  // Search Results
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Search Results (Debounced)
   const searchResults = useMemo(() => {
-    if (!searchTerm || searchTerm.length < 1) return [];
+    if (!debouncedSearchTerm || debouncedSearchTerm.length < 1) return [];
     return products.filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (p.barcode && p.barcode.includes(searchTerm))
+      p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+      (p.barcode && p.barcode.includes(debouncedSearchTerm))
     ).slice(0, 10);
-  }, [searchTerm, products]);
+  }, [debouncedSearchTerm, products]);
 
   const handleProductSelect = (product) => {
     setSelectedProduct(product);
@@ -6020,6 +6165,20 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   };
 
   const handleSerialClick = () => {
+    const bCode = barcodeInputRef.current?.value?.trim();
+    
+    if (bCode) {
+      const product = barcodeMap.get(bCode);
+      if (product) {
+        addToCart(product);
+        barcodeInputRef.current.value = ''; // Clear after add
+        barcodeInputRef.current?.focus(); // Refocus
+      } else {
+        alert("Product not found with this barcode!");
+      }
+      return;
+    }
+
     if (searchTerm) {
       const product = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase() || p.barcode === searchTerm);
       if (product) setSelectedProduct(product);
@@ -6027,95 +6186,69 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
     }
   };
 
-  const removeFromCart = (productId) => {
-    setCart(cart.filter(item => item.id !== productId));
-  };
+  const removeFromCart = useCallback((productId) => {
+    setCart(prev => prev.filter(item => item.id !== productId));
+  }, []);
 
-  const clearCart = () => {
-    setCart([]);
-    setCustomerInfo({ name: '', mob: '', add: '', dob: '', doa: '', wallet: 0, points: 0 });
-  };
-
-  // Keyboard Shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'F1') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-      if (e.key === 'F12') {
-        e.preventDefault();
-        if (cart.length > 0) handleCheckout();
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (showReceipt) setShowReceipt(false);
-        else setCart([]);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, showReceipt]);
-
-  // --- Auto Print Logic ---
-  useEffect(() => {
-    if (showReceipt && lastOrderData) {
-      // Small delay to ensure modal is rendered
-      const timer = setTimeout(() => {
-        window.print();
-      }, 500);
-      return () => clearTimeout(timer);
+  const updateQty = useCallback((productId, newQty) => {
+    if (newQty === 0) {
+      removeFromCart(productId);
+      return;
     }
-  }, [showReceipt, lastOrderData]);
+    setCart(prev => prev.map(item => item.id === productId ? { ...item, quantity: newQty } : item));
+  }, [removeFromCart]);
 
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = activeCategory === 'All' || p.category_id === activeCategory;
-    
-    if (posFilter === 'TopSale') {
-      // Mock logic: items with stock > 50 or explicitly marked (if field exists)
-      return matchesSearch && matchesCategory && (p.stock > 50);
-    }
-    if (posFilter === 'Favourite') {
-      // Mock logic: items with rating > 4 or explicitly marked
-      return matchesSearch && matchesCategory && (p.is_favourite || p.rating > 4);
-    }
-    
-    return matchesSearch && matchesCategory;
-  });
-
-  const addToCart = (product) => {
+  const addToCart = useCallback((product) => {
     if (!product) return;
     if (product.stock <= 0) {
       alert(`"${product.name}" is Out of Stock!`);
       return;
     }
     
-    // Always use the latest product data from the 'products' prop
-    const latestProduct = products.find(p => p.id === product.id) || product;
-    
-    const existing = cart.find(item => item.id === latestProduct.id);
-    if (existing) {
-      if (existing.quantity >= latestProduct.stock) {
-        alert(`Cannot add more! Only ${latestProduct.stock} units available.`);
-        return;
+    setCart(prev => {
+      const existing = prev.find(item => item.id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.stock) {
+          alert(`Cannot add more! Only ${product.stock} units available.`);
+          return prev;
+        }
+        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      setCart(cart.map(item => item.id === latestProduct.id ? { ...item, quantity: item.quantity + 1, sale_rate: latestProduct.sale_rate } : item));
-    } else {
-      setCart([...cart, { ...latestProduct, quantity: 1 }]);
-    }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  }, []);
 
-    if (latestProduct.stock <= 5) {
-      console.warn(`Low stock warning: Only ${latestProduct.stock} left for ${latestProduct.name}`);
-    }
-  };
+  const clearCart = useCallback(() => {
+    setCart([]);
+    setCustomerInfo({ name: '', mob: '', add: '', dob: '', doa: '', wallet: 0, points: 0 });
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const matchesCategory = activeCategory === 'All' || p.category_id === activeCategory;
+      
+      if (posFilter === 'TopSale') {
+        return matchesSearch && matchesCategory && (p.stock > 50);
+      }
+      if (posFilter === 'Favourite') {
+        return matchesSearch && matchesCategory && (p.is_favourite || p.rating > 4);
+      }
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, debouncedSearchTerm, activeCategory, posFilter]);
 
   const handleBarcodeScan = (e) => {
     if (e.key === 'Enter') {
-      const product = products.find(p => p.barcode === barcode || p.hsn_code === barcode);
+      const code = e.target.value.trim();
+      if (!code) return;
+
+      const product = barcodeMap.get(code);
       if (product) {
         addToCart(product);
-        setBarcode(''); // Clear after add
+        e.target.value = ''; // Clear input immediately
+        setBarcode(''); // Clear state if any
       } else {
         alert("Product not found with this barcode!");
       }
@@ -6125,8 +6258,8 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   const subTotal = cart.reduce((sum, item) => sum + (item.sale_rate * item.quantity), 0);
   const discountAmount = (subTotal * billDiscount) / 100;
   const deliveryChargeAmount = (subTotal * deliveryChargePercent) / 100;
-  const finalTotal = Math.round(subTotal - discountAmount + deliveryChargeAmount - flatDiscount);
-  const roundOff = (subTotal - discountAmount + deliveryChargeAmount - flatDiscount) - finalTotal;
+  const finalTotal = Math.round(subTotal - discountAmount + deliveryChargeAmount - flatDiscount - pointsDiscount);
+  const roundOff = (subTotal - discountAmount + deliveryChargeAmount - flatDiscount - pointsDiscount) - finalTotal;
 
   const handleCheckout = async (pMethod = 'Cash') => {
     if (cart.length === 0) return;
@@ -6194,18 +6327,56 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
 
       setIsProcessing(false);
       setShowReceipt(true);
-      fetchInitialData(); // Refresh stock and orders in frontend
 
-      // Auto-print logic
-      setTimeout(() => {
-        window.print();
-      }, 500);
+      // 4. Update Loyalty Points for Customer
+      if (customerInfo.mob && customerInfo.mob.length >= 10) {
+        const earnedPoints = Math.floor(finalTotal * POINTS_PER_RUPEE);
+        const newPointsBalance = (customerLoyalty.points - redeemPoints) + earnedPoints;
+        
+        await handleERPAction(DB_SCHEMA.USERS.table, ACTION_TYPES.UPDATE, {
+          mobile: customerInfo.mob,
+          points: newPointsBalance
+        });
+      }
+
+      fetchInitialData(); // Refresh stock and orders in frontend
     } catch (error) {
       console.error("Checkout Error:", error);
       alert("Billing failed: " + error.message);
       setIsProcessing(false);
     }
   };
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        if (cart.length > 0) handleCheckout();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (showReceipt) setShowReceipt(false);
+        else clearCart();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cart.length, showReceipt, clearCart]);
+
+  // --- Auto Print Logic ---
+  useEffect(() => {
+    if (showReceipt && lastOrderData) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [showReceipt, lastOrderData]);
 
   const handlePrint = () => {
     window.print();
@@ -6275,6 +6446,61 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
       {/* CENTER - Product Grid */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="p-2 flex gap-2 bg-[#A5D1E1] relative">
+          {/* Alerts Bell Component */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowAlertsDropdown(!showAlertsDropdown)}
+              className={cn(
+                "p-2 rounded-lg relative transition-all active:scale-95",
+                posAlerts.length > 0 ? "bg-red-500 text-white shadow-lg animate-pulse" : "bg-white text-slate-400"
+              )}
+              title="Inventory Alerts"
+            >
+              <Bell size={18} />
+              {posAlerts.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm">
+                  {posAlerts.length}
+                </span>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {showAlertsDropdown && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute top-full left-0 mt-2 w-64 bg-white shadow-2xl rounded-xl border border-slate-200 z-[150] overflow-hidden"
+                >
+                  <div className="p-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">System Alerts</span>
+                    <button onClick={() => setShowAlertsDropdown(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {posAlerts.length === 0 ? (
+                      <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase">No active alerts</div>
+                    ) : (
+                      posAlerts.map((alert, idx) => (
+                        <div key={idx} className="p-3 border-b border-slate-50 last:border-none flex gap-3 hover:bg-slate-50 transition-colors">
+                          <div className={cn(
+                            "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                            alert.type === 'expiry' ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600"
+                          )}>
+                            {alert.type === 'expiry' ? <Clock size={16} /> : <Box size={16} />}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[10px] font-black text-slate-800 uppercase truncate">{alert.name}</span>
+                            <span className="text-[9px] font-bold text-slate-500">{alert.msg}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="flex-1 relative">
             <input 
               ref={searchInputRef}
@@ -6329,11 +6555,10 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
           />
 
           <input 
+            ref={barcodeInputRef}
             type="text" 
             placeholder="Scan Barcode..." 
-            className="w-48 bg-white border-none rounded px-3 py-1.5 text-xs font-black text-black shadow-sm outline-none"
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
+            className="w-48 bg-white border-none rounded px-3 py-1.5 text-xs font-black text-black shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
             onKeyDown={handleBarcodeScan}
             autoFocus
           />
@@ -6347,29 +6572,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
 
         <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 content-start">
           {filteredProducts.map(product => (
-            <button 
-              key={product.id}
-              onClick={() => addToCart(product)}
-              className={cn(
-                "bg-white p-2 rounded border shadow-sm transition-all flex flex-col justify-between h-24 relative group",
-                product.stock <= 5 ? "border-amber-400 bg-amber-50/30" : "border-slate-300",
-                product.stock <= 0 && "opacity-50 grayscale cursor-not-allowed"
-              )}
-            >
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black text-slate-800 uppercase leading-tight text-center w-full px-1">
-                  {product.name}
-                </span>
-                {product.stock <= 10 && (
-                  <span className="text-[7px] font-black text-amber-600 uppercase mt-0.5">
-                    Stock: {product.stock}
-                  </span>
-                )}
-              </div>
-              <span className="text-[10px] font-black text-[#E11D48] self-end mt-auto">
-                ₹{product.sale_rate}
-              </span>
-            </button>
+            <ProductCard key={product.id} product={product} addToCart={addToCart} />
           ))}
         </div>
       </div>
@@ -6495,56 +6698,12 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
               <p className="text-sm font-medium uppercase tracking-widest">Cart is empty</p>
             </div>
           ) : cart.map((item, idx) => (
-            <div key={idx} className="px-4 py-3 flex justify-between border-b border-slate-50 text-sm font-semibold hover:bg-blue-50/30 group items-center transition-colors">
-              <div className="w-1/2 flex items-center gap-3">
-                <button 
-                  onClick={() => removeFromCart(item.id)}
-                  className="text-slate-300 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
-                <div className="flex flex-col">
-                  <span className="text-slate-800 uppercase leading-tight truncate w-32" title={item.name}>{item.name}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-400 font-bold">₹{item.sale_rate} / unit</span>
-                    {item.stock <= 5 && (
-                      <span className={cn(
-                        "text-[7px] font-black px-1 rounded uppercase tracking-tighter",
-                        item.stock <= 0 ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"
-                      )}>
-                        {item.stock <= 0 ? 'Out of Stock' : `Stock: ${item.stock}`}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="w-1/4 flex items-center justify-center">
-                <div className="flex items-center bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
-                  <button 
-                    onClick={() => {
-                      const newQty = Math.max(0, item.quantity - 1);
-                      if (newQty === 0) removeFromCart(item.id);
-                      else setCart(cart.map(c => c.id === item.id ? { ...c, quantity: newQty } : c));
-                    }}
-                    className="px-2 py-1 hover:bg-slate-200 text-slate-600"
-                  >-</button>
-                  <input 
-                    type="number" 
-                    value={item.quantity} 
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) || 0;
-                      setCart(cart.map(c => c.id === item.id ? { ...c, quantity: val } : c));
-                    }}
-                    className="w-10 text-center bg-transparent border-none p-1 text-xs font-bold text-slate-800 focus:ring-0" 
-                  />
-                  <button 
-                    onClick={() => setCart(cart.map(c => c.id === item.id ? { ...c, quantity: item.quantity + 1 } : c))}
-                    className="px-2 py-1 hover:bg-slate-200 text-slate-600"
-                  >+</button>
-                </div>
-              </div>
-              <span className="w-1/4 text-right text-slate-900 font-bold">₹{(item.sale_rate * item.quantity).toLocaleString()}</span>
-            </div>
+            <CartItem 
+              key={item.id} 
+              item={item} 
+              removeFromCart={removeFromCart} 
+              updateQty={updateQty} 
+            />
           ))}
         </div>
 
@@ -6666,6 +6825,14 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
               title="Hold Bill"
             >
               <Pause size={14} />
+            </button>
+            <button 
+              onClick={handleCreateCreditNote}
+              disabled={cart.length === 0 || isProcessing}
+              className="bg-red-50 text-red-600 border border-red-200 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-100 disabled:opacity-50 transition-colors"
+              title="Return / Create CN"
+            >
+              <ArrowLeftRight size={14} />
             </button>
             <button 
               onClick={() => {
@@ -6838,7 +7005,8 @@ function MasterListView({ title, table, bucket, fields, data, uploadImage, fetch
         const res = await handleERPAction(table, ACTION_TYPES.BULK_UPSERT, parsedData);
         if (res.success) {
           alert(`Successfully imported ${parsedData.length} records!`);
-          setTimeout(() => fetchInitialData(true), 1000);
+          // Silent refresh after import to avoid UI flickering
+          setTimeout(() => fetchInitialData(true, true), 500);
         } else {
           throw new Error(res.error);
         }
@@ -8342,7 +8510,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
       setShowForm(false);
       setEditingItem(null);
       setFormData({});
-      await fetchInitialData();
+      await fetchInitialData(true, true);
       alert(`${title} saved successfully!`);
     } catch (error) {
       alert(`Error: ${error.message}`);
@@ -8807,18 +8975,19 @@ function UnitView({ title, table, data, fetchInitialData }) {
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                   <button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="bg-blue-600 text-white px-6 py-1.5 rounded-lg font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 hover:translate-y-[-1px] active:translate-y-[0px] transition-all"
-                  >
-                    Save
-                  </button>
-                  <button 
                     type="button" 
                     onClick={() => setShowForm(false)}
-                    className="bg-blue-600 text-white px-6 py-1.5 rounded-lg font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 hover:translate-y-[-1px] active:translate-y-[0px] transition-all"
+                    className="bg-slate-100 text-slate-600 px-6 py-1.5 rounded-lg font-black uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
                   >
                     Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="bg-blue-600 text-white px-6 py-1.5 rounded-lg font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 hover:translate-y-[-1px] active:translate-y-[0px] transition-all flex items-center gap-2"
+                  >
+                    {isSubmitting ? <RefreshCw className="animate-spin" size={14} /> : <Save size={14} />}
+                    {editingItem ? 'Update' : 'Save'}
                   </button>
                 </div>
               </form>
@@ -9144,9 +9313,9 @@ function BrandView({ title, table, bucket, fields, data, uploadImage, fetchIniti
                       </button>
                       <button 
                         onClick={async () => {
-                      // Immediate delete
-                      await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                      fetchInitialData();
+                          // Immediate delete
+                          await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                          fetchInitialData(true, true);
                         }}
                         className="flex items-center gap-1 px-3 py-1.5 bg-[#E11D48] rounded text-[10px] font-black uppercase text-white hover:bg-red-700 transition-all shadow-sm"
                       >
@@ -13282,7 +13451,7 @@ function OrdersView({ orders, filter, fetchInitialData }) {
         alert("Bill updated successfully!");
         setIsEditing(false);
         setSelectedOrder({ ...selectedOrder, ...editFormData });
-        fetchInitialData();
+        fetchInitialData(true, true);
       } else {
         throw new Error(res.error);
       }
