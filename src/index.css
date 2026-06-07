@@ -97,3 +97,41 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400 dark:bg-slate-600;
 }
+
+/* Print Styles for Thermal Printer Auto-Cut */
+@media print {
+  @page {
+    margin: 0;
+    size: 80mm auto; /* Standard 3-inch roll */
+  }
+  
+  body * {
+    visibility: hidden;
+  }
+  
+  .print-receipt, .print-receipt * {
+    visibility: visible;
+  }
+  
+  .print-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 76mm; /* Content width */
+    margin: 0;
+    padding: 2mm;
+    background: white;
+  }
+
+  /* Thermal printer cut space */
+  .print-footer-cut {
+    height: 30mm; /* Extra space to allow paper to come out of the cutter */
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Hide everything else */
+  header, nav, .sidebar, button:not(.print-only), .no-print {
+    display: none !important;
+  }
+}
