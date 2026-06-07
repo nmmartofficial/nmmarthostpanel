@@ -45,6 +45,100 @@ const generateUUID = () => {
   });
 };
 
+// --- Helper: Pagination Footer ---
+function PaginationFooter({ currentPage, totalPages, rowsPerPage, setRowsPerPage, setCurrentPage, totalRecords }) {
+  if (totalRecords === 0) return null;
+  
+  return (
+    <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
+          <select 
+            value={rowsPerPage}
+            onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+            className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
+          >
+            {[10, 20, 50, 100, 500].map(val => <option key={val} value={val}>{val}</option>)}
+          </select>
+        </div>
+        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+          Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, totalRecords)} of {totalRecords}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button 
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage(1)}
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+          title="First Page"
+        >
+          <div className="flex items-center">
+            <ChevronDown size={14} className="rotate-90" />
+            <ChevronDown size={14} className="rotate-90 -ml-2" />
+          </div>
+        </button>
+        <button 
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage(prev => prev - 1)}
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+        >
+          <ChevronDown size={14} className="rotate-90" />
+        </button>
+        
+        <div className="flex items-center gap-1">
+          {(() => {
+            const pages = [];
+            const maxVisible = 5;
+            let start = Math.max(1, currentPage - 2);
+            let end = Math.min(totalPages, start + maxVisible - 1);
+            
+            if (end - start < maxVisible - 1) {
+              start = Math.max(1, end - maxVisible + 1);
+            }
+
+            for (let i = start; i <= end; i++) {
+              pages.push(
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i)}
+                  className={cn(
+                    "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                    currentPage === i ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                  )}
+                >
+                  {i}
+                </button>
+              );
+            }
+            return pages;
+          })()}
+        </div>
+
+        <button 
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage(prev => prev + 1)}
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+        >
+          <ChevronDown size={14} className="-rotate-90" />
+        </button>
+        <button 
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage(totalPages)}
+          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+          title="Last Page"
+        >
+          <div className="flex items-center">
+            <ChevronDown size={14} className="-rotate-90" />
+            <ChevronDown size={14} className="-rotate-90 -ml-2" />
+          </div>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // --- Dropdown Component ---
 function NavDropdown({ label, icon, items, activeTab, setActiveTab }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -1728,6 +1822,15 @@ function TransactionView({ users, fetchInitialData }) {
             </tbody>
           </table>
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
     </div>
   );
@@ -1856,6 +1959,15 @@ function WastageReportView({ products }) {
             </tbody>
           </table>
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
     </div>
   );
@@ -4263,6 +4375,15 @@ function LedgerView({ users, accounts }) {
             </tbody>
           </table>
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
     </div>
   );
@@ -4642,6 +4763,15 @@ function ItemStatementReportView({ products, departments }) {
             </tbody>
           </table>
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
     </div>
   );
@@ -6463,55 +6593,14 @@ function MasterListView({ title, table, bucket, fields, data, uploadImage, fetch
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
-              <select 
-                value={rowsPerPage}
-                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
-              >
-                {[5, 10, 20, 50].map(val => <option key={val} value={val}>{val}</option>)}
-              </select>
-            </div>
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button 
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
-            >
-              <ChevronDown size={14} className="rotate-90" />
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={cn(
-                    "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
-                    currentPage === page ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                  )}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-            <button 
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
-            >
-              <ChevronDown size={14} className="-rotate-90" />
-            </button>
-          </div>
-        </div>
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
 
 
@@ -6782,6 +6871,90 @@ function DeliveryCustomerView({ title, table, data, fetchInitialData }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
+              <select 
+                value={rowsPerPage}
+                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
+              >
+                {[10, 20, 50, 100].map(val => <option key={val} value={val}>{val}</option>)}
+              </select>
+            </div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="First Page"
+            >
+              <ChevronDown size={14} className="rotate-90 border-r border-slate-200 pr-1" />
+              <ChevronDown size={14} className="rotate-90 -ml-1" />
+            </button>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="rotate-90" />
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                let start = Math.max(1, currentPage - 2);
+                let end = Math.min(totalPages, start + maxVisible - 1);
+                
+                if (end - start < maxVisible - 1) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+
+                for (let i = start; i <= end; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                        currentPage === i ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                return pages;
+              })()}
+            </div>
+
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="-rotate-90" />
+            </button>
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="Last Page"
+            >
+              <ChevronDown size={14} className="-rotate-90 -mr-1" />
+              <ChevronDown size={14} className="-rotate-90 border-l border-slate-200 pl-1" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modal Form matching Screenshot 2 */}
@@ -6881,6 +7054,12 @@ function DeliveryBoyView({ title, table, data, fetchInitialData }) {
     item.username?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -6949,7 +7128,7 @@ function DeliveryBoyView({ title, table, data, fetchInitialData }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredData.map((item) => (
+                {paginatedData.map((item) => (
                   <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase">{item.name}</td>
                     <td className="px-6 py-4 text-[11px] font-bold text-slate-600 uppercase">{item.username}</td>
@@ -6983,6 +7162,15 @@ function DeliveryBoyView({ title, table, data, fetchInitialData }) {
             <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">There are no records to display</p>
           </div>
         )}
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
 
       {/* Modal Form matching Screenshot 2 */}
@@ -7166,6 +7354,90 @@ function CreditMasterView({ title, table, data, fetchInitialData }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
+              <select 
+                value={rowsPerPage}
+                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
+              >
+                {[10, 20, 50, 100].map(val => <option key={val} value={val}>{val}</option>)}
+              </select>
+            </div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="First Page"
+            >
+              <ChevronDown size={14} className="rotate-90 border-r border-slate-200 pr-1" />
+              <ChevronDown size={14} className="rotate-90 -ml-1" />
+            </button>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="rotate-90" />
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                let start = Math.max(1, currentPage - 2);
+                let end = Math.min(totalPages, start + maxVisible - 1);
+                
+                if (end - start < maxVisible - 1) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+
+                for (let i = start; i <= end; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                        currentPage === i ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                return pages;
+              })()}
+            </div>
+
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="-rotate-90" />
+            </button>
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="Last Page"
+            >
+              <ChevronDown size={14} className="-rotate-90 -mr-1" />
+              <ChevronDown size={14} className="-rotate-90 border-l border-slate-200 pl-1" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modal Form matching Screenshot 2 */}
@@ -7310,6 +7582,12 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
     item.username?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.username || !formData.password) {
@@ -7400,7 +7678,7 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredData.map((item) => (
+                {paginatedData.map((item) => (
                   <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase">{item.username}</td>
                     <td className="px-6 py-4 text-right">
@@ -7433,6 +7711,15 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
             <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">There are no records to display</p>
           </div>
         )}
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
 
       {/* Modal Form matching Screenshot 2 */}
@@ -7695,6 +7982,90 @@ function AccountsView({ title, table, data, fetchInitialData }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
+              <select 
+                value={rowsPerPage}
+                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
+              >
+                {[10, 20, 50, 100].map(val => <option key={val} value={val}>{val}</option>)}
+              </select>
+            </div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="First Page"
+            >
+              <ChevronDown size={14} className="rotate-90 border-r border-slate-200 pr-1" />
+              <ChevronDown size={14} className="rotate-90 -ml-1" />
+            </button>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="rotate-90" />
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                let start = Math.max(1, currentPage - 2);
+                let end = Math.min(totalPages, start + maxVisible - 1);
+                
+                if (end - start < maxVisible - 1) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+
+                for (let i = start; i <= end; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                        currentPage === i ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                return pages;
+              })()}
+            </div>
+
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="-rotate-90" />
+            </button>
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="Last Page"
+            >
+              <ChevronDown size={14} className="-rotate-90 -mr-1" />
+              <ChevronDown size={14} className="-rotate-90 border-l border-slate-200 pl-1" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modal Form matching Screenshot 2 */}
@@ -7947,28 +8318,14 @@ function UnitView({ title, table, data, fetchInitialData }) {
           )}
         </div>
         
-        {/* Pagination Footer matching Screenshot 1 */}
-        <div className="bg-white border-t border-slate-100 px-6 py-4 flex items-center justify-end gap-8">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-slate-500">Rows per page:</span>
-            <select 
-              value={rowsPerPage}
-              onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-              className="bg-white border-none text-[10px] font-bold focus:ring-0 cursor-pointer"
-            >
-              {[5, 10, 20, 50].map(val => <option key={val} value={val}>{val}</option>)}
-            </select>
-          </div>
-          <span className="text-[10px] font-bold text-slate-500">
-            {(currentPage - 1) * rowsPerPage + 1}-{Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
-          </span>
-          <div className="flex items-center gap-4 text-slate-300">
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className="hover:text-slate-600 disabled:opacity-30"><ChevronRight className="rotate-180 scale-150" size={14} /><ChevronRight className="rotate-180 -ml-2 scale-150" size={14} /></button>
-            <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)} className="hover:text-slate-600 disabled:opacity-30"><ChevronRight className="rotate-180 scale-150" size={14} /></button>
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => prev + 1)} className="hover:text-slate-600 disabled:opacity-30"><ChevronRight size={14} className="scale-150" /></button>
-            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)} className="hover:text-slate-600 disabled:opacity-30"><ChevronRight size={14} className="scale-150" /><ChevronRight size={14} className="-ml-2 scale-150" /></button>
-          </div>
-        </div>
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
 
       {/* Modal Form matching Screenshot 2 */}
@@ -8148,6 +8505,15 @@ function DepartmentView({ title, table, data, fetchInitialData }) {
             </div>
           )}
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
 
       {/* Modal Form matching Screenshot 2 */}
@@ -8268,7 +8634,10 @@ function BrandView({ title, table, bucket, fields, data, uploadImage, fetchIniti
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
           <Tag size={20} className="text-slate-800" />
-          <h2 className="text-base font-black text-slate-800 uppercase tracking-widest">{title}</h2>
+          <div>
+            <h2 className="text-base font-black text-slate-800 uppercase tracking-widest">{title}</h2>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total: {filteredData.length} Records</p>
+          </div>
         </div>
         
         <div className="relative w-full md:w-96">
@@ -8340,6 +8709,90 @@ function BrandView({ title, table, bucket, fields, data, uploadImage, fetchIniti
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
+              <select 
+                value={rowsPerPage}
+                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
+              >
+                {[10, 20, 50, 100].map(val => <option key={val} value={val}>{val}</option>)}
+              </select>
+            </div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="First Page"
+            >
+              <ChevronDown size={14} className="rotate-90 border-r border-slate-200 pr-1" />
+              <ChevronDown size={14} className="rotate-90 -ml-1" />
+            </button>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="rotate-90" />
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                let start = Math.max(1, currentPage - 2);
+                let end = Math.min(totalPages, start + maxVisible - 1);
+                
+                if (end - start < maxVisible - 1) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+
+                for (let i = start; i <= end; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                        currentPage === i ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                return pages;
+              })()}
+            </div>
+
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="-rotate-90" />
+            </button>
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="Last Page"
+            >
+              <ChevronDown size={14} className="-rotate-90 -mr-1" />
+              <ChevronDown size={14} className="-rotate-90 border-l border-slate-200 pl-1" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -8567,6 +9020,90 @@ function SubCategoryView({ title, table, bucket, fields, data, categories, uploa
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
+              <select 
+                value={rowsPerPage}
+                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
+              >
+                {[10, 20, 50, 100].map(val => <option key={val} value={val}>{val}</option>)}
+              </select>
+            </div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="First Page"
+            >
+              <ChevronDown size={14} className="rotate-90 border-r border-slate-200 pr-1" />
+              <ChevronDown size={14} className="rotate-90 -ml-1" />
+            </button>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="rotate-90" />
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                let start = Math.max(1, currentPage - 2);
+                let end = Math.min(totalPages, start + maxVisible - 1);
+                
+                if (end - start < maxVisible - 1) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+
+                for (let i = start; i <= end; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                        currentPage === i ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                return pages;
+              })()}
+            </div>
+
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="-rotate-90" />
+            </button>
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="Last Page"
+            >
+              <ChevronDown size={14} className="-rotate-90 -mr-1" />
+              <ChevronDown size={14} className="-rotate-90 border-l border-slate-200 pl-1" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -8802,6 +9339,90 @@ function MainCategoryView({ title, table, bucket, fields, data, uploadImage, fet
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
+              <select 
+                value={rowsPerPage}
+                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
+              >
+                {[10, 20, 50, 100].map(val => <option key={val} value={val}>{val}</option>)}
+              </select>
+            </div>
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="First Page"
+            >
+              <ChevronDown size={14} className="rotate-90 border-r border-slate-200 pr-1" />
+              <ChevronDown size={14} className="rotate-90 -ml-1" />
+            </button>
+            <button 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => prev - 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="rotate-90" />
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {(() => {
+                const pages = [];
+                const maxVisible = 5;
+                let start = Math.max(1, currentPage - 2);
+                let end = Math.min(totalPages, start + maxVisible - 1);
+                
+                if (end - start < maxVisible - 1) {
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+
+                for (let i = start; i <= end; i++) {
+                  pages.push(
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i)}
+                      className={cn(
+                        "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
+                        currentPage === i ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {i}
+                    </button>
+                  );
+                }
+                return pages;
+              })()}
+            </div>
+
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => prev + 1)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+            >
+              <ChevronDown size={14} className="-rotate-90" />
+            </button>
+            <button 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(totalPages)}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
+              title="Last Page"
+            >
+              <ChevronDown size={14} className="-rotate-90 -mr-1" />
+              <ChevronDown size={14} className="-rotate-90 border-l border-slate-200 pl-1" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -9054,10 +9675,24 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
         if (!parsedData || parsedData.length === 0) throw new Error("No data found in file");
 
         // --- STEP 1: AUTOMATIC MASTER UPDATE (BY NAME) ---
-        const uniqueCats = [...new Set(parsedData.map(item => item.category_name).filter(Boolean))];
-        const uniqueSubCats = [...new Set(parsedData.map(item => item.subcategory_name).filter(Boolean))];
-        const uniqueBrands = [...new Set(parsedData.map(item => item.brand_name).filter(Boolean))];
-        const uniqueUnits = [...new Set(parsedData.map(item => item.unit_name).filter(Boolean))];
+        // Case-insensitive logic: Ensuring master tables have unique names regardless of case
+        const getUniqueNames = (data, field) => {
+          const names = data.map(item => String(item[field] || "").trim()).filter(Boolean);
+          const seen = new Set();
+          return names.filter(name => {
+            const lower = name.toLowerCase();
+            if (seen.has(lower)) return false;
+            seen.add(lower);
+            return true;
+          });
+        };
+
+        const uniqueCats = getUniqueNames(parsedData, 'category_name');
+        const uniqueSubCats = getUniqueNames(parsedData, 'subcategory_name');
+        const uniqueBrands = getUniqueNames(parsedData, 'brand_name');
+        const uniqueUnits = getUniqueNames(parsedData, 'unit_name');
+
+        console.log(`[Import Orchestration] Found Unique Masters -> Cats: ${uniqueCats.length}, Brands: ${uniqueBrands.length}`);
 
         // Ensure these exist in Master Tables (using name as conflict key)
         if (uniqueCats.length > 0) await dbSync.upsert(DB_SCHEMA.CATEGORIES.table, uniqueCats.map(name => ({ name, is_active: true })));
@@ -9073,47 +9708,52 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
           dbSync.fetch(DB_SCHEMA.UNITS.table)
         ]);
 
-        const catMap = Object.fromEntries(dbCats.map(c => [c.name.toLowerCase().trim(), c.id]));
-        const subCatMap = Object.fromEntries(dbSubCats.map(s => [s.name.toLowerCase().trim(), s.id]));
-        const brandMap = Object.fromEntries(dbBrands.map(b => [b.name.toLowerCase().trim(), b.id]));
-        const unitMap = Object.fromEntries(dbUnits.map(u => [u.name.toLowerCase().trim(), u.id]));
+        const catMap = Object.fromEntries(dbCats.map(c => [String(c.name).toLowerCase().trim(), c.id]));
+        const subCatMap = Object.fromEntries(dbSubCats.map(s => [String(s.name).toLowerCase().trim(), s.id]));
+        const brandMap = Object.fromEntries(dbBrands.map(b => [String(b.name).toLowerCase().trim(), b.id]));
+        const unitMap = Object.fromEntries(dbUnits.map(u => [String(u.name).toLowerCase().trim(), u.id]));
 
         // --- STEP 3: PREPARE PRODUCTS WITH FULL CONSISTENCY ---
-        // We ensure Excel names are directly uploaded to Supabase columns
         const productsToUpload = parsedData.map(item => {
-          const cName = item.category_name?.trim();
-          const sName = item.subcategory_name?.trim();
-          const bName = item.brand_name?.trim();
-          const uName = item.unit_name?.trim();
+          const cName = String(item.category_name || "").trim();
+          const sName = String(item.subcategory_name || "").trim();
+          const bName = String(item.brand_name || "").trim();
+          const uName = String(item.unit_name || "").trim();
 
           return {
-            ...item,
-            // 1. Direct Name Columns (GROUND TRUTH in your Supabase Schema)
+            barcode: String(item.barcode || "").trim() || null,
+            name: String(item.name || "").trim(),
+            hsn_code: String(item.hsn_code || "").trim() || null,
+            mrp: parseFloat(item.mrp) || 0,
+            sale_rate: parseFloat(item.sale_rate) || 0,
+            purchase_rate: parseFloat(item.purchase_rate) || 0,
+            gst_percent: parseFloat(item.gst_percent) || 0,
+            cess_percent: parseFloat(item.cess_percent) || 0,
+            stock: parseFloat(item.stock) || 0,
+            min_qty: parseFloat(item.min_qty) || 0,
+            discount_percent: parseFloat(item.discount_percent) || 0,
+            basic_sale_price: parseFloat(item.basic_sale_price) || 0,
+            size: String(item.size || "").trim() || null,
+            color: String(item.color || "").trim() || null,
+            counter_name: String(item.counter_name || "").trim() || null,
+            
             category_name: cName || null,
             subcategory_name: sName || null,
             brand_name: bName || null,
             unit_name: uName || null,
             
-            // 2. Linking IDs for dropdowns (using mapped IDs from Step 2)
             category_id: cName ? catMap[cName.toLowerCase()] : null,
             sub_category_id: sName ? subCatMap[sName.toLowerCase()] : null,
             brand_id: bName ? brandMap[bName.toLowerCase()] : null,
-            unit_id: uName ? unitMap[uName.toLowerCase()] : null,
-            
-            // 3. Compatibility fields
-            category: cName || null,
-            subcategory: sName || null,
-            brand: bName || null,
-            unit: uName || null
+            unit_id: uName ? unitMap[uName.toLowerCase()] : null
           };
         });
 
         // --- STEP 4: BULK UPLOAD PRODUCTS ---
         await dbSync.upsert(DB_SCHEMA.PRODUCTS.table, productsToUpload);
         
-        alert(`SUCCESS! ${productsToUpload.length} items imported.\nCategories, Brands, and Reports are now fully synchronized.`);
+        alert(`SUCCESS! ${productsToUpload.length} items imported.\nBrands: ${uniqueBrands.length}, Categories: ${uniqueCats.length}.\nMaster tables and reports are now fully synchronized.`);
         
-        // --- STEP 5: ABSOLUTE GLOBAL REFRESH ---
         window.location.reload(); 
       } catch (error) {
         console.error("Import Error:", error);
@@ -9324,55 +9964,14 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
-              <select 
-                value={rowsPerPage}
-                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
-              >
-                {[5, 10, 20, 50].map(val => <option key={val} value={val}>{val}</option>)}
-              </select>
-            </div>
-            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredProducts.length)} of {filteredProducts.length}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button 
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
-            >
-              <ChevronDown size={14} className="rotate-90" />
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  className={cn(
-                    "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
-                    currentPage === page ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                  )}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-            <button 
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
-            >
-              <ChevronDown size={14} className="-rotate-90" />
-            </button>
-          </div>
-        </div>
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredProducts.length}
+        />
       </div>
 
 

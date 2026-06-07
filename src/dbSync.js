@@ -175,21 +175,62 @@ export const dbSync = {
   // Read
   fetch: async (tableName, query = {}) => {
     try {
-      // Cache-busting: Adding a random query param to ensure fresh data
-      let request = supabase.from(tableName).select(query.select || '*');
-      
-      if (query.eq) request = request.eq(query.eq.column, query.eq.value);
-      if (query.order) request = request.order(query.order.column, { ascending: query.order.ascending ?? true });
-      if (query.limit) request = request.limit(query.limit);
+      const BATCH_SIZE = 1000;
+      let allData = [];
+      let from = 0;
+      let hasMore = true;
+      const limit = query.limit || Infinity;
 
-      // Force Supabase to bypass any client-side cache
-      const { data, error } = await request;
-      
-      if (error) {
-        console.error(`[Supabase Fetch Error] ${tableName}:`, error.message);
-        throw error;
+      console.log(`[dbSync] Fetching ${tableName}...`);
+
+      while (hasMore) {
+        // Optimization: Don't fetch if we already reached the limit
+        if (allData.length >= limit) {
+          hasMore = false;
+          break;
+        }
+
+        let request = supabase.from(tableName).select(query.select || '*');
+        
+        if (query.eq) request = request.eq(query.eq.column, query.eq.value);
+        
+        // CRITICAL: Always use a consistent order for range-based pagination
+        // If user provided an order, use it. Otherwise, fallback to 'id' or 'created_at'.
+        if (query.order) {
+          request = request.order(query.order.column, { ascending: query.order.ascending ?? true });
+        } else {
+          // Default ordering to ensure consistent batches
+          request = request.order('created_at', { ascending: false });
+        }
+        
+        const currentBatchLimit = Math.min(BATCH_SIZE, limit - allData.length);
+        const to = from + currentBatchLimit - 1;
+        
+        request = request.range(from, to);
+
+        const { data, error } = await request;
+        
+        if (error) {
+          console.error(`[Supabase Fetch Error] ${tableName}:`, error.message);
+          throw error;
+        }
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+          break;
+        }
+
+        allData = [...allData, ...data];
+        from += data.length; // Use actual data length to move pointer
+        
+        // If we got fewer rows than the batch size, we've reached the end
+        if (data.length < currentBatchLimit || data.length < BATCH_SIZE) {
+          hasMore = false;
+        }
       }
-      return data;
+
+      console.log(`[dbSync] ${tableName} fetch complete. Total: ${allData.length}`);
+      return allData;
     } catch (error) {
       console.error(`[dbSync.fetch Failed] ${tableName}:`, error.message);
       throw error;
@@ -422,9 +463,11 @@ export const dbSync = {
 
   /**
    * BULK UPSERT: Sync large datasets (Database-First)
+   * Handles large datasets by splitting into batches to avoid Supabase limits.
    */
   upsert: async (tableName, dataset) => {
     try {
+      const BATCH_SIZE = 500; // Smaller batch size for writes to avoid timeouts/limits
       const upsertOptions = { onConflict: 'id' };
       
       // For products table, use barcode as the conflict key
@@ -443,15 +486,28 @@ export const dbSync = {
       if (masterTables.includes(tableName)) {
         upsertOptions.onConflict = 'name';
       }
-      
-      const { data, error } = await supabase
-        .from(tableName)
-        .upsert(dataset, upsertOptions)
-        .select();
 
-      if (error) throw error;
-      await logTableAction(tableName, 'UPSERT');
-      return data;
+      const allResults = [];
+      const dataArray = Array.isArray(dataset) ? dataset : [dataset];
+
+      // Process in batches
+      for (let i = 0; i < dataArray.length; i += BATCH_SIZE) {
+        const batch = dataArray.slice(i, i + BATCH_SIZE);
+        const { data, error } = await supabase
+          .from(tableName)
+          .upsert(batch, upsertOptions)
+          .select();
+
+        if (error) {
+          console.error(`[Upsert Batch Error] ${tableName} at index ${i}:`, error.message);
+          throw error;
+        }
+        
+        if (data) allResults.push(...data);
+      }
+      
+      await logTableAction(tableName, 'BULK_UPSERT');
+      return allResults;
     } catch (error) {
       console.error(`[Upsert Error] ${tableName}:`, error.message);
       throw error;
