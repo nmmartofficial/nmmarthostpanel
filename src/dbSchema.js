@@ -21,6 +21,7 @@ export const DB_SCHEMA = {
   UNITS: { table: 'unit_master', pk: 'id', label: 'Item Units' },
   DEPARTMENTS: { table: 'department_master', pk: 'id', label: 'Departments' },
   ACCOUNTS: { table: 'account_master', pk: 'id', label: 'Accounts' },
+  USERS: { table: 'users', pk: 'id', label: 'App Users' },
   
   // 2. Sales & Orders
   ORDERS: { table: 'orders', pk: 'id', label: 'Customer Orders' },
@@ -47,7 +48,8 @@ export const DB_SCHEMA = {
   
   // 7. System & Audit
   SYSTEM_LOGS: { table: 'system_logs', pk: 'id', label: 'Audit Trail' },
-  NOTIFICATIONS: { table: 'notifications', pk: 'id', label: 'Push Notifications' }
+  NOTIFICATIONS: { table: 'notifications', pk: 'id', label: 'Push Notifications' },
+  SUPPORT_TICKETS: { table: 'support_tickets', pk: 'id', label: 'User Feedback' }
 };
 
 // Constraint Logic for specific tables (Database-First Approach)

@@ -162,7 +162,7 @@ function NavDropdown({ label, icon, items, activeTab, setActiveTab }) {
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-black transition-all whitespace-nowrap uppercase tracking-tighter shadow-sm",
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter shadow-sm",
           isActive ? "text-white bg-blue-600 shadow-blue-200" : "text-slate-900 bg-white border border-slate-200 hover:bg-slate-50"
         )}
       >
@@ -278,7 +278,7 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
         </form>
 
         <div className="pt-6 border-t border-slate-50 flex justify-center gap-4">
-          <div className="flex items-center gap-2 text-[11px] font-black text-emerald-600 uppercase bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-100">
+          <div className="flex items-center gap-2 text-xs font-black text-emerald-600 uppercase bg-emerald-50 px-4 py-2 rounded-2xl border border-emerald-100">
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
             Scanner Active
           </div>
@@ -304,7 +304,7 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
             </div>
             <div className="text-right relative z-10">
               <p className="text-[10px] font-black uppercase opacity-70 tracking-[0.2em] mb-1">Amount Paid</p>
-              <h4 className="text-3xl font-black tracking-tighter">₹{lastVerified.total_amount}</h4>
+              <h4 className="text-3xl font-black tracking-tighter">{lastVerified.total_amount}</h4>
             </div>
           </motion.div>
         )}
@@ -645,7 +645,7 @@ export default function App() {
               type="password" 
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder="••••"
+              placeholder=""
               className="w-full bg-slate-100 border-none rounded-2xl px-6 py-4 text-center text-2xl tracking-[1em] focus:ring-2 focus:ring-primary transition-all font-black text-slate-900 placeholder-slate-400"
               autoFocus
             />
@@ -763,7 +763,7 @@ export default function App() {
               <button 
                 onClick={() => setActiveTab('POS')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
                   activeTab === 'POS' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
                 )}
               >
@@ -774,7 +774,7 @@ export default function App() {
               <button 
                 onClick={() => setActiveTab('Purchase')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
                   activeTab === 'Purchase' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
                 )}
               >
@@ -809,7 +809,7 @@ export default function App() {
               <button 
                 onClick={() => setActiveTab('Transaction')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
                   activeTab === 'Transaction' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
                 )}
               >
@@ -882,7 +882,7 @@ export default function App() {
                 <User size={16} fill="currentColor" />
               </div>
               <div className="flex flex-col hidden md:flex">
-                <span className="text-[11px] font-black text-blue-900 uppercase tracking-tighter leading-none">{BRAND_NAME}</span>
+                <span className="text-xs font-black text-blue-900 uppercase tracking-tighter leading-none">{BRAND_NAME}</span>
                 <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest leading-tight">Super Admin</span>
               </div>
             </div>
@@ -1798,9 +1798,9 @@ function TransactionView({ users, fetchInitialData }) {
               <tbody className="divide-y divide-slate-100">
                 {formData.items.map((item, i) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-[11px] font-black text-right text-slate-900">₹{item.amount.toFixed(2)}</td>
-                    <td className="px-4 py-2 text-[11px] font-medium text-slate-500 italic">{item.remarks}</td>
+                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                    <td className="px-4 py-2 text-xs font-black text-right text-slate-900">{item.amount.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-medium text-slate-500 italic">{item.remarks}</td>
                     <td className="px-4 py-2 text-center">
                       <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
                         <Trash2 size={14} />
@@ -1810,7 +1810,7 @@ function TransactionView({ users, fetchInitialData }) {
                 ))}
                 <tr className="bg-slate-700 text-white font-black">
                   <td className="px-4 py-2 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                  <td className="px-4 py-2 text-right text-[11px]">₹{totalAmount.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right text-xs">{totalAmount.toFixed(2)}</td>
                   <td colSpan={2} />
                 </tr>
               </tbody>
@@ -1845,7 +1845,7 @@ function TransactionView({ users, fetchInitialData }) {
             <div className="bg-black text-white p-3 rounded-lg min-w-[200px] text-right">
               <div className="flex justify-between items-center gap-8">
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total :</span>
-                <span className="text-xl font-black tracking-tighter">₹{totalAmount.toFixed(2)}</span>
+                <span className="text-xl font-black tracking-tighter">{totalAmount.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -1899,7 +1899,7 @@ function TransactionView({ users, fetchInitialData }) {
 
         <button 
           onClick={handleCreateNew}
-          className="flex items-center gap-2 px-4 py-1.5 border-2 border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all shadow-sm"
+          className="flex items-center gap-2 px-4 py-1.5 border-2 border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all shadow-sm"
         >
           <Plus size={14} /> Transaction
         </button>
@@ -1910,20 +1910,20 @@ function TransactionView({ users, fetchInitialData }) {
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="border-b border-slate-100 bg-white">
-                <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase tracking-tight text-center">Date</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase tracking-tight text-center">V No</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase tracking-tight text-center">Type</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase tracking-tight text-center">Time</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase tracking-tight text-center">Ledger Name</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase tracking-tight text-center">Dr</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase tracking-tight text-center">Cr</th>
-                <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase tracking-tight text-center">Action</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">Date</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">V No</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">Type</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">Time</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">Ledger Name</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">Dr</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">Cr</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {reportData.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">
+                  <td colSpan={8} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
                     No transactions found
                   </td>
                 </tr>
@@ -1933,18 +1933,18 @@ function TransactionView({ users, fetchInitialData }) {
                   row.vNo.toLowerCase().includes(searchTerm.toLowerCase())
                 ).map((row, index) => (
                   <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-3 text-[11px] font-bold text-slate-600 text-center">{row.date}</td>
-                    <td className="px-6 py-3 text-[11px] font-black text-blue-700 text-center">{row.vNo}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-slate-600 text-center">{row.date}</td>
+                    <td className="px-6 py-3 text-xs font-black text-blue-700 text-center">{row.vNo}</td>
                     <td className="px-6 py-3 text-center">
                       <span className={cn(
                         "text-[9px] font-black px-2 py-0.5 rounded",
                         row.type === 'CR' ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"
                       )}>{row.type}</span>
                     </td>
-                    <td className="px-6 py-3 text-[11px] font-medium text-slate-500 text-center">{row.time}</td>
-                    <td className="px-6 py-3 text-[11px] font-black text-slate-800 uppercase text-center">{row.ledgerName}</td>
-                    <td className="px-6 py-3 text-[11px] font-bold text-red-600 text-center">{row.dr > 0 ? row.dr.toFixed(2) : ''}</td>
-                    <td className="px-6 py-3 text-[11px] font-bold text-emerald-600 text-center">{row.cr > 0 ? row.cr.toFixed(2) : ''}</td>
+                    <td className="px-6 py-3 text-xs font-medium text-slate-500 text-center">{row.time}</td>
+                    <td className="px-6 py-3 text-xs font-black text-slate-800 uppercase text-center">{row.ledgerName}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-red-600 text-center">{row.dr > 0 ? row.dr.toFixed(2) : ''}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-emerald-600 text-center">{row.cr > 0 ? row.cr.toFixed(2) : ''}</td>
                     <td className="px-6 py-3 text-center">
                       <div className="flex justify-center gap-2">
                         <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
@@ -2045,13 +2045,13 @@ function WastageReportView({ products }) {
         </div>
 
         <div className="flex justify-end gap-2">
-          <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <Search size={14} /> Show
           </button>
-          <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <FileJson size={14} /> Excel
           </button>
-          <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <Printer size={14} /> PDF
           </button>
         </div>
@@ -2074,13 +2074,13 @@ function WastageReportView({ products }) {
             <tbody className="divide-y divide-slate-100">
               <tr className="bg-cyan-50/50 font-black text-slate-900">
                 <td colSpan={2} className="px-4 py-2.5 text-right text-[10px] uppercase tracking-widest">Total QTY:</td>
-                <td className="px-4 py-2.5 text-[11px] text-center">0</td>
-                <td className="px-4 py-2.5 text-[11px] text-right">0</td>
+                <td className="px-4 py-2.5 text-xs text-center">0</td>
+                <td className="px-4 py-2.5 text-xs text-right">0</td>
                 <td colSpan={3} />
               </tr>
               {reportData.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">
+                  <td colSpan={7} className="px-4 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
                     No records found
                   </td>
                 </tr>
@@ -2167,10 +2167,10 @@ function RequisitionReportROView({ products }) {
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Search size={14} /> Show
             </button>
-            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <FileJson size={14} /> Excel
             </button>
           </div>
@@ -2190,7 +2190,7 @@ function RequisitionReportROView({ products }) {
             <tbody className="divide-y divide-slate-100">
               {reportData.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">
+                  <td colSpan={5} className="px-4 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
                     No records found
                   </td>
                 </tr>
@@ -2282,13 +2282,13 @@ function PurchaseReportROView({ products }) {
         </div>
 
         <div className="flex justify-end gap-2">
-          <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <Search size={14} /> Show
           </button>
-          <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <FileJson size={14} /> Excel
           </button>
-          <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <Printer size={14} /> PDF
           </button>
         </div>
@@ -2310,13 +2310,13 @@ function PurchaseReportROView({ products }) {
             <tbody className="divide-y divide-slate-100">
               <tr className="bg-cyan-50/30 font-black text-slate-900">
                 <td colSpan={3} className="px-4 py-2.5 text-right text-[10px] uppercase tracking-widest">Total:</td>
-                <td className="px-4 py-2.5 text-[11px] text-center">0</td>
+                <td className="px-4 py-2.5 text-xs text-center">0</td>
                 <td />
-                <td className="px-4 py-2.5 text-[11px] text-right">0.00</td>
+                <td className="px-4 py-2.5 text-xs text-right">0.00</td>
               </tr>
               {reportData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">
+                  <td colSpan={6} className="px-4 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
                     No records found
                   </td>
                 </tr>
@@ -2456,12 +2456,12 @@ function PurchaseOrderView({ products, departments }) {
               <tbody className="divide-y divide-slate-100">
                 {formData.items.map((item, i) => (
                   <tr key={i} className="hover:bg-slate-50">
-                    <td className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-[11px] font-medium text-slate-500">{item.barcode}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-center">{item.qty}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-center uppercase">{item.unit}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-[11px] font-black text-right text-blue-700">₹{parseFloat(item.amount).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                    <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center">{item.qty}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center uppercase">{item.unit}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
                     <td className="px-4 py-2 text-center">
                       <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"><Trash2 size={14} /></button>
                     </td>
@@ -2469,9 +2469,9 @@ function PurchaseOrderView({ products, departments }) {
                 ))}
                 <tr className="bg-slate-800 text-white font-black">
                   <td colSpan={2} className="px-4 py-2 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                  <td className="px-4 py-2 text-center text-[11px]">{totalQty.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-center text-xs">{totalQty.toFixed(2)}</td>
                   <td colSpan={2} />
-                  <td className="px-4 py-2 text-right text-[11px]">₹{totalAmount.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right text-xs">{totalAmount.toFixed(2)}</td>
                   <td />
                 </tr>
               </tbody>
@@ -2507,7 +2507,7 @@ function PurchaseOrderView({ products, departments }) {
           </div>
         </div>
 
-        <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+        <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
           <Plus size={14} /> Create New
         </button>
       </div>
@@ -2527,16 +2527,16 @@ function PurchaseOrderView({ products, departments }) {
           <tbody className="divide-y divide-slate-100">
             {reportData.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">No records found</td>
+                <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">No records found</td>
               </tr>
             ) : (
               reportData.map((po, index) => (
                 <tr key={po.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-3 text-[11px] font-black text-blue-700 uppercase">{po.poNo}</td>
-                  <td className="px-6 py-3 text-[11px] font-medium text-slate-600">{po.date}</td>
-                  <td className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase">{po.department}</td>
-                  <td className="px-6 py-3 text-[11px] font-black text-slate-900">{po.totalQty.toFixed(2)}</td>
-                  <td className="px-6 py-3 text-[11px] font-black text-right text-emerald-600">₹{po.totalAmount.toFixed(2)}</td>
+                  <td className="px-6 py-3 text-xs font-black text-blue-700 uppercase">{po.poNo}</td>
+                  <td className="px-6 py-3 text-xs font-medium text-slate-600">{po.date}</td>
+                  <td className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">{po.department}</td>
+                  <td className="px-6 py-3 text-xs font-black text-slate-900">{po.totalQty.toFixed(2)}</td>
+                  <td className="px-6 py-3 text-xs font-black text-right text-emerald-600">{po.totalAmount.toFixed(2)}</td>
                   <td className="px-6 py-3 text-center">
                     <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
                   </td>
@@ -2658,20 +2658,20 @@ function WastageEntryView({ products }) {
               <tbody className="divide-y divide-slate-100">
                 {formData.items.map((item, i) => (
                   <tr key={i} className="hover:bg-slate-50">
-                    <td className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-[11px] font-medium text-slate-500">{item.barcode}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-center">{item.qty}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                    <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center">{item.qty}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
                     <td className="px-4 py-2 text-center">
                       <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"><Trash2 size={14} /></button>
                     </td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-center text-slate-500">{item.current_stock}</td>
-                    <td className="px-4 py-2 text-[11px] font-medium text-slate-600 italic">{item.remarks}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center text-slate-500">{item.current_stock}</td>
+                    <td className="px-4 py-2 text-xs font-medium text-slate-600 italic">{item.remarks}</td>
                   </tr>
                 ))}
                 <tr className="bg-slate-800 text-white font-black">
                   <td colSpan={2} className="px-4 py-2 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                  <td className="px-4 py-2 text-center text-[11px]">{totalQty.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-center text-xs">{totalQty.toFixed(2)}</td>
                   <td colSpan={4} />
                 </tr>
               </tbody>
@@ -2707,7 +2707,7 @@ function WastageEntryView({ products }) {
           </div>
         </div>
 
-        <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+        <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
           <Plus size={14} /> Create New
         </button>
       </div>
@@ -2725,14 +2725,14 @@ function WastageEntryView({ products }) {
           <tbody className="divide-y divide-slate-100">
             {reportData.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">No records found</td>
+                <td colSpan={4} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">No records found</td>
               </tr>
             ) : (
               reportData.map((w, index) => (
                 <tr key={w.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-3 text-[11px] font-bold text-slate-500">{index + 1}</td>
-                  <td className="px-6 py-3 text-[11px] font-medium text-slate-600">{w.date}</td>
-                  <td className="px-6 py-3 text-[11px] font-black text-slate-900">{w.totalQty.toFixed(2)}</td>
+                  <td className="px-6 py-3 text-xs font-bold text-slate-500">{index + 1}</td>
+                  <td className="px-6 py-3 text-xs font-medium text-slate-600">{w.date}</td>
+                  <td className="px-6 py-3 text-xs font-black text-slate-900">{w.totalQty.toFixed(2)}</td>
                   <td className="px-6 py-3 text-center">
                     <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
                   </td>
@@ -2814,10 +2814,10 @@ function StockTransferReportView({ products, departments }) {
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Search size={14} /> Show
             </button>
-            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <FileJson size={14} /> Excel
             </button>
           </div>
@@ -2843,13 +2843,13 @@ function StockTransferReportView({ products, departments }) {
             <tbody className="divide-y divide-slate-100">
               <tr className="bg-cyan-50/30 font-black text-slate-900">
                 <td colSpan={5} className="px-4 py-2.5 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                <td className="px-4 py-2.5 text-[11px] text-center">0.00</td>
+                <td className="px-4 py-2.5 text-xs text-center">0.00</td>
                 <td colSpan={2} />
-                <td className="px-4 py-2.5 text-[11px] text-right">0.00</td>
+                <td className="px-4 py-2.5 text-xs text-right">0.00</td>
               </tr>
               {reportData.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">
+                  <td colSpan={9} className="px-4 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
                     No records found
                   </td>
                 </tr>
@@ -3007,10 +3007,10 @@ function StockTransferView({ products, departments }) {
               <tbody className="divide-y divide-slate-100">
                 {formData.items.map((item, i) => (
                   <tr key={i} className="hover:bg-slate-50">
-                    <td className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-[11px] font-medium text-slate-500">{item.barcode}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-center">{item.qty}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                    <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center">{item.qty}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
                     <td className="px-4 py-2 text-center">
                       <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"><Trash2 size={14} /></button>
                     </td>
@@ -3018,7 +3018,7 @@ function StockTransferView({ products, departments }) {
                 ))}
                 <tr className="bg-slate-800 text-white font-black">
                   <td colSpan={2} className="px-4 py-2 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                  <td className="px-4 py-2 text-center text-[11px]">{totalQty.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-center text-xs">{totalQty.toFixed(2)}</td>
                   <td colSpan={2} />
                 </tr>
               </tbody>
@@ -3067,7 +3067,7 @@ function StockTransferView({ products, departments }) {
           </div>
         </div>
 
-        <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+        <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
           <Plus size={14} /> Create New
         </button>
       </div>
@@ -3088,17 +3088,17 @@ function StockTransferView({ products, departments }) {
           <tbody className="divide-y divide-slate-100">
             {reportData.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">No records found</td>
+                <td colSpan={7} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">No records found</td>
               </tr>
             ) : (
               reportData.map((tx, index) => (
                 <tr key={tx.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-3 text-[11px] font-bold text-slate-500">{index + 1}</td>
-                  <td className="px-6 py-3 text-[11px] font-medium text-slate-600">{tx.date}</td>
-                  <td className="px-6 py-3 text-[11px] font-black text-blue-700 uppercase">{tx.poNo}</td>
-                  <td className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase">{tx.fromDept}</td>
-                  <td className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase">{tx.toDept}</td>
-                  <td className="px-6 py-3 text-[11px] font-black text-center text-slate-900">{tx.totalQty.toFixed(2)}</td>
+                  <td className="px-6 py-3 text-xs font-bold text-slate-500">{index + 1}</td>
+                  <td className="px-6 py-3 text-xs font-medium text-slate-600">{tx.date}</td>
+                  <td className="px-6 py-3 text-xs font-black text-blue-700 uppercase">{tx.poNo}</td>
+                  <td className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">{tx.fromDept}</td>
+                  <td className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">{tx.toDept}</td>
+                  <td className="px-6 py-3 text-xs font-black text-center text-slate-900">{tx.totalQty.toFixed(2)}</td>
                   <td className="px-6 py-3 text-center">
                     <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
                   </td>
@@ -3199,13 +3199,13 @@ function CostingReportView({ products, departments }) {
         </div>
 
         <div className="flex justify-end gap-2">
-          <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <Search size={14} /> Show
           </button>
-          <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <FileJson size={14} /> Excel
           </button>
-          <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <Printer size={14} /> PDF
           </button>
         </div>
@@ -3231,14 +3231,14 @@ function CostingReportView({ products, departments }) {
             <tbody className="divide-y divide-slate-100">
               {reportData.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">
+                  <td colSpan={10} className="px-4 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
                     No costing data found for the selected period
                   </td>
                 </tr>
               ) : (
                 reportData.map((row, index) => (
                   <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-2 text-[11px] font-bold text-slate-500">{index + 1}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-slate-500">{index + 1}</td>
                     {/* Data rows will go here */}
                   </tr>
                 ))
@@ -3409,12 +3409,12 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
                     <td className="px-3 py-2 text-[10px] font-black text-slate-800 uppercase">{item.name}</td>
                     <td className="px-3 py-2 text-[10px] font-medium text-slate-500">{item.barcode}</td>
                     <td className="px-3 py-2 text-[10px] font-bold text-center">{item.qty}</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-[10px] font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
                     <td className="px-3 py-2 text-[10px] font-bold text-center">{item.dis_percent}%</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-right">₹{((item.qty * item.rate) * item.dis_percent / 100).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-[10px] font-bold text-right">{((item.qty * item.rate) * item.dis_percent / 100).toFixed(2)}</td>
                     <td className="px-3 py-2 text-[10px] font-bold text-center">0%</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-right">₹0.00</td>
-                    <td className="px-3 py-2 text-[10px] font-black text-right text-blue-700">₹{parseFloat(item.amount).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-[10px] font-bold text-right">0.00</td>
+                    <td className="px-3 py-2 text-[10px] font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
                     <td className="px-3 py-2 text-center">
                       <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"><Trash2 size={12} /></button>
                     </td>
@@ -3424,8 +3424,8 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
                   <td colSpan={2} className="px-3 py-2 text-right text-[9px] uppercase tracking-widest">Total :</td>
                   <td className="px-3 py-2 text-center text-[10px]">{formData.items.reduce((sum, i) => sum + Number(i.qty), 0).toFixed(2)}</td>
                   <td colSpan={4} />
-                  <td className="px-3 py-2 text-right text-[10px]">₹{totalGstAmt.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right text-[10px]">₹{totalAmount.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right text-[10px]">{totalGstAmt.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right text-[10px]">{totalAmount.toFixed(2)}</td>
                   <td />
                 </tr>
               </tbody>
@@ -3444,7 +3444,7 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
               </div>
               <div className="flex justify-between text-base font-black">
                 <span className="uppercase tracking-tighter">Total :</span>
-                <span>₹{Math.round(totalAmount)}</span>
+                <span>{Math.round(totalAmount)}</span>
               </div>
             </div>
           </div>
@@ -3476,7 +3476,7 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
           </div>
         </div>
 
-        <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+        <button onClick={handleCreateNew} className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
           <Plus size={14} /> Production
         </button>
       </div>
@@ -3496,16 +3496,16 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
           <tbody className="divide-y divide-slate-100">
             {reportData.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">No records found</td>
+                <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">No records found</td>
               </tr>
             ) : (
               reportData.map((prod, index) => (
                 <tr key={prod.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-3 text-[11px] font-bold text-slate-500">{index + 1}</td>
-                  <td className="px-6 py-3 text-[11px] font-medium text-slate-600">{prod.date}</td>
-                  <td className="px-6 py-3 text-[11px] font-black text-slate-900 uppercase">{prod.itemName}</td>
-                  <td className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase">{prod.department}</td>
-                  <td className="px-6 py-3 text-[11px] font-black text-right text-blue-700">₹{prod.amount.toFixed(2)}</td>
+                  <td className="px-6 py-3 text-xs font-bold text-slate-500">{index + 1}</td>
+                  <td className="px-6 py-3 text-xs font-medium text-slate-600">{prod.date}</td>
+                  <td className="px-6 py-3 text-xs font-black text-slate-900 uppercase">{prod.itemName}</td>
+                  <td className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">{prod.department}</td>
+                  <td className="px-6 py-3 text-xs font-black text-right text-blue-700">{prod.amount.toFixed(2)}</td>
                   <td className="px-6 py-3 text-center">
                     <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
                   </td>
@@ -3610,7 +3610,7 @@ function BOMView({ products, fetchInitialData }) {
           </div>
 
           {/* Raw Item Selection Header */}
-          <div className="bg-slate-800 text-white text-center py-1.5 rounded text-[11px] font-black uppercase tracking-widest">
+          <div className="bg-slate-800 text-white text-center py-1.5 rounded text-xs font-black uppercase tracking-widest">
             Select Raw Item
           </div>
 
@@ -3665,12 +3665,12 @@ function BOMView({ products, fetchInitialData }) {
               <tbody className="divide-y divide-slate-100">
                 {formData.raw_items.map((item, i) => (
                   <tr key={i} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-[11px] font-medium text-slate-500">{item.barcode}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-center">{item.qty}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-center uppercase">{item.unit}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-right">₹{parseFloat(item.rate).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-[11px] font-black text-right text-blue-700">₹{parseFloat(item.amount).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                    <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center">{item.qty}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center uppercase">{item.unit}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
                     <td className="px-4 py-2 text-center">
                       <button onClick={() => removeRawItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
                         <Trash2 size={14} />
@@ -3680,9 +3680,9 @@ function BOMView({ products, fetchInitialData }) {
                 ))}
                 <tr className="bg-slate-800 text-white font-black">
                   <td colSpan={2} className="px-4 py-2 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                  <td className="px-4 py-2 text-center text-[11px]">{totalRawQty.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-center text-xs">{totalRawQty.toFixed(2)}</td>
                   <td colSpan={2} />
-                  <td className="px-4 py-2 text-right text-[11px]">₹{totalRawAmount.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right text-xs">{totalRawAmount.toFixed(2)}</td>
                   <td />
                 </tr>
               </tbody>
@@ -3706,7 +3706,7 @@ function BOMView({ products, fetchInitialData }) {
               </div>
               <div className="flex justify-between text-base font-black">
                 <span className="uppercase tracking-tighter">Total :</span>
-                <span>₹{Math.round(totalRawAmount)}</span>
+                <span>{Math.round(totalRawAmount)}</span>
               </div>
             </div>
           </div>
@@ -3736,7 +3736,7 @@ function BOMView({ products, fetchInitialData }) {
 
         <button 
           onClick={handleCreateNew}
-          className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all"
+          className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all"
         >
           <Plus size={14} /> Create New
         </button>
@@ -3754,15 +3754,15 @@ function BOMView({ products, fetchInitialData }) {
           <tbody className="divide-y divide-slate-100">
             {reportData.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-6 py-20 text-center text-slate-400 text-[11px] font-bold uppercase tracking-widest italic">
+                <td colSpan={3} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
                   No BOM records found. Click 'Create New' to start.
                 </td>
               </tr>
             ) : (
               reportData.map((bom, index) => (
                 <tr key={bom.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-3 text-[11px] font-bold text-slate-500">{index + 1}</td>
-                  <td className="px-6 py-3 text-[11px] font-black text-slate-900 uppercase">{bom.itemName}</td>
+                  <td className="px-6 py-3 text-xs font-bold text-slate-500">{index + 1}</td>
+                  <td className="px-6 py-3 text-xs font-black text-slate-900 uppercase">{bom.itemName}</td>
                   <td className="px-6 py-3 text-center">
                     <div className="flex justify-center gap-2">
                       <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
@@ -3841,7 +3841,7 @@ function PaymentReminderView({ users, orders }) {
   };
 
   const sendReminder = (user) => {
-    const message = `Dear ${user.name}, this is a friendly reminder that you have a pending balance of ₹${user.pending.toFixed(2)} at NM MART. Please clear it at your earliest convenience. Thank you!`;
+    const message = `Dear ${user.name}, this is a friendly reminder that you have a pending balance of ${user.pending.toFixed(2)} at NM MART. Please clear it at your earliest convenience. Thank you!`;
     const whatsappUrl = `https://wa.me/91${user.mobile}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -3904,10 +3904,10 @@ function PaymentReminderView({ users, orders }) {
                       className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
                     />
                   </td>
-                  <td className="px-4 py-3 text-[11px] font-black text-blue-700">{user.accountId}</td>
-                  <td className="px-4 py-3 text-[11px] font-black text-slate-800 uppercase">{user.name}</td>
-                  <td className="px-4 py-3 text-[11px] font-bold text-slate-600">{user.mobile}</td>
-                  <td className="px-4 py-3 text-[11px] font-black text-red-600">₹{user.pending.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-xs font-black text-blue-700">{user.accountId}</td>
+                  <td className="px-4 py-3 text-xs font-black text-slate-800 uppercase">{user.name}</td>
+                  <td className="px-4 py-3 text-xs font-bold text-slate-600">{user.mobile}</td>
+                  <td className="px-4 py-3 text-xs font-black text-red-600">{user.pending.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <button 
                       onClick={() => sendReminder(user)}
@@ -3920,7 +3920,7 @@ function PaymentReminderView({ users, orders }) {
               ))}
               {reportData.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-slate-400 italic text-[11px] font-bold uppercase tracking-widest">
+                  <td colSpan={6} className="px-4 py-12 text-center text-slate-400 italic text-xs font-bold uppercase tracking-widest">
                     No pending payments found for the selected criteria
                   </td>
                 </tr>
@@ -4121,8 +4121,8 @@ function CreditReportView({ orders, credits, deliveryBoys, users }) {
                   <td className="px-3 py-2 text-[10px] font-black text-slate-800 uppercase">{row.customer}</td>
                   <td className="px-3 py-2 text-[10px] font-medium text-slate-600">{row.mobile}</td>
                   <td className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">{row.deliveryBoy}</td>
-                  <td className="px-3 py-2 text-[10px] font-black text-slate-900 text-right">{row.sale > 0 ? `₹${row.sale.toFixed(2)}` : '-'}</td>
-                  <td className="px-3 py-2 text-[10px] font-black text-emerald-600 text-right">{row.payment > 0 ? `₹${row.payment.toFixed(2)}` : '-'}</td>
+                  <td className="px-3 py-2 text-[10px] font-black text-slate-900 text-right">{row.sale > 0 ? `${row.sale.toFixed(2)}` : '-'}</td>
+                  <td className="px-3 py-2 text-[10px] font-black text-emerald-600 text-right">{row.payment > 0 ? `${row.payment.toFixed(2)}` : '-'}</td>
                   <td className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">{row.paidBy}</td>
                 </tr>
               ))}
@@ -4145,10 +4145,10 @@ function CreditReportView({ orders, credits, deliveryBoys, users }) {
               <tbody className="divide-y divide-slate-100">
                 {accountSummary.map((item, i) => (
                   <tr key={i} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-slate-900 text-right">₹{item.sale.toFixed(2)}</td>
-                    <td className="px-4 py-2 text-[11px] font-bold text-emerald-600 text-right">₹{item.payment.toFixed(2)}</td>
-                    <td className="px-4 py-2 text-[11px] font-black text-blue-700 text-right">₹{item.closing.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-slate-900 text-right">{item.sale.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-emerald-600 text-right">{item.payment.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-xs font-black text-blue-700 text-right">{item.closing.toFixed(2)}</td>
                   </tr>
                 ))}
                 {accountSummary.length === 0 && (
@@ -4300,14 +4300,14 @@ function DeliveryBoyPaymentReportView({ orders, deliveryBoys, accounts }) {
             <tbody className="divide-y divide-slate-100">
               {reportData.map((row, i) => (
                 <tr key={i} className="hover:bg-slate-50/50">
-                  <td className="px-4 py-2.5 text-[11px] font-bold text-blue-600">#{row.id}</td>
-                  <td className="px-4 py-2.5 text-[11px] font-medium text-slate-500">{row.date}</td>
-                  <td className="px-4 py-2.5 text-[11px] font-medium text-slate-500">{row.acId}</td>
-                  <td className="px-4 py-2.5 text-[11px] font-black text-slate-800 uppercase">{row.customer}</td>
-                  <td className="px-4 py-2.5 text-[11px] font-medium text-slate-600">{row.mobile}</td>
-                  <td className="px-4 py-2.5 text-[11px] font-bold text-slate-700 uppercase">{row.deliveryBoy}</td>
-                  <td className="px-4 py-2.5 text-[11px] font-black text-slate-900 text-right">₹{row.amount.toFixed(2)}</td>
-                  <td className="px-4 py-2.5 text-[11px] font-bold text-emerald-600 uppercase">{row.paidBy}</td>
+                  <td className="px-4 py-2.5 text-xs font-bold text-blue-600">#{row.id}</td>
+                  <td className="px-4 py-2.5 text-xs font-medium text-slate-500">{row.date}</td>
+                  <td className="px-4 py-2.5 text-xs font-medium text-slate-500">{row.acId}</td>
+                  <td className="px-4 py-2.5 text-xs font-black text-slate-800 uppercase">{row.customer}</td>
+                  <td className="px-4 py-2.5 text-xs font-medium text-slate-600">{row.mobile}</td>
+                  <td className="px-4 py-2.5 text-xs font-bold text-slate-700 uppercase">{row.deliveryBoy}</td>
+                  <td className="px-4 py-2.5 text-xs font-black text-slate-900 text-right">{row.amount.toFixed(2)}</td>
+                  <td className="px-4 py-2.5 text-xs font-bold text-emerald-600 uppercase">{row.paidBy}</td>
                 </tr>
               ))}
             </tbody>
@@ -4320,7 +4320,7 @@ function DeliveryBoyPaymentReportView({ orders, deliveryBoys, accounts }) {
             {summary.map((item, i) => (
               <div key={i} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.name}</p>
-                <h4 className="text-base font-black text-blue-700">₹{item.total.toFixed(2)}</h4>
+                <h4 className="text-base font-black text-blue-700">{item.total.toFixed(2)}</h4>
               </div>
             ))}
             {summary.length === 0 && <p className="text-[10px] font-bold text-slate-400 italic">No collection summary available</p>}
@@ -4465,13 +4465,13 @@ function LedgerView({ users, accounts }) {
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <Search size={14} /> Show
             </button>
-            <button className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <FileJson size={14} /> Excel
             </button>
-            <button className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <Printer size={14} /> PDF
             </button>
           </div>
@@ -4493,18 +4493,18 @@ function LedgerView({ users, accounts }) {
             <tbody className="divide-y divide-slate-100">
               <tr className="bg-blue-50/50 font-black text-slate-900">
                 <td colSpan={2} />
-                <td className="px-6 py-2.5 text-right text-[11px] uppercase tracking-widest">Total:</td>
-                <td className="px-6 py-2.5 text-[11px] text-right">{totals.debit}</td>
-                <td className="px-6 py-2.5 text-[11px] text-right">{totals.credit}</td>
+                <td className="px-6 py-2.5 text-right text-xs uppercase tracking-widest">Total:</td>
+                <td className="px-6 py-2.5 text-xs text-right">{totals.debit}</td>
+                <td className="px-6 py-2.5 text-xs text-right">{totals.credit}</td>
                 <td className="px-6 py-2.5" />
               </tr>
               {reportData.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-2 text-[11px] font-bold text-slate-500">{item.date}</td>
-                  <td className="px-6 py-2 text-[11px] font-black text-slate-900 uppercase">{item.partyName}</td>
-                  <td className="px-6 py-2 text-[11px] font-bold text-right text-red-600">{item.debit > 0 ? item.debit.toFixed(2) : ''}</td>
-                  <td className="px-6 py-2 text-[11px] font-bold text-right text-emerald-600">{item.credit > 0 ? item.credit.toFixed(2) : ''}</td>
-                  <td className="px-6 py-2 text-[11px] font-black text-right text-slate-900">{item.balance.toFixed(2)}</td>
+                  <td className="px-6 py-2 text-xs font-bold text-slate-500">{item.date}</td>
+                  <td className="px-6 py-2 text-xs font-black text-slate-900 uppercase">{item.partyName}</td>
+                  <td className="px-6 py-2 text-xs font-bold text-right text-red-600">{item.debit > 0 ? item.debit.toFixed(2) : ''}</td>
+                  <td className="px-6 py-2 text-xs font-bold text-right text-emerald-600">{item.credit > 0 ? item.credit.toFixed(2) : ''}</td>
+                  <td className="px-6 py-2 text-xs font-black text-right text-slate-900">{item.balance.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -4651,7 +4651,7 @@ function LogbookView() {
               <tbody className="divide-y divide-slate-100">
                 {logs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-3 text-[11px] font-bold text-slate-500">
+                    <td className="px-6 py-3 text-xs font-bold text-slate-500">
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
                     <td className="px-6 py-3">
@@ -4659,7 +4659,7 @@ function LogbookView() {
                         {log.module}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-[11px] font-black text-slate-700 uppercase tracking-widest">
+                    <td className="px-6 py-3 text-xs font-black text-slate-700 uppercase tracking-widest">
                       {log.action} operation performed on {log.module}
                     </td>
                   </tr>
@@ -4834,13 +4834,13 @@ function ItemStatementReportView({ products, departments }) {
           </div>
           <div className="md:col-span-1" />
           <div className="flex justify-end gap-2">
-            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <Search size={14} /> Show
             </button>
-            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <FileJson size={14} /> Excel
             </button>
-            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[11px] font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <Printer size={14} /> PDF
             </button>
           </div>
@@ -4877,22 +4877,22 @@ function ItemStatementReportView({ products, departments }) {
               {/* Opening Row */}
               <tr className="bg-red-50/50">
                 <td colSpan={3} />
-                <td className="px-4 py-2 text-[11px] font-black text-red-600 uppercase">Opening</td>
+                <td className="px-4 py-2 text-xs font-black text-red-600 uppercase">Opening</td>
                 <td colSpan={3} />
-                <td className="px-4 py-2 text-[11px] font-black text-red-600 text-right">{openingStock.toFixed(2)}</td>
+                <td className="px-4 py-2 text-xs font-black text-red-600 text-right">{openingStock.toFixed(2)}</td>
                 <td />
               </tr>
               {reportData.map((item, i) => (
                 <tr key={i} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-2 text-[11px] font-bold text-slate-500">{new Date(item.date).toLocaleDateString()}</td>
-                  <td className="px-4 py-2 text-[11px] font-black text-blue-700">{item.voucher}</td>
-                  <td className="px-4 py-2 text-[11px] font-bold text-slate-600 uppercase">{item.dept}</td>
-                  <td className="px-4 py-2 text-[11px] font-black text-slate-900 uppercase">{item.itemName}</td>
-                  <td className="px-4 py-2 text-[11px] font-medium text-slate-500">{item.barcode}</td>
-                  <td className="px-4 py-2 text-[11px] font-bold text-center text-emerald-600">{item.inQty > 0 ? `+${item.inQty.toFixed(2)}` : ''}</td>
-                  <td className="px-4 py-2 text-[11px] font-bold text-center text-red-600">{item.outQty > 0 ? `-${item.outQty.toFixed(2)}` : ''}</td>
-                  <td className="px-4 py-2 text-[11px] font-black text-right text-slate-900">{item.closing.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-[11px] font-bold text-slate-500 uppercase">{item.unit}</td>
+                  <td className="px-4 py-2 text-xs font-bold text-slate-500">{new Date(item.date).toLocaleDateString()}</td>
+                  <td className="px-4 py-2 text-xs font-black text-blue-700">{item.voucher}</td>
+                  <td className="px-4 py-2 text-xs font-bold text-slate-600 uppercase">{item.dept}</td>
+                  <td className="px-4 py-2 text-xs font-black text-slate-900 uppercase">{item.itemName}</td>
+                  <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
+                  <td className="px-4 py-2 text-xs font-bold text-center text-emerald-600">{item.inQty > 0 ? `+${item.inQty.toFixed(2)}` : ''}</td>
+                  <td className="px-4 py-2 text-xs font-bold text-center text-red-600">{item.outQty > 0 ? `-${item.outQty.toFixed(2)}` : ''}</td>
+                  <td className="px-4 py-2 text-xs font-black text-right text-slate-900">{item.closing.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">{item.unit}</td>
                 </tr>
               ))}
             </tbody>
@@ -5071,13 +5071,13 @@ function StockReportView({ products, purchases, orders, categories, departments 
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Search size={14} /> Show
             </button>
-            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <FileJson size={14} /> Excel
             </button>
-            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Printer size={14} /> PDF
             </button>
           </div>
@@ -5105,26 +5105,26 @@ function StockReportView({ products, purchases, orders, categories, departments 
             <tbody className="divide-y divide-slate-100">
               {reportData.map((item, i) => (
                 <tr key={i} className="hover:bg-slate-50/50">
-                  <td className="px-3 py-2 text-[11px] font-bold text-slate-500">{item.srNo}</td>
-                  <td className="px-3 py-2 text-[11px] font-black text-slate-900 uppercase">{item.itemName}</td>
-                  <td className="px-3 py-2 text-[11px] font-bold text-center">{item.opening.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-[11px] font-bold text-center text-emerald-600">+{item.stockIn.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-[11px] font-bold text-center text-red-600">-{item.stockOut.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-[11px] font-black text-center">{item.closing.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-[11px] font-bold text-center uppercase">{item.unit}</td>
-                  <td className="px-3 py-2 text-[11px] font-bold text-center">₹{item.saleRate}</td>
-                  <td className="px-3 py-2 text-[11px] font-black text-center">₹{item.amount.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-[11px] font-bold text-center">₹{item.purcRate}</td>
-                  <td className="px-3 py-2 text-[11px] font-black text-right">₹{item.purcAmount.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-slate-500">{item.srNo}</td>
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 uppercase">{item.itemName}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-center">{item.opening.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-center text-emerald-600">+{item.stockIn.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-center text-red-600">-{item.stockOut.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-xs font-black text-center">{item.closing.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-center uppercase">{item.unit}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-center">{item.saleRate}</td>
+                  <td className="px-3 py-2 text-xs font-black text-center">{item.amount.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-center">{item.purcRate}</td>
+                  <td className="px-3 py-2 text-xs font-black text-right">{item.purcAmount.toFixed(2)}</td>
                 </tr>
               ))}
               <tr className="bg-blue-100/50 font-black text-slate-900 border-t-2 border-slate-200">
-                <td colSpan="5" className="px-3 py-2.5 text-right text-[11px] uppercase tracking-widest">Total QTY:</td>
-                <td className="px-3 py-2.5 text-[11px] text-center">{totals.qty.toFixed(2)}</td>
+                <td colSpan="5" className="px-3 py-2.5 text-right text-xs uppercase tracking-widest">Total QTY:</td>
+                <td className="px-3 py-2.5 text-xs text-center">{totals.qty.toFixed(2)}</td>
                 <td colSpan="2" />
-                <td className="px-3 py-2.5 text-[11px] text-center">₹{totals.amount.toFixed(2)}</td>
+                <td className="px-3 py-2.5 text-xs text-center">{totals.amount.toFixed(2)}</td>
                 <td className="px-3 py-2.5" />
-                <td className="px-3 py-2.5 text-[11px] text-right">₹{totals.purcAmount.toFixed(2)}</td>
+                <td className="px-3 py-2.5 text-xs text-right">{totals.purcAmount.toFixed(2)}</td>
               </tr>
             </tbody>
           </table>
@@ -5273,8 +5273,8 @@ function DashboardView({ stats, orders, products, setActiveTab }) {
           { label: 'Inventory', value: stats.products, icon: <Package size={18} />, color: 'bg-blue-600' },
           { label: 'Total Orders', value: stats.orders, icon: <ShoppingCart size={18} />, color: 'bg-emerald-600' },
           { label: 'Customer Base', value: stats.users, icon: <Users size={18} />, color: 'bg-purple-600' },
-          { label: 'Today\'s Sales', value: `₹${todaysSales.toLocaleString()}`, icon: <Zap size={18} />, color: 'bg-red-600' },
-          { label: 'Total Sales', value: `₹${revenue.toLocaleString()}`, icon: <DollarSign size={18} />, color: 'bg-amber-500' },
+          { label: 'Today\'s Sales', value: `${todaysSales.toLocaleString()}`, icon: <Zap size={18} />, color: 'bg-red-600' },
+          { label: 'Total Sales', value: `${revenue.toLocaleString()}`, icon: <DollarSign size={18} />, color: 'bg-amber-500' },
         ].map((stat, i) => (
           <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
             <div className={cn("p-2.5 rounded-lg text-white", stat.color)}>
@@ -5293,7 +5293,7 @@ function DashboardView({ stats, orders, products, setActiveTab }) {
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tighter">Recent Business Transactions</h3>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-tighter">Recent Business Transactions</h3>
               <button onClick={() => setActiveTab('Orders')} className="text-[9px] font-black text-blue-600 hover:underline uppercase tracking-widest">View All</button>
             </div>
             
@@ -5313,7 +5313,7 @@ function DashboardView({ stats, orders, products, setActiveTab }) {
                     <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-3 py-2 text-[10px] font-black text-blue-700">#{order.order_number || (orders.length - idx)}</td>
                       <td className="px-3 py-2 text-[10px] font-bold text-slate-600">{order.user_mobile}</td>
-                      <td className="px-3 py-2 text-[10px] font-black text-slate-800">₹{order.total_amount}</td>
+                      <td className="px-3 py-2 text-[10px] font-black text-slate-800">{order.total_amount}</td>
                       <td className="px-3 py-2 text-[10px] font-black text-slate-600 uppercase">{order.payment_method || 'CASH'}</td>
                       <td className="px-3 py-2">
                         <span className={cn(
@@ -5333,7 +5333,7 @@ function DashboardView({ stats, orders, products, setActiveTab }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-              <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tighter mb-4">Payment Methods</h3>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-tighter mb-4">Payment Methods</h3>
               <div className="space-y-3">
                 {paymentStats.map((stat, i) => (
                   <div key={i}>
@@ -5353,7 +5353,7 @@ function DashboardView({ stats, orders, products, setActiveTab }) {
             </div>
 
             <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-              <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tighter mb-4">Order Status</h3>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-tighter mb-4">Order Status</h3>
               <div className="space-y-3">
                 {statusStats.map((stat, i) => (
                   <div key={i}>
@@ -5380,7 +5380,7 @@ function DashboardView({ stats, orders, products, setActiveTab }) {
         {/* Inventory & Quick Tools */}
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tighter mb-4">Inventory Health</h3>
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-tighter mb-4">Inventory Health</h3>
             <div className="space-y-4 mb-6">
               {[
                 { label: 'Low Stock', value: products.filter(p => p.stock > 0 && p.stock <= 5).length, color: 'bg-orange-500' },
@@ -5422,7 +5422,7 @@ function DashboardView({ stats, orders, products, setActiveTab }) {
 
           <div className="bg-blue-700 rounded-xl p-4 text-white shadow-lg relative overflow-hidden group">
             <Zap className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-125 transition-transform duration-500" size={80} />
-            <h3 className="text-[11px] font-black uppercase tracking-widest mb-3">ERP Quick Actions</h3>
+            <h3 className="text-xs font-black uppercase tracking-widest mb-3">ERP Quick Actions</h3>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => setActiveTab('Products')} className="bg-white/10 hover:bg-white/20 p-2 rounded-lg text-[8px] font-black uppercase tracking-widest flex items-center gap-2 transition-all">
                 <PlusCircle size={10} /> Add Item
@@ -5530,7 +5530,7 @@ function ThermalReceipt({ orderData, cart, subTotal, discountAmount, deliveryCha
         </div>
         <div className="flex justify-between text-[12px] border-y border-black py-0.5 my-0.5">
           <span>NET AMOUNT</span>
-          <span>₹{finalTotal}</span>
+          <span>{finalTotal}</span>
         </div>
         <div className="flex justify-between text-[9px] font-bold">
           <span>CGST (2.5%)</span>
@@ -5686,22 +5686,22 @@ function PurchaseView({ title, table, data, products, departments, fetchInitialD
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase">Bill Date</th>
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase">Bill No</th>
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase">Party</th>
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase">Department</th>
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase text-right">Bill Amt</th>
-                  <th className="px-6 py-4 text-[11px] font-black text-slate-800 uppercase text-right">Action</th>
+                  <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase">Bill Date</th>
+                  <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase">Bill No</th>
+                  <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase">Party</th>
+                  <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase">Department</th>
+                  <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase text-right">Bill Amt</th>
+                  <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredData.length > 0 ? filteredData.map((item) => (
                   <tr key={item.id} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-6 py-4 text-[11px] font-bold text-slate-600">{item.bill_date}</td>
-                    <td className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase">{item.bill_no}</td>
-                    <td className="px-6 py-4 text-[11px] font-bold text-slate-600 uppercase">{item.party_name}</td>
-                    <td className="px-6 py-4 text-[11px] font-bold text-slate-600 uppercase">{item.department}</td>
-                    <td className="px-6 py-4 text-[11px] font-black text-slate-900 text-right">₹{item.bill_amount}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-600">{item.bill_date}</td>
+                    <td className="px-6 py-4 text-xs font-black text-slate-900 uppercase">{item.bill_no}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{item.party_name}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{item.department}</td>
+                    <td className="px-6 py-4 text-xs font-black text-slate-900 text-right">{item.bill_amount}</td>
                     <td className="px-6 py-4 text-right">
                       <button onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }} className="text-blue-600 hover:underline font-black text-[10px] uppercase mr-3">Edit</button>
                       <button onClick={async () => {
@@ -5876,18 +5876,18 @@ function PurchaseView({ title, table, data, products, departments, fetchInitialD
                       <td className="px-4 py-2 text-center">0.00</td>
                       <td className="px-4 py-2 text-center">{item.gst}%</td>
                       <td className="px-4 py-2 text-center">{item.gst_amt.toFixed(2)}</td>
-                      <td className="px-4 py-2 text-center font-black">₹{item.amount.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-center font-black">{item.amount.toFixed(2)}</td>
                       <td className="px-4 py-2 text-center">
                         <button onClick={() => removeItem(idx)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={12} /></button>
                       </td>
                     </tr>
                   ))}
-                  <tr className="bg-[#1E293B] text-white font-black text-[11px]">
+                  <tr className="bg-[#1E293B] text-white font-black text-xs">
                     <td colSpan="2" className="px-4 py-2 text-right uppercase">Total :</td>
                     <td className="px-4 py-2 text-center">{totalQty.toFixed(2)}</td>
                     <td colSpan="4"></td>
                     <td className="px-4 py-2 text-center">{totalGst.toFixed(2)}</td>
-                    <td className="px-4 py-2 text-center">₹{subTotal.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-center">{subTotal.toFixed(2)}</td>
                     <td></td>
                   </tr>
                 </tbody>
@@ -5901,13 +5901,13 @@ function PurchaseView({ title, table, data, products, departments, fetchInitialD
               <button 
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="bg-blue-600 text-white px-10 py-2 rounded-lg font-black uppercase tracking-widest text-[11px] shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50"
+                className="bg-blue-600 text-white px-10 py-2 rounded-lg font-black uppercase tracking-widest text-xs shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50"
               >
                 {isSubmitting ? 'Saving...' : 'Save'}
               </button>
               <button 
                 onClick={() => setShowForm(false)}
-                className="bg-white border-2 border-blue-400 text-blue-500 px-10 py-2 rounded-lg font-black uppercase tracking-widest text-[11px] hover:bg-blue-50 transition-all"
+                className="bg-white border-2 border-blue-400 text-blue-500 px-10 py-2 rounded-lg font-black uppercase tracking-widest text-xs hover:bg-blue-50 transition-all"
               >
                 Cancel
               </button>
@@ -5919,7 +5919,7 @@ function PurchaseView({ title, table, data, products, departments, fetchInitialD
               </div>
               <div className="px-10 py-2 flex flex-col items-center">
                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Bill Amount :</span>
-                <span className="text-xl font-black">₹{finalBillAmt.toFixed(2)}</span>
+                <span className="text-xl font-black">{finalBillAmt.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -5950,7 +5950,7 @@ const ProductCard = memo(({ product, addToCart }) => (
       )}
     </div>
     <span className="text-[10px] font-black text-[#E11D48] self-end mt-auto">
-      ₹{product.sale_rate}
+      {product.sale_rate}
     </span>
   </button>
 ));
@@ -5967,7 +5967,7 @@ const CartItem = memo(({ item, removeFromCart, updateQty }) => (
       <div className="flex flex-col">
         <span className="text-slate-800 uppercase leading-tight truncate w-32" title={item.name}>{item.name}</span>
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-400 font-bold">₹{item.sale_rate} / unit</span>
+          <span className="text-[10px] text-slate-400 font-bold">{item.sale_rate} / unit</span>
           {item.stock <= 5 && (
             <span className={cn(
               "text-[7px] font-black px-1 rounded uppercase tracking-tighter",
@@ -5997,7 +5997,7 @@ const CartItem = memo(({ item, removeFromCart, updateQty }) => (
         >+</button>
       </div>
     </div>
-    <span className="w-1/4 text-right text-slate-900 font-bold">₹{(item.sale_rate * item.quantity).toLocaleString()}</span>
+    <span className="w-1/4 text-right text-slate-900 font-bold">{(item.sale_rate * item.quantity).toLocaleString()}</span>
   </div>
 ));
 
@@ -6083,8 +6083,8 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
   const [redeemPoints, setRedeemPoints] = useState(0);
 
   // --- Loyalty Points Configuration ---
-  const POINTS_PER_RUPEE = 0.01; // ₹100 spend = 1 point
-  const RUPEE_PER_POINT = 1;     // 1 point = ₹1 discount
+  const POINTS_PER_RUPEE = 0.01; // 100 spend = 1 point
+  const RUPEE_PER_POINT = 1;     // 1 point = 1 discount
 
   const pointsDiscount = redeemPoints * RUPEE_PER_POINT;
 
@@ -6164,7 +6164,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
             return;
           }
           setFlatDiscount(prev => prev + Math.abs(parseFloat(cn.total_amount)));
-          alert(`Credit Note Applied: ₹${Math.abs(cn.total_amount)} discount added.`);
+          alert(`Credit Note Applied: ${Math.abs(cn.total_amount)} discount added.`);
           await handleERPAction(DB_SCHEMA.ORDERS.table, ACTION_TYPES.UPDATE, { id: cn.id, payment_status: 'used' });
           setSearchBillNo('');
           return;
@@ -6380,7 +6380,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
       // Handle Split Payment Label
       let finalPaymentMethod = pMethod;
       if (isSplitPayment) {
-        finalPaymentMethod = `Split (Cash: ₹${cashAmount}, UPI: ₹${upiAmount})`;
+        finalPaymentMethod = `Split (Cash: ${cashAmount}, UPI: ${upiAmount})`;
       }
 
       // 1. Create Order
@@ -6498,7 +6498,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
             <button 
               onClick={() => setActiveCategory('All')}
               className={cn(
-                "w-full text-left px-3 py-2.5 rounded text-[11px] font-black uppercase shadow-sm transition-all",
+                "w-full text-left px-3 py-2.5 rounded text-xs font-black uppercase shadow-sm transition-all",
                 activeCategory === 'All' ? "bg-[#E11D48] text-white" : "bg-white text-slate-700 hover:bg-slate-50"
               )}
             >
@@ -6509,7 +6509,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
                 className={cn(
-                  "w-full text-left px-3 py-2.5 rounded text-[11px] font-black uppercase shadow-sm transition-all",
+                  "w-full text-left px-3 py-2.5 rounded text-xs font-black uppercase shadow-sm transition-all",
                   activeCategory === cat.id ? "bg-[#E11D48] text-white" : "bg-white text-slate-700 hover:bg-slate-50"
                 )}
               >
@@ -6629,7 +6629,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                   >
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-black text-slate-800 group-hover:text-blue-700">{p.name}</span>
+                        <span className="text-xs font-black text-slate-800 group-hover:text-blue-700">{p.name}</span>
                         {p.stock <= 5 && (
                           <span className={cn(
                             "text-[7px] font-black px-1 py-0.5 rounded uppercase tracking-tighter",
@@ -6641,7 +6641,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                       </div>
                       <span className="text-[9px] text-slate-500">Barcode: {p.barcode || 'N/A'}</span>
                     </div>
-                    <span className="text-xs font-black text-red-600">₹{p.sale_rate}</span>
+                    <span className="text-xs font-black text-red-600">{p.sale_rate}</span>
                   </button>
                 ))}
               </div>
@@ -6759,7 +6759,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                   <button 
                     onClick={() => {
                       setFlatDiscount(prev => prev + customerLoyalty.points);
-                      alert(`₹${customerLoyalty.points} redeemed from points!`);
+                      alert(`${customerLoyalty.points} redeemed from points!`);
                     }}
                     className="bg-white text-blue-600 px-2 py-0.5 rounded text-[9px] font-black uppercase shadow-sm"
                   >
@@ -6775,7 +6775,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {customerHistory.map(h => (
                       <div key={h.id} className="bg-white/5 border border-white/10 px-2 py-1 rounded text-[9px] whitespace-nowrap">
-                        <span className="font-bold">₹{h.total_amount}</span>
+                        <span className="font-bold">{h.total_amount}</span>
                         <span className="mx-1 opacity-40">|</span>
                         <span className="opacity-60">{new Date(h.created_at).toLocaleDateString()}</span>
                       </div>
@@ -6822,7 +6822,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                   onClick={() => resumeHoldBill(hb)}
                   className="bg-amber-100 text-amber-700 border border-amber-200 px-3 py-1 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap flex items-center gap-2"
                 >
-                  <Clock size={10} /> Hold: {hb.time} (₹{hb.total})
+                  <Clock size={10} /> Hold: {hb.time} ({hb.total})
                 </button>
               ))}
             </div>
@@ -6831,7 +6831,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs">
               <span className="font-bold text-slate-500 uppercase tracking-widest">Subtotal</span>
-              <span className="font-bold text-slate-800">₹{subTotal.toLocaleString()}</span>
+              <span className="font-bold text-slate-800">{subTotal.toLocaleString()}</span>
             </div>
             
             {/* Split Payment Inputs */}
@@ -6878,7 +6878,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                   <span className="text-[10px] font-bold text-slate-400">%</span>
                 </div>
               </div>
-              <span className="text-xs font-bold text-red-500">-₹{discountAmount.toLocaleString()}</span>
+              <span className="text-xs font-bold text-red-500">-{discountAmount.toLocaleString()}</span>
             </div>
 
             <div className="flex justify-between items-center">
@@ -6891,13 +6891,13 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
                   className="w-20 bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold text-red-600 focus:ring-1 focus:ring-red-200 outline-none text-right" 
                 />
               </div>
-              <span className="text-xs font-bold text-red-500">-₹{parseFloat(flatDiscount || 0).toLocaleString()}</span>
+              <span className="text-xs font-bold text-red-500">-{parseFloat(flatDiscount || 0).toLocaleString()}</span>
             </div>
 
             {/* Tax Display */}
             <div className="flex justify-between items-center text-[10px] text-slate-400">
               <span className="font-bold uppercase tracking-widest">GST (CGST 2.5% + SGST 2.5%)</span>
-              <span className="font-bold">₹{(finalTotal * 0.05).toFixed(2)}</span>
+              <span className="font-bold">{(finalTotal * 0.05).toFixed(2)}</span>
             </div>
 
             <div className="flex justify-between items-center">
@@ -6908,7 +6908,7 @@ function POSView({ products, categories, fetchInitialData, appConfig, setActiveT
           
           <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
             <span className="text-sm font-bold text-slate-800 uppercase tracking-tighter">Total Bill Amount</span>
-            <h3 className="text-4xl font-black text-slate-900 tracking-tighter leading-none">₹{finalTotal.toLocaleString()}</h3>
+            <h3 className="text-4xl font-black text-slate-900 tracking-tighter leading-none">{finalTotal.toLocaleString()}</h3>
           </div>
         </div>
 
@@ -7049,7 +7049,7 @@ function NotificationsView({ notifications, fetchInitialData }) {
             </div>
             <div className="flex-1">
               <div className="flex justify-between items-start">
-                <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{n.title}</h4>
+                <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{n.title}</h4>
                 <span className="text-[8px] font-bold text-slate-400">{new Date(n.created_at).toLocaleString()}</span>
               </div>
               <p className="text-[10px] font-bold text-slate-600 mt-1">{n.message}</p>
@@ -7093,7 +7093,7 @@ function MasterListView({ title, table, bucket, fields, data, uploadImage, fetch
       try {
         // Check if file is an image
         if (file.type.startsWith('image/')) {
-          throw new Error("यह फ़ाइल इमेज है! इमेज अपलोड करने के लिए 'Create New' बटन पर क्लिक करें, फिर फॉर्म में इमेज फील्ड चुनें!");
+          throw new Error("   !      'Create New'    ,      !");
         }
 
         // Create mapping from field labels to names
@@ -7404,7 +7404,7 @@ function MasterListView({ title, table, bucket, fields, data, uploadImage, fetch
                         <select 
                           value={formData[f.name] || ''}
                           onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                          className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-slate-900 appearance-none shadow-sm"
+                          className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-2.5 text-xs font-black focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-slate-900 appearance-none shadow-sm"
                           required={f.required}
                         >
                           <option value="">Select {f.label}</option>
@@ -7436,7 +7436,7 @@ function MasterListView({ title, table, bucket, fields, data, uploadImage, fetch
                           placeholder={`Enter ${f.label.toLowerCase()}...`}
                           value={formData[f.name] || ''}
                           onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                          className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-slate-900 shadow-sm placeholder-slate-300"
+                          className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-2.5 text-xs font-black focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-slate-900 shadow-sm placeholder-slate-300"
                           required={f.required}
                         />
                       )}
@@ -7556,11 +7556,11 @@ function DeliveryCustomerView({ title, table, data, fetchInitialData }) {
               {filteredData.length > 0 ? (
                 filteredData.map((item, index) => (
                   <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-6 py-4 text-[11px] font-bold text-slate-600">{index + 1}</td>
-                    <td className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase">{item.name}</td>
-                    <td className="px-6 py-4 text-[11px] font-bold text-slate-600">{item.mob_no}</td>
-                    <td className="px-6 py-4 text-[11px] font-bold text-slate-600 truncate max-w-[200px]">{item.address}</td>
-                    <td className="px-6 py-4 text-[11px] font-bold text-slate-600">{item.gst_no}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-600">{index + 1}</td>
+                    <td className="px-6 py-4 text-xs font-black text-slate-900 uppercase">{item.name}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-600">{item.mob_no}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-600 truncate max-w-[200px]">{item.address}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-600">{item.gst_no}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
@@ -7852,8 +7852,8 @@ function DeliveryBoyView({ title, table, data, fetchInitialData }) {
               <tbody className="divide-y divide-slate-100">
                 {paginatedData.map((item) => (
                   <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase">{item.name}</td>
-                    <td className="px-6 py-4 text-[11px] font-bold text-slate-600 uppercase">{item.username}</td>
+                    <td className="px-6 py-4 text-xs font-black text-slate-900 uppercase">{item.name}</td>
+                    <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{item.username}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
@@ -8401,7 +8401,7 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
               <tbody className="divide-y divide-slate-100">
                 {paginatedData.map((item) => (
                   <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase">{item.username}</td>
+                    <td className="px-6 py-4 text-xs font-black text-slate-900 uppercase">{item.username}</td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button 
@@ -8495,8 +8495,8 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
                   <table className="w-full text-left">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-4 py-3 text-[11px] font-black text-slate-900 uppercase">Page Name</th>
-                        <th className="px-4 py-3 text-[11px] font-black text-slate-900 uppercase text-center">
+                        <th className="px-4 py-3 text-xs font-black text-slate-900 uppercase">Page Name</th>
+                        <th className="px-4 py-3 text-xs font-black text-slate-900 uppercase text-center">
                           <div className="flex items-center justify-center gap-2">
                             <input type="checkbox" className="w-3 h-3" onChange={(e) => {
                               const checked = e.target.checked;
@@ -8509,7 +8509,7 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
                             }} /> View
                           </div>
                         </th>
-                        <th className="px-4 py-3 text-[11px] font-black text-slate-900 uppercase text-center">
+                        <th className="px-4 py-3 text-xs font-black text-slate-900 uppercase text-center">
                           <div className="flex items-center justify-center gap-2">
                             <input type="checkbox" className="w-3 h-3" onChange={(e) => {
                               const checked = e.target.checked;
@@ -8522,7 +8522,7 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
                             }} /> Create
                           </div>
                         </th>
-                        <th className="px-4 py-3 text-[11px] font-black text-slate-900 uppercase text-center">
+                        <th className="px-4 py-3 text-xs font-black text-slate-900 uppercase text-center">
                           <div className="flex items-center justify-center gap-2">
                             <input type="checkbox" className="w-3 h-3" onChange={(e) => {
                               const checked = e.target.checked;
@@ -8535,7 +8535,7 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
                             }} /> Edit
                           </div>
                         </th>
-                        <th className="px-4 py-3 text-[11px] font-black text-slate-900 uppercase text-center">
+                        <th className="px-4 py-3 text-xs font-black text-slate-900 uppercase text-center">
                           <div className="flex items-center justify-center gap-2">
                             <input type="checkbox" className="w-3 h-3" onChange={(e) => {
                               const checked = e.target.checked;
@@ -8553,7 +8553,7 @@ function UserMasterView({ title, table, data, fetchInitialData }) {
                     <tbody className="divide-y divide-slate-100">
                       {modules.map((module) => (
                         <tr key={module} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-2.5 text-[11px] font-bold text-slate-700">{module}</td>
+                          <td className="px-4 py-2.5 text-xs font-bold text-slate-700">{module}</td>
                           {['view', 'create', 'edit', 'delete'].map((type) => (
                             <td key={type} className="px-4 py-2.5 text-center">
                               <input 
@@ -8668,7 +8668,7 @@ function AccountsView({ title, table, data, fetchInitialData }) {
             <tbody className="divide-y divide-slate-100">
               {paginatedData.map((item) => (
                 <tr key={item.id} className="hover:bg-blue-50/30 transition-colors">
-                  <td className="px-4 py-4 text-[11px] font-black text-slate-900 uppercase">{item.name}</td>
+                  <td className="px-4 py-4 text-xs font-black text-slate-900 uppercase">{item.name}</td>
                   <td className="px-4 py-4 text-[10px] font-bold text-slate-600 truncate max-w-[150px]">{item.address1}</td>
                   <td className="px-4 py-4 text-[10px] font-bold text-slate-600 text-center">{item.mobile || '0'}</td>
                   <td className="px-4 py-4 text-[10px] font-bold text-slate-600">{item.email}</td>
@@ -8893,14 +8893,14 @@ function AccountsView({ title, table, data, fetchInitialData }) {
                   <button 
                     type="submit" 
                     disabled={isSubmitting}
-                    className="bg-blue-600 text-white px-8 py-2 rounded-lg font-black uppercase tracking-widest text-[11px] shadow-lg shadow-blue-200 hover:translate-y-[-1px] active:translate-y-[0px] transition-all"
+                    className="bg-blue-600 text-white px-8 py-2 rounded-lg font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-200 hover:translate-y-[-1px] active:translate-y-[0px] transition-all"
                   >
                     Save
                   </button>
                   <button 
                     type="button" 
                     onClick={() => setShowForm(false)}
-                    className="bg-blue-600 text-white px-8 py-2 rounded-lg font-black uppercase tracking-widest text-[11px] shadow-lg shadow-blue-200 hover:translate-y-[-1px] active:translate-y-[0px] transition-all"
+                    className="bg-blue-600 text-white px-8 py-2 rounded-lg font-black uppercase tracking-widest text-xs shadow-lg shadow-blue-200 hover:translate-y-[-1px] active:translate-y-[0px] transition-all"
                   >
                     Cancel
                   </button>
@@ -8995,7 +8995,7 @@ function UnitView({ title, table, data, fetchInitialData }) {
               <thead>
                 <tr className="bg-white border-b border-slate-200">
                   <th className="px-4 py-4 text-[10px] font-black text-slate-800 uppercase tracking-widest">SNo</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-slate-800 uppercase tracking-widest">Unit Name ▲</th>
+                  <th className="px-4 py-4 text-[10px] font-black text-slate-800 uppercase tracking-widest">Unit Name </th>
                   <th className="px-4 py-4 text-[10px] font-black text-slate-800 uppercase tracking-widest">Actions</th>
                 </tr>
               </thead>
@@ -10615,7 +10615,7 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Name / Category</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Barcode / HSN</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Brand / Counter</th>
-                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Pricing (₹)</th>
+                <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Pricing ()</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Tax / Disc</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Stock / Specs</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Picture</th>
@@ -10644,9 +10644,9 @@ function ProductsView({ products, categories, brands, subcategories, filter, upl
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px] font-black text-blue-700">Sale: ₹{product.sale_rate}</span>
-                      <span className="text-[8px] text-slate-400 line-through font-bold">MRP: ₹{product.mrp}</span>
-                      <span className="text-[8px] text-slate-500 font-bold">Purc: ₹{product.purchase_rate || 0}</span>
+                      <span className="text-[10px] font-black text-blue-700">Sale: {product.sale_rate}</span>
+                      <span className="text-[8px] text-slate-400 line-through font-bold">MRP: {product.mrp}</span>
+                      <span className="text-[8px] text-slate-500 font-bold">Purc: {product.purchase_rate || 0}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -11141,13 +11141,13 @@ function PurchaseReportView({ purchases, departments, fetchInitialData }) {
           </div>
 
           <div className="flex justify-end gap-2">
-            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Search size={14} /> Show
             </button>
-            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <FileJson size={14} /> Excel
             </button>
-            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Printer size={14} /> PDF
             </button>
           </div>
@@ -11175,18 +11175,18 @@ function PurchaseReportView({ purchases, departments, fetchInitialData }) {
                   <td className="px-3 py-2 text-[10px] font-black text-slate-900 uppercase">{item.product_name}</td>
                   <td className="px-3 py-2 text-[10px] font-black">{item.quantity}</td>
                   <td className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">PCS</td>
-                  <td className="px-3 py-2 text-[10px] font-bold">₹{item.purchase_rate}</td>
+                  <td className="px-3 py-2 text-[10px] font-bold">{item.purchase_rate}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">0%</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹{item.quantity * item.purchase_rate}</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹{item.bill_total}</td>
+                  <td className="px-3 py-2 text-[10px] font-black">{item.quantity * item.purchase_rate}</td>
+                  <td className="px-3 py-2 text-[10px] font-black">{item.bill_total}</td>
                 </tr>
               ))}
               {/* Summary Row matching Screenshot */}
               <tr className="bg-blue-100/50 font-black text-slate-900 border-t-2 border-slate-200">
-                <td colSpan="5" className="px-3 py-2.5 text-right text-[11px] uppercase tracking-widest">Total:</td>
-                <td className="px-3 py-2.5 text-[11px]">{totals.qty}</td>
+                <td colSpan="5" className="px-3 py-2.5 text-right text-xs uppercase tracking-widest">Total:</td>
+                <td className="px-3 py-2.5 text-xs">{totals.qty}</td>
                 <td colSpan="4" />
-                <td className="px-3 py-2.5 text-[11px]">₹{totals.billAmt}</td>
+                <td className="px-3 py-2.5 text-xs">{totals.billAmt}</td>
               </tr>
             </tbody>
           </table>
@@ -11231,14 +11231,14 @@ function SaleCancelledBillView({ orders, fetchInitialData }) {
             <input 
               type="text"
               placeholder="Search"
-              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
+              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           {/* Date Filters */}
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>From :</span>
             <input 
               type="date" 
@@ -11248,7 +11248,7 @@ function SaleCancelledBillView({ orders, fetchInitialData }) {
             />
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>To :</span>
             <input 
               type="date" 
@@ -11279,10 +11279,10 @@ function SaleCancelledBillView({ orders, fetchInitialData }) {
                 const dateObj = new Date(order.created_at);
                 return (
                   <tr key={order.id} className="hover:bg-red-50/30 transition-colors group">
-                    <td className="px-4 py-3 text-[11px] font-black text-red-700">#{order.order_number}</td>
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-700">{dateObj.toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-600">{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="px-4 py-3 text-[11px] font-black text-slate-900">₹{order.final_amount}</td>
+                    <td className="px-4 py-3 text-xs font-black text-red-700">#{order.order_number}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-700">{dateObj.toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-600">{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-4 py-3 text-xs font-black text-slate-900">{order.final_amount}</td>
                     <td className="px-4 py-3 text-[10px] font-bold text-red-500 uppercase italic">Cancelled</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
@@ -11352,14 +11352,14 @@ function SaleTrashBillView({ orders, fetchInitialData }) {
             <input 
               type="text"
               placeholder="Search"
-              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
+              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           {/* Date Filters */}
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>From :</span>
             <input 
               type="date" 
@@ -11369,7 +11369,7 @@ function SaleTrashBillView({ orders, fetchInitialData }) {
             />
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>To :</span>
             <input 
               type="date" 
@@ -11402,12 +11402,12 @@ function SaleTrashBillView({ orders, fetchInitialData }) {
                 const dateObj = new Date(order.created_at);
                 return (
                   <tr key={order.id} className="hover:bg-red-50/30 transition-colors group">
-                    <td className="px-4 py-3 text-[11px] font-black text-red-700">#{order.order_number}</td>
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-700">{dateObj.toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-600">{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="px-4 py-3 text-[11px] font-black text-slate-900">₹{order.final_amount}</td>
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-800">{order.user_mobile}</td>
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-600 uppercase">{order.delivery_contact || 'N/A'}</td>
+                    <td className="px-4 py-3 text-xs font-black text-red-700">#{order.order_number}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-700">{dateObj.toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-600">{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-4 py-3 text-xs font-black text-slate-900">{order.final_amount}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-800">{order.user_mobile}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-600 uppercase">{order.delivery_contact || 'N/A'}</td>
                     <td className="px-4 py-3 text-[10px] font-bold text-red-500 uppercase italic">Deleted/Cancelled</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
@@ -11615,13 +11615,13 @@ function SaleReportItemSummaryView({ orders, categories, subcategories, fetchIni
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Search size={14} /> Show
             </button>
-            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <FileJson size={14} /> Excel
             </button>
-            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Printer size={14} /> PDF
             </button>
           </div>
@@ -11645,20 +11645,20 @@ function SaleReportItemSummaryView({ orders, categories, subcategories, fetchIni
             <tbody className="divide-y divide-slate-100">
               {summaryData.map((item, i) => (
                 <tr key={i} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-2.5 text-[11px] font-bold text-slate-500">{i + 1}</td>
-                  <td className="px-6 py-2.5 text-[11px] font-black text-slate-900 uppercase">{item.itemName}</td>
-                  <td className="px-6 py-2.5 text-[11px] font-bold text-slate-500 text-center uppercase">{item.unit}</td>
-                  <td className="px-6 py-2.5 text-[11px] font-black text-slate-900 text-center">{item.qty}</td>
-                  <td className="px-6 py-2.5 text-[11px] font-bold text-slate-600 text-center">₹{item.rate}</td>
-                  <td className="px-6 py-2.5 text-[11px] font-black text-slate-900 text-right">₹{item.amount.toFixed(2)}</td>
+                  <td className="px-6 py-2.5 text-xs font-bold text-slate-500">{i + 1}</td>
+                  <td className="px-6 py-2.5 text-xs font-black text-slate-900 uppercase">{item.itemName}</td>
+                  <td className="px-6 py-2.5 text-xs font-bold text-slate-500 text-center uppercase">{item.unit}</td>
+                  <td className="px-6 py-2.5 text-xs font-black text-slate-900 text-center">{item.qty}</td>
+                  <td className="px-6 py-2.5 text-xs font-bold text-slate-600 text-center">{item.rate}</td>
+                  <td className="px-6 py-2.5 text-xs font-black text-slate-900 text-right">{item.amount.toFixed(2)}</td>
                 </tr>
               ))}
               {/* Summary Row matching Screenshot */}
               <tr className="bg-blue-100/50 font-black text-slate-900 border-t-2 border-slate-200">
-                <td colSpan="3" className="px-6 py-3 text-right text-[11px] uppercase tracking-widest">Total :</td>
-                <td className="px-6 py-3 text-[11px] text-center">{totals.qty}</td>
+                <td colSpan="3" className="px-6 py-3 text-right text-xs uppercase tracking-widest">Total :</td>
+                <td className="px-6 py-3 text-xs text-center">{totals.qty}</td>
                 <td className="px-6 py-3" />
-                <td className="px-6 py-3 text-[11px] text-right">₹{totals.amount.toFixed(2)}</td>
+                <td className="px-6 py-3 text-xs text-right">{totals.amount.toFixed(2)}</td>
               </tr>
             </tbody>
           </table>
@@ -11851,13 +11851,13 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Search size={14} /> Show
             </button>
-            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <FileJson size={14} /> Excel
             </button>
-            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
               <Printer size={14} /> PDF
             </button>
           </div>
@@ -11887,16 +11887,16 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
                   <td className="px-3 py-2 text-[10px] font-black text-slate-900 uppercase">{item.product_name}</td>
                   <td className="px-3 py-2 text-[10px] font-black">{item.quantity}</td>
                   <td className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">PCS</td>
-                  <td className="px-3 py-2 text-[10px] font-bold">₹{item.sale_rate}</td>
+                  <td className="px-3 py-2 text-[10px] font-bold">{item.sale_rate}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">0%</td>
-                  <td className="px-3 py-2 text-[10px] font-bold">₹0</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹{item.quantity * item.sale_rate}</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹{item.bill_amount}</td>
+                  <td className="px-3 py-2 text-[10px] font-bold">0</td>
+                  <td className="px-3 py-2 text-[10px] font-black">{item.quantity * item.sale_rate}</td>
+                  <td className="px-3 py-2 text-[10px] font-black">{item.bill_amount}</td>
                   <td className="px-3 py-2 text-[10px] font-bold uppercase">{item.payment_method}</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹{item.bill_amount}</td>
+                  <td className="px-3 py-2 text-[10px] font-black">{item.bill_amount}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">-</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹0</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹0</td>
+                  <td className="px-3 py-2 text-[10px] font-black">0</td>
+                  <td className="px-3 py-2 text-[10px] font-black">0</td>
                   <td className="px-3 py-2 text-[10px] font-bold text-slate-400">#ACC</td>
                   <td className="px-3 py-2 text-[10px] font-bold uppercase">Admin</td>
                   <td className="px-3 py-2 text-[10px] font-bold uppercase">N/A</td>
@@ -11904,15 +11904,15 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
               ))}
               {/* Summary Row matching Screenshot */}
               <tr className="bg-blue-100/50 font-black text-slate-900 border-t-2 border-slate-200">
-                <td colSpan="7" className="px-3 py-2.5 text-right text-[11px] uppercase tracking-widest">Total :</td>
-                <td className="px-3 py-2.5 text-[11px]">{totals.qty}</td>
+                <td colSpan="7" className="px-3 py-2.5 text-right text-xs uppercase tracking-widest">Total :</td>
+                <td className="px-3 py-2.5 text-xs">{totals.qty}</td>
                 <td colSpan="4" />
-                <td className="px-3 py-2.5 text-[11px]">{totals.total}</td>
-                <td className="px-3 py-2.5 text-[11px]">{totals.billAmt}</td>
+                <td className="px-3 py-2.5 text-xs">{totals.total}</td>
+                <td className="px-3 py-2.5 text-xs">{totals.billAmt}</td>
                 <td className="px-3 py-2.5" />
-                <td className="px-3 py-2.5 text-[11px]">{totals.billAmt}</td>
+                <td className="px-3 py-2.5 text-xs">{totals.billAmt}</td>
                 <td colSpan="2" />
-                <td className="px-3 py-2.5 text-[11px]">0</td>
+                <td className="px-3 py-2.5 text-xs">0</td>
                 <td colSpan="3" />
               </tr>
             </tbody>
@@ -11925,13 +11925,13 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
         <table className="w-full text-left border-collapse border border-slate-200 rounded-lg overflow-hidden">
           <thead className="bg-white border-b border-slate-200">
             <tr>
-              <th className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">Account Name</th>
-              <th className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">Total Amount</th>
+              <th className="px-4 py-2 text-xs font-black text-slate-800 uppercase">Account Name</th>
+              <th className="px-4 py-2 text-xs font-black text-slate-800 uppercase">Total Amount</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-100">
-            <tr><td className="px-4 py-2 text-[11px] font-bold uppercase">COD Sale</td><td className="px-4 py-2 text-[11px] font-black">₹{totals.total}</td></tr>
-            <tr><td className="px-4 py-2 text-[11px] font-bold uppercase">Online Sale</td><td className="px-4 py-2 text-[11px] font-black">₹0</td></tr>
+            <tr><td className="px-4 py-2 text-xs font-bold uppercase">COD Sale</td><td className="px-4 py-2 text-xs font-black">{totals.total}</td></tr>
+            <tr><td className="px-4 py-2 text-xs font-bold uppercase">Online Sale</td><td className="px-4 py-2 text-xs font-black">0</td></tr>
           </tbody>
         </table>
       </div>
@@ -12065,13 +12065,13 @@ function SaleReportBillView({ orders, deliveryBoys, adminUsers, fetchInitialData
 
         {/* Action Buttons */}
         <div className="flex justify-end gap-2 pt-2">
-          <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <Search size={14} /> Show
           </button>
-          <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <FileJson size={14} /> Excel
           </button>
-          <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <Printer size={14} /> PDF
           </button>
         </div>
@@ -12098,12 +12098,12 @@ function SaleReportBillView({ orders, deliveryBoys, adminUsers, fetchInitialData
                   <td className="px-3 py-2 text-[10px] font-black uppercase">{order.payment_method}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">{order.user_mobile}</td>
                   <td className="px-3 py-2 text-[10px] font-bold uppercase truncate max-w-[100px]">{order.delivery_contact || 'N/A'}</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹{order.final_amount}</td>
+                  <td className="px-3 py-2 text-[10px] font-black">{order.final_amount}</td>
                   <td className="px-3 py-2 text-[10px] font-bold uppercase">{order.payment_method}</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹{order.final_amount}</td>
+                  <td className="px-3 py-2 text-[10px] font-black">{order.final_amount}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">-</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹0</td>
-                  <td className="px-3 py-2 text-[10px] font-black">₹0</td>
+                  <td className="px-3 py-2 text-[10px] font-black">0</td>
+                  <td className="px-3 py-2 text-[10px] font-black">0</td>
                   <td className="px-3 py-2 text-[10px] font-bold text-slate-400">#ACC</td>
                   <td className="px-3 py-2 text-[10px] font-bold uppercase">Admin</td>
                   <td className="px-3 py-2 text-[10px] font-bold uppercase">N/A</td>
@@ -12111,13 +12111,13 @@ function SaleReportBillView({ orders, deliveryBoys, adminUsers, fetchInitialData
               ))}
               {/* Summary Row matching Screenshot */}
               <tr className="bg-blue-100/50 font-black text-slate-900 border-t-2 border-slate-200">
-                <td colSpan="7" className="px-3 py-2.5 text-right text-[11px] uppercase tracking-widest">Total :</td>
-                <td className="px-3 py-2.5 text-[11px]">{totals.amount}</td>
+                <td colSpan="7" className="px-3 py-2.5 text-right text-xs uppercase tracking-widest">Total :</td>
+                <td className="px-3 py-2.5 text-xs">{totals.amount}</td>
                 <td className="px-3 py-2.5" />
-                <td className="px-3 py-2.5 text-[11px]">{totals.mop1}</td>
+                <td className="px-3 py-2.5 text-xs">{totals.mop1}</td>
                 <td className="px-3 py-2.5" />
-                <td className="px-3 py-2.5 text-[11px]">{totals.mop2}</td>
-                <td className="px-3 py-2.5 text-[11px]">{totals.wallet}</td>
+                <td className="px-3 py-2.5 text-xs">{totals.mop2}</td>
+                <td className="px-3 py-2.5 text-xs">{totals.wallet}</td>
                 <td colSpan="3" />
               </tr>
             </tbody>
@@ -12130,18 +12130,18 @@ function SaleReportBillView({ orders, deliveryBoys, adminUsers, fetchInitialData
         <table className="w-full text-left border-collapse border border-slate-200 rounded-lg overflow-hidden">
           <thead className="bg-white border-b border-slate-200">
             <tr>
-              <th className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">Account Name</th>
-              <th className="px-4 py-2 text-[11px] font-black text-slate-800 uppercase">Total Amount</th>
+              <th className="px-4 py-2 text-xs font-black text-slate-800 uppercase">Account Name</th>
+              <th className="px-4 py-2 text-xs font-black text-slate-800 uppercase">Total Amount</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-slate-100">
             <tr>
-              <td className="px-4 py-2 text-[11px] font-bold uppercase">COD Sale</td>
-              <td className="px-4 py-2 text-[11px] font-black">₹{totals.mop1}</td>
+              <td className="px-4 py-2 text-xs font-bold uppercase">COD Sale</td>
+              <td className="px-4 py-2 text-xs font-black">{totals.mop1}</td>
             </tr>
             <tr>
-              <td className="px-4 py-2 text-[11px] font-bold uppercase">Online Sale</td>
-              <td className="px-4 py-2 text-[11px] font-black">₹0</td>
+              <td className="px-4 py-2 text-xs font-bold uppercase">Online Sale</td>
+              <td className="px-4 py-2 text-xs font-black">0</td>
             </tr>
           </tbody>
         </table>
@@ -12360,7 +12360,7 @@ function SaleSummaryView({ orders, setActiveTab }) {
           className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-4xl pt-8 border-t border-slate-100"
         >
           {[
-            { label: 'Total Sales', value: `₹${reportData.totalSale.toLocaleString()}`, color: 'text-emerald-600' },
+            { label: 'Total Sales', value: `${reportData.totalSale.toLocaleString()}`, color: 'text-emerald-600' },
             { label: 'Total Orders', value: reportData.totalOrders, color: 'text-blue-600' },
             { label: 'Delivered', value: reportData.deliveredOrders, color: 'text-emerald-500' },
             { label: 'Online Paid', value: reportData.onlineOrders, color: 'text-purple-600' },
@@ -12449,7 +12449,7 @@ function WalletRechargeView({ walletTx, accounts, fetchInitialData }) {
           <input 
             type="text"
             placeholder="Search"
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -12457,7 +12457,7 @@ function WalletRechargeView({ walletTx, accounts, fetchInitialData }) {
 
         <button 
           onClick={() => { setEditingItem(null); setFormData({ entry_date: new Date().toISOString().split('T')[0], amount: 0, mobile: '', account_id: 'Not Selected' }); setShowForm(true); }}
-          className="flex items-center gap-2 px-4 py-2 border-2 border-blue-600 rounded-lg text-blue-600 text-[11px] font-black uppercase hover:bg-blue-50 transition-all shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 border-2 border-blue-600 rounded-lg text-blue-600 text-xs font-black uppercase hover:bg-blue-50 transition-all shadow-sm"
         >
           <Plus size={14} /> Create New
         </button>
@@ -12479,9 +12479,9 @@ function WalletRechargeView({ walletTx, accounts, fetchInitialData }) {
               <tbody className="divide-y divide-slate-100">
                 {filteredTx.map((tx) => (
                   <tr key={tx.id} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-6 py-3 text-[11px] font-bold text-slate-700">{new Date(tx.created_at).toLocaleDateString()}</td>
-                    <td className="px-6 py-3 text-[11px] font-black text-blue-700">{tx.user_mobile}</td>
-                    <td className="px-6 py-3 text-center text-[11px] font-black text-slate-900">₹{tx.amount}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-slate-700">{new Date(tx.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-3 text-xs font-black text-blue-700">{tx.user_mobile}</td>
+                    <td className="px-6 py-3 text-center text-xs font-black text-slate-900">{tx.amount}</td>
                     <td className="px-6 py-3 text-right">
                       <button 
                         onClick={() => { setEditingItem(tx); setFormData({ ...tx, entry_date: new Date(tx.created_at).toISOString().split('T')[0] }); setShowForm(true); }}
@@ -12660,7 +12660,7 @@ function PaymentMobileView({ walletTx, deliveryBoys, accounts, fetchInitialData 
           <input 
             type="text"
             placeholder="Search"
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -12668,7 +12668,7 @@ function PaymentMobileView({ walletTx, deliveryBoys, accounts, fetchInitialData 
 
         <button 
           onClick={() => { setEditingItem(null); setFormData({ entry_date: new Date().toISOString().split('T')[0], amount: 0, mobile: '', account_id: 'Not Selected', delivery_boy_id: 'NA' }); setShowForm(true); }}
-          className="flex items-center gap-2 px-4 py-2 border-2 border-blue-600 rounded-lg text-blue-600 text-[11px] font-black uppercase hover:bg-blue-50 transition-all shadow-sm"
+          className="flex items-center gap-2 px-4 py-2 border-2 border-blue-600 rounded-lg text-blue-600 text-xs font-black uppercase hover:bg-blue-50 transition-all shadow-sm"
         >
           <Plus size={14} /> Create New
         </button>
@@ -12690,9 +12690,9 @@ function PaymentMobileView({ walletTx, deliveryBoys, accounts, fetchInitialData 
               <tbody className="divide-y divide-slate-100">
                 {filteredTx.map((tx) => (
                   <tr key={tx.id} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-6 py-3 text-[11px] font-bold text-slate-700">{new Date(tx.created_at).toLocaleDateString()}</td>
-                    <td className="px-6 py-3 text-[11px] font-black text-blue-700">{tx.user_mobile}</td>
-                    <td className="px-6 py-3 text-center text-[11px] font-black text-slate-900">₹{tx.amount}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-slate-700">{new Date(tx.created_at).toLocaleDateString()}</td>
+                    <td className="px-6 py-3 text-xs font-black text-blue-700">{tx.user_mobile}</td>
+                    <td className="px-6 py-3 text-center text-xs font-black text-slate-900">{tx.amount}</td>
                     <td className="px-6 py-3 text-right">
                       <button 
                         onClick={() => { setEditingItem(tx); setFormData({ ...tx, entry_date: new Date(tx.created_at).toISOString().split('T')[0] }); setShowForm(true); }}
@@ -12850,14 +12850,14 @@ function BranchBillView({ purchases, departments, fetchInitialData }) {
             <input 
               type="text"
               placeholder="Search Bill No"
-              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
+              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           {/* Date Filters */}
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>From :</span>
             <input 
               type="date" 
@@ -12867,7 +12867,7 @@ function BranchBillView({ purchases, departments, fetchInitialData }) {
             />
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>To :</span>
             <input 
               type="date" 
@@ -12877,7 +12877,7 @@ function BranchBillView({ purchases, departments, fetchInitialData }) {
             />
           </div>
 
-          <button className="flex items-center gap-2 px-3 py-1.5 border-2 border-blue-600 rounded-lg text-blue-600 text-[11px] font-black uppercase hover:bg-blue-50 transition-all">
+          <button className="flex items-center gap-2 px-3 py-1.5 border-2 border-blue-600 rounded-lg text-blue-600 text-xs font-black uppercase hover:bg-blue-50 transition-all">
             <GitBranch size={14} /> Branch Bill
           </button>
         </div>
@@ -12902,11 +12902,11 @@ function BranchBillView({ purchases, departments, fetchInitialData }) {
                 const dept = departments.find(d => d.id === bill.department_id);
                 return (
                   <tr key={bill.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-6 py-3 text-[11px] font-bold text-slate-700">{new Date(bill.bill_date).toLocaleDateString()}</td>
-                    <td className="px-6 py-3 text-[11px] font-black text-blue-700">#{bill.bill_no}</td>
-                    <td className="px-6 py-3 text-[11px] font-bold text-slate-800 uppercase">{bill.party_name}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-slate-700">{new Date(bill.bill_date).toLocaleDateString()}</td>
+                    <td className="px-6 py-3 text-xs font-black text-blue-700">#{bill.bill_no}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-slate-800 uppercase">{bill.party_name}</td>
                     <td className="px-6 py-3 text-center text-[10px] font-black text-slate-500 uppercase">{dept?.name || 'N/A'}</td>
-                    <td className="px-6 py-3 text-center text-[11px] font-black text-slate-900">₹{bill.total_amount}</td>
+                    <td className="px-6 py-3 text-center text-xs font-black text-slate-900">{bill.total_amount}</td>
                     <td className="px-6 py-3 text-right">
                       <div className="flex justify-end gap-1">
                         <button 
@@ -12960,7 +12960,7 @@ function BranchBillView({ purchases, departments, fetchInitialData }) {
                   </div>
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Total Amount</p>
-                    <p className="text-xs font-black text-slate-900">₹{selectedBill.total_amount}</p>
+                    <p className="text-xs font-black text-slate-900">{selectedBill.total_amount}</p>
                   </div>
                 </div>
                 <p className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Item details logic here</p>
@@ -13037,14 +13037,14 @@ function BillView({ orders, deliveryBoys, fetchInitialData, mode }) {
             <input 
               type="text"
               placeholder="Search"
-              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
+              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           {/* Date Filters */}
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>From :</span>
             <input 
               type="date" 
@@ -13054,7 +13054,7 @@ function BillView({ orders, deliveryBoys, fetchInitialData, mode }) {
             />
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>To :</span>
             <input 
               type="date" 
@@ -13092,13 +13092,13 @@ function BillView({ orders, deliveryBoys, fetchInitialData, mode }) {
                 const dboy = deliveryBoys.find(b => b.id === order.delivery_boy_id);
                 return (
                   <tr key={order.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-3 py-2.5 text-[11px] font-black text-blue-700">#{order.order_number}</td>
-                    <td className="px-3 py-2.5 text-[11px] font-bold text-slate-700">{dateObj.toLocaleDateString()}</td>
-                    <td className="px-3 py-2.5 text-[11px] font-bold text-slate-600">{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="px-3 py-2.5 text-[11px] font-black text-slate-900">₹{order.final_amount || order.total_amount}</td>
-                    <td className="px-3 py-2.5 text-[11px] font-bold text-slate-800">{order.user_mobile}</td>
-                    <td className="px-3 py-2.5 text-[11px] font-bold text-slate-600 uppercase truncate max-w-[120px]">{order.delivery_contact || 'N/A'}</td>
-                    <td className="px-3 py-2.5 text-[11px] font-black text-slate-500 uppercase">{dboy?.name || '-'}</td>
+                    <td className="px-3 py-2.5 text-xs font-black text-blue-700">#{order.order_number}</td>
+                    <td className="px-3 py-2.5 text-xs font-bold text-slate-700">{dateObj.toLocaleDateString()}</td>
+                    <td className="px-3 py-2.5 text-xs font-bold text-slate-600">{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-3 py-2.5 text-xs font-black text-slate-900">{order.final_amount || order.total_amount}</td>
+                    <td className="px-3 py-2.5 text-xs font-bold text-slate-800">{order.user_mobile}</td>
+                    <td className="px-3 py-2.5 text-xs font-bold text-slate-600 uppercase truncate max-w-[120px]">{order.delivery_contact || 'N/A'}</td>
+                    <td className="px-3 py-2.5 text-xs font-black text-slate-500 uppercase">{dboy?.name || '-'}</td>
                     <td className="px-3 py-2.5">
                       <span className={cn(
                         "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
@@ -13182,7 +13182,7 @@ function BillView({ orders, deliveryBoys, fetchInitialData, mode }) {
                 </div>
 
                 <div className="border border-slate-100 rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-[11px]">
+                  <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 border-b border-slate-100">
                       <tr>
                         <th className="px-4 py-2 font-black text-slate-400 uppercase">Product</th>
@@ -13198,8 +13198,8 @@ function BillView({ orders, deliveryBoys, fetchInitialData, mode }) {
                         <tr key={i}>
                           <td className="px-4 py-2.5 font-bold text-slate-700 uppercase">{item.product_name}</td>
                           <td className="px-4 py-2.5 text-center font-black text-slate-900">{item.quantity}</td>
-                          <td className="px-4 py-2.5 text-right font-bold text-slate-600">₹{item.sale_rate}</td>
-                          <td className="px-4 py-2.5 text-right font-black text-slate-900">₹{item.quantity * item.sale_rate}</td>
+                          <td className="px-4 py-2.5 text-right font-bold text-slate-600">{item.sale_rate}</td>
+                          <td className="px-4 py-2.5 text-right font-black text-slate-900">{item.quantity * item.sale_rate}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -13210,11 +13210,11 @@ function BillView({ orders, deliveryBoys, fetchInitialData, mode }) {
                   <div className="w-48 space-y-1">
                     <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
                       <span>Total Amount:</span>
-                      <span className="text-slate-900">₹{selectedOrder.total_amount}</span>
+                      <span className="text-slate-900">{selectedOrder.total_amount}</span>
                     </div>
-                    <div className="flex justify-between text-[11px] font-black text-blue-700 uppercase border-t border-slate-100 pt-1">
+                    <div className="flex justify-between text-xs font-black text-blue-700 uppercase border-t border-slate-100 pt-1">
                       <span>Net Bill:</span>
-                      <span>₹{selectedOrder.final_amount}</span>
+                      <span>{selectedOrder.final_amount}</span>
                     </div>
                   </div>
                 </div>
@@ -13295,14 +13295,14 @@ function OnlineOrderView({ orders, fetchInitialData }) {
             <input 
               type="text"
               placeholder="Search Kot"
-              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
+              className="bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 outline-none w-48"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           {/* Date Filters */}
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>From :</span>
             <input 
               type="date" 
@@ -13312,7 +13312,7 @@ function OnlineOrderView({ orders, fetchInitialData }) {
             />
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
             <span>To :</span>
             <input 
               type="date" 
@@ -13345,12 +13345,12 @@ function OnlineOrderView({ orders, fetchInitialData }) {
                 const dateObj = new Date(order.created_at);
                 return (
                   <tr key={order.id} className="hover:bg-blue-50/30 transition-colors group">
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-700">{dateObj.toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-600">{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td className="px-4 py-3 text-[11px] font-black text-blue-700">#{order.order_number}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-700">{dateObj.toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-600">{dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="px-4 py-3 text-xs font-black text-blue-700">#{order.order_number}</td>
                     <td className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-tighter">ONLINE</td>
-                    <td className="px-4 py-3 text-[11px] font-bold text-slate-500">#{order.id.slice(-6).toUpperCase()}</td>
-                    <td className="px-4 py-3 text-right text-[11px] font-black text-slate-900">₹{order.total_amount}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-slate-500">#{order.id.slice(-6).toUpperCase()}</td>
+                    <td className="px-4 py-3 text-right text-xs font-black text-slate-900">{order.total_amount}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={cn(
                         "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
@@ -13423,12 +13423,12 @@ function OnlineOrderView({ orders, fetchInitialData }) {
                   </div>
                   <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
                     <p className="text-[9px] font-black text-emerald-600 uppercase mb-1">Order Amount</p>
-                    <p className="text-xs font-black text-slate-900">₹{selectedOrder.total_amount}</p>
+                    <p className="text-xs font-black text-slate-900">{selectedOrder.total_amount}</p>
                   </div>
                 </div>
 
                 <div className="border border-slate-100 rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-[11px]">
+                  <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 border-b border-slate-100">
                       <tr>
                         <th className="px-4 py-2 font-black text-slate-400 uppercase">Product</th>
@@ -13443,7 +13443,7 @@ function OnlineOrderView({ orders, fetchInitialData }) {
                         <tr key={i}>
                           <td className="px-4 py-2.5 font-bold text-slate-700 uppercase">{item.product_name}</td>
                           <td className="px-4 py-2.5 text-center font-black text-slate-900">{item.quantity}</td>
-                          <td className="px-4 py-2.5 text-right font-black text-slate-900">₹{item.quantity * item.sale_rate}</td>
+                          <td className="px-4 py-2.5 text-right font-black text-slate-900">{item.quantity * item.sale_rate}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -13593,7 +13593,7 @@ function OrdersView({ orders, filter, fetchInitialData }) {
       <div className="bg-blue-600 p-4 rounded-xl text-white shadow-lg flex justify-between items-center">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Report for {dateFilter}</p>
-          <h3 className="text-xl font-black tracking-tighter">Total Sales: ₹{totalFilteredSales.toLocaleString()}</h3>
+          <h3 className="text-xl font-black tracking-tighter">Total Sales: {totalFilteredSales.toLocaleString()}</h3>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Bills Found</p>
@@ -13666,7 +13666,7 @@ function OrdersView({ orders, filter, fetchInitialData }) {
                     <p className="text-[10px] font-bold text-slate-800 leading-none">{order.user_mobile}</p>
                     <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">{order.customer_name || 'Walk-in'}</p>
                   </td>
-                  <td className="px-4 py-2.5 text-[10px] font-black text-slate-800">₹{order.total_amount}</td>
+                  <td className="px-4 py-2.5 text-[10px] font-black text-slate-800">{order.total_amount}</td>
                   <td className="px-4 py-2.5">
                     <span className={cn(
                       "text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded border",
@@ -13830,7 +13830,7 @@ function OrdersView({ orders, filter, fetchInitialData }) {
                           <h4 className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-3 flex items-center gap-2">
                             <User size={12} /> Customer Info
                           </h4>
-                          <p className="text-[11px] font-black text-slate-800 uppercase">{selectedOrder.customer_name || 'Walk-in Customer'}</p>
+                          <p className="text-xs font-black text-slate-800 uppercase">{selectedOrder.customer_name || 'Walk-in Customer'}</p>
                           <p className="text-[10px] font-bold text-slate-500 mt-1">Mobile: {selectedOrder.user_mobile}</p>
                         </div>
 
@@ -13903,8 +13903,8 @@ function OrdersView({ orders, filter, fetchInitialData }) {
                                 <span className="text-[10px] font-bold text-slate-700 uppercase">{item.product_name}</span>
                               </td>
                               <td className="px-4 py-3 text-center text-[10px] font-black text-slate-800">{item.quantity}</td>
-                              <td className="px-4 py-3 text-right text-[10px] font-bold text-slate-600">₹{item.rate}</td>
-                              <td className="px-4 py-3 text-right text-[10px] font-black text-slate-800">₹{item.total}</td>
+                              <td className="px-4 py-3 text-right text-[10px] font-bold text-slate-600">{item.rate}</td>
+                              <td className="px-4 py-3 text-right text-[10px] font-black text-slate-800">{item.total}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -13916,19 +13916,19 @@ function OrdersView({ orders, filter, fetchInitialData }) {
                       <div className="w-full md:w-64 space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-100">
                         <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                           <span>Subtotal:</span>
-                          <span>₹{selectedOrder.subtotal || selectedOrder.total_amount}</span>
+                          <span>{selectedOrder.subtotal || selectedOrder.total_amount}</span>
                         </div>
                         <div className="flex justify-between text-[10px] font-bold text-emerald-600 uppercase tracking-widest">
                           <span>Discount:</span>
-                          <span>-₹{selectedOrder.discount}</span>
+                          <span>-{selectedOrder.discount}</span>
                         </div>
                         <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                           <span>Delivery:</span>
-                          <span>+₹{selectedOrder.delivery_charge}</span>
+                          <span>+{selectedOrder.delivery_charge}</span>
                         </div>
                         <div className="pt-2 border-t border-slate-200 flex justify-between text-sm font-black text-slate-800 uppercase tracking-tighter">
                           <span>Grand Total:</span>
-                          <span>₹{selectedOrder.total_amount}</span>
+                          <span>{selectedOrder.total_amount}</span>
                         </div>
                       </div>
                     </div>
@@ -14059,11 +14059,11 @@ function CouponMasterView({ title, table, data, fetchInitialData }) {
           <tbody className="divide-y divide-slate-100">
             {filteredData.length > 0 ? filteredData.map((item) => (
               <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
-                <td className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase">{item.code}</td>
-                <td className="px-6 py-4 text-[11px] font-bold text-slate-600">
-                  {item.discount_value} {item.discount_type === 'percentage' ? '%' : '₹'}
+                <td className="px-6 py-4 text-xs font-black text-slate-900 uppercase">{item.code}</td>
+                <td className="px-6 py-4 text-xs font-bold text-slate-600">
+                  {item.discount_value} {item.discount_type === 'percentage' ? '%' : ''}
                 </td>
-                <td className="px-6 py-4 text-[11px] font-bold text-slate-600">₹{item.min_order_amount}</td>
+                <td className="px-6 py-4 text-xs font-bold text-slate-600">{item.min_order_amount}</td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <button onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 size={14} /></button>
@@ -14118,7 +14118,7 @@ function CouponMasterView({ title, table, data, fetchInitialData }) {
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} id="coupon_active" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
-                  <label htmlFor="coupon_active" className="text-[11px] font-bold text-slate-700 uppercase">Active Status</label>
+                  <label htmlFor="coupon_active" className="text-xs font-bold text-slate-700 uppercase">Active Status</label>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white px-8 py-2 rounded-lg font-black uppercase text-[10px] shadow-lg hover:bg-blue-700 transition-all">
@@ -14219,7 +14219,7 @@ function OffersMasterView({ title, table, bucket, data, uploadImage, fetchInitia
                 </span>
               </div>
               <p className="text-[10px] font-bold text-slate-500 line-clamp-2 mb-2">{item.description}</p>
-              <p className="text-[11px] font-black text-blue-700">{item.discount}</p>
+              <p className="text-xs font-black text-blue-700">{item.discount}</p>
             </div>
           </div>
         )) : (
@@ -14256,7 +14256,7 @@ function OffersMasterView({ title, table, bucket, data, uploadImage, fetchInitia
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} id="offer_active" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
-                  <label htmlFor="offer_active" className="text-[11px] font-bold text-slate-700 uppercase">Active Status</label>
+                  <label htmlFor="offer_active" className="text-xs font-bold text-slate-700 uppercase">Active Status</label>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white px-8 py-2 rounded-lg font-black uppercase text-[10px] shadow-lg hover:bg-blue-700 transition-all">
@@ -14340,7 +14340,7 @@ function PincodeMasterView({ title, table, data, fetchInitialData }) {
           <tbody className="divide-y divide-slate-100">
             {filteredData.length > 0 ? filteredData.map((item) => (
               <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
-                <td className="px-6 py-4 text-[11px] font-black text-slate-900">{item.pincode}</td>
+                <td className="px-6 py-4 text-xs font-black text-slate-900">{item.pincode}</td>
                 <td className="px-6 py-4">
                   <span className={cn("text-[8px] font-black uppercase px-2 py-0.5 rounded-full", item.is_allowed ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600")}>
                     {item.is_allowed ? 'Yes' : 'No'}
@@ -14379,7 +14379,7 @@ function PincodeMasterView({ title, table, data, fetchInitialData }) {
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <input type="checkbox" checked={formData.is_allowed} onChange={(e) => setFormData({ ...formData, is_allowed: e.target.checked })} id="pincode_active" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
-                  <label htmlFor="pincode_active" className="text-[11px] font-bold text-slate-700 uppercase">Serviceable Status</label>
+                  <label htmlFor="pincode_active" className="text-xs font-bold text-slate-700 uppercase">Serviceable Status</label>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white px-8 py-2 rounded-lg font-black uppercase text-[10px] shadow-lg hover:bg-blue-700 transition-all">
@@ -14455,10 +14455,10 @@ function WalletMasterView({ users, fetchInitialData }) {
             {filteredUsers.length > 0 ? filteredUsers.map((user) => (
               <tr key={user.id} className="hover:bg-blue-50/30 transition-colors group">
                 <td className="px-6 py-4">
-                  <p className="text-[11px] font-black text-slate-900 uppercase">{user.user_id}</p>
+                  <p className="text-xs font-black text-slate-900 uppercase">{user.user_id}</p>
                   <p className="text-[9px] font-bold text-slate-400">{user.mobile}</p>
                 </td>
-                <td className="px-6 py-4 text-center font-black text-blue-700 text-[13px]">₹{user.current_balance || 0}</td>
+                <td className="px-6 py-4 text-center font-black text-blue-700 text-[13px]">{user.current_balance || 0}</td>
                 <td className="px-6 py-4 text-right">
                   <button onClick={() => setWalletModal({ show: true, user, amount: 0, type: 'credit' })} className="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-blue-700">Adj. Wallet</button>
                 </td>
@@ -14481,7 +14481,7 @@ function WalletMasterView({ users, fetchInitialData }) {
               <div className="p-6 space-y-4">
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">User ID</p>
-                  <p className="text-[11px] font-black text-slate-800">{walletModal.user.user_id}</p>
+                  <p className="text-xs font-black text-slate-800">{walletModal.user.user_id}</p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Adjustment Type</label>
@@ -14491,7 +14491,7 @@ function WalletMasterView({ users, fetchInitialData }) {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Amount (₹)</label>
+                  <label className="text-[10px] font-bold text-slate-600 uppercase ml-1">Amount ()</label>
                   <input type="number" value={walletModal.amount} onChange={(e) => setWalletModal({ ...walletModal, amount: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-sm font-black text-black focus:border-blue-400 outline-none" required />
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
@@ -14577,8 +14577,8 @@ function AddressMasterView({ title, table, data, fetchInitialData }) {
             {filteredData.length > 0 ? filteredData.map((item) => (
               <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
                 <td className="px-6 py-4 text-[10px] font-bold text-slate-500 uppercase">{item.user_id}</td>
-                <td className="px-6 py-4 text-[11px] font-black text-slate-900 uppercase">{item.full_name}</td>
-                <td className="px-6 py-4 text-[11px] font-bold text-slate-600">
+                <td className="px-6 py-4 text-xs font-black text-slate-900 uppercase">{item.full_name}</td>
+                <td className="px-6 py-4 text-xs font-bold text-slate-600">
                   {item.house_no}, {item.city} - {item.pincode}
                 </td>
                 <td className="px-6 py-4 text-right">
@@ -14638,7 +14638,7 @@ function AddressMasterView({ title, table, data, fetchInitialData }) {
                 </div>
                 <div className="flex items-center gap-2 pt-2">
                   <input type="checkbox" checked={formData.is_default} onChange={(e) => setFormData({ ...formData, is_default: e.target.checked })} id="addr_default" className="w-4 h-4 rounded border-slate-300 text-blue-600" />
-                  <label htmlFor="addr_default" className="text-[11px] font-bold text-slate-700 uppercase">Set as Default</label>
+                  <label htmlFor="addr_default" className="text-xs font-bold text-slate-700 uppercase">Set as Default</label>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white px-8 py-2 rounded-lg font-black uppercase text-[10px] shadow-lg hover:bg-blue-700 transition-all">
@@ -14712,8 +14712,8 @@ function UsersView({ users, fetchInitialData }) {
                 <td className="px-4 py-2.5">
                   <p className="text-[10px] font-black text-slate-800 leading-none">{user.user_id}</p>
                 </td>
-                <td className="px-4 py-2.5 text-center font-black text-slate-800 text-[11px]">
-                  ₹{user.current_balance || 0}
+                <td className="px-4 py-2.5 text-center font-black text-slate-800 text-xs">
+                  {user.current_balance || 0}
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <button 
@@ -14739,7 +14739,7 @@ function UsersView({ users, fetchInitialData }) {
               
               <div className="space-y-4">
                 <div>
-                  <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Amount (₹)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Amount ()</label>
                   <input 
                     type="number" 
                     value={walletModal.amount} 

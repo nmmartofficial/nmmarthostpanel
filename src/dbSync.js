@@ -85,7 +85,9 @@ const checkLowStockAndNotify = async (productId, bufferLimit = 5) => {
  */
 const logTableAction = async (tableName, action) => {
   const timestamp = new Date().toISOString();
-  const logEntry = `${tableName}-${action}-${timestamp}`;
+  const userData = localStorage.getItem('nm_user_data');
+  const username = userData ? JSON.parse(userData).username : 'system';
+  const logEntry = `[${username}] ${tableName}-${action}-${timestamp}`;
   
   try {
     if (DB_SCHEMA.SYSTEM_LOGS) {
