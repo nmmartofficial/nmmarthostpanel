@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { 
   Package, Layers, Grid, List, Tag, Building2, 
   Users, Image as ImageIcon, CreditCard, 
@@ -1611,6 +1611,11 @@ function TransactionView({ users, fetchInitialData }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [reportData, setReportData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(reportData.length / rowsPerPage);
+  const paginatedData = reportData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   // Form States matching Screenshot 2
   const [formData, setFormData] = useState({
@@ -1928,7 +1933,7 @@ function TransactionView({ users, fetchInitialData }) {
                   </td>
                 </tr>
               ) : (
-                reportData.filter(row => 
+                paginatedData.filter(row => 
                   row.ledgerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                   row.vNo.toLowerCase().includes(searchTerm.toLowerCase())
                 ).map((row, index) => (
@@ -1964,7 +1969,7 @@ function TransactionView({ users, fetchInitialData }) {
           rowsPerPage={rowsPerPage}
           setRowsPerPage={setRowsPerPage}
           setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
+          totalRecords={reportData.length}
         />
       </div>
     </div>
@@ -1976,6 +1981,11 @@ function WastageReportView({ products }) {
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportData, setReportData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(reportData.length / rowsPerPage);
+  const paginatedData = reportData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleShow = async () => {
     setIsGenerating(true);
@@ -2085,9 +2095,15 @@ function WastageReportView({ products }) {
                   </td>
                 </tr>
               ) : (
-                reportData.map((row, index) => (
+                paginatedData.map((row, index) => (
                   <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                    {/* Rows data */}
+                    <td className="px-4 py-2 text-xs font-bold text-slate-500">{row.date}</td>
+                    <td className="px-4 py-2 text-xs font-black text-slate-900 uppercase">{row.itemName}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center text-slate-600">{row.qty}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-right text-slate-600">{row.rate}</td>
+                    <td className="px-4 py-2 text-xs font-black text-right text-slate-900">{row.amount}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">{row.unit}</td>
+                    <td className="px-4 py-2 text-xs font-medium text-slate-500 italic">{row.remarks}</td>
                   </tr>
                 ))
               )}
@@ -2101,7 +2117,7 @@ function WastageReportView({ products }) {
           rowsPerPage={rowsPerPage}
           setRowsPerPage={setRowsPerPage}
           setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
+          totalRecords={reportData.length}
         />
       </div>
     </div>
@@ -2114,6 +2130,11 @@ function RequisitionReportROView({ products }) {
   const [searchItem, setSearchItem] = useState('');
   const [reportData, setReportData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(reportData.length / rowsPerPage);
+  const paginatedData = reportData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleShow = async () => {
     setIsGenerating(true);
@@ -2195,15 +2216,28 @@ function RequisitionReportROView({ products }) {
                   </td>
                 </tr>
               ) : (
-                reportData.map((row, index) => (
+                paginatedData.map((row, index) => (
                   <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                    {/* Rows */}
+                    <td className="px-4 py-2 text-xs font-black text-slate-900 uppercase">{row.itemName}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center text-slate-600">{row.ordQty}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">{row.ordUnit}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center text-slate-600">{row.recQty}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">{row.recUnit}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={reportData.length}
+        />
       </div>
     </div>
   );
@@ -2214,6 +2248,11 @@ function PurchaseReportROView({ products }) {
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportData, setReportData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(reportData.length / rowsPerPage);
+  const paginatedData = reportData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleShow = async () => {
     setIsGenerating(true);
@@ -2321,15 +2360,29 @@ function PurchaseReportROView({ products }) {
                   </td>
                 </tr>
               ) : (
-                reportData.map((row, index) => (
+                paginatedData.map((row, index) => (
                   <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                    {/* Rows */}
+                    <td className="px-4 py-2 text-xs font-bold text-slate-500">{row.date}</td>
+                    <td className="px-4 py-2 text-xs font-black text-blue-700">{row.roNo}</td>
+                    <td className="px-4 py-2 text-xs font-black text-slate-900 uppercase">{row.itemName}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-center text-slate-600">{row.qty}</td>
+                    <td className="px-4 py-2 text-xs font-bold text-right text-slate-600">{row.rate}</td>
+                    <td className="px-4 py-2 text-xs font-black text-right text-slate-900">{row.amount}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={reportData.length}
+        />
       </div>
     </div>
   );
@@ -4338,6 +4391,11 @@ function LedgerView({ users, accounts }) {
   const [searchParty, setSearchParty] = useState('');
   const [reportData, setReportData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(reportData.length / rowsPerPage);
+  const paginatedData = reportData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleShow = async () => {
     setIsGenerating(true);
@@ -4498,7 +4556,7 @@ function LedgerView({ users, accounts }) {
                 <td className="px-6 py-2.5 text-xs text-right">{totals.credit}</td>
                 <td className="px-6 py-2.5" />
               </tr>
-              {reportData.map((item) => (
+              {paginatedData.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-2 text-xs font-bold text-slate-500">{item.date}</td>
                   <td className="px-6 py-2 text-xs font-black text-slate-900 uppercase">{item.partyName}</td>
@@ -4517,7 +4575,7 @@ function LedgerView({ users, accounts }) {
           rowsPerPage={rowsPerPage}
           setRowsPerPage={setRowsPerPage}
           setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
+          totalRecords={reportData.length}
         />
       </div>
     </div>
@@ -4680,6 +4738,11 @@ function ItemStatementReportView({ products, departments }) {
   const [reportData, setReportData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [openingStock, setOpeningStock] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const totalPages = Math.ceil(reportData.length / rowsPerPage);
+  const paginatedData = reportData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleShow = async () => {
     if (!searchItem) return alert("Please search and select an item first");
@@ -4882,7 +4945,7 @@ function ItemStatementReportView({ products, departments }) {
                 <td className="px-4 py-2 text-xs font-black text-red-600 text-right">{openingStock.toFixed(2)}</td>
                 <td />
               </tr>
-              {reportData.map((item, i) => (
+              {paginatedData.map((item, i) => (
                 <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-2 text-xs font-bold text-slate-500">{new Date(item.date).toLocaleDateString()}</td>
                   <td className="px-4 py-2 text-xs font-black text-blue-700">{item.voucher}</td>
@@ -4905,7 +4968,7 @@ function ItemStatementReportView({ products, departments }) {
           rowsPerPage={rowsPerPage}
           setRowsPerPage={setRowsPerPage}
           setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
+          totalRecords={reportData.length}
         />
       </div>
     </div>
@@ -5222,7 +5285,6 @@ function renderTabContent(tab, props) {
     case 'StockReport': return <StockReportView {...props} />;
     case 'ItemStatement': return <ItemStatementReportView {...props} />;
     case 'Logbook': return <LogbookView {...props} />;
-    case 'GuardVerification': return <GuardVerificationView {...props} />;
     case 'LedgerView': return <LedgerView {...props} />;
     case 'PaymentReportDB': return <DeliveryBoyPaymentReportView {...props} />;
     case 'CreditReport': return <CreditReportView {...props} />;
@@ -11680,6 +11742,12 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
   const [filteredData, setFilteredData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
   const handleShow = async () => {
     setIsGenerating(true);
     try {
@@ -11876,9 +11944,9 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredData.map((item, i) => (
+              {paginatedData.map((item, i) => (
                 <tr key={i} className="hover:bg-slate-50/50">
-                  <td className="px-3 py-2 text-[10px] font-bold">{i + 1}</td>
+                  <td className="px-3 py-2 text-[10px] font-bold">{(currentPage - 1) * rowsPerPage + i + 1}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">{new Date(item.order_date).toLocaleDateString()}</td>
                   <td className="px-3 py-2 text-[10px] font-black text-blue-700">#{item.order_number}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">{new Date(item.order_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
@@ -11890,7 +11958,7 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
                   <td className="px-3 py-2 text-[10px] font-bold">{item.sale_rate}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">0%</td>
                   <td className="px-3 py-2 text-[10px] font-bold">0</td>
-                  <td className="px-3 py-2 text-[10px] font-black">{item.quantity * item.sale_rate}</td>
+                  <td className="px-3 py-2 text-[10px] font-black">{(item.quantity * item.sale_rate).toFixed(2)}</td>
                   <td className="px-3 py-2 text-[10px] font-black">{item.bill_amount}</td>
                   <td className="px-3 py-2 text-[10px] font-bold uppercase">{item.payment_method}</td>
                   <td className="px-3 py-2 text-[10px] font-black">{item.bill_amount}</td>
@@ -11907,17 +11975,21 @@ function SaleReportItemView({ orders, categories, subcategories, fetchInitialDat
                 <td colSpan="7" className="px-3 py-2.5 text-right text-xs uppercase tracking-widest">Total :</td>
                 <td className="px-3 py-2.5 text-xs">{totals.qty}</td>
                 <td colSpan="4" />
-                <td className="px-3 py-2.5 text-xs">{totals.total}</td>
-                <td className="px-3 py-2.5 text-xs">{totals.billAmt}</td>
-                <td className="px-3 py-2.5" />
-                <td className="px-3 py-2.5 text-xs">{totals.billAmt}</td>
-                <td colSpan="2" />
-                <td className="px-3 py-2.5 text-xs">0</td>
-                <td colSpan="3" />
+                <td className="px-3 py-2.5 text-xs">{totals.total.toFixed(2)}</td>
+                <td colSpan="8" />
               </tr>
             </tbody>
           </table>
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
 
       {/* Account Summary Table */}
@@ -11948,6 +12020,12 @@ function SaleReportBillView({ orders, deliveryBoys, adminUsers, fetchInitialData
   const [userName, setUserName] = useState('');
   const [filteredData, setFilteredData] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+  const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   const handleShow = () => {
     setIsGenerating(true);
@@ -12089,9 +12167,9 @@ function SaleReportBillView({ orders, deliveryBoys, adminUsers, fetchInitialData
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredData.map((order, i) => (
+              {paginatedData.map((order, i) => (
                 <tr key={order.id} className="hover:bg-slate-50/50">
-                  <td className="px-3 py-2 text-[10px] font-bold">{i + 1}</td>
+                  <td className="px-3 py-2 text-[10px] font-bold">{(currentPage - 1) * rowsPerPage + i + 1}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">{new Date(order.created_at).toLocaleDateString()}</td>
                   <td className="px-3 py-2 text-[10px] font-black text-blue-700">#{order.order_number}</td>
                   <td className="px-3 py-2 text-[10px] font-bold">{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
@@ -12123,6 +12201,15 @@ function SaleReportBillView({ orders, deliveryBoys, adminUsers, fetchInitialData
             </tbody>
           </table>
         </div>
+
+        <PaginationFooter 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          setRowsPerPage={setRowsPerPage}
+          setCurrentPage={setCurrentPage}
+          totalRecords={filteredData.length}
+        />
       </div>
 
       {/* Account Summary Table */}
