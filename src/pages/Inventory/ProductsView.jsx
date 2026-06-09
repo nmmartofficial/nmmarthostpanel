@@ -185,9 +185,31 @@ export default function ProductsView({ products, categories, brands, subcategori
       let res;
       if (editingProduct) {
         res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, { id: editingProduct.id, ...finalData });
+        
+        // Add Log if stock changed
+        if (finalData.stock !== undefined && parseFloat(finalData.stock) !== parseFloat(editingProduct.stock)) {
+          await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
+            id: generateUUID(),
+            product_id: editingProduct.id,
+            old_stock: parseFloat(editingProduct.stock) || 0,
+            new_stock: parseFloat(finalData.stock) || 0,
+            change_type: 'manual',
+            reference_id: 'Manual Update'
+          });
+        }
       } else {
         finalData.id = finalData.id || generateUUID();
         res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.INSERT, finalData);
+
+        // Add Log for new product
+        await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
+          id: generateUUID(),
+          product_id: finalData.id,
+          old_stock: 0,
+          new_stock: parseFloat(finalData.stock) || 0,
+          change_type: 'manual',
+          reference_id: 'New Product'
+        });
       }
 
       if (res && !res.success) {

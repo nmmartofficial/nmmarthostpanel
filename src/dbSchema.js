@@ -27,9 +27,11 @@ export const DB_SCHEMA = {
   ORDERS: { table: 'orders', pk: 'id', label: 'Customer Orders' },
   ORDER_ITEMS: { table: 'order_items', pk: 'id', label: 'Order Line Items' },
   
-  // 3. Wallet Management
+  // 3. Wallet & Finance
   WALLET_MASTER: { table: 'wallet_master', pk: 'id', label: 'Wallet Balance' },
   WALLET_TRANSACTIONS: { table: 'wallet_transactions', pk: 'id', label: 'Wallet History' },
+  EXPENSES: { table: 'expenses', pk: 'id', label: 'Business Expenses' },
+  EXPENSE_CATEGORIES: { table: 'expense_categories', pk: 'id', label: 'Expense Types' },
   
   // 4. Logistics & Users
   ADDRESSES: { table: 'addresses', pk: 'id', label: 'User Addresses' },
@@ -48,6 +50,7 @@ export const DB_SCHEMA = {
   
   // 7. System & Audit
   SYSTEM_LOGS: { table: 'system_logs', pk: 'id', label: 'Audit Trail' },
+  INVENTORY_LOGS: { table: 'inventory_logs', pk: 'id', label: 'Stock Movement Logs' },
   NOTIFICATIONS: { table: 'notifications', pk: 'id', label: 'Push Notifications' },
   SUPPORT_TICKETS: { table: 'support_tickets', pk: 'id', label: 'User Feedback' }
 };

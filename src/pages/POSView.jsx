@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { 
   Zap, CheckCircle2, Bell, X, Clock, Box, ShoppingCart, 
-  RefreshCw, ArrowLeftRight, LayoutGrid, Save, IndianRupee, Printer, Star
+  RefreshCw, ArrowLeftRight, LayoutGrid, Save, IndianRupee, Printer, Star, Pause
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/helpers';
@@ -270,13 +270,26 @@ export default function POSView({ products, categories, fetchInitialData, appCon
       const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.INSERT, orderData);
       if (!orderRes.success) throw new Error(orderRes.error);
 
-      // 2. Return Stock
+      // 2. Return Stock & Log
       for (const item of cart) {
         const product = products.find(p => p.id === item.id);
         if (product) {
+          const oldStock = parseFloat(product.stock) || 0;
+          const newStock = oldStock + item.quantity;
+
           await handleERPAction(ERP_MODULES.ITEM_MASTER, ACTION_TYPES.UPDATE, {
             id: product.id,
-            stock: product.stock + item.quantity // Return increases stock
+            stock: newStock
+          });
+
+          // Create Inventory Log
+          await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
+            id: crypto.randomUUID(),
+            product_id: product.id,
+            old_stock: oldStock,
+            new_stock: newStock,
+            change_type: 'return',
+            reference_id: cnNumber
           });
         }
       }
@@ -428,12 +441,25 @@ export default function POSView({ products, categories, fetchInitialData, appCon
       for (const item of orderItemsData) {
         await handleERPAction(ERP_MODULES.ORDER_ITEMS, ACTION_TYPES.INSERT, item);
         
-        // 3. Update Stock
+        // 3. Update Stock & Log
         const product = products.find(p => p.id === item.product_id);
         if (product) {
+          const oldStock = parseFloat(product.stock) || 0;
+          const newStock = oldStock - item.quantity;
+
           await handleERPAction(ERP_MODULES.ITEM_MASTER, ACTION_TYPES.UPDATE, {
             id: product.id,
-            stock: product.stock - item.quantity
+            stock: newStock
+          });
+
+          // Create Inventory Log
+          await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
+            id: crypto.randomUUID(),
+            product_id: product.id,
+            old_stock: oldStock,
+            new_stock: newStock,
+            change_type: 'sale',
+            reference_id: createdOrder.order_number
           });
         }
       }
