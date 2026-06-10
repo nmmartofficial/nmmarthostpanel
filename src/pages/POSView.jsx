@@ -350,7 +350,16 @@ export default function POSView({ products, categories, fetchInitialData, appCon
   };
 
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    // Ensure uniqueness of products by ID to prevent React key warnings
+    const uniqueProductsMap = new Map();
+    (products || []).forEach(p => {
+      if (!uniqueProductsMap.has(p.id)) {
+        uniqueProductsMap.set(p.id, p);
+      }
+    });
+    const uniqueProducts = Array.from(uniqueProductsMap.values());
+
+    return uniqueProducts.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
       const matchesCategory = activeCategory === 'All' || p.category_id === activeCategory;
       
@@ -539,9 +548,9 @@ export default function POSView({ products, categories, fetchInitialData, appCon
             >
               All Items
             </button>
-            {(categories || []).map(cat => (
+            {(categories || []).map((cat, idx) => (
               <button 
-                key={cat.id}
+                key={`cat-${cat.id}-${idx}`}
                 onClick={() => setActiveCategory(cat.id)}
                 className={cn(
                   "w-full text-left px-3 py-2.5 rounded text-[11px] font-black uppercase shadow-sm transition-all",
@@ -620,7 +629,7 @@ export default function POSView({ products, categories, fetchInitialData, appCon
                       <div className="p-4 text-center text-[10px] font-bold text-slate-400 uppercase">No active alerts</div>
                     ) : (
                       posAlerts.map((alert, idx) => (
-                        <div key={idx} className="p-3 border-b border-slate-50 last:border-none flex gap-3 hover:bg-slate-50 transition-colors">
+                        <div key={`alert-${alert.id}-${idx}`} className="p-3 border-b border-slate-50 last:border-none flex gap-3 hover:bg-slate-50 transition-colors">
                           <div className={cn(
                             "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
                             alert.type === 'expiry' ? "bg-amber-100 text-amber-600" : "bg-red-100 text-red-600"
@@ -656,9 +665,9 @@ export default function POSView({ products, categories, fetchInitialData, appCon
             {/* Search Dropdown */}
             {showSearchDropdown && searchResults.length > 0 && (
               <div className="absolute top-full left-0 w-full bg-white shadow-xl rounded-b-lg mt-0.5 z-[100] border border-slate-200 overflow-hidden">
-                {searchResults.map(p => (
+                {searchResults.map((p, idx) => (
                   <button 
-                    key={p.id}
+                    key={`search-${p.id}-${idx}`}
                     onClick={() => handleProductSelect(p)}
                     className="w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-slate-50 last:border-none flex justify-between items-center group"
                   >
@@ -710,21 +719,15 @@ export default function POSView({ products, categories, fetchInitialData, appCon
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 content-start">
-          {products.filter(p => {
-            const matchesSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
-            const matchesCategory = activeCategory === 'All' || p.category_id === activeCategory;
-            
-            if (posFilter === 'TopSale') {
-              return matchesSearch && matchesCategory && (p.stock > 50);
-            }
-            if (posFilter === 'Favourite') {
-              return matchesSearch && matchesCategory && (p.is_favourite || p.rating > 4);
-            }
-            
-            return matchesSearch && matchesCategory;
-          }).map(product => (
-            <ProductCard key={product.id} product={product} addToCart={addToCart} />
+          {filteredProducts.map((product, idx) => (
+            <ProductCard key={`prod-${product.id}-${idx}`} product={product} addToCart={addToCart} />
           ))}
+          {filteredProducts.length === 0 && (
+            <div className="col-span-full h-full flex flex-col items-center justify-center text-slate-400 py-20">
+              <Box size={64} strokeWidth={1} />
+              <p className="mt-4 text-sm font-medium uppercase tracking-widest">No products found</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -851,7 +854,7 @@ export default function POSView({ products, categories, fetchInitialData, appCon
             </div>
           ) : cart.map((item, idx) => (
             <CartItem 
-              key={item.id} 
+              key={`cart-${item.id}-${idx}`} 
               item={item} 
               removeFromCart={removeFromCart} 
               updateQty={updateQty} 

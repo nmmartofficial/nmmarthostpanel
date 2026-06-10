@@ -46,9 +46,9 @@ export default function NavDropdown({ label, icon, items, activeTab, setActiveTa
             <div className={cn(
               "grid divide-slate-100 max-h-[85vh] overflow-y-auto grid-cols-1 divide-y"
             )}>
-              {items.map((item) => (
+              {items.map((item, idx) => (
                 <button
-                  key={item.id}
+                  key={`${item.id}-${idx}`} 
                   onClick={() => {
                     setActiveTab(item.id);
                     setIsOpen(false);
