@@ -102,6 +102,32 @@ const logTableAction = async (tableName, action) => {
 };
 
 /**
+ * HELPER: Validate Payload before DB Operations
+ * "Data Safety: Database mein kachra (dirty data) jane se pehle check karein."
+ */
+const validatePayload = (tableName, payload) => {
+  if (!payload || (typeof payload !== 'object' && !Array.isArray(payload))) {
+    throw new Error(`Invalid payload for ${tableName}`);
+  }
+
+  // Generic validations
+  const records = Array.isArray(payload) ? payload : [payload];
+  
+  for (const record of records) {
+    // 1. Check for negative prices/stock if applicable
+    if (record.sale_rate !== undefined && record.sale_rate < 0) throw new Error("Sale rate cannot be negative");
+    if (record.mrp !== undefined && record.mrp < 0) throw new Error("MRP cannot be negative");
+    if (record.stock !== undefined && record.stock < 0) throw new Error("Stock cannot be negative");
+    
+    // 2. Prevent empty names for core entities
+    if (record.name !== undefined && String(record.name).trim() === "") {
+      throw new Error("Name field cannot be empty");
+    }
+  }
+  return true;
+};
+
+/**
  * Generic Table Synchronization Controller
  */
 export const dbSync = {
@@ -110,8 +136,17 @@ export const dbSync = {
    * Verifies if the table exists and is accessible.
    */
   checkConnection: async (tableName) => {
-    const { error } = await supabase.from(tableName).select('count', { count: 'exact', head: true });
-    return !error;
+    try {
+      const { error } = await supabase.from(tableName).select('count', { count: 'exact', head: true });
+      if (error) {
+        if (error.code === 'PGRST116') return false;
+        console.warn(`[dbSync] Connection check for ${tableName} failed:`, error.message);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
   },
 
   /**
@@ -134,14 +169,19 @@ export const dbSync = {
   executeAtomic: async (rpcName, params, tableName, actionLabel) => {
     try {
       const { data, error } = await supabase.rpc(rpcName, params);
-      if (error) throw error;
+      
+      if (error) {
+        if (error.message.includes('permission denied')) {
+          throw new Error("Security Violation: You do not have permission to execute this action.");
+        }
+        throw error;
+      }
+      
       await logTableAction(tableName, actionLabel);
 
       // --- Low Stock Auto-Alert Integration ---
-      // If this is an order placement, check stock for each item
       if (rpcName === 'place_order_atomic' && params.p_order_items) {
         for (const item of params.p_order_items) {
-          // Trigger alert check in background (non-blocking)
           checkLowStockAndNotify(item.product_id);
         }
       }
@@ -160,12 +200,18 @@ export const dbSync = {
   // Create
   insert: async (tableName, payload) => {
     try {
+      validatePayload(tableName, payload);
+
       const { data, error } = await supabase
         .from(tableName)
         .insert(Array.isArray(payload) ? payload : [payload])
         .select();
 
-      if (error) throw error; // Will trigger on DB constraint violation
+      if (error) {
+        if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this insert.");
+        throw error;
+      }
+
       await logTableAction(tableName, 'INSERT');
       return data;
     } catch (error) {
@@ -186,7 +232,6 @@ export const dbSync = {
       console.log(`[dbSync] Fetching ${tableName}...`);
 
       while (hasMore) {
-        // Optimization: Don't fetch if we already reached the limit
         if (allData.length >= limit) {
           hasMore = false;
           break;
@@ -194,14 +239,17 @@ export const dbSync = {
 
         let request = supabase.from(tableName).select(query.select || '*');
         
+        // Safety: Only filter by 'is_active' if the table is known to have it or we've verified it
+        // To avoid "column does not exist" errors, we wrap this in a check or only apply to specific tables
+        if (!query.includeDeleted && !['app_config', 'system_logs', 'notifications', 'cart', 'wishlist'].includes(tableName)) {
+          request = request.or('is_active.eq.true,is_active.is.null');
+        }
+
         if (query.eq) request = request.eq(query.eq.column, query.eq.value);
         
-        // CRITICAL: Always use a consistent order for range-based pagination
-        // If user provided an order, use it. Otherwise, fallback to 'id' or 'created_at'.
         if (query.order) {
           request = request.order(query.order.column, { ascending: query.order.ascending ?? true });
         } else {
-          // Default ordering to ensure consistent batches
           request = request.order('created_at', { ascending: false });
         }
         
@@ -213,11 +261,11 @@ export const dbSync = {
         const { data, error } = await request;
         
         if (error) {
-          // Silently handle missing tables to prevent app crashes during initialization
           if (error.code === 'PGRST116' || error.message.includes('cache') || error.message.includes('not found')) {
             console.warn(`[dbSync.fetch] Table not yet available: ${tableName}`);
             return [];
           }
+          if (error.code === '42501') throw new Error("Security Error: RLS Policy denied access to this table.");
           
           console.error(`[Supabase Fetch Error] ${tableName}:`, error.message);
           throw error;
@@ -229,9 +277,8 @@ export const dbSync = {
         }
 
         allData = [...allData, ...data];
-        from += data.length; // Use actual data length to move pointer
+        from += data.length;
         
-        // If we got fewer rows than the batch size, we've reached the end
         if (data.length < currentBatchLimit || data.length < BATCH_SIZE) {
           hasMore = false;
         }
@@ -240,7 +287,6 @@ export const dbSync = {
       console.log(`[dbSync] ${tableName} fetch complete. Total: ${allData.length}`);
       return allData;
     } catch (error) {
-      // Don't re-log if it's just a missing table warning we already handled
       if (!error.message.includes('cache') && !error.message.includes('not found')) {
         console.error(`[dbSync.fetch Failed] ${tableName}:`, error.message);
       }
@@ -251,13 +297,19 @@ export const dbSync = {
   // Update
   update: async (tableName, id, payload) => {
     try {
+      validatePayload(tableName, payload);
+
       const { data, error } = await supabase
         .from(tableName)
         .update(payload)
         .eq('id', id)
         .select();
 
-      if (error) throw error; // Will trigger on DB constraint violation
+      if (error) {
+        if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this update.");
+        throw error;
+      }
+
       await logTableAction(tableName, 'UPDATE');
       return data;
     } catch (error) {
@@ -266,16 +318,27 @@ export const dbSync = {
     }
   },
 
-  // Delete
-  delete: async (tableName, id) => {
+  // Delete (Enhanced with Soft Delete Support)
+  delete: async (tableName, id, permanent = false) => {
     try {
-      const { error } = await supabase
-        .from(tableName)
-        .delete()
-        .eq('id', id);
+      let error;
 
-      if (error) throw error;
-      await logTableAction(tableName, 'DELETE');
+      if (permanent || ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist'].includes(tableName)) {
+        // Hard Delete for specific tables or if requested
+        const res = await supabase.from(tableName).delete().eq('id', id);
+        error = res.error;
+      } else {
+        // Soft Delete (Security Feature: Data is hidden but not lost)
+        const res = await supabase.from(tableName).update({ is_active: false }).eq('id', id);
+        error = res.error;
+      }
+
+      if (error) {
+        if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this deletion.");
+        throw error;
+      }
+
+      await logTableAction(tableName, permanent ? 'HARD_DELETE' : 'SOFT_DELETE');
       return true;
     } catch (error) {
       console.error(`[Delete Error] ${tableName}:`, error.message);

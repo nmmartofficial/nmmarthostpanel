@@ -15,6 +15,7 @@ export default function ProductsView({ products, categories, brands, subcategori
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showTrash, setShowTrash] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -23,6 +24,14 @@ export default function ProductsView({ products, categories, brands, subcategori
 
   const filteredProducts = useMemo(() => {
     let list = products;
+    
+    // Safety: Filter based on showTrash state
+    if (showTrash) {
+      list = list.filter(p => p.is_active === false);
+    } else {
+      list = list.filter(p => p.is_active !== false);
+    }
+
     if (filter === 'low_stock') {
       list = list.filter(p => p.stock <= 5);
     }
@@ -31,7 +40,7 @@ export default function ProductsView({ products, categories, brands, subcategori
       p.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.hsn_code?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [products, filter, searchTerm]);
+  }, [products, filter, searchTerm, showTrash]);
 
   const totalPages = Math.ceil(filteredProducts.length / rowsPerPage);
   const paginatedProducts = filteredProducts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -253,16 +262,29 @@ export default function ProductsView({ products, categories, brands, subcategori
 
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button 
+            onClick={() => setShowTrash(!showTrash)}
+            className={cn(
+              "flex-1 md:flex-none px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-md border-none",
+              showTrash ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-600 hover:bg-slate-300"
+            )}
+            title={showTrash ? "View Active Items" : "View Recycle Bin"}
+          >
+            <Trash2 size={14} /> {showTrash ? "View Active" : "Recycle Bin"}
+          </button>
+
+          <button 
             onClick={async () => {
-              setLoading(true);
-              const res = await dbSync.deleteAll(DB_SCHEMA.PRODUCTS.table);
-              if (res.success) {
-                alert("Sare products delete ho gaye hain!");
-                window.location.reload();
-              } else {
-                alert("Delete failed: " + res.error);
+              if (window.confirm("KYA AAP SURE HAIN? Yeh sabhi active products ko delete kar dega!")) {
+                setLoading(true);
+                const res = await dbSync.deleteAll(DB_SCHEMA.PRODUCTS.table);
+                if (res.success) {
+                  alert("Sare products delete ho gaye hain!");
+                  window.location.reload();
+                } else {
+                  alert("Delete failed: " + res.error);
+                }
+                setLoading(false);
               }
-              setLoading(false);
             }}
             className="flex-1 md:flex-none bg-red-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-md border-none"
           >
@@ -355,30 +377,63 @@ export default function ProductsView({ products, categories, brands, subcategori
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
-                      <button 
-                        onClick={() => setBarcodeToPrint(product)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
-                        title="Print Barcode"
-                      >
-                        <QrCode size={14} />
-                      </button>
-                      <button 
-                        onClick={() => { setEditingProduct(product); setFormData(product); setShowForm(true); }}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-all"
-                        title="Edit"
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button 
-                        onClick={async () => {
-                          await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.DELETE, { id: product.id });
-                          fetchInitialData();
-                        }}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-all"
-                        title="Delete"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {showTrash ? (
+                        <>
+                          <button 
+                            onClick={async () => {
+                              if (window.confirm(`Restore ${product.name}?`)) {
+                                await dbSync.update(DB_SCHEMA.PRODUCTS.table, product.id, { is_active: true });
+                                fetchInitialData();
+                              }
+                            }}
+                            className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-all"
+                            title="Restore"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (window.confirm(`PERMANENTLY DELETE ${product.name}? Yeh wapas nahi aayega!`)) {
+                                await dbSync.delete(DB_SCHEMA.PRODUCTS.table, product.id, true);
+                                fetchInitialData();
+                              }
+                            }}
+                            className="p-1.5 text-red-700 hover:bg-red-50 rounded-md transition-all"
+                            title="Delete Permanently"
+                          >
+                            <X size={14} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button 
+                            onClick={() => setBarcodeToPrint(product)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+                            title="Print Barcode"
+                          >
+                            <QrCode size={14} />
+                          </button>
+                          <button 
+                            onClick={() => { setEditingProduct(product); setFormData(product); setShowForm(true); }}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-all"
+                            title="Edit"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (window.confirm(`Delete ${product.name}?`)) {
+                                await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.DELETE, { id: product.id });
+                                fetchInitialData();
+                              }
+                            }}
+                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

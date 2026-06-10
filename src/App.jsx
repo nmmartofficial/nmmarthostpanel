@@ -21,7 +21,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { dbSync } from './dbSync';
-import { DB_SCHEMA } from './dbSchema';
+import { DB_SCHEMA, USER_ROLES } from './dbSchema';
 import { handleERPAction, ERP_MODULES, ACTION_TYPES, parseERPCSV } from './erpController';
 import { supabase } from './supabase';
 import * as XLSX from 'xlsx';
@@ -336,6 +336,10 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 // --- App Component ---
 export default function App() {
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem('nm_user_data');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [pin, setPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState(localStorage.getItem('nm_active_tab') || 'Dashboard');
@@ -398,6 +402,17 @@ export default function App() {
       if (error) throw error;
 
       if (isValid) {
+        // Fetch user details for profile and role
+        const { data: userData } = await supabase
+          .from(DB_SCHEMA.ADMIN_USERS.table)
+          .select('*')
+          .eq('pin', pin)
+          .single();
+
+        const profile = userData || { username: 'Admin', role: 'super_admin' };
+        setCurrentUser(profile);
+        localStorage.setItem('nm_user_data', JSON.stringify(profile));
+
         setIsAuthorized(true);
         localStorage.setItem('nm_admin_auth', 'true');
         localStorage.setItem('nm_auth_time', Date.now().toString());
@@ -411,6 +426,10 @@ export default function App() {
       // Fallback to environment variable if database is disconnected
       const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN || '1234';
       if (pin === fallbackPin) {
+        const profile = { username: 'Offline Admin', role: 'super_admin' };
+        setCurrentUser(profile);
+        localStorage.setItem('nm_user_data', JSON.stringify(profile));
+
         setIsAuthorized(true);
         localStorage.setItem('nm_admin_auth', 'true');
         toast.success('Offline Access Granted');
@@ -437,6 +456,10 @@ export default function App() {
           return [newRecord, ...prev];
         }
         if (eventType === 'UPDATE' && newRecord) {
+          // Safety: If item was soft-deleted (is_active: false), remove it from state
+          if (newRecord.is_active === false) {
+            return prev.filter(item => item.id !== newRecord.id);
+          }
           return prev.map(item => item.id === newRecord.id ? newRecord : item);
         }
         if (eventType === 'DELETE' && oldRecord) {
@@ -654,6 +677,50 @@ export default function App() {
     }
   };
 
+  // --- Step 2: Session Timeout Logic ---
+  useEffect(() => {
+    if (!isAuthorized) return;
+
+    const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes
+    let timeoutId;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        handleLogout('Session expired due to inactivity');
+      }, TIMEOUT_DURATION);
+    };
+
+    const handleLogout = (msg) => {
+      localStorage.removeItem('nm_admin_auth');
+      localStorage.removeItem('nm_user_data');
+      setIsAuthorized(false);
+      toast.warning(msg);
+    };
+
+    // Events to track user activity
+    const events = ['mousemove', 'keypress', 'scroll', 'click', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [isAuthorized]);
+
+  // --- RBAC: Filter Navigation Items (Hooks must be before conditional return) ---
+  const userRole = currentUser?.role || 'super_admin';
+  const roleData = useMemo(() => {
+    return Object.values(USER_ROLES).find(r => r.id === userRole) || USER_ROLES.SUPER_ADMIN;
+  }, [userRole]);
+  
+  const isAllowed = useCallback((tabId) => {
+    if (roleData.allowedTabs.includes('*')) return true;
+    return roleData.allowedTabs.includes(tabId);
+  }, [roleData]);
+
   // --- UI Components ---
   if (!isAuthorized) {
     return (
@@ -692,7 +759,6 @@ export default function App() {
     );
   }
 
-  // --- Menu Definitions (54+ Buttons Logic) ---
   const masterItems = [
     { id: 'Products', label: 'Item Master', icon: <Package size={14} />, shortcut: 'F1' },
     { id: 'Units', label: 'Item Unit Master', icon: <ShoppingCart size={14} /> },
@@ -713,13 +779,13 @@ export default function App() {
     { id: 'Addresses', label: 'Address Master', icon: <MapPin size={14} /> },
     { id: 'WalletMaster', label: 'Wallet Master', icon: <Wallet size={14} /> },
     { id: 'Suppliers', label: 'Supplier Master', icon: <Users size={14} /> },
-  ];
+  ].filter(item => isAllowed(item.id));
 
   const inventoryItems = [
     { id: 'PurchaseEntry', label: 'Purchase Entry', icon: <ShoppingBag size={14} /> },
     { id: 'StockLogs', label: 'Stock Movement Logs', icon: <History size={14} /> },
     { id: 'Products', label: 'Current Stock', icon: <Package size={14} /> },
-  ];
+  ].filter(item => isAllowed(item.id));
 
   const reportItemsNav = [
     { id: 'SaleSummary', label: 'Sale Summary', icon: <FileText size={14} /> },
@@ -738,7 +804,7 @@ export default function App() {
     { id: 'PaymentReminder', label: 'Payment Reminder', icon: <RefreshCw size={14} /> },
     { id: 'ProfitLoss', label: 'Profit & Loss Analysis', icon: <TrendingUp size={14} /> },
     { id: 'Expenses', label: 'Expense Management', icon: <Receipt size={14} /> },
-  ];
+  ].filter(item => isAllowed(item.id));
 
   const viewItems = [
     { id: 'Orders', label: 'Self-Checkout Tracker', icon: <QrCode size={14} />, shortcut: 'F9' },
@@ -748,7 +814,7 @@ export default function App() {
     { id: 'BranchBill', label: 'Branch Bill', icon: <GitBranch size={14} /> },
     { id: 'PaymentMobile', label: 'Payment (Mobile No)', icon: <IndianRupee size={14} /> },
     { id: 'WalletRecharge', label: 'Wallet recharge', icon: <IndianRupee size={14} /> },
-  ];
+  ].filter(item => isAllowed(item.id));
 
   const storeItems = [
     { id: 'BOM', label: 'Bill of Materials (BOM)', icon: <Settings size={14} /> },
@@ -761,7 +827,7 @@ export default function App() {
     { id: 'PurchaseOrderPO', label: '(PO) Purchase order', icon: <FileText size={14} /> },
     { id: 'PurchaseReportRO', label: '(RO) Purchase Report', icon: <FileText size={14} /> },
     { id: 'RequisitionReportRO', label: '(RO) Requisition Order Report', icon: <FileText size={14} /> },
-  ];
+  ].filter(item => isAllowed(item.id));
 
   const toolsItems = [
     { id: 'AppConfig', label: 'CONFIGURATION', icon: <Settings size={14} /> },
@@ -770,7 +836,7 @@ export default function App() {
     { id: 'StoreSubCatDisplay', label: 'STORE SUB-CAT DISPLAY', icon: <ArrowLeftRight size={14} /> },
     { id: 'StoreMainCatDisplay', label: 'STORE MAIN-CAT DISPLAY', icon: <ArrowLeftRight size={14} /> },
     { id: 'TestBluetooth', label: 'TEST BLUETOOTH', icon: <ArrowLeftRight size={14} /> },
-  ];
+  ].filter(item => isAllowed(item.id));
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] flex flex-col font-sans antialiased">
@@ -792,94 +858,110 @@ export default function App() {
 
             {/* Desktop Navigation Menus (Hidden on Mobile) */}
             <nav className="hidden md:flex items-center gap-0.5 ml-1">
-              <NavDropdown 
-                label="Master" 
-                icon={<Monitor size={14} className="mr-1.5" />} 
-                items={masterItems} 
-                activeTab={activeTab} 
-                setActiveTab={setActiveTab} 
-              />
+              {masterItems.length > 0 && (
+                <NavDropdown 
+                  label="Master" 
+                  icon={<Monitor size={14} className="mr-1.5" />} 
+                  items={masterItems} 
+                  activeTab={activeTab} 
+                  setActiveTab={setActiveTab} 
+                />
+              )}
               
-              <button 
-                onClick={() => setActiveTab('POS')}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
-                  activeTab === 'POS' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
-                )}
-              >
-                <ShoppingCart size={14} className="text-slate-500" />
-                <span>Sale Entry</span>
-              </button>
+              {isAllowed('POS') && (
+                <button 
+                  onClick={() => setActiveTab('POS')}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                    activeTab === 'POS' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <ShoppingCart size={14} className="text-slate-500" />
+                  <span>Sale Entry</span>
+                </button>
+              )}
 
-              <button 
-                onClick={() => setActiveTab('Purchase')}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
-                  activeTab === 'Purchase' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
-                )}
-              >
-                <Package size={14} className="text-slate-500" />
-                <span>Purchase</span>
-              </button>
+              {isAllowed('Purchase') && (
+                <button 
+                  onClick={() => setActiveTab('Purchase')}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                    activeTab === 'Purchase' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <Package size={14} className="text-slate-500" />
+                  <span>Purchase</span>
+                </button>
+              )}
 
-              <NavDropdown 
-                label="View" 
-                icon={<List size={14} className="mr-1.5" />} 
-                items={viewItems} 
-                activeTab={activeTab} 
-                setActiveTab={setActiveTab} 
-              />
+              {viewItems.length > 0 && (
+                <NavDropdown 
+                  label="View" 
+                  icon={<List size={14} className="mr-1.5" />} 
+                  items={viewItems} 
+                  activeTab={activeTab} 
+                  setActiveTab={setActiveTab} 
+                />
+              )}
 
-              <NavDropdown 
-                label="Report" 
-                icon={<FileText size={14} className="mr-1.5" />} 
-                items={reportItemsNav} 
-                activeTab={activeTab} 
-                setActiveTab={setActiveTab} 
-              />
+              {reportItemsNav.length > 0 && (
+                <NavDropdown 
+                  label="Report" 
+                  icon={<FileText size={14} className="mr-1.5" />} 
+                  items={reportItemsNav} 
+                  activeTab={activeTab} 
+                  setActiveTab={setActiveTab} 
+                />
+              )}
 
-              <NavDropdown 
-                label="Store" 
-                icon={<Building2 size={14} className="mr-1.5" />} 
-                items={storeItems} 
-                activeTab={activeTab} 
-                setActiveTab={setActiveTab} 
-              />
+              {storeItems.length > 0 && (
+                <NavDropdown 
+                  label="Store" 
+                  icon={<Building2 size={14} className="mr-1.5" />} 
+                  items={storeItems} 
+                  activeTab={activeTab} 
+                  setActiveTab={setActiveTab} 
+                />
+              )}
 
-              <button 
-                onClick={() => setActiveTab('Transaction')}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
-                  activeTab === 'Transaction' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
-                )}
-              >
-                <RefreshCw size={14} className="text-slate-500" />
-                <span>Transaction</span>
-              </button>
+              {isAllowed('Transaction') && (
+                <button 
+                  onClick={() => setActiveTab('Transaction')}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                    activeTab === 'Transaction' ? "text-blue-700 bg-blue-50" : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <RefreshCw size={14} className="text-slate-500" />
+                  <span>Transaction</span>
+                </button>
+              )}
 
-              <NavDropdown 
-                label="Tools" 
-                icon={<Wrench size={14} className="mr-1.5" />} 
-                items={[...toolsItems.filter(i => !i.hidden), { id: 'Logout', label: 'LOGOUT SYSTEM', icon: <LogOut size={14} /> }]} 
-                activeTab={activeTab} 
-                setActiveTab={(tab) => {
-                  if (tab === 'Logout') {
-                    if (window.confirm("Are you sure you want to Logout?")) {
-                      localStorage.removeItem('nm_admin_auth');
-                      localStorage.removeItem('nm_auth_time');
-                      setIsAuthorized(false);
-                      toast.info('Logged out successfully');
+              {toolsItems.length > 0 && (
+                <NavDropdown 
+                  label="Tools" 
+                  icon={<Wrench size={14} className="mr-1.5" />} 
+                  items={[...toolsItems.filter(i => !i.hidden), { id: 'Logout', label: 'LOGOUT SYSTEM', icon: <LogOut size={14} /> }]} 
+                  activeTab={activeTab} 
+                  setActiveTab={(tab) => {
+                    if (tab === 'Logout') {
+                      if (window.confirm("Are you sure you want to Logout?")) {
+                        localStorage.removeItem('nm_admin_auth');
+                        localStorage.removeItem('nm_auth_time');
+                        setIsAuthorized(false);
+                        toast.info('Logged out successfully');
+                      }
+                    } else if (tab === 'DatabaseBackup') {
+                      handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.MAINTENANCE_EXPORT, { fileName: 'Full_System_Backup' });
+                    } else if (tab === 'ClearCache') {
+                      // Immediate cache clear without confirmation
+                      handleERPAction(null, ACTION_TYPES.CLEAR_CACHE);
+                    } else {
+                      setActiveTab(tab);
                     }
-                  } else if (tab === 'DatabaseBackup') {
-                    handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.MAINTENANCE_EXPORT, { fileName: 'Full_System_Backup' });
-                  } else if (tab === 'ClearCache') {
-                    // Immediate cache clear without confirmation
-                    handleERPAction(null, ACTION_TYPES.CLEAR_CACHE);
-                  } else {
-                    setActiveTab(tab);
-                  }
-                }} 
-              />
+                  }} 
+                />
+              )}
             </nav>
           </div>
 
@@ -922,8 +1004,10 @@ export default function App() {
                 <User size={16} fill="currentColor" />
               </div>
               <div className="flex flex-col hidden md:flex">
-                <span className="text-xs font-black text-blue-900 uppercase tracking-tighter leading-none">{BRAND_NAME}</span>
-                <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest leading-tight">Super Admin</span>
+                <span className="text-xs font-black text-blue-900 uppercase tracking-tighter leading-none">{currentUser?.username || BRAND_NAME}</span>
+                <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest leading-tight">
+                  {roleData.label}
+                </span>
               </div>
             </div>
           </div>

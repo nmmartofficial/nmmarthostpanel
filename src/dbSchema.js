@@ -66,3 +66,31 @@ export const TABLE_CONSTRAINTS = {
     atomic_placement: 'place_order_atomic'
   }
 };
+
+// --- Step 2: Access Control Roles ---
+export const USER_ROLES = {
+  SUPER_ADMIN: {
+    id: 'super_admin',
+    label: 'Super Admin',
+    description: 'Full system access',
+    allowedTabs: ['*'] // Everything
+  },
+  SALES_MANAGER: {
+    id: 'sales_manager',
+    label: 'Sales Manager',
+    description: 'Manage POS, Orders, and Customers',
+    allowedTabs: ['Dashboard', 'POS', 'Orders', 'OnlineOrder', 'BillView', 'DeliveryCustomers', 'PaymentMobile', 'WalletRecharge']
+  },
+  INVENTORY_HEAD: {
+    id: 'inventory_head',
+    label: 'Inventory Head',
+    description: 'Manage Products, Categories, and Suppliers',
+    allowedTabs: ['Dashboard', 'Products', 'Categories', 'Subcategories', 'Brands', 'Suppliers', 'PurchaseEntry', 'StockLogs', 'StockReport']
+  },
+  ACCOUNTANT: {
+    id: 'accountant',
+    label: 'Accountant',
+    description: 'Manage Finance, Expenses, and Profit/Loss',
+    allowedTabs: ['Dashboard', 'Expenses', 'ProfitLoss', 'LedgerView', 'Logbook', 'CreditReport', 'PaymentReportDB']
+  }
+};
