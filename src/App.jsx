@@ -337,6 +337,7 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 export default function App() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [pin, setPin] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState(localStorage.getItem('nm_active_tab') || 'Dashboard');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
@@ -674,14 +675,16 @@ export default function App() {
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder=""
-              className="w-full bg-slate-100 border-none rounded-2xl px-6 py-4 text-center text-2xl tracking-[1em] focus:ring-2 focus:ring-primary transition-all font-black text-slate-900 placeholder-slate-400"
+              disabled={isProcessing}
+              className="w-full bg-slate-100 border-none rounded-2xl px-6 py-4 text-center text-2xl tracking-[1em] focus:ring-2 focus:ring-primary transition-all font-black text-slate-900 placeholder-slate-400 disabled:opacity-50"
               autoFocus
             />
             <button 
               type="submit"
-              className="w-full bg-secondary text-primary font-black py-4 rounded-2xl hover:bg-black transition-all uppercase tracking-widest shadow-xl"
+              disabled={isProcessing}
+              className="w-full bg-secondary text-primary font-black py-4 rounded-2xl hover:bg-black transition-all uppercase tracking-widest shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Authorize Access
+              {isProcessing ? 'Verifying...' : 'Authorize Access'}
             </button>
           </form>
         </motion.div>

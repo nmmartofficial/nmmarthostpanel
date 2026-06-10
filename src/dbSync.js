@@ -213,6 +213,12 @@ export const dbSync = {
         const { data, error } = await request;
         
         if (error) {
+          // Silently handle missing tables to prevent app crashes during initialization
+          if (error.code === 'PGRST116' || error.message.includes('cache') || error.message.includes('not found')) {
+            console.warn(`[dbSync.fetch] Table not yet available: ${tableName}`);
+            return [];
+          }
+          
           console.error(`[Supabase Fetch Error] ${tableName}:`, error.message);
           throw error;
         }
@@ -234,7 +240,10 @@ export const dbSync = {
       console.log(`[dbSync] ${tableName} fetch complete. Total: ${allData.length}`);
       return allData;
     } catch (error) {
-      console.error(`[dbSync.fetch Failed] ${tableName}:`, error.message);
+      // Don't re-log if it's just a missing table warning we already handled
+      if (!error.message.includes('cache') && !error.message.includes('not found')) {
+        console.error(`[dbSync.fetch Failed] ${tableName}:`, error.message);
+      }
       throw error;
     }
   },
