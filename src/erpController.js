@@ -39,7 +39,8 @@ export const ACTION_TYPES = {
   WALLET_ADJUST: 'WALLET_ADJUST',
   MAINTENANCE_EXPORT: 'MAINTENANCE_EXPORT',
   CLEAR_CACHE: 'CLEAR_CACHE',
-  GENERATE_BILL: 'GENERATE_BILL'
+  GENERATE_BILL: 'GENERATE_BILL',
+  GENERATE_GST_INVOICE: 'GENERATE_GST_INVOICE'
 };
 
 /**
@@ -110,6 +111,10 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
 
       case ACTION_TYPES.GENERATE_BILL:
         data = dbSync.printer.generateBillCommands(payload.order, payload.items);
+        break;
+        
+      case ACTION_TYPES.GENERATE_GST_INVOICE:
+        data = dbSync.printer.generateGSTInvoice(payload.order, payload.items, payload.appConfig);
         break;
 
       default:

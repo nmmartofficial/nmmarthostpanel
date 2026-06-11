@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { 
   Zap, CheckCircle2, Bell, X, Clock, Box, ShoppingCart, 
-  RefreshCw, ArrowLeftRight, LayoutGrid, Save, IndianRupee, Printer, Star, Pause
+  RefreshCw, ArrowLeftRight, LayoutGrid, Save, IndianRupee, Printer, Star, Pause, Camera
 } from 'lucide-react';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/helpers';
 import { handleERPAction, ACTION_TYPES, ERP_MODULES } from '../erpController';
@@ -31,6 +32,7 @@ export default function POSView({ products, categories, fetchInitialData, appCon
   const [searchBillNo, setSearchBillNo] = useState('');
   const [isCreditNote, setIsCreditNote] = useState(false);
   const [posFilter, setPosFilter] = useState('All'); // 'All', 'TopSale', 'Favourite'
+  const [showScanner, setShowScanner] = useState(false);
   const searchInputRef = useRef(null);
   const barcodeInputRef = useRef(null);
 
@@ -390,6 +392,19 @@ export default function POSView({ products, categories, fetchInitialData, appCon
     }
   };
 
+  const handleCameraScan = (detectedCodes) => {
+    if (detectedCodes.length > 0) {
+      const code = detectedCodes[0].rawValue;
+      const product = barcodeMap.get(code);
+      if (product) {
+        addToCart(product);
+        setShowScanner(false);
+      } else {
+        alert(`Product not found with this barcode: ${code}`);
+      }
+    }
+  };
+
   const subTotal = cart.reduce((sum, item) => sum + (item.sale_rate * item.quantity), 0);
   const discountAmount = (subTotal * billDiscount) / 100;
   const deliveryChargeAmount = (subTotal * deliveryChargePercent) / 100;
@@ -711,6 +726,13 @@ export default function POSView({ products, categories, fetchInitialData, appCon
             autoFocus
           />
           <button 
+            onClick={() => setShowScanner(true)}
+            className="bg-emerald-600 text-white px-3 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap active:scale-95 transition-transform flex items-center gap-1"
+            title="Use Camera"
+          >
+            <Camera size={14} />
+          </button>
+          <button 
             onClick={handleSerialClick}
             className="bg-[#2563EB] text-white px-4 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap active:scale-95 transition-transform"
           >
@@ -755,6 +777,29 @@ export default function POSView({ products, categories, fetchInitialData, appCon
                 <button onClick={() => { setShowReceipt(false); setCart([]); }} className="w-full bg-white text-slate-600 py-3 rounded-xl font-black uppercase text-xs border border-slate-200 hover:bg-slate-50">
                   Close & New Sale (Esc)
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* QR/Barcode Scanner Modal */}
+      <AnimatePresence>
+        {showScanner && (
+          <div className="fixed inset-0 z-[800] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Scan Product</h3>
+                <button onClick={() => setShowScanner(false)} className="p-1.5 hover:bg-slate-200 rounded-lg">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="relative aspect-video bg-slate-100">
+                <Scanner
+                  onScan={handleCameraScan}
+                  onError={(error) => console.error(error)}
+                  constraints={{ facingMode: 'environment' }}
+                />
               </div>
             </motion.div>
           </div>

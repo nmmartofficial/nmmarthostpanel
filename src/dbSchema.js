@@ -9,6 +9,7 @@ export const DB_SCHEMA = {
   
   // 1. Inventory & Catalog
   PRODUCTS: { table: 'products', pk: 'id', label: 'Products Master' },
+  STOCK_ALERTS: { table: 'stock_alerts', pk: 'id', label: 'Stock Alerts' },
   CATEGORIES: { table: 'categories', pk: 'id', label: 'Categories' },
   SUBCATEGORIES: { table: 'subcategories', pk: 'id', label: 'Sub-Categories' },
   BRANDS: { table: 'brands', pk: 'id', label: 'Brands' },

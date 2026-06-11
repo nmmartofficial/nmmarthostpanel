@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { 
   Package, Layers, Grid, List, Tag, Building2, 
   Users, Image as ImageIcon, CreditCard, 
@@ -15,7 +15,7 @@ import {
   Monitor, Maximize2, ChevronRight, Circle, FileJson,
   Upload, ExternalLink, ShoppingBag, IndianRupee, Flag,
   Repeat, Wrench, ArrowLeftRight, Key, QrCode,
-  Pause, Star, LayoutGrid, TrendingUp, TrendingDown
+  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
@@ -28,6 +28,12 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { toast } from 'sonner';
+import {
+  sanitizeHTML, sanitizeText, validatePIN, validateEmail,
+  validatePhone, validatePositiveNumber, sanitizeFormData,
+  secureStorage, isSecureConnection, forceHTTPS,
+  LoginRateLimiter, validateProduct, preventClickjacking
+} from './utils/security';
 
 import MasterListView from './components/MasterListView';
 
@@ -43,8 +49,11 @@ import POSView from './pages/POSView';
 import ProfitLossView from './pages/ProfitLossView';
 import HomeLayoutManager from './pages/HomeLayoutManager';
 import SuppliersView from './pages/Inventory/SuppliersView';
+import EnhancedSuppliersView from './pages/Inventory/EnhancedSuppliersView';
 import PurchaseEntryView from './pages/Inventory/PurchaseEntryView';
 import StockLogsView from './pages/Inventory/StockLogsView';
+import StockAlertsView from './pages/Inventory/StockAlertsView';
+import CustomerAnalyticsView from './pages/CustomerAnalyticsView';
 import ExpensesView from './pages/ExpensesView';
 import PurchaseView from './pages/Inventory/PurchaseView';
 
@@ -335,10 +344,27 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 
 // --- App Component ---
 export default function App() {
+  // Initialize login rate limiter
+  const loginRateLimiter = useMemo(() => new LoginRateLimiter(5, 5), []);
+  
+  // --- Initialize security on mount ---
+  useEffect(() => {
+    // Prevent clickjacking attacks
+    preventClickjacking();
+    
+    // Force HTTPS in production (except localhost)
+    forceHTTPS();
+    
+    // Warn if not on secure connection
+    if (!isSecureConnection() && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      toast.warning('⚠️ For security, please use HTTPS!', { duration: 5000 });
+    }
+  }, []);
+  
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('nm_user_data');
-    return saved ? JSON.parse(saved) : null;
+    const saved = secureStorage.getItem('nm_user_data');
+    return saved || null;
   });
   const [pin, setPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -347,6 +373,56 @@ export default function App() {
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ old: '', new: '', confirm: '' });
+  const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+  const sessionTimeoutRef = useRef(null);
+  const warningTimeoutRef = useRef(null);
+
+  const resetSessionTimer = useCallback(() => {
+    if (!isAuthorized) return;
+    if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
+    if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+
+    // Warn user 1 minute before timeout (30 min session timeout by default)
+    const timeoutMinutes = 30;
+    warningTimeoutRef.current = setTimeout(() => {
+      setShowTimeoutWarning(true);
+    }, (timeoutMinutes - 1) * 60 * 1000);
+
+    sessionTimeoutRef.current = setTimeout(() => {
+      handleLogout();
+    }, timeoutMinutes * 60 * 1000);
+  }, [isAuthorized]);
+
+  const extendSession = useCallback(() => {
+    setShowTimeoutWarning(false);
+    resetSessionTimer();
+  }, [resetSessionTimer]);
+
+  const handleLogout = useCallback(() => {
+    setIsAuthorized(false);
+    setCurrentUser(null);
+    secureStorage.clear();
+    localStorage.removeItem('nm_active_tab');
+    if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
+    if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+    toast.info('Logged Out Successfully');
+  }, []);
+
+  // --- Session Reset on User Activity ---
+  useEffect(() => {
+    if (!isAuthorized) return;
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
+    const handleUserActivity = () => {
+      resetSessionTimer();
+    };
+    events.forEach(event => window.addEventListener(event, handleUserActivity));
+    resetSessionTimer();
+    return () => {
+      events.forEach(event => window.removeEventListener(event, handleUserActivity));
+      if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
+      if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+    };
+  }, [isAuthorized, resetSessionTimer]);
 
   // Sync activeTab with localStorage so it persists on refresh during session
   useEffect(() => {
@@ -394,6 +470,20 @@ export default function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!pin) return; // Prevent empty submit
+
+    // Validate PIN format first
+    if (!validatePIN(pin)) {
+      toast.error('PIN must be 4-8 digits');
+      return;
+    }
+
+    // Check if user is locked out
+    const lockoutStatus = loginRateLimiter.isLockedOut();
+    if (lockoutStatus.locked) {
+      toast.error(`Too many attempts! Try again in ${lockoutStatus.remainingSeconds} seconds`);
+      return;
+    }
+
     setIsProcessing(true);
     try {
       // Secure server-side PIN verification using RPC
@@ -402,6 +492,9 @@ export default function App() {
       if (error) throw error;
 
       if (isValid) {
+        // Reset login attempts on success
+        loginRateLimiter.recordAttempt(true);
+        
         // Fetch user details for profile and role
         const { data: userData } = await supabase
           .from(DB_SCHEMA.ADMIN_USERS.table)
@@ -411,30 +504,42 @@ export default function App() {
 
         const profile = userData || { username: 'Admin', role: 'super_admin' };
         setCurrentUser(profile);
-        localStorage.setItem('nm_user_data', JSON.stringify(profile));
+        secureStorage.setItem('nm_user_data', profile);
 
         setIsAuthorized(true);
-        localStorage.setItem('nm_admin_auth', 'true');
-        localStorage.setItem('nm_auth_time', Date.now().toString());
+        secureStorage.setItem('nm_admin_auth', 'true');
+        secureStorage.setItem('nm_auth_time', Date.now().toString());
         toast.success('Access Granted');
       } else {
-        toast.error('Invalid Security PIN');
+        // Increment login attempts on failure
+        loginRateLimiter.recordAttempt(false);
+        const remaining = loginRateLimiter.getRemainingAttempts();
+        
+        toast.error(`Invalid PIN! ${remaining} attempts remaining`);
         setPin('');
       }
     } catch (error) {
       console.error('Login error:', error);
       // Fallback to environment variable if database is disconnected
+      // NOTE: For maximum security, you should disable this fallback in production!
       const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN || '1234';
       if (pin === fallbackPin) {
+        // Reset login attempts on success
+        loginRateLimiter.recordAttempt(true);
+        
         const profile = { username: 'Offline Admin', role: 'super_admin' };
         setCurrentUser(profile);
-        localStorage.setItem('nm_user_data', JSON.stringify(profile));
+        secureStorage.setItem('nm_user_data', profile);
 
         setIsAuthorized(true);
-        localStorage.setItem('nm_admin_auth', 'true');
+        secureStorage.setItem('nm_admin_auth', 'true');
         toast.success('Offline Access Granted');
       } else {
-        toast.error('Connection Error or Invalid PIN');
+        // Increment login attempts on failure
+        loginRateLimiter.recordAttempt(false);
+        const remaining = loginRateLimiter.getRemainingAttempts();
+        
+        toast.error(`Connection Error or Invalid PIN! ${remaining} attempts remaining`);
       }
     } finally {
       setIsProcessing(false);
@@ -600,7 +705,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (localStorage.getItem('nm_admin_auth') === 'true') {
+    if (secureStorage.getItem('nm_admin_auth') === 'true') {
       setIsAuthorized(true);
     }
     
@@ -677,38 +782,7 @@ export default function App() {
     }
   };
 
-  // --- Step 2: Session Timeout Logic ---
-  useEffect(() => {
-    if (!isAuthorized) return;
 
-    const TIMEOUT_DURATION = 30 * 60 * 1000; // 30 minutes
-    let timeoutId;
-
-    const resetTimer = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        handleLogout('Session expired due to inactivity');
-      }, TIMEOUT_DURATION);
-    };
-
-    const handleLogout = (msg) => {
-      localStorage.removeItem('nm_admin_auth');
-      localStorage.removeItem('nm_user_data');
-      setIsAuthorized(false);
-      toast.warning(msg);
-    };
-
-    // Events to track user activity
-    const events = ['mousemove', 'keypress', 'scroll', 'click', 'touchstart'];
-    events.forEach(event => window.addEventListener(event, resetTimer));
-
-    resetTimer();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      events.forEach(event => window.removeEventListener(event, resetTimer));
-    };
-  }, [isAuthorized]);
 
   // --- RBAC: Filter Navigation Items (Hooks must be before conditional return) ---
   const userRole = currentUser?.role || 'super_admin';
@@ -782,12 +856,14 @@ export default function App() {
   ].filter(item => isAllowed(item.id));
 
   const inventoryItems = [
+    { id: 'StockAlerts', label: 'Stock Alerts', icon: <AlertTriangle size={14} /> },
     { id: 'PurchaseEntry', label: 'Purchase Entry', icon: <ShoppingBag size={14} /> },
     { id: 'StockLogs', label: 'Stock Movement Logs', icon: <History size={14} /> },
     { id: 'Products', label: 'Current Stock', icon: <Package size={14} /> },
   ].filter(item => isAllowed(item.id));
 
   const reportItemsNav = [
+    { id: 'CustomerAnalytics', label: 'Customer Analytics', icon: <Users size={14} /> },
     { id: 'SaleSummary', label: 'Sale Summary', icon: <FileText size={14} /> },
     { id: 'SaleReportBill', label: 'Sale Bill Report', icon: <FileText size={14} /> },
     { id: 'SaleReportItem', label: 'Sale Item Report', icon: <FileText size={14} /> },
@@ -843,17 +919,22 @@ export default function App() {
       {/* --- Top Navigation Bar --- */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-[100] shadow-sm select-none">
         <div className="max-w-full mx-auto px-4 h-12 flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            {/* Home Icon */}
+          <div className="flex items-center gap-3">
+            {/* Brand Name / Logo */}
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                <ShoppingBag size={16} className="text-white" />
+              </div>
+              <h1 className="text-sm font-black text-blue-900 uppercase tracking-tighter hidden sm:block">{BRAND_NAME} ADMIN</h1>
+            </div>
+
+            {/* Home Button */}
             <button 
               onClick={() => setActiveTab('Dashboard')}
-              className={cn(
-                "p-2 rounded-md transition-all",
-                activeTab === 'Dashboard' ? "text-blue-700 bg-blue-50" : "text-slate-600 hover:bg-slate-100"
-              )}
-              title="Home / Dashboard"
+              className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-tighter hover:bg-blue-700 transition-all shadow-md"
             >
-              <Home size={18} />
+              <Home size={14} />
+              <span className="hidden sm:inline">Home</span>
             </button>
 
             {/* Desktop Navigation Menus (Hidden on Mobile) */}
@@ -1175,8 +1256,7 @@ export default function App() {
                     ))}
                     <button 
                       onClick={() => {
-                        localStorage.removeItem('nm_admin_auth');
-                        setIsAuthorized(false);
+                        handleLogout();
                         setShowMobileMenu(false);
                       }}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-700 hover:text-red-800 font-bold text-sm transition-all"
@@ -1188,6 +1268,48 @@ export default function App() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Session Timeout Warning */}
+      <AnimatePresence>
+        {showTimeoutWarning && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[2000] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[32px] p-8 flex flex-col items-center gap-6 shadow-2xl border border-slate-200 w-full max-w-md"
+            >
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-20 h-20 bg-amber-100 rounded-3xl flex items-center justify-center">
+                  <Clock size={48} className="text-amber-600" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Session Expiring Soon!</h3>
+                <p className="text-slate-500 font-bold text-center">Your session will automatically end in 1 minute due to inactivity!</p>
+              </div>
+
+              <div className="flex gap-4 w-full">
+                <button 
+                  onClick={extendSession}
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                >
+                  <RefreshCw size={16} /> Extend Session
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="flex-1 bg-white border-2 border-slate-800 text-slate-800 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
+                >
+                  <LogOut size={16} /> Logout Now
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1237,8 +1359,7 @@ export default function App() {
                   <div className="flex gap-4 w-full">
                     <button 
                       onClick={() => {
-                        localStorage.removeItem('nm_admin_auth');
-                        setIsAuthorized(false);
+                        handleLogout();
                         setShowProfileOverlay(false);
                       }}
                       className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
@@ -5140,7 +5261,10 @@ function StockReportView({ products, purchases, orders, categories, departments 
           saleRate: parseFloat(product.sale_rate || 0),
           amount: closing * parseFloat(product.sale_rate || 0),
           purcRate: parseFloat(product.purchase_rate || 0),
-          purcAmount: closing * parseFloat(product.purchase_rate || 0)
+          purcAmount: closing * parseFloat(product.purchase_rate || 0),
+          hsn: product.hsn_code || 'N/A',
+          gstPercent: parseFloat(product.gst_percent || 0),
+          cessPercent: parseFloat(product.cess_percent || 0)
         };
       }).filter(Boolean);
 
@@ -5154,7 +5278,22 @@ function StockReportView({ products, purchases, orders, categories, departments 
 
   const handleExcel = () => {
     if (reportData.length === 0) return alert("No data to export");
-    const ws = XLSX.utils.json_to_sheet(reportData);
+    const ws = XLSX.utils.json_to_sheet(reportData.map(item => ({
+      "Sr No": item.srNo,
+      "Item Name": item.itemName,
+      "HSN Code": item.hsn,
+      "GST %": item.gstPercent,
+      "CESS %": item.cessPercent,
+      "Opening": item.opening.toFixed(2),
+      "Stock In": item.stockIn.toFixed(2),
+      "Stock Out": item.stockOut.toFixed(2),
+      "Closing": item.closing.toFixed(2),
+      "Unit": item.unit,
+      "Sale Rate": item.saleRate,
+      "Amount": item.amount.toFixed(2),
+      "Purchase Rate": item.purcRate,
+      "Purchase Amount": item.purcAmount.toFixed(2)
+    })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
     XLSX.writeFile(wb, `Stock_Report_${fromDate}_to_${toDate}.xlsx`);
@@ -5166,10 +5305,13 @@ function StockReportView({ products, purchases, orders, categories, departments 
     doc.text("Stock Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
     
-    const tableColumn = ["Sr No", "Item Name", "Opening", "Stock In", "Stock Out", "Closing", "Unit", "Sale Rate", "Amount"];
+    const tableColumn = ["Sr No", "Item Name", "HSN", "GST %", "CESS %", "Opening", "Stock In", "Stock Out", "Closing", "Unit", "Sale Rate", "Amount"];
     const tableRows = reportData.map((item, i) => [
       item.srNo,
       item.itemName,
+      item.hsn,
+      item.gstPercent,
+      item.cessPercent,
       item.opening.toFixed(2),
       item.stockIn.toFixed(2),
       item.stockOut.toFixed(2),
@@ -5253,11 +5395,14 @@ function StockReportView({ products, purchases, orders, categories, departments 
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1200px]">
+          <table className="w-full text-left border-collapse min-w-[1600px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest w-16">Sr No</th>
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Item Name</th>
+                <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">HSN Code</th>
+                <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">GST %</th>
+                <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">CESS %</th>
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Opening</th>
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Stock In</th>
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Stock Out</th>
@@ -5265,8 +5410,6 @@ function StockReportView({ products, purchases, orders, categories, departments 
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Unit</th>
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Sale Rate</th>
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Amount</th>
-                <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Purc Rate</th>
-                <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">Amount</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -5274,6 +5417,9 @@ function StockReportView({ products, purchases, orders, categories, departments 
                 <tr key={i} className="hover:bg-slate-50/50">
                   <td className="px-3 py-2 text-xs font-bold text-slate-500">{item.srNo}</td>
                   <td className="px-3 py-2 text-xs font-black text-slate-900 uppercase">{item.itemName}</td>
+                  <td className="px-3 py-2 text-xs font-bold text-center">{item.hsn}</td>
+                  <td className="px-3 py-2 text-xs font-black text-center">{item.gstPercent}</td>
+                  <td className="px-3 py-2 text-xs font-black text-center">{item.cessPercent}</td>
                   <td className="px-3 py-2 text-xs font-bold text-center">{item.opening.toFixed(2)}</td>
                   <td className="px-3 py-2 text-xs font-bold text-center text-emerald-600">+{item.stockIn.toFixed(2)}</td>
                   <td className="px-3 py-2 text-xs font-bold text-center text-red-600">-{item.stockOut.toFixed(2)}</td>
@@ -5281,17 +5427,13 @@ function StockReportView({ products, purchases, orders, categories, departments 
                   <td className="px-3 py-2 text-xs font-bold text-center uppercase">{item.unit}</td>
                   <td className="px-3 py-2 text-xs font-bold text-center">{item.saleRate}</td>
                   <td className="px-3 py-2 text-xs font-black text-center">{item.amount.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-xs font-bold text-center">{item.purcRate}</td>
-                  <td className="px-3 py-2 text-xs font-black text-right">{item.purcAmount.toFixed(2)}</td>
                 </tr>
               ))}
               <tr className="bg-blue-100/50 font-black text-slate-900 border-t-2 border-slate-200">
-                <td colSpan="5" className="px-3 py-2.5 text-right text-xs uppercase tracking-widest">Total QTY:</td>
+                <td colSpan="8" className="px-3 py-2.5 text-right text-xs uppercase tracking-widest">Total QTY:</td>
                 <td className="px-3 py-2.5 text-xs text-center">{totals.qty.toFixed(2)}</td>
                 <td colSpan="2" />
                 <td className="px-3 py-2.5 text-xs text-center">{totals.amount.toFixed(2)}</td>
-                <td className="px-3 py-2.5" />
-                <td className="px-3 py-2.5 text-xs text-right">{totals.purcAmount.toFixed(2)}</td>
               </tr>
             </tbody>
           </table>
@@ -5499,12 +5641,14 @@ function renderTabContent(activeTab, props) {
     case 'SupportTickets': return <SupportTicketsView {...props} />;
     case 'AppConfig': return <AppConfigView {...props} />;
     case 'Analytics': return <AnalyticsView {...props} />;
+    case 'CustomerAnalytics': return <CustomerAnalyticsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
     case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
     case 'HomeLayout': return <HomeLayoutManager {...props} />;
     
     // Inventory Views
-    case 'Suppliers': return <SuppliersView accounts={props.accounts} {...props} />;
+    case 'StockAlerts': return <StockAlertsView products={props.products} fetchInitialData={props.fetchInitialData} />;
+    case 'Suppliers': return <EnhancedSuppliersView accounts={props.accounts} purchases={props.purchases} fetchInitialData={props.fetchInitialData} />;
     case 'PurchaseEntry': return <PurchaseEntryView products={props.products} accounts={props.accounts} {...props} />;
     case 'StockLogs': return <StockLogsView inventoryLogs={props.inventoryLogs} products={props.products} {...props} />;
     case 'Expenses': return <ExpensesView expenses={props.expenses} fetchInitialData={props.fetchInitialData} />;

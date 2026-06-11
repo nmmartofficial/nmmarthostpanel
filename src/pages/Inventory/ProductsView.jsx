@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  GitBranch, Search, Trash2, FileJson, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer
+  GitBranch, Search, Trash2, FileJson, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, generateUUID } from '../../utils/helpers';
@@ -9,6 +9,14 @@ import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
 import PaginationFooter from '../../components/PaginationFooter';
 
+// --- Validation Helpers
+const validatePercent = (value) => {
+  const num = parseFloat(value);
+  if (isNaN(num)) return { isValid: true, message: '' };
+  if (num < 0 || num > 100) return { isValid: false, message: 'Must be between 0 and 100' };
+  return { isValid: true, message: '' };
+};
+
 export default function ProductsView({ products, categories, brands, subcategories, filter, uploadImage, fetchInitialData, setLoading }) {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -16,6 +24,8 @@ export default function ProductsView({ products, categories, brands, subcategori
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showTrash, setShowTrash] = useState(false);
+  const [gstError, setGstError] = useState('');
+  const [cessError, setCessError] = useState('');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,6 +183,23 @@ export default function ProductsView({ products, categories, brands, subcategori
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate GST and CESS
+    const gstValid = validatePercent(formData.gst_percent);
+    const cessValid = validatePercent(formData.cess_percent);
+    
+    if (!gstValid.isValid) {
+      setGstError(gstValid.message);
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!cessValid.isValid) {
+      setCessError(cessValid.message);
+      setIsSubmitting(false);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const finalData = { ...formData };
@@ -564,31 +591,78 @@ export default function ProductsView({ products, categories, brands, subcategori
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Gst %</label>
-                      <input type="number" value={formData.gst_percent || 0} onChange={(e) => setFormData({ ...formData, gst_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                      <input 
+                        type="number" 
+                        value={formData.gst_percent || 0} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData({ ...formData, gst_percent: val });
+                          if (gstError) setGstError(validatePercent(val).message);
+                        }}
+                        onBlur={() => setGstError(validatePercent(formData.gst_percent).message)}
+                        className={cn(
+                          "w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none",
+                          gstError ? "border-red-300 text-red-800" : "border-slate-200"
+                        )}
+                      />
+                      {gstError && <p className="text-[9px] font-black text-red-500 flex items-center gap-1"><AlertCircle size={10}/> {gstError}</p>}
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Cess %</label>
-                      <input type="number" value={formData.cess_percent || 0} onChange={(e) => setFormData({ ...formData, cess_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                      <input 
+                        type="number" 
+                        value={formData.cess_percent || 0} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData({ ...formData, cess_percent: val });
+                          if (cessError) setCessError(validatePercent(val).message);
+                        }}
+                        onBlur={() => setCessError(validatePercent(formData.cess_percent).message)}
+                        className={cn(
+                          "w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none",
+                          cessError ? "border-red-300 text-red-800" : "border-slate-200"
+                        )}
+                      />
+                      {cessError && <p className="text-[9px] font-black text-red-500 flex items-center gap-1"><AlertCircle size={10}/> {cessError}</p>}
                     </div>
                   </div>
 
-                  {/* Row 4: Opening Stock, Favourite, Discountable, Min Qty, Disc %, Expiry */}
+                  {/* Row 4: Opening Stock, Low Stock Threshold, Min Qty, Batch No, Expiry Date, Is Perishable */}
                   <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Opening Stock</label>
                       <input type="number" value={formData.stock || 0} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Low Stock Threshold</label>
+                      <input type="number" value={formData.low_stock_threshold || 10} onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Min Qty</label>
                       <input type="number" value={formData.min_qty || 0} onChange={(e) => setFormData({ ...formData, min_qty: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Discount %</label>
-                      <input type="number" value={formData.discount_percent || 0} onChange={(e) => setFormData({ ...formData, discount_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Batch No</label>
+                      <input type="text" value={formData.batch_no || ''} onChange={(e) => setFormData({ ...formData, batch_no: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Expiry Date</label>
                       <input type="date" value={formData.expiry_date || ''} onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is Perishable?</label>
+                      <select value={formData.is_perishable ? 'Yes' : 'No'} onChange={(e) => setFormData({ ...formData, is_perishable: e.target.value === 'Yes' })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Row 5: Favourite, Discountable */}
+                  <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Discount %</label>
+                      <input type="number" value={formData.discount_percent || 0} onChange={(e) => setFormData({ ...formData, discount_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is favourite</label>
@@ -606,7 +680,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                     </div>
                   </div>
 
-                  {/* Row 5: Size, Colour, Counter, Category Name, Subcat Name, Brand Name */}
+                  {/* Row 6: Size, Colour, Counter, Category Name, Subcat Name, Brand Name */}
                   <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Size</label>

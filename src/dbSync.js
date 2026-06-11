@@ -81,21 +81,27 @@ const checkLowStockAndNotify = async (productId, bufferLimit = 5) => {
 
 /**
  * Audit Logger Helper
- * Records 'Table-Action-Timestamp' into system_logs table.
+ * Records structured audit trail into system_logs table.
  */
-const logTableAction = async (tableName, action) => {
+const logTableAction = async (tableName, action, { oldData = null, newData = null, metadata = {} } = {}) => {
   const timestamp = new Date().toISOString();
   const userData = localStorage.getItem('nm_user_data');
-  const username = userData ? JSON.parse(userData).username : 'system';
-  const logEntry = `[${username}] ${tableName}-${action}-${timestamp}`;
+  const user = userData ? JSON.parse(userData) : { username: 'system', role: 'system' };
   
   try {
     if (DB_SCHEMA.SYSTEM_LOGS) {
       await supabase.from(DB_SCHEMA.SYSTEM_LOGS.table).insert([{
-        log_entry: logEntry
+        table_name: tableName,
+        action_type: action,
+        username: user.username,
+        user_role: user.role,
+        old_data: oldData ? JSON.stringify(oldData) : null,
+        new_data: newData ? JSON.stringify(newData) : null,
+        metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+        created_at: timestamp
       }]);
     }
-    console.log(`[Audit Log] ${logEntry}`);
+    console.log(`[Audit Log] [${user.username}] ${action} on ${tableName} at ${timestamp}`, { oldData, newData, metadata });
   } catch (err) {
     console.error("Audit Log Failed", err);
   }
@@ -212,7 +218,7 @@ export const dbSync = {
         throw error;
       }
 
-      await logTableAction(tableName, 'INSERT');
+      await logTableAction(tableName, 'INSERT', { newData: data });
       return data;
     } catch (error) {
       console.error(`[Insert Error] ${tableName}:`, error.message);
@@ -299,6 +305,13 @@ export const dbSync = {
     try {
       validatePayload(tableName, payload);
 
+      // Fetch old data first
+      const { data: oldData } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', id)
+        .single();
+
       const { data, error } = await supabase
         .from(tableName)
         .update(payload)
@@ -310,7 +323,7 @@ export const dbSync = {
         throw error;
       }
 
-      await logTableAction(tableName, 'UPDATE');
+      await logTableAction(tableName, 'UPDATE', { oldData, newData: data });
       return data;
     } catch (error) {
       console.error(`[Update Error] ${tableName}:`, error.message);
@@ -322,6 +335,12 @@ export const dbSync = {
   delete: async (tableName, id, permanent = false) => {
     try {
       let error;
+      // Fetch old data first
+      const { data: oldData } = await supabase
+        .from(tableName)
+        .select('*')
+        .eq('id', id)
+        .single();
 
       if (permanent || ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist'].includes(tableName)) {
         // Hard Delete for specific tables or if requested
@@ -338,7 +357,7 @@ export const dbSync = {
         throw error;
       }
 
-      await logTableAction(tableName, permanent ? 'HARD_DELETE' : 'SOFT_DELETE');
+      await logTableAction(tableName, permanent ? 'HARD_DELETE' : 'SOFT_DELETE', { oldData });
       return true;
     } catch (error) {
       console.error(`[Delete Error] ${tableName}:`, error.message);
@@ -532,6 +551,198 @@ export const dbSync = {
       commands.push(`\n\n\n\x1Bm`); // Cut paper
 
       return commands.join('');
+    },
+    
+    generateGSTInvoice: (order, items, appConfig = {}) => {
+      // Generate GST-compliant invoice as PDF/Printable HTML
+      const gstRate = 18; // Default GST rate (can be made dynamic per product)
+      
+      // Calculate GST breakdown
+      const subtotal = parseFloat(order.subtotal) || parseFloat(order.total_amount);
+      const discount = parseFloat(order.discount) || 0;
+      const deliveryCharge = parseFloat(order.delivery_charge) || 0;
+      const taxableAmount = subtotal - discount + deliveryCharge;
+      const gstAmount = (taxableAmount * gstRate) / (100 + gstRate);
+      const cgst = gstAmount / 2;
+      const sgst = gstAmount / 2;
+
+      // Generate HTML for invoice
+      const invoiceHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>GST Invoice - ${order.order_number}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .invoice-header {
+              text-align: center;
+              border-bottom: 2px solid #000;
+              padding-bottom: 10px;
+              margin-bottom: 20px;
+            }
+            .invoice-header h1 {
+              margin: 0;
+              font-size: 24px;
+            }
+            .invoice-details {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 20px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            table, th, td {
+              border: 1px solid #ddd;
+            }
+            th, td {
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background-color: #f2f2f2;
+            }
+            .total-section {
+              margin-left: auto;
+              width: 300px;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 5px 0;
+            }
+            .total-row.total {
+              font-weight: bold;
+              font-size: 18px;
+              border-top: 2px solid #000;
+              padding-top: 10px;
+            }
+            .gst-summary {
+              margin-top: 20px;
+              padding-top: 10px;
+              border-top: 1px solid #ddd;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 40px;
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+              font-size: 12px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-header">
+            <h1>${appConfig.store_name || 'NM MART'}</h1>
+            <p>${appConfig.store_address || 'Retail Store'}</p>
+            <p>Phone: ${appConfig.store_phone || 'N/A'}</p>
+            <p>GSTIN: ${appConfig.gstin || 'N/A'}</p>
+          </div>
+          
+          <div class="invoice-details">
+            <div>
+              <strong>Invoice #:</strong> ${order.order_number || order.id}<br>
+              <strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}<br>
+              <strong>Customer:</strong> ${order.customer_name || 'Walk-in'}<br>
+              <strong>Mobile:</strong> ${order.user_mobile || 'N/A'}
+            </div>
+            <div>
+              <strong>Payment Method:</strong> ${order.payment_method || 'N/A'}<br>
+              <strong>Payment Status:</strong> ${order.payment_status || 'N/A'}<br>
+              <strong>Delivery Status:</strong> ${order.order_status || 'N/A'}
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((item, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${item.product_name || item.name}</td>
+                  <td>${item.quantity || item.qty}</td>
+                  <td>₹${parseFloat(item.rate || item.price).toFixed(2)}</td>
+                  <td>₹${parseFloat(item.total || (item.qty * item.price)).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="total-section">
+            <div class="total-row">
+              <span>Subtotal:</span>
+              <span>₹${subtotal.toFixed(2)}</span>
+            </div>
+            ${discount > 0 ? `
+              <div class="total-row">
+                <span>Discount:</span>
+                <span>-₹${discount.toFixed(2)}</span>
+              </div>
+            ` : ''}
+            ${deliveryCharge > 0 ? `
+              <div class="total-row">
+                <span>Delivery:</span>
+                <span>+₹${deliveryCharge.toFixed(2)}</span>
+              </div>
+            ` : ''}
+            <div class="total-row total">
+              <span>Grand Total:</span>
+              <span>₹${parseFloat(order.total_amount).toFixed(2)}</span>
+            </div>
+            
+            <div class="gst-summary">
+              <h4>GST Summary (${gstRate}%):</h4>
+              <div class="total-row">
+                <span>CGST (${gstRate/2}%):</span>
+                <span>₹${cgst.toFixed(2)}</span>
+              </div>
+              <div class="total-row">
+                <span>SGST (${gstRate/2}%):</span>
+                <span>₹${sgst.toFixed(2)}</span>
+              </div>
+              <div class="total-row">
+                <span>Total GST:</span>
+                <span>₹${gstAmount.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p>This is a computer-generated invoice and does not require a signature.</p>
+            <p>Thank you for shopping with us!</p>
+          </div>
+        </body>
+        </html>
+      `;
+      
+      // Open invoice in new window for printing
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(invoiceHTML);
+      printWindow.document.close();
+      printWindow.focus();
+      
+      // Auto print after a short delay
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+      
+      return invoiceHTML;
     }
   },
 
