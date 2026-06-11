@@ -1,0 +1,240 @@
+/**
+ * NM MART - SECURITY UTILITIES
+ * Comprehensive security helpers for input validation, sanitization, and XSS protection
+ */
+
+/**
+ * XSS Sanitization: Removes or encodes dangerous HTML characters
+ */
+export const sanitizeHTML = (input) => {
+  if (!input) return input;
+  
+  const div = document.createElement('div');
+  div.textContent = input;
+  return div.innerHTML;
+};
+
+/**
+ * Validate PIN format (4-8 digits)
+ */
+export const validatePIN = (pin) => {
+  const pinStr = String(pin || '');
+  const regex = /^\d{4,8}$/;
+  return regex.test(pinStr);
+};
+
+/**
+ * Validate email format
+ */
+export const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
+
+/**
+ * Validate phone number (10-digit Indian format)
+ */
+export const validatePhone = (phone) => {
+  const regex = /^[6-9]\d{9}$/;
+  return regex.test(String(phone));
+};
+
+/**
+ * Validate numeric fields (positive numbers)
+ */
+export const validatePositiveNumber = (num) => {
+  const n = Number(num);
+  return !isNaN(n) && n >= 0;
+};
+
+/**
+ * Sanitize text input (trim + remove dangerous chars)
+ */
+export const sanitizeText = (text) => {
+  if (!text) return text;
+  return String(text).trim().replace(/[<>&"]/g, (c) => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    '"': '&quot;'
+  }[c]));
+};
+
+/**
+ * Validate password strength (at least 8 chars, 1 letter, 1 number)
+ */
+export const validatePasswordStrength = (password) => {
+  if (!password || password.length < 8) {
+    return { valid: false, message: 'Password must be at least 8 characters long' };
+  }
+  
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  
+  if (!hasLetter) {
+    return { valid: false, message: 'Password must contain at least one letter' };
+  }
+  
+  if (!hasNumber) {
+    return { valid: false, message: 'Password must contain at least one number' };
+  }
+  
+  if (!hasSpecialChar) {
+    return { valid: false, message: 'Password must contain at least one special character' };
+  }
+  
+  return { valid: true, message: 'Strong password' };
+};
+
+/**
+ * Generate secure random PIN (6 digits)
+ */
+export const generateSecurePIN = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+/**
+ * Session storage with encryption (simple encoding for demo)
+ * Note: For production, use proper encryption libraries
+ */
+export const secureStorage = {
+  setItem: (key, value) => {
+    const encoded = btoa(JSON.stringify(value));
+    localStorage.setItem(key, encoded);
+  },
+  
+  getItem: (key) => {
+    const encoded = localStorage.getItem(key);
+    if (!encoded) return null;
+    try {
+      return JSON.parse(atob(encoded));
+    } catch (e) {
+      console.error('Secure storage decode error:', e);
+      return null;
+    }
+  },
+  
+  removeItem: (key) => {
+    localStorage.removeItem(key);
+  },
+  
+  clear: () => {
+    const secureKeys = ['nm_admin_auth', 'nm_user_data', 'nm_auth_time', 'nm_login_attempts'];
+    secureKeys.forEach(key => localStorage.removeItem(key));
+  }
+};
+
+/**
+ * Check if connection is secure (HTTPS)
+ */
+export const isSecureConnection = () => {
+  return window.location.protocol === 'https:';
+};
+
+/**
+ * Force HTTPS (redirect if not on HTTPS)
+ */
+export const forceHTTPS = () => {
+  if (!isSecureConnection() && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    window.location.href = `https://${window.location.host}${window.location.pathname}`;
+  }
+};
+
+/**
+ * Rate Limiter for login attempts
+ */
+export class LoginRateLimiter {
+  constructor(maxAttempts = 5, lockoutDurationMinutes = 5) {
+    this.maxAttempts = maxAttempts;
+    this.lockoutDuration = lockoutDurationMinutes * 60 * 1000;
+  }
+  
+  getAttempts() {
+    const data = secureStorage.getItem('nm_login_attempts') || { count: 0, timestamp: 0 };
+    return data;
+  }
+  
+  isLockedOut() {
+    const { count, timestamp } = this.getAttempts();
+    if (count >= this.maxAttempts) {
+      const remaining = this.lockoutDuration - (Date.now() - timestamp);
+      if (remaining > 0) {
+        return { locked: true, remainingSeconds: Math.ceil(remaining / 1000) };
+      }
+    }
+    return { locked: false };
+  }
+  
+  recordAttempt(success) {
+    if (success) {
+      secureStorage.removeItem('nm_login_attempts');
+    } else {
+      const current = this.getAttempts();
+      secureStorage.setItem('nm_login_attempts', {
+        count: current.count + 1,
+        timestamp: Date.now()
+      });
+    }
+  }
+  
+  getRemainingAttempts() {
+    const { count } = this.getAttempts();
+    return Math.max(0, this.maxAttempts - count);
+  }
+}
+
+/**
+ * Input sanitization middleware for forms
+ */
+export const sanitizeFormData = (data) => {
+  const sanitized = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'string') {
+      sanitized[key] = sanitizeText(value);
+    } else if (value !== null && typeof value === 'object') {
+      sanitized[key] = sanitizeFormData(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+};
+
+/**
+ * Validate product data
+ */
+export const validateProduct = (product) => {
+  const errors = [];
+  
+  if (!product.name || String(product.name).trim() === '') {
+    errors.push('Product name is required');
+  }
+  
+  if (!validatePositiveNumber(product.mrp)) {
+    errors.push('MRP must be a positive number');
+  }
+  
+  if (!validatePositiveNumber(product.sale_rate)) {
+    errors.push('Sale rate must be a positive number');
+  }
+  
+  if (Number(product.sale_rate) > Number(product.mrp)) {
+    errors.push('Sale rate cannot be higher than MRP');
+  }
+  
+  if (!validatePositiveNumber(product.stock)) {
+    errors.push('Stock must be a positive number');
+  }
+  
+  return { valid: errors.length === 0, errors };
+};
+
+/**
+ * Prevent clickjacking
+ */
+export const preventClickjacking = () => {
+  if (window.self !== window.top) {
+    window.top.location.href = window.self.location.href;
+  }
+};
