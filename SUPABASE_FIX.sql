@@ -64,6 +64,26 @@ BEGIN
     END IF;
 END $$;
 
+-- Add THEME/BRANDING columns to app_config if they don't exist
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'primary_color') THEN
+        ALTER TABLE public.app_config ADD COLUMN primary_color TEXT DEFAULT '#FFC107';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'secondary_color') THEN
+        ALTER TABLE public.app_config ADD COLUMN secondary_color TEXT DEFAULT '#212121';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'accent_color') THEN
+        ALTER TABLE public.app_config ADD COLUMN accent_color TEXT DEFAULT '#FF5722';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'logo_url') THEN
+        ALTER TABLE public.app_config ADD COLUMN logo_url TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'brand_name') THEN
+        ALTER TABLE public.app_config ADD COLUMN brand_name TEXT DEFAULT 'NM MART';
+    END IF;
+END $$;
+
 -- 3. CREATE VERIFY ADMIN PIN FUNCTION
 
 CREATE OR REPLACE FUNCTION public.verify_admin_pin(input_pin TEXT)

@@ -75,21 +75,19 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
         </div>
       </div>
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            { label: 'Official Store Name', name: 'store_name', type: 'text' },
-            { label: 'Standard Delivery Msg', name: 'delivery_time_msg', type: 'text' },
-            { label: 'Free Delivery Threshold', name: 'min_order_free_delivery', type: 'number' },
-            { label: 'Base Delivery Fee', name: 'delivery_charge', type: 'number' },
-            { label: 'Order Handling Fee', name: 'handling_charge', type: 'number' },
-            { label: 'Reward Cashback (%)', name: 'cashback_percentage', type: 'number' },
-            { label: 'GST Tax Rate (%)', name: 'tax_rate', type: 'number' },
-            { label: 'Security Admin PIN', name: 'security_pin', type: 'text' },
-            { label: 'App Maintenance Mode', name: 'maintenance_mode', type: 'checkbox' },
-            { label: 'App Version (Latest)', name: 'app_version', type: 'text' },
-            { label: 'Force Update', name: 'force_update', type: 'checkbox' },
-            { label: 'Guard Verification', name: 'enable_guard_verification', type: 'checkbox' },
-          ].map(f => (
+        <div className="space-y-6">
+          {/* Store & Branding */}
+          <div className="border border-slate-100 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+              <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Store & Branding</h4>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { label: 'Official Store Name', name: 'store_name', type: 'text' },
+                { label: 'Brand Name', name: 'brand_name', type: 'text' },
+                { label: 'Logo URL', name: 'logo_url', type: 'text' },
+                { label: 'Standard Delivery Msg', name: 'delivery_time_msg', type: 'text' },
+              ].map(f => (
             <div key={f.name} className="space-y-1">
               <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
               {f.type === 'checkbox' ? (
@@ -117,8 +115,90 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
                 />
               )}
             </div>
-          ))}
-        </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Theme Colors */}
+          <div className="border border-slate-100 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+              <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">App Theme Colors</h4>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[
+                { label: 'Primary Color', name: 'primary_color', type: 'color' },
+                { label: 'Secondary Color', name: 'secondary_color', type: 'color' },
+                { label: 'Accent Color', name: 'accent_color', type: 'color' },
+              ].map(f => (
+                <div key={f.name} className="space-y-2">
+                  <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="color"
+                      value={formData[f.name] || '#FFFFFF'}
+                      onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                      className="w-16 h-10 rounded-lg border-2 border-slate-200 cursor-pointer"
+                    />
+                    <input 
+                      type="text"
+                      value={formData[f.name] || ''}
+                      onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900 uppercase"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Financial & Settings */}
+          <div className="border border-slate-100 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+              <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Financial & Settings</h4>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { label: 'Free Delivery Threshold', name: 'min_order_free_delivery', type: 'number' },
+                { label: 'Base Delivery Fee', name: 'delivery_charge', type: 'number' },
+                { label: 'Order Handling Fee', name: 'handling_charge', type: 'number' },
+                { label: 'Reward Cashback (%)', name: 'cashback_percentage', type: 'number' },
+                { label: 'GST Tax Rate (%)', name: 'tax_rate', type: 'number' },
+                { label: 'Security Admin PIN', name: 'security_pin', type: 'text' },
+                { label: 'App Maintenance Mode', name: 'maintenance_mode', type: 'checkbox' },
+                { label: 'App Version (Latest)', name: 'app_version', type: 'text' },
+                { label: 'Force Update', name: 'force_update', type: 'checkbox' },
+                { label: 'Guard Verification', name: 'enable_guard_verification', type: 'checkbox' },
+              ].map(f => (
+                <div key={f.name} className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
+                  {f.type === 'checkbox' ? (
+                    <div className="flex items-center h-[34px]">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
+                        className={cn(
+                          "w-12 h-6 rounded-full p-1 transition-all duration-300",
+                          formData[f.name] ? "bg-blue-600" : "bg-slate-300"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 transform",
+                          formData[f.name] ? "translate-x-6" : "translate-x-0"
+                        )} />
+                      </button>
+                    </div>
+                  ) : (
+                    <input 
+                      type={f.type}
+                      value={formData[f.name] || ''}
+                      onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         <button 
           type="submit" 
           disabled={isSubmitting}
