@@ -180,13 +180,116 @@ admin panel host/
 
 ---
 
-## 🚀 Next Steps (Mandatory)
+## 🚀 Quick Start for Developers (Step-by-Step)
 
+### Mandatory Setup:
 1. **Run `SUPABASE_FIX.sql`** in Supabase SQL Editor (IMPORTANT!)
    - Creates missing tables: `expenses`, `inventory_logs`, `expense_categories`
    - Adds missing columns
    - Creates `verify_admin_pin` function
    - Adds RLS policies
+
+2. **Change default PINs** in Supabase after running SQL
+
+---
+
+### How to Test New Features:
+1. **Test Camera Scanner**:
+   - Open the admin panel
+   - Go to **POS View**
+   - Click **green camera button**
+   - Scan any product barcode/QR code
+   - Product will auto-add to cart!
+
+2. **Test GST Invoice**:
+   - Go to **Orders View**
+   - Click any order to open details
+   - Click **Print GST Invoice**
+   - A professional invoice will open in a new tab (auto-print)
+
+---
+
+## 📖 How to Use Each New Feature
+
+### 1. Security Utilities (`src/utils/security.js`)
+Import any utility:
+```jsx
+import { sanitizeHTML, validatePIN, secureStorage } from '../utils/security';
+```
+
+Available functions:
+- `sanitizeHTML(text)`: XSS sanitization
+- `validatePIN(pin)`: 4-8 digit PIN validation
+- `validateEmail(email)`: Email validation
+- `validatePhone(phone)`: 10-digit Indian phone validation
+- `secureStorage.setItem/getItem/removeItem`: Secure localStorage wrapper
+- `LoginRateLimiter`: Brute-force protection for logins
+- `forceHTTPS()`: Auto-redirect to HTTPS
+- `preventClickjacking()`: Frame-busting protection
+
+---
+
+### 2. Generate GST Invoice
+To generate an invoice programmatically:
+```jsx
+import { handleERPAction, ACTION_TYPES } from './erpController';
+
+// Example usage:
+const order = {...}; // Order object
+const items = [...]; // Order items array
+const appConfig = {...}; // Store config (from app_config table)
+
+await handleERPAction(null, ACTION_TYPES.GENERATE_GST_INVOICE, {
+  order,
+  items,
+  appConfig
+});
+```
+
+---
+
+### 3. Use Camera Scanner
+The scanner is already integrated in **POSView.jsx**. To use in another component:
+```jsx
+import { Scanner } from '@yudiel/react-qr-scanner';
+
+const MyComponent = () => {
+  const handleScan = (detectedCodes) => {
+    if (detectedCodes.length > 0) {
+      const code = detectedCodes[0].rawValue;
+      console.log('Scanned:', code);
+    }
+  };
+
+  return (
+    <Scanner
+      onScan={handleScan}
+      onError={(err) => console.error(err)}
+      constraints={{ facingMode: 'environment' }} // Use back camera
+    />
+  );
+};
+```
+
+---
+
+## 📝 Key Files & Functions Reference
+
+| File | Key Functions/Features |
+|------|------------------------|
+| `src/utils/security.js` | All security utilities |
+| `src/dbSync.js` | `printer.generateGSTInvoice()` |
+| `src/erpController.js` | `ACTION_TYPES.GENERATE_GST_INVOICE` |
+| `src/pages/Orders/OrdersView.jsx` | "Print GST Invoice" button |
+| `src/pages/POSView.jsx` | Camera scanner modal & button |
+| `src/App.jsx` | Supabase Auth & session timeout |
+| `SUPABASE_FIX.sql` | Run this first in Supabase! |
+
+---
+
+## 🚀 Next Steps (Mandatory)
+
+1. **Run `SUPABASE_FIX.sql`** in Supabase SQL Editor (IMPORTANT!)
 
 2. **Test the scanner**: Go to POS view and click green camera button
 
