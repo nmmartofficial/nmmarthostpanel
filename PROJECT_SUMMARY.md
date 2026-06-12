@@ -83,6 +83,29 @@ Isse aapki app ka poora look & feel ek hi jagah se change ho jayega!
 - Added Excel/PDF export to ExpensesView
 - Uses exportToExcel function from erpController
 
+### 10. **Customer Loyalty Points System (NEW!)**
+- Pre-loaded loyalty tiers: Bronze (0 points), Silver (1000+), Gold (5000+)
+- Loyalty tier discount benefits: 2%, 5%, 10% off
+- Demo customer loyalty data with points/tiers/total spent
+- Beautiful UI with Trophy, Coins, Award icons
+- Loyalty tiers saved to localStorage
+
+### 11. **Barcode Label Generator (NEW!)**
+- Installed jsbarcode package
+- Select product, choose quantity (1-100)
+- Live preview of labels with product name, price, and barcode
+- Print directly from admin panel
+- Uses CODE128 barcode format
+- Print-specific styling (hides controls for cleaner output)
+
+### 12. **Multi Store/Outlet Management (NEW!)**
+- Add/Edit/Delete store branches
+- Store details: Name, Address, Phone, Active/Inactive status
+- Pre-loaded with "NM MART - Main Branch"
+- Beautiful store cards with gradient headers
+- Stores saved to localStorage
+- Professional UI with Building2, MapPin, Phone icons
+
 ---
 
 ### 1. **Security Enhancements**
