@@ -15,13 +15,14 @@ import {
   Monitor, Maximize2, ChevronRight, Circle, FileJson,
   Upload, ExternalLink, ShoppingBag, IndianRupee, Flag,
   Repeat, Wrench, ArrowLeftRight, Key, QrCode,
-  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout
+  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { dbSync } from './dbSync';
 import { DB_SCHEMA, USER_ROLES } from './dbSchema';
+import JsBarcode from 'jsbarcode';
 import { handleERPAction, ERP_MODULES, ACTION_TYPES, parseERPCSV, exportToExcel } from './erpController';
 import { supabase } from './supabase';
 import * as XLSX from 'xlsx';
@@ -474,6 +475,15 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [inventoryLogs, setInventoryLogs] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [loyaltyPoints, setLoyaltyPoints] = useState([]);
+  const [loyaltyTransactions, setLoyaltyTransactions] = useState([]);
+  const [loyaltyTiers, setLoyaltyTiers] = useState(() => {
+    return [
+      { id: '1', name: 'Bronze', minPoints: 0, maxPoints: 999, discount: 2, color: '#CD7F32' },
+      { id: '2', name: 'Silver', minPoints: 1000, maxPoints: 4999, discount: 5, color: '#C0C0C0' },
+      { id: '3', name: 'Gold', minPoints: 5000, maxPoints: 99999, discount: 10, color: '#FFD700' }
+    ];
+  });
   const [loading, setLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [darkMode, setDarkMode] = useState(localStorage.getItem('nm_dark_mode') === 'true');
@@ -1131,6 +1141,9 @@ export default function App() {
   const toolsItems = [
     { id: 'AppBuilderAI', label: 'AI APP BUILDER', icon: <Bot size={14} /> },
     { id: 'FestivalManager', label: 'FESTIVAL MANAGER', icon: <PartyPopper size={14} /> },
+    { id: 'LoyaltyPoints', label: 'LOYALTY POINTS', icon: <Trophy size={14} /> },
+    { id: 'BarcodeLabels', label: 'BARCODE LABELS', icon: <Package size={14} /> },
+    { id: 'MultiStore', label: 'MULTI STORE', icon: <Building2 size={14} /> },
     { id: 'HomeLayout', label: 'NM APP CONTROLLER', icon: <Layout size={14} /> },
     { id: 'AppConfig', label: 'CONFIGURATION', icon: <Settings size={14} /> },
     { id: 'GuardVerification', label: 'GUARD VERIFICATION', icon: <ShieldCheck size={14} />, hidden: !appConfig?.enable_guard_verification },
@@ -1706,9 +1719,11 @@ export default function App() {
                 stats, appConfig, banners, categories, subcategories, brands, products, orders, users, coupons,
                 offers, pincodes, homeConfig, walletTx, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                 purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
+                loyaltyPoints, loyaltyTransactions, loyaltyTiers,
                 setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setUsers, setCoupons,
                 setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
-                setFestivals, setPreviewFestival, uploadImage, fetchInitialData, setLoading
+                setFestivals, setPreviewFestival, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
+                uploadImage, fetchInitialData, setLoading
               })}
           </motion.div>
         </AnimatePresence>
@@ -6525,6 +6540,460 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
   );
 };
 
+// Loyalty Points Manager
+const LoyaltyPointsView = (props) => {
+  const { 
+    users, loyaltyTiers, setLoyaltyTiers, 
+    setActiveTab 
+  } = props;
+
+  // Calculate loyalty tiers for users (demo)
+  const getLoyaltyTier = (points) => {
+    for (let i = loyaltyTiers.length - 1; i >= 0; i--) {
+      if (points >= loyaltyTiers[i].minPoints) return loyaltyTiers[i];
+    }
+    return loyaltyTiers[0];
+  };
+
+  // Demo user loyalty data
+  const demoLoyaltyData = users.map((user, idx) => ({
+    id: user.id || `demo-${idx}`,
+    user: user,
+    points: Math.floor(Math.random() * 10000),
+    totalSpent: Math.floor(Math.random() * 50000)
+  }));
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg text-white">
+            <Trophy size={24} />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider">Loyalty Points System</h2>
+            <p className="text-xs font-bold text-slate-500">Manage customer loyalty, tiers & points</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Loyalty Tiers */}
+        <div className="lg:col-span-1 bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Award size={18} /> Loyalty Tiers
+          </h3>
+          <div className="space-y-3">
+            {loyaltyTiers.map((tier) => (
+              <div 
+                key={tier.id} 
+                className="border border-slate-200 rounded-lg p-3"
+                style={{ borderLeftColor: tier.color, borderLeftWidth: '4px' }}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm font-black text-slate-800 flex items-center gap-2">
+                    <span style={{ color: tier.color }}>●</span> {tier.name}
+                  </span>
+                  <span className="text-xs font-black text-green-600">{tier.discount}% Off</span>
+                </div>
+                <div className="text-xs font-bold text-slate-500">
+                  {tier.minPoints} - {tier.maxPoints === 99999 ? '∞' : tier.maxPoints} Points
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Loyalty Users */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Coins size={18} /> Loyalty Customers
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  <th className="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Customer</th>
+                  <th className="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Points</th>
+                  <th className="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Tier</th>
+                  <th className="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Spent</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {demoLoyaltyData.length > 0 ? (
+                  demoLoyaltyData.map((item) => {
+                    const tier = getLoyaltyTier(item.points);
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-3 py-2 text-[10px] font-bold text-slate-700">
+                          {item.user.name || item.user.mobile || 'Customer'}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="text-[10px] font-black text-yellow-700">{item.points.toLocaleString()} Points</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span 
+                            className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-white"
+                            style={{ backgroundColor: tier.color }}
+                          >
+                            {tier.name}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-[10px] font-black text-slate-800">
+                          ₹{item.totalSpent.toLocaleString()}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="px-3 py-4 text-center text-xs text-slate-500">No customers found</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Barcode Label Generator
+const BarcodeLabelGenerator = (props) => {
+  const { products, setActiveTab } = props;
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  const [barcodeRefs, setBarcodeRefs] = useState([]);
+
+  // Generate barcodes on render
+  useEffect(() => {
+    barcodeRefs.forEach((ref, idx) => {
+      if (ref && selectedProduct) {
+        JsBarcode(ref, selectedProduct.barcode || selectedProduct.id, {
+          format: "CODE128",
+          lineColor: "#000000",
+          width: 2,
+          height: 50,
+          displayValue: true,
+          fontSize: 12,
+          textMargin: 5
+        });
+      }
+    });
+  }, [selectedProduct, barcodeRefs]);
+
+  // Print labels
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6 print:bg-white">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between print:hidden">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg text-white">
+            <Package size={24} />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider">Barcode Label Generator</h2>
+            <p className="text-xs font-bold text-slate-500">Create and print product barcode labels</p>
+          </div>
+        </div>
+        <button 
+          onClick={handlePrint}
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all flex items-center gap-2"
+        >
+          <Printer size={14} /> Print Labels
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Controls */}
+        <div className="lg:col-span-1 bg-white rounded-xl border border-slate-200 p-4 shadow-sm print:hidden">
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Settings size={18} /> Label Settings
+          </h3>
+          
+          <div className="space-y-4">
+            {/* Product Select */}
+            <div className="space-y-1">
+              <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Select Product</label>
+              <select 
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400"
+                value={selectedProduct?.id || ''}
+                onChange={(e) => {
+                  const product = products.find(p => p.id === e.target.value);
+                  setSelectedProduct(product);
+                }}
+              >
+                <option value="">Select a product</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} ({product.barcode || 'No Barcode'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Quantity */}
+            <div className="space-y-1">
+              <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Number of Labels</label>
+              <input 
+                type="number" 
+                min={1} 
+                max={100}
+                value={quantity}
+                onChange={(e) => setQuantity(parseInt(e.target.value))}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Label Preview */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Eye size={18} /> Label Preview
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Array.from({ length: quantity }).map((_, idx) => (
+              <div 
+                key={idx} 
+                className="border border-slate-200 rounded-lg p-3 bg-white shadow-sm flex flex-col items-center"
+              >
+                {selectedProduct ? (
+                  <>
+                    <div className="text-xs font-bold text-slate-800 mb-1 text-center line-clamp-2">
+                      {selectedProduct.name}
+                    </div>
+                    <div className="text-[10px] font-black text-blue-700 mb-1">
+                      ₹{selectedProduct.sale_rate}
+                    </div>
+                    <svg 
+                      ref={(el) => {
+                        if (el && !barcodeRefs[idx]) {
+                          setBarcodeRefs(prev => [...prev, el]);
+                        } else if (el && barcodeRefs[idx] !== el) {
+                          setBarcodeRefs(prev => {
+                            const newRefs = [...prev];
+                            newRefs[idx] = el;
+                            return newRefs;
+                          });
+                        }
+                      }}
+                    />
+                  </>
+                ) : (
+                  <div className="text-xs text-slate-400 text-center py-8">Select product to preview</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Multi Store Management
+const MultiStoreManager = (props) => {
+  const [stores, setStores] = useState(() => {
+    const saved = localStorage.getItem('nm_stores');
+    if (saved) return JSON.parse(saved);
+    return [
+      { 
+        id: '1', 
+        name: 'NM MART - Main Branch', 
+        address: '123 Main Street, City Center',
+        phone: '+91 9876543210',
+        isActive: true
+      }
+    ];
+  });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingStore, setEditingStore] = useState(null);
+  const [newStore, setNewStore] = useState({ name: '', address: '', phone: '', isActive: true });
+
+  // Save to localStorage
+  useEffect(() => {
+    localStorage.setItem('nm_stores', JSON.stringify(stores));
+  }, [stores]);
+
+  const handleAdd = () => {
+    const store = { ...newStore, id: generateUUID() };
+    setStores([...stores, store]);
+    setShowAddModal(false);
+    setNewStore({ name: '', address: '', phone: '', isActive: true });
+  };
+
+  const handleEdit = () => {
+    setStores(stores.map(s => s.id === editingStore.id ? newStore : s));
+    setShowAddModal(false);
+    setEditingStore(null);
+  };
+
+  const handleDelete = (id) => {
+    if (window.confirm('Are you sure you want to delete this store?')) {
+      setStores(stores.filter(s => s.id !== id));
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg text-white">
+            <Building2 size={24} />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider">Multi Store Management</h2>
+            <p className="text-xs font-bold text-slate-500">Manage all your store branches</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all flex items-center gap-2"
+        >
+          <Plus size={14} /> Add Store
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {stores.map(store => (
+          <div 
+            key={store.id} 
+            className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+          >
+            <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-pink-50">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-800">{store.name}</h3>
+                <span className={cn(
+                  "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                  store.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                )}>
+                  {store.isActive ? "Active" : "Inactive"}
+                </span>
+              </div>
+            </div>
+            <div className="p-4">
+              <div className="space-y-2 text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <MapPin size={12} className="text-slate-400" />
+                  <span className="font-medium">{store.address}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone size={12} className="text-slate-400" />
+                  <span className="font-medium">{store.phone}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button 
+                  onClick={() => {
+                    setEditingStore(store);
+                    setNewStore(store);
+                    setShowAddModal(true);
+                  }}
+                  className="flex-1 bg-slate-100 text-slate-700 text-xs font-black uppercase py-2 rounded-lg hover:bg-slate-200 transition-all"
+                >
+                  Edit
+                </button>
+                <button 
+                  onClick={() => handleDelete(store.id)}
+                  className="flex-1 bg-red-100 text-red-700 text-xs font-black uppercase py-2 rounded-lg hover:bg-red-200 transition-all"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add/Edit Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-800 uppercase">
+                  {editingStore ? "Edit Store" : "Add New Store"}
+                </h3>
+                <button onClick={() => { setShowAddModal(false); setEditingStore(null); }} className="p-2 hover:bg-slate-100 rounded-lg">
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Store Name</label>
+                  <input 
+                    type="text"
+                    value={newStore.name}
+                    onChange={(e) => setNewStore({ ...newStore, name: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="Enter store name"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Store Address</label>
+                  <textarea 
+                    value={newStore.address}
+                    onChange={(e) => setNewStore({ ...newStore, address: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="Enter store address"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Phone Number</label>
+                  <input 
+                    type="text"
+                    value={newStore.phone}
+                    onChange={(e) => setNewStore({ ...newStore, phone: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Active Status</label>
+                  <div 
+                    onClick={() => setNewStore({ ...newStore, isActive: !newStore.isActive })}
+                    className={`w-12 h-6 rounded-full flex items-center transition-all cursor-pointer ${newStore.isActive ? "bg-green-500" : "bg-slate-300"}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-all ${newStore.isActive ? "translate-x-6" : "translate-x-0.5"}`} />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 border-t border-slate-100 flex gap-3 justify-end">
+                <button 
+                  onClick={() => { setShowAddModal(false); setEditingStore(null); }}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-xs font-black uppercase"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={editingStore ? handleEdit : handleAdd}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg text-xs font-black uppercase shadow-lg"
+                >
+                  {editingStore ? "Update" : "Save"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 // Missing Views for renderTabContent
 const OnlineOrderView = (props) => <UnderDevelopmentView title="Online Orders" />;
 const BillView = (props) => <UnderDevelopmentView title="Bill View" />;
@@ -6544,6 +7013,9 @@ function renderTabContent(activeTab, props) {
     // Core Views (Moved to Separate Files)
     case 'AppBuilderAI': return <NMMartAppBuilderAI {...props} />;
     case 'FestivalManager': return <FestivalManager {...props} />;
+    case 'LoyaltyPoints': return <LoyaltyPointsView {...props} />;
+    case 'BarcodeLabels': return <BarcodeLabelGenerator {...props} />;
+    case 'MultiStore': return <MultiStoreManager {...props} />;
     case 'Dashboard': return <DashboardView {...props} />;
     case 'Products': return <ProductsView {...props} />;
     case 'Orders': return <OrdersView {...props} />;

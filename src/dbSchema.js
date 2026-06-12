@@ -45,6 +45,11 @@ export const DB_SCHEMA = {
   HOME_CONFIG: { table: 'home_config', pk: 'id', label: 'Home Page Config' },
   APP_CONFIG: { table: 'app_config', pk: 'id', label: 'Global Settings' },
   
+  // 6. Customer Loyalty
+  LOYALTY_POINTS: { table: 'customer_loyalty', pk: 'id', label: 'Loyalty Points' },
+  LOYALTY_TRANSACTIONS: { table: 'loyalty_transactions', pk: 'id', label: 'Loyalty Transactions' },
+  LOYALTY_TIERS: { table: 'loyalty_tiers', pk: 'id', label: 'Loyalty Tiers' },
+  
   // 6. Customer Activity
   CART: { table: 'cart', pk: 'id', label: 'Shopping Cart' },
   WISHLIST: { table: 'wishlist', pk: 'id', label: 'User Wishlist' },
