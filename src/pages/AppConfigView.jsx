@@ -88,33 +88,33 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
                 { label: 'Logo URL', name: 'logo_url', type: 'text' },
                 { label: 'Standard Delivery Msg', name: 'delivery_time_msg', type: 'text' },
               ].map(f => (
-            <div key={f.name} className="space-y-1">
-              <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
-              {f.type === 'checkbox' ? (
-                <div className="flex items-center h-[34px]">
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
-                    className={cn(
-                      "w-12 h-6 rounded-full p-1 transition-all duration-300",
-                      formData[f.name] ? "bg-blue-600" : "bg-slate-300"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 transform",
-                      formData[f.name] ? "translate-x-6" : "translate-x-0"
-                    )} />
-                  </button>
+                <div key={f.name} className="space-y-1">
+                  <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
+                  {f.type === 'checkbox' ? (
+                    <div className="flex items-center h-[34px]">
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
+                        className={cn(
+                          "w-12 h-6 rounded-full p-1 transition-all duration-300",
+                          formData[f.name] ? "bg-blue-600" : "bg-slate-300"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 transform",
+                          formData[f.name] ? "translate-x-6" : "translate-x-0"
+                        )} />
+                      </button>
+                    </div>
+                  ) : (
+                    <input 
+                      type={f.type}
+                      value={formData[f.name] || ''}
+                      onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
+                    />
+                  )}
                 </div>
-              ) : (
-                <input 
-                  type={f.type}
-                  value={formData[f.name] || ''}
-                  onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
-                />
-              )}
-            </div>
               ))}
             </div>
           </div>
@@ -199,6 +199,7 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
               ))}
             </div>
           </div>
+        </div>
         <button 
           type="submit" 
           disabled={isSubmitting}
