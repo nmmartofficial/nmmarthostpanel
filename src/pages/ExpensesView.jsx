@@ -1,12 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Receipt, Search, Plus, Trash2, Edit2, X, Save, RefreshCw, Calendar, Tag, CreditCard, ArrowDownCircle
+  Receipt, Search, Plus, Trash2, Edit2, X, Save, RefreshCw, Calendar, Tag, CreditCard, ArrowDownCircle, FileJson, Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, generateUUID } from '../utils/helpers';
-import { handleERPAction, ACTION_TYPES } from '../erpController';
+import { handleERPAction, ACTION_TYPES, exportToExcel } from '../erpController';
 import { dbSync } from '../dbSync';
 import { DB_SCHEMA } from '../dbSchema';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import PaginationFooter from '../components/PaginationFooter';
 
 export default function ExpensesView({ expenses, fetchInitialData }) {
@@ -90,6 +93,47 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
     return filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
   }, [filteredExpenses]);
 
+  const handleExcel = () => {
+    if (filteredExpenses.length === 0) return alert("No data to export");
+    const ws = XLSX.utils.json_to_sheet(filteredExpenses.map((item, i) => ({
+      "Sr No": i + 1,
+      "Date": new Date(item.date).toLocaleDateString(),
+      "Category": item.category,
+      "Remarks": item.remarks || '-',
+      "Amount": parseFloat(item.amount),
+      "Payment Method": item.payment_method || 'Cash'
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+    XLSX.writeFile(wb, `Expenses_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handlePDF = () => {
+    if (filteredExpenses.length === 0) return alert("No data to print");
+    const doc = new jsPDF('p');
+    doc.text("Expenses Report", 14, 15);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
+    
+    const tableColumn = ["Sr No", "Date", "Category", "Remarks", "Amount", "Payment Method"];
+    const tableRows = filteredExpenses.map((item, i) => [
+      i + 1,
+      new Date(item.date).toLocaleDateString(),
+      item.category,
+      item.remarks || '-',
+      parseFloat(item.amount),
+      item.payment_method || 'Cash'
+    ]);
+
+    doc.autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+      theme: 'grid',
+      styles: { fontSize: 8 }
+    });
+    doc.save(`Expenses_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header & Summary */}
@@ -105,12 +149,26 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
             </div>
           </div>
           
-          <button 
-            onClick={() => { setEditingExpense(null); setShowForm(true); }}
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100"
-          >
-            <Plus size={16} /> Record Expense
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleExcel}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+            >
+              <FileJson size={14} /> Excel
+            </button>
+            <button 
+              onClick={handlePDF}
+              className="flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+            >
+              <Printer size={14} /> PDF
+            </button>
+            <button 
+              onClick={() => { setEditingExpense(null); setShowForm(true); }}
+              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100"
+            >
+              <Plus size={16} /> Record Expense
+            </button>
+          </div>
         </div>
 
         <div className="bg-red-600 p-4 rounded-xl text-white shadow-lg flex justify-between items-center">

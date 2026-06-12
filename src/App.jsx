@@ -15,14 +15,14 @@ import {
   Monitor, Maximize2, ChevronRight, Circle, FileJson,
   Upload, ExternalLink, ShoppingBag, IndianRupee, Flag,
   Repeat, Wrench, ArrowLeftRight, Key, QrCode,
-  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle
+  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { dbSync } from './dbSync';
 import { DB_SCHEMA, USER_ROLES } from './dbSchema';
-import { handleERPAction, ERP_MODULES, ACTION_TYPES, parseERPCSV } from './erpController';
+import { handleERPAction, ERP_MODULES, ACTION_TYPES, parseERPCSV, exportToExcel } from './erpController';
 import { supabase } from './supabase';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -36,6 +36,27 @@ import {
 } from './utils/security';
 
 import MasterListView from './components/MasterListView';
+
+const DEFAULT_APP_CONFIG = {
+  id: 'default',
+  store_name: 'NM MART',
+  brand_name: 'NM MART',
+  logo_url: 'https://coresg-normal.trae.ai/api/v1/text_to_image?prompt=NM%20MART%20Retail%20Store%20Logo&image_size=square',
+  delivery_time_msg: 'Same day delivery for orders before 6 PM!',
+  primary_color: '#2563eb',
+  secondary_color: '#1e40af',
+  accent_color: '#3b82f6',
+  min_order_free_delivery: 500,
+  delivery_charge: 50,
+  handling_charge: 10,
+  cashback_percentage: 2,
+  tax_rate: 18,
+  security_pin: '1234',
+  maintenance_mode: false,
+  app_version: '1.0.0',
+  force_update: false,
+  enable_guard_verification: true
+};
 
 // Import New Pages
 import DashboardView from './pages/DashboardView';
@@ -424,14 +445,9 @@ export default function App() {
     };
   }, [isAuthorized, resetSessionTimer]);
 
-  // Sync activeTab with localStorage so it persists on refresh during session
-  useEffect(() => {
-    localStorage.setItem('nm_active_tab', activeTab);
-  }, [activeTab]);
-
   // --- Data States ---
   const [stats, setStats] = useState({ products: 0, categories: 0, orders: 0, users: 0 });
-  const [appConfig, setAppConfig] = useState({});
+  const [appConfig, setAppConfig] = useState(DEFAULT_APP_CONFIG);
   const [banners, setBanners] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
@@ -460,6 +476,200 @@ export default function App() {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [darkMode, setDarkMode] = useState(localStorage.getItem('nm_dark_mode') === 'true');
+  const [festivals, setFestivals] = useState(() => {
+    const saved = localStorage.getItem('nm_festivals');
+    if (saved) return JSON.parse(saved);
+    const currentYear = new Date().getFullYear();
+    return [
+      { 
+        id: '1', 
+        name: 'Diwali 🪔', 
+        date: `${currentYear}-10-20`, 
+        primaryColor: '#FF6B35', 
+        secondaryColor: '#FFD93D', 
+        accentColor: '#FFF6E0',
+        isActive: true, 
+        description: 'Festival of Lights',
+        autoApply: true
+      },
+      { 
+        id: '2', 
+        name: 'Holi 🎨', 
+        date: `${currentYear}-03-24`, 
+        primaryColor: '#FF5E87', 
+        secondaryColor: '#9B59B6', 
+        accentColor: '#FDE2E7',
+        isActive: true, 
+        description: 'Festival of Colors',
+        autoApply: true
+      },
+      { 
+        id: '3', 
+        name: 'Christmas 🎄', 
+        date: `${currentYear}-12-25`, 
+        primaryColor: '#2E7D32', 
+        secondaryColor: '#C62828', 
+        accentColor: '#FFFDE7',
+        isActive: true, 
+        description: 'Christmas Day',
+        autoApply: true
+      },
+      { 
+        id: '4', 
+        name: 'Eid al-Fitr 🌙', 
+        date: `${currentYear}-05-01`, 
+        primaryColor: '#1976D2', 
+        secondaryColor: '#FFD54F', 
+        accentColor: '#E3F2FD',
+        isActive: true, 
+        description: 'Festival of Breaking Fast',
+        autoApply: true
+      },
+      { 
+        id: '5', 
+        name: 'Ganesh Chaturthi 🐘', 
+        date: `${currentYear}-09-07`, 
+        primaryColor: '#FF8F00', 
+        secondaryColor: '#FFD54F', 
+        accentColor: '#FFF3E0',
+        isActive: true, 
+        description: 'Birth of Lord Ganesha',
+        autoApply: true
+      },
+      { 
+        id: '6', 
+        name: 'Navratri & Durga Puja 🔺', 
+        date: `${currentYear}-10-03`, 
+        primaryColor: '#FF1744', 
+        secondaryColor: '#FF9100', 
+        accentColor: '#FFEBEE',
+        isActive: true, 
+        description: 'Nine Nights of Goddess',
+        autoApply: true
+      },
+      { 
+        id: '7', 
+        name: 'New Year 🎊', 
+        date: `${currentYear}-01-01`, 
+        primaryColor: '#00B8D4', 
+        secondaryColor: '#651FFF', 
+        accentColor: '#E0F7FA',
+        isActive: true, 
+        description: 'New Year Celebration',
+        autoApply: true
+      },
+      { 
+        id: '8', 
+        name: 'Independence Day 🇮🇳', 
+        date: `${currentYear}-08-15`, 
+        primaryColor: '#1565C0', 
+        secondaryColor: '#FF9800', 
+        accentColor: '#E3F2FD',
+        isActive: true, 
+        description: 'Independence Day of India',
+        autoApply: true
+      },
+      { 
+        id: '9', 
+        name: 'Republic Day 🇮🇳', 
+        date: `${currentYear}-01-26`, 
+        primaryColor: '#1B5E20', 
+        secondaryColor: '#D32F2F', 
+        accentColor: '#E8F5E9',
+        isActive: true, 
+        description: 'Republic Day of India',
+        autoApply: true
+      },
+      { 
+        id: '10', 
+        name: 'Raksha Bandhan 🎀', 
+        date: `${currentYear}-08-19`, 
+        primaryColor: '#E91E63', 
+        secondaryColor: '#9C27B0', 
+        accentColor: '#FCE4EC',
+        isActive: true, 
+        description: 'Brother-Sister Bond',
+        autoApply: true
+      }
+    ];
+  });
+  const [previewFestival, setPreviewFestival] = useState(null);
+  const [activeFestival, setActiveFestival] = useState(null);
+
+  // Helper function to check if a date is within a range (today ± daysBefore/After)
+  const isDateInRange = (festivalDate, daysBefore = 7, daysAfter = 3) => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const targetDate = new Date(festivalDate);
+    targetDate.setHours(0,0,0,0);
+    targetDate.setFullYear(today.getFullYear()); // Use current year
+    
+    const startDate = new Date(targetDate);
+    startDate.setDate(startDate.getDate() - daysBefore);
+    
+    const endDate = new Date(targetDate);
+    endDate.setDate(endDate.getDate() + daysAfter);
+    
+    return today >= startDate && today <= endDate;
+  };
+
+  // Auto-detect and apply active festival
+  useEffect(() => {
+    const checkAndApplyFestival = () => {
+      const currentFestivals = festivals
+        .filter(f => f.isActive && f.autoApply && isDateInRange(f.date))
+        .sort((a,b) => Math.abs(new Date(a.date) - new Date()) - Math.abs(new Date(b.date) - new Date()));
+      
+      if (currentFestivals.length > 0) {
+        const festival = currentFestivals[0];
+        setActiveFestival(festival);
+        
+        // Only apply theme if not manually overridden
+        const lastManualTheme = localStorage.getItem('nm_last_manual_theme');
+        if (!lastManualTheme || Date.now() - parseInt(lastManualTheme) > 86400000) { // 24 hours
+          setAppConfig(prev => ({
+            ...prev,
+            primaryColor: festival.primaryColor,
+            secondaryColor: festival.secondaryColor
+          }));
+        }
+      } else {
+        setActiveFestival(null);
+      }
+    };
+    
+    checkAndApplyFestival();
+    
+    // Check every hour
+    const intervalId = setInterval(checkAndApplyFestival, 3600000);
+    return () => clearInterval(intervalId);
+  }, [festivals]);
+
+  // Sync activeTab with localStorage so it persists on refresh during session
+  useEffect(() => {
+    localStorage.setItem('nm_active_tab', activeTab);
+  }, [activeTab]);
+
+  // Apply Dark Mode to Document and Save to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('nm_dark_mode', darkMode);
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('bg-slate-900', 'text-slate-100');
+      document.body.classList.remove('bg-[#F0F2F5]', 'text-slate-900');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.classList.add('bg-[#F0F2F5]', 'text-slate-900');
+      document.body.classList.remove('bg-slate-900', 'text-slate-100');
+    }
+  }, [darkMode]);
+  
+  // Save festivals to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('nm_festivals', JSON.stringify(festivals));
+  }, [festivals]);
 
   // --- Refs for Stability (Infinite Loop Prevention) ---
   const isFetchingRef = useRef(false);
@@ -665,7 +875,10 @@ export default function App() {
       setProducts(productsData);
       setCategories(categoriesData);
       setOrders(ordersData);
-      setAppConfig(Array.isArray(appConfigData) ? appConfigData[0] : appConfigData || {});
+      
+      // Use DEFAULT_APP_CONFIG if no app config is found
+      const loadedAppConfig = Array.isArray(appConfigData) ? appConfigData[0] : appConfigData;
+      setAppConfig({ ...DEFAULT_APP_CONFIG, ...loadedAppConfig });
       setBanners(bannersData);
       setSubcategories(subcategoriesData);
       setBrands(brandsData);
@@ -703,6 +916,16 @@ export default function App() {
       isFetchingRef.current = false;
     }
   }, []);
+
+  // Apply theme colors from appConfig as CSS variables
+  useEffect(() => {
+    if (appConfig) {
+      const root = document.documentElement;
+      if (appConfig.primary_color) root.style.setProperty('--theme-primary', appConfig.primary_color);
+      if (appConfig.secondary_color) root.style.setProperty('--theme-secondary', appConfig.secondary_color);
+      if (appConfig.accent_color) root.style.setProperty('--theme-accent', appConfig.accent_color);
+    }
+  }, [appConfig]);
 
   useEffect(() => {
     if (secureStorage.getItem('nm_admin_auth') === 'true') {
@@ -906,6 +1129,9 @@ export default function App() {
   ].filter(item => isAllowed(item.id));
 
   const toolsItems = [
+    { id: 'AppBuilderAI', label: 'AI APP BUILDER', icon: <Bot size={14} /> },
+    { id: 'FestivalManager', label: 'FESTIVAL MANAGER', icon: <PartyPopper size={14} /> },
+    { id: 'HomeLayout', label: 'NM APP CONTROLLER', icon: <Layout size={14} /> },
     { id: 'AppConfig', label: 'CONFIGURATION', icon: <Settings size={14} /> },
     { id: 'GuardVerification', label: 'GUARD VERIFICATION', icon: <ShieldCheck size={14} />, hidden: !appConfig?.enable_guard_verification },
     { id: 'StoreItemDisplay', label: 'STORE ITEM DISPLAY', icon: <ArrowLeftRight size={14} /> },
@@ -915,9 +1141,9 @@ export default function App() {
   ].filter(item => isAllowed(item.id));
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] flex flex-col font-sans antialiased">
+    <div className={cn("min-h-screen flex flex-col font-sans antialiased", darkMode ? "bg-slate-900" : "bg-[#F0F2F5]")}>
       {/* --- Top Navigation Bar --- */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-[100] shadow-sm select-none">
+      <header className={cn("border-b sticky top-0 z-[100] shadow-sm select-none", darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200")}>
         <div className="max-w-full mx-auto px-4 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Brand Name / Logo */}
@@ -1057,8 +1283,15 @@ export default function App() {
 
             <div className="flex items-center gap-1 border-r border-slate-200 pr-3 mr-1">
               <button 
+                onClick={() => setDarkMode(!darkMode)}
+                className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all"
+                title="Toggle Dark Mode"
+              >
+                {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <button 
                 onClick={toggleFullscreen}
-                className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-all hidden md:flex"
+                className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all hidden md:flex"
                 title="Toggle Fullscreen"
               >
                 <Maximize2 size={16} />
@@ -1469,12 +1702,13 @@ export default function App() {
             transition={{ duration: 0.1 }}
           >
             {renderTabContent(activeTab, { 
+                activeTab, setActiveTab,
                 stats, appConfig, banners, categories, subcategories, brands, products, orders, users, coupons,
                 offers, pincodes, homeConfig, walletTx, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
-                purchases, departments, units, accounts, inventoryLogs, expenses,
+                purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
                 setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setUsers, setCoupons,
                 setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
-                uploadImage, fetchInitialData, setLoading
+                setFestivals, setPreviewFestival, uploadImage, fetchInitialData, setLoading
               })}
           </motion.div>
         </AnimatePresence>
@@ -5617,6 +5851,680 @@ const WalletView = (props) => (
   />
 );
 
+// New Master Views
+const MainCategoriesView = (props) => (
+  <MasterListView 
+    {...props} 
+    fields={[
+      { name: 'name', label: 'Main Category Name', type: 'text', required: true },
+      { name: 'image_url', label: 'Image', type: 'image' },
+      { name: 'is_active', label: 'Active', type: 'boolean' }
+    ]} 
+  />
+);
+
+const UserMasterView = (props) => (
+  <MasterListView 
+    {...props} 
+    fields={[
+      { name: 'username', label: 'Username', type: 'text', required: true },
+      { name: 'password', label: 'Password', type: 'password', required: true },
+      { name: 'full_name', label: 'Full Name', type: 'text' },
+      { name: 'role', label: 'Role', type: 'select', options: [{value: 'super_admin', label: 'Super Admin'}, {value: 'sales_manager', label: 'Sales Manager'}, {value: 'inventory_head', label: 'Inventory Head'}, {value: 'accountant', label: 'Accountant'}] }
+    ]} 
+  />
+);
+
+const CreditsView = (props) => (
+  <MasterListView 
+    {...props} 
+    fields={[
+      { name: 'user_id', label: 'User', type: 'select', options: props.users?.map(u => ({ value: u.id, label: u.name || u.mobile })), required: true },
+      { name: 'amount', label: 'Credit Amount', type: 'number', required: true },
+      { name: 'is_active', label: 'Active', type: 'boolean' }
+    ]} 
+  />
+);
+
+const DeliveryBoysView = (props) => (
+  <MasterListView 
+    {...props} 
+    fields={[
+      { name: 'name', label: 'Delivery Boy Name', type: 'text', required: true },
+      { name: 'mobile', label: 'Mobile', type: 'text', required: true },
+      { name: 'vehicle_number', label: 'Vehicle Number', type: 'text' },
+      { name: 'is_active', label: 'Active', type: 'boolean' }
+    ]} 
+  />
+);
+
+const DeliveryCustomersView = (props) => (
+  <MasterListView 
+    {...props} 
+    fields={[
+      { name: 'name', label: 'Customer Name', type: 'text', required: true },
+      { name: 'mobile', label: 'Mobile', type: 'text', required: true },
+      { name: 'address', label: 'Address', type: 'text' },
+      { name: 'pincode', label: 'Pincode', type: 'text' },
+      { name: 'is_active', label: 'Active', type: 'boolean' }
+    ]} 
+  />
+);
+
+const BillViewDeliveryView = (props) => <UnderDevelopmentView title="Bill View (Delivery)" />;
+const PurchaseReportView = (props) => <UnderDevelopmentView title="Purchase Report" />;
+
+const NMMartAppBuilderAI = ({ appConfig, setAppConfig, fetchInitialData }) => {
+  const [prompt, setPrompt] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [chatHistory, setChatHistory] = useState([
+    { type: 'ai', message: 'Namaste! Main NM MART App Builder AI hun. Aap app ka kya change karna chahte hain? (Theme colors, logo, layout, etc.)' }
+  ]);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!prompt.trim() || isProcessing) return;
+
+    const userMessage = prompt.trim();
+    setPrompt('');
+    setChatHistory(prev => [...prev, { type: 'user', message: userMessage }]);
+    setIsProcessing(true);
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const lowerPrompt = userMessage.toLowerCase();
+      let response = 'Samajh nahi aa raha, kripya clear instructions dijiye!';
+      let updated = false;
+
+      if (lowerPrompt.includes('theme') || lowerPrompt.includes('color') || lowerPrompt.includes('rang')) {
+        if (lowerPrompt.includes('blue') || lowerPrompt.includes('neela')) {
+          setAppConfig({ ...appConfig, primary_color: '#1E40AF', secondary_color: '#0F172A' });
+          response = 'Successfully updated Theme to Blue. The app layout is now refreshed.';
+          updated = true;
+        } else if (lowerPrompt.includes('red') || lowerPrompt.includes('laal')) {
+          setAppConfig({ ...appConfig, primary_color: '#DC2626', secondary_color: '#450A0A' });
+          response = 'Successfully updated Theme to Red. The app layout is now refreshed.';
+          updated = true;
+        } else if (lowerPrompt.includes('green') || lowerPrompt.includes('hara')) {
+          setAppConfig({ ...appConfig, primary_color: '#059669', secondary_color: '#064E3B' });
+          response = 'Successfully updated Theme to Green. The app layout is now refreshed.';
+          updated = true;
+        }
+      } else if (lowerPrompt.includes('logo') || lowerPrompt.includes('store name')) {
+        if (lowerPrompt.includes('name')) {
+          setAppConfig({ ...appConfig, store_name: 'NM MART' });
+          response = 'Successfully updated Store Name to "NM MART". The app layout is now refreshed.';
+          updated = true;
+        }
+      } else if (lowerPrompt.includes('wallet') || lowerPrompt.includes('disable')) {
+        if (lowerPrompt.includes('disable')) {
+          response = 'Successfully disabled Wallet Feature. The app layout is now refreshed.';
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [{ id: appConfig?.id || 'default', ...appConfig, updated_at: new Date().toISOString() }]);
+        fetchInitialData();
+      }
+
+      setChatHistory(prev => [...prev, { type: 'ai', message: response }]);
+    } catch (error) {
+      setChatHistory(prev => [...prev, { type: 'ai', message: 'Koi error aa gaya! Please try again!' }]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-4 mb-4">
+          <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl text-white shadow-lg">
+            <Bot size={28} />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider">NM MART APP BUILDER AI</h2>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">Change app design with natural language</p>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 mb-4">
+          <h3 className="text-[10px] font-black text-slate-700 uppercase mb-2">Example commands:</h3>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="bg-white px-3 py-1 rounded-full border border-slate-200 text-slate-700 font-semibold cursor-pointer hover:border-blue-300" onClick={() => setPrompt("Change theme to blue")}>Change theme to blue</span>
+            <span className="bg-white px-3 py-1 rounded-full border border-slate-200 text-slate-700 font-semibold cursor-pointer hover:border-blue-300" onClick={() => setPrompt("Change theme to red")}>Change theme to red</span>
+            <span className="bg-white px-3 py-1 rounded-full border border-slate-200 text-slate-700 font-semibold cursor-pointer hover:border-blue-300" onClick={() => setPrompt("Change store name")}>Change store name</span>
+          </div>
+        </div>
+
+        <div className="h-80 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 mb-4 p-4 space-y-4">
+          {chatHistory.map((msg, idx) => (
+            <div key={idx} className={`flex gap-3 ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex items-start gap-3 max-w-[70%] ${msg.type === 'user' ? 'flex-row-reverse' : ''}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.type === 'user' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'}`}>
+                  {msg.type === 'user' ? <User size={16} /> : <Bot size={16} />}
+                </div>
+                <div className={`p-3 rounded-lg text-xs font-semibold ${msg.type === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-slate-800 border border-slate-200'}`}>
+                  {msg.message}
+                </div>
+              </div>
+            </div>
+          ))}
+          {isProcessing && (
+            <div className="flex justify-start">
+              <div className="flex items-center gap-3 max-w-[70%]">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-purple-600 text-white flex-shrink-0">
+                  <Bot size={16} />
+                </div>
+                <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '100ms'}}></span>
+                  <span className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '200ms'}}></span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={chatEndRef} />
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex gap-3">
+          <input 
+            type="text" 
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            disabled={isProcessing}
+            placeholder="Type your command here... (e.g., 'Change theme to green')"
+            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <button 
+            type="submit"
+            disabled={isProcessing || !prompt.trim()}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wide shadow-lg disabled:opacity-50"
+          >
+            {isProcessing ? 'Processing...' : 'Send'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialData, previewFestival, setPreviewFestival, appConfig }) => {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingFestival, setEditingFestival] = useState(null);
+  const [newFestival, setNewFestival] = useState({
+    name: '',
+    date: new Date().toISOString().split('T')[0],
+    primaryColor: '#FF5722',
+    secondaryColor: '#FFC107',
+    accentColor: '#FFF6E0',
+    isActive: true,
+    autoApply: true,
+    description: ''
+  });
+  
+  const handleAdd = () => {
+    if (!newFestival.name.trim()) return;
+    const festival = {
+      ...newFestival,
+      id: generateUUID()
+    };
+    setFestivals([...festivals, festival]);
+    setShowAddModal(false);
+    setNewFestival({
+      name: '',
+      date: new Date().toISOString().split('T')[0],
+      primaryColor: '#FF5722',
+      secondaryColor: '#FFC107',
+      accentColor: '#FFF6E0',
+      isActive: true,
+      autoApply: true,
+      description: ''
+    });
+  };
+  
+  const handleDelete = (id) => {
+    if (window.confirm('Are you sure you want to delete this festival?')) {
+      setFestivals(festivals.filter(f => f.id !== id));
+    }
+  };
+  
+  const handleApply = async (festival, propsAppConfig) => {
+    // Save manual override timestamp
+    localStorage.setItem('nm_last_manual_theme', Date.now().toString());
+    setAppConfig(prev => ({
+      ...prev,
+      primaryColor: festival.primaryColor,
+      secondaryColor: festival.secondaryColor
+    }));
+    await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [{ 
+      id: propsAppConfig?.id || 'default', 
+      ...propsAppConfig, 
+      primaryColor: festival.primaryColor, 
+      secondaryColor: festival.secondaryColor, 
+      updatedAt: new Date().toISOString() 
+    }]);
+    fetchInitialData();
+    alert(`Successfully applied ${festival.name} theme!`);
+  };
+  
+  const getUpcomingFestivals = () => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    return festivals
+      .filter(f => f.isActive && new Date(f.date) >= today)
+      .sort((a,b) => new Date(a.date) - new Date(b.date));
+  };
+  
+  const upcomingFestivals = getUpcomingFestivals();
+  
+  return (
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg text-white">
+            <PartyPopper size={24} />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-slate-800 uppercase tracking-wider">Festival Manager</h2>
+            <p className="text-sm font-bold text-slate-500">Manage festival themes & upcoming notifications</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest shadow-lg hover:translate-y-[-1px] transition-all flex items-center gap-2"
+        >
+          <Plus size={16} /> Add Festival
+        </button>
+      </div>
+      
+      {/* Upcoming Festivals Section */}
+      {upcomingFestivals.length > 0 && (
+        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border border-yellow-200 p-4">
+          <h3 className="text-sm font-black text-yellow-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <Sparkles size={18} /> Upcoming Festivals
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {upcomingFestivals.map(festival => {
+              const festivalDate = new Date(festival.date);
+              const today = new Date();
+              today.setHours(0,0,0,0);
+              const diffDays = Math.ceil((festivalDate - today) / (1000 * 60 * 60 * 24));
+              let label = 'In ' + diffDays + ' days';
+              if (diffDays === 0) label = 'Today';
+              if (diffDays === 1) label = 'Tomorrow';
+              
+              return (
+                <div key={festival.id} className="bg-white rounded-lg border border-yellow-300 p-3 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-black text-slate-800">{festival.name}</h4>
+                    <div className="flex gap-1">
+                      <div className="w-4 h-4 rounded-full" style={{backgroundColor: festival.primaryColor}} />
+                      <div className="w-4 h-4 rounded-full" style={{backgroundColor: festival.secondaryColor}} />
+                    </div>
+                  </div>
+                  <p className="text-xs font-bold text-slate-600">{new Date(festival.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  <p className="text-xs font-black text-yellow-700 mt-1">{label}</p>
+                  <div className="flex gap-2 mt-3">
+                    <button 
+                      onClick={() => setPreviewFestival(festival)}
+                      className="flex-1 bg-yellow-100 text-yellow-800 text-xs font-black uppercase py-1 rounded hover:bg-yellow-200 transition-all"
+                    >
+                      Preview
+                    </button>
+                    <button 
+                      onClick={() => handleApply(festival, appConfig)}
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black uppercase py-1 rounded hover:opacity-90 transition-all"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      
+      {/* All Festivals List */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {festivals.map(festival => (
+          <div key={festival.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            {/* Header with gradient */}
+            <div className="p-4" style={{background: `linear-gradient(135deg, ${festival.primaryColor}, ${festival.secondaryColor})`}}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <h4 className="text-base font-black text-white flex items-center gap-2">
+                    {festival.name}
+                  </h4>
+                  {festival.description && <p className="text-xs font-bold text-white/80 mt-1">{festival.description}</p>}
+                  <p className="text-xs font-bold text-white/90 mt-2">{new Date(festival.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+                <div className="flex gap-1">
+                  <button 
+                    onClick={() => {
+                      setEditingFestival(festival);
+                      setNewFestival(festival);
+                      setShowAddModal(true);
+                    }}
+                    className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-all"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(festival.id)}
+                    className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-all"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Body */}
+            <div className="p-4">
+              {/* Color Palette */}
+              <div className="flex items-center gap-2 mb-3">
+                <Palette size={14} className="text-slate-400" />
+                <div className="flex gap-1 items-center">
+                  <div className="w-6 h-6 rounded-lg shadow-sm" style={{backgroundColor: festival.primaryColor}} />
+                  <div className="w-6 h-6 rounded-lg shadow-sm" style={{backgroundColor: festival.secondaryColor}} />
+                  {festival.accentColor && (
+                    <div className="w-6 h-6 rounded-lg shadow-sm" style={{backgroundColor: festival.accentColor}} />
+                  )}
+                </div>
+              </div>
+              
+              {/* Auto Apply Toggle */}
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-black text-slate-700 uppercase tracking-wide">Auto Apply</label>
+                <div 
+                  onClick={() => {
+                    setFestivals(festivals.map(f => 
+                      f.id === festival.id ? {...f, autoApply: !f.autoApply} : f
+                    ));
+                  }}
+                  className={`w-10 h-6 rounded-full flex items-center transition-all cursor-pointer ${festival.autoApply ? 'bg-green-500' : 'bg-slate-300'}`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-all ${festival.autoApply ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setPreviewFestival(festival)}
+                  className="flex-1 bg-slate-100 text-slate-700 text-xs font-black uppercase py-2 rounded-lg hover:bg-slate-200 transition-all flex items-center justify-center gap-1"
+                >
+                  <Eye size={12} /> Preview
+                </button>
+                <button 
+                  onClick={() => handleApply(festival, appConfig)}
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black uppercase py-2 rounded-lg hover:opacity-90 transition-all"
+                >
+                  Apply Theme
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      {/* Preview Modal */}
+      <AnimatePresence>
+        {previewFestival && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{scale:0.9, opacity:0}} 
+              animate={{scale:1, opacity:1}} 
+              exit={{scale:0.9, opacity:0}}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            >
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                  <Sparkles size={20} className="text-yellow-500" />
+                  {previewFestival.name} Theme Preview
+                </h3>
+                <button onClick={() => setPreviewFestival(null)} className="p-2 hover:bg-slate-100 rounded-lg">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                {/* Mini App Preview */}
+                <div className="bg-slate-100 p-4 rounded-2xl border border-slate-300">
+                  <div className="bg-white h-8 w-40 mx-auto rounded-b-xl mb-4" />
+                  
+                  <div className="rounded-xl overflow-hidden shadow-sm">
+                    {/* Header */}
+                    <div className="p-3 flex items-center justify-between" style={{backgroundColor: previewFestival.primaryColor}}>
+                      <div className="w-20 h-5 rounded bg-white/20" />
+                      <div className="flex gap-2">
+                        <div className="w-5 h-5 rounded bg-white/20" />
+                        <div className="w-5 h-5 rounded bg-white/20" />
+                      </div>
+                    </div>
+                    
+                    {/* Body */}
+                    <div className="p-4 bg-white space-y-3">
+                      <div className="h-24 rounded-lg" style={{backgroundColor: previewFestival.secondaryColor + '30'}} />
+                      <div className="grid grid-cols-3 gap-2">
+                        {[1,2,3].map(i => (
+                          <div key={i} className="h-16 rounded bg-slate-100" />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Bottom Nav */}
+                    <div className="flex items-center justify-around p-2 border-t border-slate-100" style={{backgroundColor: previewFestival.secondaryColor + '10'}}>
+                      {[1,2,3,4].map(i => (
+                        <div key={i} className="w-8 h-8 rounded-full" style={{backgroundColor: previewFestival.primaryColor + '40'}} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-4 flex gap-3 justify-end">
+                  <button 
+                    onClick={() => setPreviewFestival(null)}
+                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-xs font-black uppercase"
+                  >
+                    Close
+                  </button>
+                  <button 
+                    onClick={() => {
+                      handleApply(previewFestival, appConfig);
+                      setPreviewFestival(null);
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg text-xs font-black uppercase shadow-lg"
+                  >
+                    Apply This Theme
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Add/Edit Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{scale:0.9, opacity:0}} 
+              animate={{scale:1, opacity:1}} 
+              exit={{scale:0.9, opacity:0}}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-800 uppercase">
+                  {editingFestival ? 'Edit Festival' : 'Add New Festival'}
+                </h3>
+                <button onClick={() => {
+                  setShowAddModal(false);
+                  setEditingFestival(null);
+                  setNewFestival({
+                    name: '',
+                    date: new Date().toISOString().split('T')[0],
+                    primaryColor: '#FF5722',
+                    secondaryColor: '#FFC107',
+                    isActive: true
+                  });
+                }} className="p-2 hover:bg-slate-100 rounded-lg">
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Festival Name</label>
+                  <input 
+                    type="text"
+                    value={newFestival.name}
+                    onChange={(e) => setNewFestival({...newFestival, name: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="e.g., Diwali 🪔"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Description</label>
+                  <input 
+                    type="text"
+                    value={newFestival.description}
+                    onChange={(e) => setNewFestival({...newFestival, description: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-400"
+                    placeholder="e.g., Festival of Lights"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                    <Calendar size={12} /> Festival Date
+                  </label>
+                  <input 
+                    type="date"
+                    value={newFestival.date}
+                    onChange={(e) => setNewFestival({...newFestival, date: e.target.value})}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-400"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
+                      <Palette size={12} /> Primary
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="color"
+                        value={newFestival.primaryColor}
+                        onChange={(e) => setNewFestival({...newFestival, primaryColor: e.target.value})}
+                        className="w-10 h-10 rounded border border-slate-200 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
+                      <Palette size={12} /> Secondary
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="color"
+                        value={newFestival.secondaryColor}
+                        onChange={(e) => setNewFestival({...newFestival, secondaryColor: e.target.value})}
+                        className="w-10 h-10 rounded border border-slate-200 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
+                      <Palette size={12} /> Accent
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="color"
+                        value={newFestival.accentColor}
+                        onChange={(e) => setNewFestival({...newFestival, accentColor: e.target.value})}
+                        className="w-10 h-10 rounded border border-slate-200 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Active</label>
+                  <div 
+                    onClick={() => setNewFestival({...newFestival, isActive: !newFestival.isActive})}
+                    className={`w-12 h-6 rounded-full flex items-center transition-all cursor-pointer ${newFestival.isActive ? 'bg-green-500' : 'bg-slate-300'}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-all ${newFestival.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Auto Apply Theme</label>
+                  <div 
+                    onClick={() => setNewFestival({...newFestival, autoApply: !newFestival.autoApply})}
+                    className={`w-12 h-6 rounded-full flex items-center transition-all cursor-pointer ${newFestival.autoApply ? 'bg-green-500' : 'bg-slate-300'}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-all ${newFestival.autoApply ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 justify-end mt-4">
+                  <button 
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setEditingFestival(null);
+                      setNewFestival({
+                        name: '',
+                        date: new Date().toISOString().split('T')[0],
+                        primaryColor: '#FF5722',
+                        secondaryColor: '#FFC107',
+                        accentColor: '#FFF6E0',
+                        isActive: true,
+                        autoApply: true,
+                        description: ''
+                      });
+                    }}
+                    className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-xs font-black uppercase"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (editingFestival) {
+                        setFestivals(festivals.map(f => f.id === editingFestival.id ? newFestival : f));
+                        setEditingFestival(null);
+                      } else {
+                        handleAdd();
+                      }
+                      setShowAddModal(false);
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg text-xs font-black uppercase shadow-lg"
+                  >
+                    {editingFestival ? 'Update' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 // Missing Views for renderTabContent
 const OnlineOrderView = (props) => <UnderDevelopmentView title="Online Orders" />;
 const BillView = (props) => <UnderDevelopmentView title="Bill View" />;
@@ -5634,6 +6542,8 @@ const SaleCancelledBillView = (props) => <UnderDevelopmentView title="Sale Cance
 function renderTabContent(activeTab, props) {
   switch (activeTab) {
     // Core Views (Moved to Separate Files)
+    case 'AppBuilderAI': return <NMMartAppBuilderAI {...props} />;
+    case 'FestivalManager': return <FestivalManager {...props} />;
     case 'Dashboard': return <DashboardView {...props} />;
     case 'Products': return <ProductsView {...props} />;
     case 'Orders': return <OrdersView {...props} />;
@@ -5655,12 +6565,17 @@ function renderTabContent(activeTab, props) {
 
     // Master Dropdown Cases
     case 'Categories': return <CategoriesView title="Main Categories" table={DB_SCHEMA.CATEGORIES.table} data={props.categories} {...props} />;
+    case 'MainCategories': return <MainCategoriesView title="Main Category Master" table={DB_SCHEMA.CATEGORIES.table} data={props.categories} {...props} />;
     case 'Subcategories': return <SubcategoriesView title="Sub Categories" table={DB_SCHEMA.SUBCATEGORIES.table} data={props.subcategories} categories={props.categories} {...props} />;
     case 'Brands': return <BrandsView title="Brand Master" table={DB_SCHEMA.BRANDS.table} data={props.brands} {...props} />;
     case 'Coupons': return <CouponsView title="Coupon Master" table={DB_SCHEMA.COUPONS.table} data={props.coupons} {...props} />;
     case 'Users': return <UsersView title="App Users" table={DB_SCHEMA.USERS.table} data={props.users} {...props} />;
+    case 'UserMaster': return <UserMasterView title="User Master" table={DB_SCHEMA.ADMIN_USERS.table} data={props.adminUsers} {...props} />;
     case 'Banners': return <BannersView title="App Banners" table={DB_SCHEMA.BANNERS.table} data={props.banners} {...props} />;
     case 'Offers': return <OffersView title="Offer Master" table={DB_SCHEMA.OFFERS.table} data={props.offers} {...props} />;
+    case 'Credits': return <CreditsView title="Credit Master" table={DB_SCHEMA.CREDITS.table} data={props.credits} {...props} />;
+    case 'DeliveryBoys': return <DeliveryBoysView title="Delivery Boy Master" table={DB_SCHEMA.DELIVERY_BOYS.table} data={props.deliveryBoys} {...props} />;
+    case 'DeliveryCustomers': return <DeliveryCustomersView title="Delivery Customer Master" table={DB_SCHEMA.DELIVERY_CUSTOMERS.table} data={props.deliveryCustomers} {...props} />;
     case 'AdminUsers': return <AdminUsersView title="Admin Users" table={DB_SCHEMA.ADMIN_USERS.table} data={props.adminUsers} {...props} />;
     case 'Pincodes': return <PincodesView title="Pincode Master" table={DB_SCHEMA.PINCODES.table} data={props.pincodes} {...props} />;
     case 'Addresses': return <AddressesView title="Address Master" table={DB_SCHEMA.ADDRESSES.table} data={props.addresses} {...props} />;
@@ -5671,8 +6586,16 @@ function renderTabContent(activeTab, props) {
     
     // Store Dropdown Cases
     case 'StoreMainCat': return <StoreMainCatDisplayView categories={props.categories} departments={props.departments} />;
+    case 'StoreMainCatDisplay': return <StoreMainCatDisplayView categories={props.categories} departments={props.departments} />;
     case 'StoreSubCat': return <StoreSubCatDisplayView subcategories={props.subcategories} departments={props.departments} />;
+    case 'StoreSubCatDisplay': return <StoreSubCatDisplayView subcategories={props.subcategories} departments={props.departments} />;
     case 'StoreItem': return <StoreItemDisplayView products={props.products} departments={props.departments} />;
+    case 'StoreItemDisplay': return <StoreItemDisplayView products={props.products} departments={props.departments} />;
+    case 'StockTransferReport': return <StockTransferReportView {...props} />;
+    case 'WastageReport': return <WastageReportView {...props} />;
+    case 'PurchaseReportRO': return <PurchaseReportROView {...props} />;
+    case 'RequisitionReportRO': return <RequisitionReportROView {...props} />;
+    case 'BOM': return <BOMView {...props} />;
     
     // Process Cases
     case 'ProductionEntry': return <ProductionEntryView {...props} />;
@@ -5685,6 +6608,7 @@ function renderTabContent(activeTab, props) {
     // View Dropdown Cases
     case 'OnlineOrder': return <OnlineOrderView {...props} />;
     case 'BillView': return <BillView {...props} />;
+    case 'BillViewDelivery': return <BillViewDeliveryView {...props} />;
     case 'BranchBill': return <BranchBillView {...props} />;
     case 'PaymentMobile': return <PaymentMobileView {...props} />;
     case 'WalletRecharge': return <WalletRechargeView {...props} />;
@@ -5697,6 +6621,7 @@ function renderTabContent(activeTab, props) {
     case 'SaleReportItemSummary': return <SaleReportItemSummaryView {...props} />;
     case 'SaleTrashBill': return <SaleTrashBillView {...props} />;
     case 'SaleCancelledBill': return <SaleCancelledBillView {...props} />;
+    case 'PurchaseReport': return <PurchaseReportView {...props} />;
     case 'StockReport': return <StockReportView {...props} />;
     case 'ItemStatement': return <ItemStatementReportView {...props} />;
     case 'Logbook': return <LogbookView {...props} />;

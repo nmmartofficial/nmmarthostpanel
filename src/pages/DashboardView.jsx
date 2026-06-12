@@ -1,14 +1,25 @@
 import React, { useMemo } from 'react';
 import { 
   Package, ShoppingCart, Users, Zap, DollarSign, 
-  PlusCircle, Printer, Download 
+  PlusCircle, Printer, Download, Bot, Sparkles, PartyPopper 
 } from 'lucide-react';
 import { cn } from '../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../erpController';
 import { dbSync } from '../dbSync';
 import { DB_SCHEMA } from '../dbSchema';
 
-export default function DashboardView({ stats, orders, products, setActiveTab }) {
+export default function DashboardView({ stats, orders, products, setActiveTab, festivals, activeFestival }) {
+  const getUpcomingFestivals = () => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    return festivals
+      ?.filter(f => f.isActive && new Date(f.date) >= today)
+      .sort((a,b) => new Date(a.date) - new Date(b.date))
+      .slice(0,3) || [];
+  };
+  
+  const upcomingFestivals = getUpcomingFestivals();
   const revenue = useMemo(() => {
     return orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
   }, [orders]);
@@ -42,6 +53,87 @@ export default function DashboardView({ stats, orders, products, setActiveTab })
 
   return (
     <div className="space-y-4">
+      {/* Active Festival Banner */}
+      {activeFestival && (
+        <div 
+          className="rounded-xl p-4 text-white shadow-lg overflow-hidden relative"
+          style={{background: `linear-gradient(135deg, ${activeFestival.primaryColor}, ${activeFestival.secondaryColor})`}}
+        >
+          {/* Decorative Elements */}
+          <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 blur-xl" />
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-white/10 blur-xl" />
+          
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <PartyPopper size={32} className="animate-pulse" />
+              <div>
+                <h3 className="text-base font-black uppercase tracking-wider">
+                  {activeFestival.name}
+                </h3>
+                <p className="text-xs font-bold opacity-90 mt-1">
+                  {activeFestival.description}
+                </p>
+                <p className="text-xs font-bold opacity-75 mt-0.5">
+                  {new Date(activeFestival.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 items-end">
+              <span className="text-[9px] font-black uppercase tracking-widest opacity-80">
+                Theme Applied ✨
+              </span>
+              <div className="flex gap-1">
+                <div 
+                  className="w-6 h-6 rounded shadow-sm border border-white/30"
+                  style={{backgroundColor: activeFestival.primaryColor}}
+                />
+                <div 
+                  className="w-6 h-6 rounded shadow-sm border border-white/30"
+                  style={{backgroundColor: activeFestival.secondaryColor}}
+                />
+              </div>
+              <button 
+                onClick={() => setActiveTab('FestivalManager')}
+                className="text-[8px] font-black uppercase tracking-widest bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full transition-all"
+              >
+                View Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming Festivals Banner */}
+      {upcomingFestivals.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-4 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sparkles size={24} />
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-wider">Upcoming Festival</h3>
+                <p className="text-xs font-bold opacity-80">{upcomingFestivals[0].name} is {
+                  (() => {
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    const diffDays = Math.ceil((new Date(upcomingFestivals[0].date) - today) / (1000 * 60 * 60 * 24));
+                    if (diffDays === 0) return 'today!';
+                    if (diffDays === 1) return 'tomorrow!';
+                    return `in ${diffDays} days!`;
+                  })()
+                }</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setActiveTab('FestivalManager')}
+              className="flex items-center gap-2 bg-white text-purple-600 px-4 py-2 rounded-lg text-xs font-black uppercase shadow-md hover:translate-y-[-1px] transition-all"
+            >
+              <PartyPopper size={14} />
+              View All
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
         {[
@@ -200,6 +292,17 @@ export default function DashboardView({ stats, orders, products, setActiveTab })
             </div>
           </div>
 
+          <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl p-4 text-white shadow-lg relative overflow-hidden group mb-4">
+            <Bot className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-125 transition-transform duration-500" size={80} />
+            <h3 className="text-[11px] font-black uppercase tracking-widest mb-3">AI APP BUILDER</h3>
+            <button 
+              onClick={() => setActiveTab('AppBuilderAI')}
+              className="w-full bg-white/10 hover:bg-white/20 p-3 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-white/20"
+            >
+              <Bot size={12} /> Open AI Builder
+            </button>
+          </div>
+          
           <div className="bg-blue-700 rounded-xl p-4 text-white shadow-lg relative overflow-hidden group">
             <Zap className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-125 transition-transform duration-500" size={80} />
             <h3 className="text-[11px] font-black uppercase tracking-widest mb-3">ERP Quick Actions</h3>

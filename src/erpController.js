@@ -3,6 +3,29 @@ import { DB_SCHEMA } from './dbSchema';
 import * as XLSX from 'xlsx';
 
 /**
+ * Generic Export to Excel function
+ * @param {Array} data - Array of objects to export
+ * @param {string} fileName - Name of the Excel file (without .xlsx)
+ * @param {string} sheetName - Name of the sheet (default: 'Sheet1')
+ */
+export const exportToExcel = (data, fileName, sheetName = 'Sheet1') => {
+  if (!data || data.length === 0) {
+    alert("No data to export!");
+    return;
+  }
+  
+  // Convert data to worksheet
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  
+  // Create workbook
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  
+  // Download file
+  XLSX.writeFile(workbook, `${fileName}.xlsx`);
+};
+
+/**
  * NM MART ERP - Modular Action Controller
  * Handles all 54+ button actions using a unified switch-case logic.
  * Integrated with dbSync for Audit Logging and Database-First synchronization.

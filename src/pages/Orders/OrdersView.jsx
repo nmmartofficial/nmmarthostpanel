@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Search, Eye, Printer, Trash2, X, Edit2, User, MapPin, CreditCard, Truck, RefreshCw
+  Search, Eye, Printer, Trash2, X, Edit2, User, MapPin, CreditCard, Truck, RefreshCw, Undo2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/helpers';
@@ -17,6 +17,9 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
   const [paymentFilter, setPaymentFilter] = useState('All');
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({});
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [returnAmount, setReturnAmount] = useState('');
 
   const filteredOrders = useMemo(() => {
     let result = orders;
@@ -267,6 +270,17 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{new Date(selectedOrder.created_at).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {!isEditing && selectedOrder.order_status !== 'returned' && (
+                    <button 
+                      onClick={() => { 
+                        setReturnAmount(selectedOrder.total_amount);
+                        setShowReturnModal(true); 
+                      }}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg text-[10px] font-black uppercase border border-orange-100"
+                    >
+                      <Undo2 size={12} /> Return Order
+                    </button>
+                  )}
                   {!isEditing && (
                     <button 
                       onClick={() => setIsEditing(true)}
@@ -518,6 +532,120 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                   </>
                 )}
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Return Order Modal */}
+      <AnimatePresence>
+        {showReturnModal && selectedOrder && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-4 bg-orange-50 border-b border-orange-200 flex items-center justify-between">
+                <h3 className="text-sm font-black text-orange-800 uppercase tracking-tighter">
+                  Return Order
+                </h3>
+                <button onClick={() => setShowReturnModal(false)} className="p-2 hover:bg-orange-100 rounded-lg transition-all">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    await handleERPAction(DB_SCHEMA.ORDERS.table, ACTION_TYPES.UPDATE, { 
+                      id: selectedOrder.id, 
+                      order_status: 'returned', 
+                      return_reason: returnReason, 
+                      return_amount: returnAmount 
+                    });
+
+                    await Promise.all(orderItems.map(async (item) => {
+                      // Update product stock
+                      const product = await dbSync.fetch(DB_SCHEMA.PRODUCTS.table, { 
+                        eq: { column: 'id', value: item.product_id } 
+                      });
+                      if (product && product.length > 0) {
+                        const currentStock = parseFloat(product[0].stock || 0);
+                        const returnedQty = parseFloat(item.quantity || 0);
+                        await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, { 
+                          id: item.product_id, 
+                          stock: (currentStock + returnedQty).toString() 
+                        });
+                      }
+                    }));
+
+                    fetchInitialData();
+                    setShowReturnModal(false);
+                    setReturnReason('');
+                    alert("Order Returned Successfully!");
+                  } catch (error) {
+                    alert("Return Failed: " + error.message);
+                  }
+                }}
+                className="p-6 space-y-6"
+              >
+                <div className="space-y-4">
+                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-[9px] font-black text-slate-500 uppercase">Order #:</span>
+                      <span className="text-[11px] font-black text-slate-800">{selectedOrder.order_number}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[9px] font-black text-slate-500 uppercase">Total Amount:</span>
+                      <span className="text-[13px] font-black text-orange-700">₹{selectedOrder.total_amount}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">
+                      Return Amount
+                    </label>
+                    <input 
+                      type="number" 
+                      value={returnAmount} 
+                      onChange={(e) => setReturnAmount(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">
+                      Reason for Return
+                    </label>
+                    <textarea 
+                      value={returnReason} 
+                      onChange={(e) => setReturnReason(e.target.value)}
+                      placeholder="Enter reason for return..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none h-24 resize-none"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setShowReturnModal(false)}
+                    className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    className="px-6 py-2 bg-orange-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-orange-200 hover:translate-y-[-1px] transition-all"
+                  >
+                    Confirm Return
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
