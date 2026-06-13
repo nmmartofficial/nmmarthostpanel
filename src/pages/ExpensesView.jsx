@@ -93,6 +93,16 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
     return filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
   }, [filteredExpenses]);
 
+  const categorySummary = useMemo(() => {
+    const summary = {};
+    filteredExpenses.forEach(expense => {
+      const cat = expense.category || 'Others';
+      if (!summary[cat]) summary[cat] = 0;
+      summary[cat] += parseFloat(expense.amount) || 0;
+    });
+    return Object.entries(summary).map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
+  }, [filteredExpenses]);
+
   const handleExcel = () => {
     if (filteredExpenses.length === 0) return alert("No data to export");
     const ws = XLSX.utils.json_to_sheet(filteredExpenses.map((item, i) => ({
@@ -179,6 +189,21 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
           <ArrowDownCircle size={32} className="opacity-20" />
         </div>
       </div>
+
+      {/* Category Summary Cards */}
+      {categorySummary.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {categorySummary.map((item, idx) => (
+            <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{item.category}</p>
+                <Tag size={14} className="text-slate-400" />
+              </div>
+              <h3 className="text-lg font-black text-slate-800">₹{item.amount.toLocaleString()}</h3>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">

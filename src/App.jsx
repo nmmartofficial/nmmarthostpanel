@@ -15,7 +15,7 @@ import {
   Monitor, Maximize2, ChevronRight, Circle, FileJson,
   Upload, ExternalLink, ShoppingBag, IndianRupee, Flag,
   Repeat, Wrench, ArrowLeftRight, Key, QrCode,
-  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Building2
+  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Smartphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
@@ -78,6 +78,8 @@ import StockAlertsView from './pages/Inventory/StockAlertsView';
 import CustomerAnalyticsView from './pages/CustomerAnalyticsView';
 import ExpensesView from './pages/ExpensesView';
 import PurchaseView from './pages/Inventory/PurchaseView';
+import SelfCheckoutView from './pages/SelfCheckoutView';
+import LoyaltyManagementView from './pages/LoyaltyManagementView';
 
 /** Utility for tailwind classes */
 function cn(...inputs) {
@@ -1198,6 +1200,18 @@ export default function App() {
                 >
                   <ShoppingCart size={14} className="text-slate-500" />
                   <span>Sale Entry</span>
+                </button>
+              )}
+              {isAllowed('SelfCheckout') && (
+                <button 
+                  onClick={() => setActiveTab('SelfCheckout')}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                    activeTab === 'SelfCheckout' ? "text-indigo-700 bg-indigo-50" : "text-slate-700 hover:bg-slate-100"
+                  )}
+                >
+                  <Smartphone size={14} className="text-slate-500" />
+                  <span>Self Checkout</span>
                 </button>
               )}
 
@@ -7013,7 +7027,7 @@ function renderTabContent(activeTab, props) {
     // Core Views (Moved to Separate Files)
     case 'AppBuilderAI': return <NMMartAppBuilderAI {...props} />;
     case 'FestivalManager': return <FestivalManager {...props} />;
-    case 'LoyaltyPoints': return <LoyaltyPointsView {...props} />;
+    case 'LoyaltyPoints': return <LoyaltyManagementView orders={props.orders} fetchInitialData={props.fetchInitialData} />;
     case 'BarcodeLabels': return <BarcodeLabelGenerator {...props} />;
     case 'MultiStore': return <MultiStoreManager {...props} />;
     case 'Dashboard': return <DashboardView {...props} />;
@@ -7025,6 +7039,7 @@ function renderTabContent(activeTab, props) {
     case 'Analytics': return <AnalyticsView {...props} />;
     case 'CustomerAnalytics': return <CustomerAnalyticsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
+    case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} />;
     case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
     case 'HomeLayout': return <HomeLayoutManager {...props} />;
     

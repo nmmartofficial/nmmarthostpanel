@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   GitBranch, Search, Trash2, FileJson, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle
 } from 'lucide-react';
@@ -8,6 +8,7 @@ import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../../erpController'
 import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
 import PaginationFooter from '../../components/PaginationFooter';
+import JsBarcode from 'jsbarcode';
 
 // --- Validation Helpers
 const validatePercent = (value) => {
@@ -31,6 +32,8 @@ export default function ProductsView({ products, categories, brands, subcategori
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [barcodeToPrint, setBarcodeToPrint] = useState(null);
+  const [labelQuantity, setLabelQuantity] = useState(1);
+  const barcodeRef = useRef(null);
 
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -54,6 +57,52 @@ export default function ProductsView({ products, categories, brands, subcategori
 
   const totalPages = Math.ceil(filteredProducts.length / rowsPerPage);
   const paginatedProducts = filteredProducts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  // Generate barcodes when label or quantity changes
+  useEffect(() => {
+    if (barcodeToPrint && barcodeToPrint.barcode) {
+      setTimeout(() => {
+        for (let i = 0; i < labelQuantity; i++) {
+          const svgElement = document.getElementById(`barcode-${i}`);
+          if (svgElement) {
+            try {
+              JsBarcode(svgElement, barcodeToPrint.barcode, {
+                format: 'CODE128',
+                width: 2,
+                height: 30,
+                margin: 0,
+                fontSize: 10,
+                displayValue: false
+              });
+            } catch (err) {
+              console.error("Barcode generation error:", err);
+            }
+          }
+        }
+      }, 100);
+    }
+  }, [barcodeToPrint, labelQuantity]);
+
+  // Add print styles
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        body * { visibility: hidden; }
+        #barcode-label, #barcode-label * { visibility: visible; }
+        #barcode-label { 
+          position: absolute; 
+          left: 0; 
+          top: 0; 
+          box-shadow: none !important;
+          border: 1px solid black !important;
+        }
+        @page { margin: 0.5cm; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
 
   const handleImportCSV = () => {
     const input = document.createElement('input');
@@ -819,36 +868,48 @@ export default function ProductsView({ products, categories, brands, subcategori
       <AnimatePresence>
         {barcodeToPrint && (
           <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center space-y-6">
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Barcode Label Preview</h3>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full text-center space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Barcode Label Generator</h3>
+                <button onClick={() => setBarcodeToPrint(null)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} /></button>
+              </div>
               
-              <div id="barcode-label" className="border-2 border-black p-4 mx-auto w-fit bg-white inline-block text-black font-mono">
-                <p className="text-[12px] font-black uppercase mb-1">NM MART</p>
-                <p className="text-[10px] font-bold truncate max-w-[150px] mb-2">{barcodeToPrint.name}</p>
-                
-                {/* Simplified Barcode using CSS Lines */}
-                <div className="flex items-end justify-center h-12 gap-[1px] mb-1">
-                  {barcodeToPrint.barcode?.split('').map((char, i) => (
-                    <div key={i} className="bg-black" style={{ width: char % 2 === 0 ? '2px' : '1px', height: '100%' }}></div>
-                  ))}
-                </div>
-                
-                <p className="text-[11px] font-black tracking-[3px] mb-2">{barcodeToPrint.barcode}</p>
-                <p className="text-[14px] font-black">MRP: ₹{barcodeToPrint.sale_rate}</p>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 uppercase">Number of Labels</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={labelQuantity}
+                  onChange={(e) => setLabelQuantity(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm font-bold text-center"
+                />
+              </div>
+              
+              <div className="flex flex-wrap gap-3 justify-center max-h-[400px] overflow-y-auto p-2 bg-slate-50 rounded-xl">
+                {Array.from({ length: labelQuantity }).map((_, index) => (
+                  <div key={index} className="border-2 border-black p-3 bg-white inline-block text-black font-mono" id="barcode-label">
+                    <p className="text-[11px] font-black uppercase mb-1">NM MART</p>
+                    <p className="text-[9px] font-bold truncate max-w-[140px] mb-2">{barcodeToPrint.name}</p>
+                    <svg ref={(el) => { if (el && barcodeToPrint?.barcode && index === 0) { JsBarcode(el, barcodeToPrint.barcode, { format: 'CODE128', width: 2, height: 30, margin: 0, fontSize: 10 }); } }} id={`barcode-${index}`}></svg>
+                    <p className="text-[12px] font-black tracking-[2px] mt-1">{barcodeToPrint.barcode}</p>
+                    <p className="text-[13px] font-black">MRP: ₹{barcodeToPrint.sale_rate}</p>
+                  </div>
+                ))}
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
                 <button 
                   onClick={() => window.print()} 
-                  className="w-full bg-blue-600 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700"
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-black uppercase text-[10px] shadow-lg flex items-center justify-center gap-2 hover:bg-blue-700"
                 >
                   <Printer size={16} /> Print Labels
                 </button>
                 <button 
                   onClick={() => setBarcodeToPrint(null)} 
-                  className="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-black uppercase text-[10px] hover:bg-slate-200"
+                  className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-xl font-black uppercase text-[10px] hover:bg-slate-200"
                 >
-                  Close Preview
+                  Close
                 </button>
               </div>
             </motion.div>
