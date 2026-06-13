@@ -45,9 +45,16 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         const parsedData = await parseERPCSV(file, columnMapping);
         if (parsedData.length === 0) throw new Error("No data found in file");
 
-        const res = await handleERPAction(table, ACTION_TYPES.BULK_UPSERT, parsedData);
+        // Generate IDs for new records
+        const recordsToInsert = parsedData.map(item => ({
+          ...item,
+          id: item.id || generateUUID()
+        }));
+
+        // Use insert instead of upsert
+        const res = await handleERPAction(table, ACTION_TYPES.INSERT, recordsToInsert);
         if (res.success) {
-          alert(`Successfully imported ${parsedData.length} records!`);
+          alert(`Successfully imported ${recordsToInsert.length} records!`);
           // Silent refresh after import to avoid UI flickering
           setTimeout(() => fetchInitialData(true, true), 500);
         } else {

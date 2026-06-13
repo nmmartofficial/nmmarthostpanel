@@ -127,7 +127,6 @@ export default function ProductsView({ products, categories, brands, subcategori
           'Closing': 'stock',
           'MinQty': 'min_qty',
           'Dis %': 'discount_percent',
-          'Basic Sale Price': 'basic_sale_price',
           'Size': 'size',
           'Colour': 'color',
           'Counter': 'counter_name',
@@ -159,11 +158,27 @@ export default function ProductsView({ products, categories, brands, subcategori
 
         console.log(`[Import Orchestration] Found Unique Masters -> Cats: ${uniqueCats.length}, Brands: ${uniqueBrands.length}`);
 
-        // Ensure these exist in Master Tables (using name as conflict key)
-        if (uniqueCats.length > 0) await dbSync.upsert(DB_SCHEMA.CATEGORIES.table, uniqueCats.map(name => ({ name, is_active: true })));
-        if (uniqueSubCats.length > 0) await dbSync.upsert(DB_SCHEMA.SUBCATEGORIES.table, uniqueSubCats.map(name => ({ name, is_active: true })));
-        if (uniqueBrands.length > 0) await dbSync.upsert(DB_SCHEMA.BRANDS.table, uniqueBrands.map(name => ({ name, is_active: true })));
-        if (uniqueUnits.length > 0) await dbSync.upsert(DB_SCHEMA.UNITS.table, uniqueUnits.map(name => ({ name, is_active: true })));
+        // Helper to insert master records if they don't exist
+        const insertMasterIfNotExists = async (table, names) => {
+          const existing = await dbSync.fetch(table);
+          const existingNames = new Set(existing.map(item => item.name.toLowerCase()));
+          const newNames = names.filter(name => !existingNames.has(name.toLowerCase()));
+          
+          if (newNames.length > 0) {
+            const records = newNames.map(name => ({ 
+              id: generateUUID(), 
+              name, 
+              is_active: true 
+            }));
+            await dbSync.insert(table, records);
+          }
+        };
+
+        // Ensure these exist in Master Tables
+        if (uniqueCats.length > 0) await insertMasterIfNotExists(DB_SCHEMA.CATEGORIES.table, uniqueCats);
+        if (uniqueSubCats.length > 0) await insertMasterIfNotExists(DB_SCHEMA.SUBCATEGORIES.table, uniqueSubCats);
+        if (uniqueBrands.length > 0) await insertMasterIfNotExists(DB_SCHEMA.BRANDS.table, uniqueBrands);
+        if (uniqueUnits.length > 0) await insertMasterIfNotExists(DB_SCHEMA.UNITS.table, uniqueUnits);
 
         // --- STEP 2: FETCH FRESH IDS FOR LINKING ---
         const [dbCats, dbSubCats, dbBrands, dbUnits] = await Promise.all([
@@ -180,12 +195,8 @@ export default function ProductsView({ products, categories, brands, subcategori
 
         // --- STEP 3: PREPARE PRODUCTS WITH FULL CONSISTENCY ---
         const productsToUpload = parsedData.map(item => {
-          const cName = String(item.category_name || "").trim();
-          const sName = String(item.subcategory_name || "").trim();
-          const bName = String(item.brand_name || "").trim();
-          const uName = String(item.unit_name || "").trim();
-
           return {
+            id: generateUUID(),
             barcode: String(item.barcode || "").trim() || null,
             name: String(item.name || "").trim(),
             hsn_code: String(item.hsn_code || "").trim() || null,
@@ -196,26 +207,12 @@ export default function ProductsView({ products, categories, brands, subcategori
             cess_percent: parseFloat(item.cess_percent) || 0,
             stock: parseFloat(item.stock) || 0,
             min_qty: parseFloat(item.min_qty) || 0,
-            discount_percent: parseFloat(item.discount_percent) || 0,
-            basic_sale_price: parseFloat(item.basic_sale_price) || 0,
-            size: String(item.size || "").trim() || null,
-            color: String(item.color || "").trim() || null,
-            counter_name: String(item.counter_name || "").trim() || null,
-            
-            category_name: cName || null,
-            subcategory_name: sName || null,
-            brand_name: bName || null,
-            unit_name: uName || null,
-            
-            category_id: cName ? catMap[cName.toLowerCase()] : null,
-            sub_category_id: sName ? subCatMap[sName.toLowerCase()] : null,
-            brand_id: bName ? brandMap[bName.toLowerCase()] : null,
-            unit_id: uName ? unitMap[uName.toLowerCase()] : null
+            discount_percent: parseFloat(item.discount_percent) || 0
           };
         });
 
         // --- STEP 4: BULK UPLOAD PRODUCTS ---
-        await dbSync.upsert(DB_SCHEMA.PRODUCTS.table, productsToUpload);
+        await dbSync.insert(DB_SCHEMA.PRODUCTS.table, productsToUpload);
         
         alert(`SUCCESS! ${productsToUpload.length} items imported.\nBrands: ${uniqueBrands.length}, Categories: ${uniqueCats.length}.\nMaster tables and reports are now fully synchronized.`);
         
@@ -621,7 +618,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                   </div>
 
                   {/* Row 3: Sale Rate, MRP, Purchase Rate, GST, Cess, Discount */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Sale Rate</label>
                       <input type="number" value={formData.sale_rate || 0} onChange={(e) => setFormData({ ...formData, sale_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
@@ -633,10 +630,6 @@ export default function ProductsView({ products, categories, brands, subcategori
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Purchase Rate</label>
                       <input type="number" value={formData.purchase_rate || 0} onChange={(e) => setFormData({ ...formData, purchase_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Basic Sale Price</label>
-                      <input type="number" value={formData.basic_sale_price || 0} onChange={(e) => setFormData({ ...formData, basic_sale_price: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Gst %</label>

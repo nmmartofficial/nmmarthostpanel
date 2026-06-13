@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { DB_SCHEMA } from './dbSchema';
 import * as XLSX from 'xlsx';
+import { secureStorage } from './utils/security';
 
 /**
  * NM MART - Table Synchronization Module
@@ -85,8 +86,15 @@ const checkLowStockAndNotify = async (productId, bufferLimit = 5) => {
  */
 const logTableAction = async (tableName, action, { oldData = null, newData = null, metadata = {} } = {}) => {
   const timestamp = new Date().toISOString();
-  const userData = localStorage.getItem('nm_user_data');
-  const user = userData ? JSON.parse(userData) : { username: 'system', role: 'system' };
+  let user = { username: 'system', role: 'system' };
+  try {
+    const userData = secureStorage.getItem('nm_user_data');
+    if (userData) {
+      user = userData;
+    }
+  } catch (e) {
+    console.warn('Failed to get nm_user_data from secureStorage, using system user');
+  }
   
   try {
     if (DB_SCHEMA.SYSTEM_LOGS) {
@@ -753,24 +761,9 @@ export const dbSync = {
   upsert: async (tableName, dataset) => {
     try {
       const BATCH_SIZE = 500; // Smaller batch size for writes to avoid timeouts/limits
+      
+      // Always use id as conflict key
       const upsertOptions = { onConflict: 'id' };
-      
-      // For products table, use barcode as the conflict key
-      if (tableName === DB_SCHEMA.PRODUCTS.table) {
-        upsertOptions.onConflict = 'barcode';
-      }
-      
-      // For Master tables, use name as conflict key to prevent duplicate errors
-      const masterTables = [
-        DB_SCHEMA.CATEGORIES.table, 
-        DB_SCHEMA.SUBCATEGORIES.table, 
-        DB_SCHEMA.BRANDS.table, 
-        DB_SCHEMA.UNITS.table
-      ];
-      
-      if (masterTables.includes(tableName)) {
-        upsertOptions.onConflict = 'name';
-      }
 
       const allResults = [];
       const dataArray = Array.isArray(dataset) ? dataset : [dataset];
