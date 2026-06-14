@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    chunkSizeWarningLimit: 1600, // Increase limit to 1.6MB
+    chunkSizeWarningLimit: 3000, // Increase limit to 3MB to avoid Vercel warnings
     rollupOptions: {
       output: {
         manualChunks: {
@@ -13,6 +13,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom'],
           'vendor-supabase': ['@supabase/supabase-js'],
           'vendor-utils': ['framer-motion', 'lucide-react', 'xlsx'],
+          'vendor-pdf': ['jspdf', 'jspdf-autotable'],
         }
       }
     }
