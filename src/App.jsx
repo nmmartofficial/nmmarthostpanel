@@ -967,8 +967,8 @@ export default function App() {
       );
     };
 
-    setupSubscriptions();
-    return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
+    // setupSubscriptions(); // Disabled realtime updates to prevent repeated stock updates
+    // return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
   }, [handleRealtimeUpdate, fetchInitialData]);
 
   const toggleFullscreen = () => {
