@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port: 5174, // Change port to avoid issues with 5173
+  },
   build: {
     chunkSizeWarningLimit: 3000, // Increase limit to 3MB to avoid Vercel warnings
     rollupOptions: {

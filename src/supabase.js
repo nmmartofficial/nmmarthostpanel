@@ -28,6 +28,21 @@ const mockSupabase = {
             data: [], 
             error: null 
           }) 
+        }),
+        single: () => ({ data: null, error: null })
+      }),
+      or: () => ({
+        eq: () => ({
+          order: () => ({
+            range: () => ({ data: [], error: null })
+          }),
+          single: () => ({ data: null, error: null })
+        })
+      }),
+      order: () => ({ 
+        range: () => ({ 
+          data: [], 
+          error: null 
         }) 
       }),
       range: () => ({ data: [], error: null })
@@ -37,7 +52,20 @@ const mockSupabase = {
     delete: () => ({ eq: () => ({ error: null }) }),
     upsert: () => ({ select: () => ({ data: [], error: null }) })
   }),
-  rpc: () => ({ data: null, error: null })
+  channel: () => ({
+    on: () => ({
+      subscribe: () => ({
+        unsubscribe: () => {}
+      })
+    })
+  }),
+  rpc: (fnName, params) => {
+    if (fnName === 'verify_admin_pin' && params?.input_pin) {
+      const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN || '1234'
+      return { data: params.input_pin === fallbackPin, error: null }
+    }
+    return { data: null, error: null }
+  }
 }
 
 export const supabase = supabaseInstance || mockSupabase
