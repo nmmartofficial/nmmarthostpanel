@@ -8,6 +8,22 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ========================================
+-- 0. DROP AND RECREATE PRODUCTS TABLE TO FIX OVERFLOW ISSUES
+-- ========================================
+-- Drop dependent objects first
+DROP TABLE IF EXISTS purchase_items CASCADE;
+DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS cart CASCADE;
+DROP TABLE IF EXISTS basket CASCADE;
+DROP TABLE IF EXISTS wishlist CASCADE;
+DROP TABLE IF EXISTS inventory_logs CASCADE;
+DROP TABLE IF EXISTS stock_alerts CASCADE;
+DROP TABLE IF EXISTS return_items CASCADE;
+
+-- Now drop and recreate products table
+DROP TABLE IF EXISTS products CASCADE;
+
+-- ========================================
 -- 1. CREATE ALL TABLES IF THEY DON'T EXIST
 -- ========================================
 
@@ -20,7 +36,7 @@ CREATE TABLE IF NOT EXISTS app_config (
     mobile TEXT,
     email TEXT,
     gst_no TEXT,
-    tax_rate DECIMAL(5,2) DEFAULT 5,
+    tax_rate NUMERIC DEFAULT 5,
     enable_guard_verification BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -112,15 +128,18 @@ CREATE TABLE IF NOT EXISTS products (
     unit_id UUID REFERENCES unit_master(id),
     department_id UUID REFERENCES department_master(id),
     hsn_code TEXT,
-    mrp DECIMAL(10,2) DEFAULT 0.00,
-    sale_rate DECIMAL(10,2) DEFAULT 0.00,
-    purchase_rate DECIMAL(10,2) DEFAULT 0.00,
-    gst DECIMAL(5,2) DEFAULT 0.00,
-    gst_percent DECIMAL(5,2) DEFAULT 0.00,
-    cess DECIMAL(5,2) DEFAULT 0.00,
-    discount DECIMAL(10,2) DEFAULT 0.00,
-    discount_pct DECIMAL(5,2) DEFAULT 0.00,
-    stock DECIMAL(10,2) DEFAULT 0.00,
+    mrp NUMERIC DEFAULT 0.00,
+    sale_rate NUMERIC DEFAULT 0.00,
+    purchase_rate NUMERIC DEFAULT 0.00,
+    gst NUMERIC DEFAULT 0.00,
+    gst_percent NUMERIC DEFAULT 0.00,
+    cess NUMERIC DEFAULT 0.00,
+    cess_percent NUMERIC DEFAULT 0.00,
+    discount NUMERIC DEFAULT 0.00,
+    discount_pct NUMERIC DEFAULT 0.00,
+    discount_percent NUMERIC DEFAULT 0.00,
+    min_qty NUMERIC DEFAULT 1.00,
+    stock NUMERIC DEFAULT 0.00,
     description TEXT,
     image_url TEXT,
     is_favourite TEXT DEFAULT 'No',
@@ -155,8 +174,8 @@ CREATE TABLE IF NOT EXISTS account_master (
     pincode TEXT,
     gst_no TEXT,
     account_type TEXT DEFAULT 'Customer',
-    opening_balance DECIMAL(12,2) DEFAULT 0.00,
-    current_balance DECIMAL(12,2) DEFAULT 0.00,
+    opening_balance NUMERIC DEFAULT 0.00,
+    current_balance NUMERIC DEFAULT 0.00,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -168,11 +187,11 @@ CREATE TABLE IF NOT EXISTS credit_master (
     account_id UUID REFERENCES account_master(id),
     account_name TEXT,
     cr_days INTEGER,
-    cr_amount DECIMAL(12,2),
+    cr_amount NUMERIC,
     mobile TEXT,
     name TEXT,
     address TEXT,
-    amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    amount NUMERIC NOT NULL DEFAULT 0.00,
     type TEXT NOT NULL DEFAULT 'Credit',
     reason TEXT,
     transaction_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -212,9 +231,9 @@ CREATE TABLE IF NOT EXISTS purchases (
     invoice_no TEXT,
     supplier_id UUID REFERENCES account_master(id),
     purchase_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    total_amount DECIMAL(12,2) DEFAULT 0.00,
-    paid_amount DECIMAL(12,2) DEFAULT 0.00,
-    balance_amount DECIMAL(12,2) DEFAULT 0.00,
+    total_amount NUMERIC DEFAULT 0.00,
+    paid_amount NUMERIC DEFAULT 0.00,
+    balance_amount NUMERIC DEFAULT 0.00,
     remarks TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -226,9 +245,9 @@ CREATE TABLE IF NOT EXISTS purchase_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     purchase_id UUID REFERENCES purchases(id) ON DELETE CASCADE,
     product_id UUID REFERENCES products(id),
-    quantity DECIMAL(10,2) NOT NULL,
-    rate DECIMAL(10,2) NOT NULL,
-    total DECIMAL(12,2) NOT NULL,
+    quantity NUMERIC NOT NULL,
+    rate NUMERIC NOT NULL,
+    total NUMERIC NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -241,10 +260,10 @@ CREATE TABLE IF NOT EXISTS orders (
     user_mobile TEXT,
     address TEXT,
     pincode TEXT,
-    subtotal DECIMAL(12,2) NOT NULL,
-    delivery_charge DECIMAL(10,2) DEFAULT 0.00,
-    discount DECIMAL(10,2) DEFAULT 0.00,
-    total_amount DECIMAL(12,2) NOT NULL,
+    subtotal NUMERIC NOT NULL,
+    delivery_charge NUMERIC DEFAULT 0.00,
+    discount NUMERIC DEFAULT 0.00,
+    total_amount NUMERIC NOT NULL,
     payment_mode TEXT DEFAULT 'Online',
     payment_status TEXT DEFAULT 'pending',
     order_status TEXT DEFAULT 'pending',
@@ -260,9 +279,9 @@ CREATE TABLE IF NOT EXISTS order_items (
     order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
     product_id UUID REFERENCES products(id),
     product_name TEXT NOT NULL,
-    quantity DECIMAL(10,2) NOT NULL,
-    rate DECIMAL(10,2) NOT NULL,
-    total DECIMAL(12,2) NOT NULL,
+    quantity NUMERIC NOT NULL,
+    rate NUMERIC NOT NULL,
+    total NUMERIC NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -270,7 +289,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE TABLE IF NOT EXISTS wallet_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
-    balance DECIMAL(12,2) DEFAULT 0.00,
+    balance NUMERIC DEFAULT 0.00,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -280,7 +299,7 @@ CREATE TABLE IF NOT EXISTS wallet_master (
 CREATE TABLE IF NOT EXISTS wallet_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
-    amount DECIMAL(12,2) NOT NULL,
+    amount NUMERIC NOT NULL,
     type TEXT NOT NULL,
     reason TEXT,
     transaction_date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -311,7 +330,7 @@ CREATE TABLE IF NOT EXISTS pincode_master (
     pincode TEXT NOT NULL UNIQUE,
     city TEXT,
     state TEXT,
-    delivery_charge DECIMAL(10,2) DEFAULT 0.00,
+    delivery_charge NUMERIC DEFAULT 0.00,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -322,9 +341,9 @@ CREATE TABLE IF NOT EXISTS coupons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     code TEXT NOT NULL UNIQUE,
     discount_type TEXT NOT NULL,
-    discount_value DECIMAL(10,2) NOT NULL,
-    min_order_value DECIMAL(12,2) DEFAULT 0.00,
-    max_discount DECIMAL(12,2),
+    discount_value NUMERIC NOT NULL,
+    min_order_value NUMERIC DEFAULT 0.00,
+    max_discount NUMERIC,
     usage_limit INTEGER,
     used_count INTEGER DEFAULT 0,
     valid_from TIMESTAMP WITH TIME ZONE,
@@ -341,7 +360,7 @@ CREATE TABLE IF NOT EXISTS offers_master (
     description TEXT,
     image_url TEXT,
     discount_type TEXT,
-    discount_value DECIMAL(10,2),
+    discount_value NUMERIC,
     valid_from TIMESTAMP WITH TIME ZONE,
     valid_to TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT true,
@@ -354,7 +373,7 @@ CREATE TABLE IF NOT EXISTS cart (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
     product_id UUID REFERENCES products(id),
-    quantity DECIMAL(10,2) DEFAULT 1.00,
+    quantity NUMERIC DEFAULT 1.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -372,7 +391,7 @@ CREATE TABLE IF NOT EXISTS basket (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
     product_id UUID REFERENCES products(id),
-    quantity DECIMAL(10,2) DEFAULT 1.00,
+    quantity NUMERIC DEFAULT 1.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -419,9 +438,9 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS inventory_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-    old_stock DECIMAL(10,2),
-    new_stock DECIMAL(10,2),
-    quantity DECIMAL(10,2),
+    old_stock NUMERIC,
+    new_stock NUMERIC,
+    quantity NUMERIC,
     type TEXT,
     change_type TEXT,
     reference_id TEXT,
@@ -438,7 +457,7 @@ CREATE TABLE IF NOT EXISTS credit_notes (
     cn_number TEXT UNIQUE NOT NULL,
     original_order_id UUID REFERENCES orders(id),
     customer_mobile TEXT,
-    amount DECIMAL(12,2) NOT NULL,
+    amount NUMERIC NOT NULL,
     status TEXT DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -449,7 +468,7 @@ CREATE TABLE IF NOT EXISTS return_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID REFERENCES orders(id),
     product_id UUID REFERENCES products(id),
-    quantity DECIMAL(10,2) NOT NULL,
+    quantity NUMERIC NOT NULL,
     reason TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -476,7 +495,7 @@ CREATE TABLE IF NOT EXISTS expense_categories (
 -- Expenses
 CREATE TABLE IF NOT EXISTS expenses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    amount DECIMAL(12,2) NOT NULL,
+    amount NUMERIC NOT NULL,
     date DATE DEFAULT CURRENT_DATE,
     expense_date DATE DEFAULT CURRENT_DATE,
     category_id UUID REFERENCES expense_categories(id),
@@ -492,7 +511,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 CREATE TABLE IF NOT EXISTS stock_alerts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     product_id UUID REFERENCES products(id) UNIQUE,
-    threshold DECIMAL(10,2) DEFAULT 5.00,
+    threshold NUMERIC DEFAULT 5.00,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -569,7 +588,7 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'inventory_logs' AND column_name = 'quantity') THEN
-        ALTER TABLE inventory_logs ADD COLUMN quantity DECIMAL(10,2);
+        ALTER TABLE inventory_logs ADD COLUMN quantity NUMERIC;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
@@ -639,6 +658,40 @@ DO $$ BEGIN
         ALTER TABLE delivery_boy_master ADD COLUMN is_active BOOLEAN DEFAULT true;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add cess_percent column to products table
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'cess_percent') THEN
+        ALTER TABLE products ADD COLUMN cess_percent NUMERIC DEFAULT 0.00;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add discount_percent column to products table
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'discount_percent') THEN
+        ALTER TABLE products ADD COLUMN discount_percent NUMERIC DEFAULT 0.00;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add min_qty column to products table
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'min_qty') THEN
+        ALTER TABLE products ADD COLUMN min_qty NUMERIC DEFAULT 1.00;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Alter existing columns to NUMERIC type to prevent overflow
+DO $$ BEGIN
+    ALTER TABLE products ALTER COLUMN mrp TYPE NUMERIC;
+    ALTER TABLE products ALTER COLUMN sale_rate TYPE NUMERIC;
+    ALTER TABLE products ALTER COLUMN purchase_rate TYPE NUMERIC;
+    ALTER TABLE products ALTER COLUMN gst TYPE NUMERIC;
+    ALTER TABLE products ALTER COLUMN gst_percent TYPE NUMERIC;
+    ALTER TABLE products ALTER COLUMN cess TYPE NUMERIC;
+    ALTER TABLE products ALTER COLUMN discount TYPE NUMERIC;
+    ALTER TABLE products ALTER COLUMN discount_pct TYPE NUMERIC;
+    ALTER TABLE products ALTER COLUMN stock TYPE NUMERIC;
+EXCEPTION WHEN others THEN NULL; END $$;
 
 -- ========================================
 -- 3. INSERT DEFAULT DATA IF NOT EXISTS
@@ -734,7 +787,7 @@ RETURNS UUID AS $$
 DECLARE
     v_order_id UUID;
     v_item JSONB;
-    v_current_stock DECIMAL(10,2);
+    v_current_stock NUMERIC;
 BEGIN
     -- Insert the order
     INSERT INTO orders (
@@ -748,10 +801,10 @@ BEGIN
         (p_order_data->>'user_mobile')::TEXT,
         (p_order_data->>'address')::TEXT,
         (p_order_data->>'pincode')::TEXT,
-        (p_order_data->>'subtotal')::DECIMAL(12,2),
-        (p_order_data->>'delivery_charge')::DECIMAL(10,2),
-        (p_order_data->>'discount')::DECIMAL(10,2),
-        (p_order_data->>'total_amount')::DECIMAL(12,2),
+        (p_order_data->>'subtotal')::NUMERIC,
+        (p_order_data->>'delivery_charge')::NUMERIC,
+        (p_order_data->>'discount')::NUMERIC,
+        (p_order_data->>'total_amount')::NUMERIC,
         (p_order_data->>'payment_mode')::TEXT,
         (p_order_data->>'payment_status')::TEXT,
         (p_order_data->>'order_status')::TEXT
@@ -764,7 +817,7 @@ BEGIN
         FROM products 
         WHERE id = (v_item->>'product_id')::UUID;
         
-        IF v_current_stock < (v_item->>'quantity')::DECIMAL(10,2) THEN
+        IF v_current_stock < (v_item->>'quantity')::NUMERIC THEN
             RAISE EXCEPTION 'Insufficient stock for product %', (v_item->>'product_name')::TEXT;
         END IF;
         
@@ -775,14 +828,14 @@ BEGIN
             v_order_id,
             (v_item->>'product_id')::UUID,
             (v_item->>'product_name')::TEXT,
-            (v_item->>'quantity')::DECIMAL(10,2),
-            (v_item->>'rate')::DECIMAL(10,2),
-            (v_item->>'total')::DECIMAL(12,2)
+            (v_item->>'quantity')::NUMERIC,
+            (v_item->>'rate')::NUMERIC,
+            (v_item->>'total')::NUMERIC
         );
         
         -- Update stock
         UPDATE products 
-        SET stock = stock - (v_item->>'quantity')::DECIMAL(10,2),
+        SET stock = stock - (v_item->>'quantity')::NUMERIC,
             updated_at = timezone('utc'::text, now())
         WHERE id = (v_item->>'product_id')::UUID;
         
@@ -792,8 +845,8 @@ BEGIN
         ) VALUES (
             (v_item->>'product_id')::UUID,
             v_current_stock,
-            v_current_stock - (v_item->>'quantity')::DECIMAL(10,2),
-            (v_item->>'quantity')::DECIMAL(10,2),
+            v_current_stock - (v_item->>'quantity')::NUMERIC,
+            (v_item->>'quantity')::NUMERIC,
             'sale',
             v_order_id::TEXT,
             timezone('utc'::text, now())
@@ -807,14 +860,14 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Atomic Wallet Adjustment Function
 CREATE OR REPLACE FUNCTION adjust_wallet_atomic(
     p_user_id TEXT,
-    p_amount DECIMAL(12,2),
+    p_amount NUMERIC,
     p_type TEXT,
     p_reason TEXT
 )
-RETURNS DECIMAL(12,2) AS $$
+RETURNS NUMERIC AS $$
 DECLARE
     v_wallet_id UUID;
-    v_new_balance DECIMAL(12,2);
+    v_new_balance NUMERIC;
 BEGIN
     -- Check if wallet exists
     SELECT id INTO v_wallet_id
