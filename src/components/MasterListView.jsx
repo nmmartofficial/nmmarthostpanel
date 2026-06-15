@@ -95,6 +95,9 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
           if (!finalData[field.name]) {
             finalData[field.name] = 'https://via.placeholder.com/300?text=NM+MART';
           }
+        } else if (field.type === 'boolean' && !(field.name in finalData)) {
+          // Set default boolean to true if not provided
+          finalData[field.name] = true;
         }
       }
 
@@ -103,6 +106,12 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         res = await handleERPAction(table, ACTION_TYPES.UPDATE, { id: editingItem.id, ...finalData });
       } else {
         finalData.id = finalData.id || generateUUID();
+        // Ensure all boolean fields have defaults for new items
+        for (const field of fields) {
+          if (field.type === 'boolean' && !(field.name in finalData)) {
+            finalData[field.name] = true;
+          }
+        }
         res = await handleERPAction(table, ACTION_TYPES.INSERT, finalData);
       }
 
@@ -163,7 +172,18 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
               <Download size={14} className="text-blue-600" /> Export
             </button>
             <button 
-              onClick={() => { setEditingItem(null); setFormData({}); setShowForm(true); }}
+              onClick={() => { 
+                setEditingItem(null); 
+                // Initialize form data with default values for fields
+                const defaultFormData = {};
+                fields.forEach(field => {
+                  if (field.type === 'boolean') {
+                    defaultFormData[field.name] = true;
+                  }
+                });
+                setFormData(defaultFormData); 
+                setShowForm(true); 
+              }}
               className="flex-1 md:flex-none bg-blue-700 text-white px-5 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:translate-y-[-1px] transition-all"
             >
               <Plus size={14} /> Create New
