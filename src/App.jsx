@@ -873,10 +873,15 @@ export default function App() {
       
       // Use DEFAULT_APP_CONFIG if no app config is found, otherwise only use loaded fields
       const loadedAppConfig = Array.isArray(appConfigData) ? appConfigData[0] : appConfigData;
+      console.log("Loaded appConfig from DB:", loadedAppConfig);
       if (loadedAppConfig && Object.keys(loadedAppConfig).length > 0) {
         setAppConfig(loadedAppConfig);
       } else {
-        setAppConfig(DEFAULT_APP_CONFIG);
+        // Minimal safe default
+        setAppConfig({
+          id: 'default',
+          store_name: 'NM MART'
+        });
       }
       setBanners(bannersData);
       setSubcategories(subcategoriesData);
