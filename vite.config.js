@@ -9,6 +9,13 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 3000, // Increase limit to 3MB to avoid Vercel warnings
+    minify: 'terser', // Use Terser for better minification
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console logs in production
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: {
