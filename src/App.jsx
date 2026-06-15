@@ -39,18 +39,7 @@ import {
 import MasterListView from './components/MasterListView';
 
 const DEFAULT_APP_CONFIG = {
-  id: 'default',
-  store_name: 'NM MART',
-  brand_name: 'NM MART',
-  logo_url: 'https://coresg-normal.trae.ai/api/v1/text_to_image?prompt=NM%20MART%20Retail%20Store%20Logo&image_size=square',
-  delivery_time_msg: 'Same day delivery for orders before 6 PM!',
-  primary_color: '#2563eb',
-  secondary_color: '#1e40af',
-  accent_color: '#3b82f6',
-  delivery_charge: 50,
-  tax_rate: 18,
-  security_pin: '1234',
-  maintenance_mode: false
+  id: 'default'
 };
 
 // Import New Pages
@@ -6149,16 +6138,19 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
     localStorage.setItem('nm_last_manual_theme', Date.now().toString());
     setAppConfig(prev => ({
       ...prev,
-      primaryColor: festival.primaryColor,
-      secondaryColor: festival.secondaryColor
+      primary_color: festival.primaryColor,
+      secondary_color: festival.secondaryColor
     }));
-    await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [{ 
-      id: propsAppConfig?.id || 'default', 
-      ...propsAppConfig, 
-      primaryColor: festival.primaryColor, 
-      secondaryColor: festival.secondaryColor, 
-      updatedAt: new Date().toISOString() 
-    }]);
+    // Only include fields present in propsAppConfig
+    const filteredFestivalConfig = {};
+    Object.keys(propsAppConfig).forEach(key => {
+      filteredFestivalConfig[key] = propsAppConfig[key];
+    });
+    filteredFestivalConfig.id = propsAppConfig?.id || 'default';
+    filteredFestivalConfig.primary_color = festival.primaryColor;
+    filteredFestivalConfig.secondary_color = festival.secondaryColor;
+    filteredFestivalConfig.updated_at = new Date().toISOString();
+    await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [filteredFestivalConfig]);
     fetchInitialData();
     alert(`Successfully applied ${festival.name} theme!`);
   };
