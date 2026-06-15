@@ -11,7 +11,16 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
   const [isVerified, setIsVerified] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
 
-  useEffect(() => { setFormData(appConfig); }, [appConfig]);
+  useEffect(() => {
+    // Initialize formData only with fields that exist in appConfig (from DB)
+    if (appConfig) {
+      const filteredFormData = {};
+      Object.keys(appConfig).forEach(key => {
+        filteredFormData[key] = appConfig[key];
+      });
+      setFormData(filteredFormData);
+    }
+  }, [appConfig]);
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
@@ -29,7 +38,7 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
     try {
       const finalData = {};
       
-      // Only include fields that are present in the original appConfig (loaded from DB)
+      // ONLY include fields that are definitely present in appConfig from DB
       if (appConfig) {
         Object.keys(appConfig).forEach(field => {
           if (formData[field] !== undefined) {
@@ -38,17 +47,23 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
         });
       }
       
-      // Always include id
+      // ALWAYS include id
       finalData.id = 'default';
       
+      // Only add logo_url if it exists in appConfig or we just uploaded one
       if (logoFile) {
         const { url, error: uploadError } = await uploadImage(logoFile, 'product-images');
         if (uploadError) {
           console.warn('Logo upload failed, keeping existing logo');
         } else {
-          finalData.logo_url = url;
+          // Only add logo_url if it's already in appConfig (or we can add it anyway safely? Well, just to be safe let's check
+          if (appConfig && ('logo_url' in appConfig)) {
+            finalData.logo_url = url;
+          }
         }
       }
+      
+      console.log("Final data being sent to DB:", finalData);
       
       const res = await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [finalData]);
       if (res && !res.success) {
