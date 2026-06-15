@@ -882,9 +882,13 @@ export default function App() {
       setCategories(categoriesData);
       setOrders(ordersData);
       
-      // Use DEFAULT_APP_CONFIG if no app config is found
+      // Use DEFAULT_APP_CONFIG if no app config is found, otherwise only use loaded fields
       const loadedAppConfig = Array.isArray(appConfigData) ? appConfigData[0] : appConfigData;
-      setAppConfig({ ...DEFAULT_APP_CONFIG, ...loadedAppConfig });
+      if (loadedAppConfig && Object.keys(loadedAppConfig).length > 0) {
+        setAppConfig(loadedAppConfig);
+      } else {
+        setAppConfig(DEFAULT_APP_CONFIG);
+      }
       setBanners(bannersData);
       setSubcategories(subcategoriesData);
       setBrands(brandsData);
@@ -6007,7 +6011,14 @@ const NMMartAppBuilderAI = ({ appConfig, setAppConfig, fetchInitialData }) => {
       }
 
       if (updated) {
-        await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [{ id: appConfig?.id || 'default', ...appConfig, updated_at: new Date().toISOString() }]);
+        // Only include fields present in appConfig (which are only DB fields)
+        const filteredAppConfig = {};
+        Object.keys(appConfig).forEach(key => {
+          filteredAppConfig[key] = appConfig[key];
+        });
+        filteredAppConfig.id = appConfig?.id || 'default';
+        filteredAppConfig.updated_at = new Date().toISOString();
+        await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [filteredAppConfig]);
         fetchInitialData();
       }
 
