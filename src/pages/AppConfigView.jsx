@@ -4,11 +4,12 @@ import { handleERPAction, ACTION_TYPES } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
 import { cn } from '../utils/helpers';
 
-export default function AppConfigView({ appConfig, setAppConfig, fetchInitialData }) {
+export default function AppConfigView({ appConfig, setAppConfig, fetchInitialData, uploadImage }) {
   const [formData, setFormData] = useState(appConfig);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [password, setPassword] = useState('');
   const [isVerified, setIsVerified] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
 
   useEffect(() => { setFormData(appConfig); }, [appConfig]);
 
@@ -26,7 +27,18 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [{ id: 'default', ...formData }]);
+      const finalData = { ...formData };
+      
+      if (logoFile) {
+        const { url, error: uploadError } = await uploadImage(logoFile, 'product-images');
+        if (uploadError) {
+          console.warn('Logo upload failed, keeping existing logo');
+        } else {
+          finalData.logo_url = url;
+        }
+      }
+      
+      const res = await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [{ id: 'default', ...finalData }]);
       if (res && !res.success) {
         throw new Error(`Database Error [AppConfig]: ${res.error}`);
       }
@@ -85,7 +97,6 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
               {[
                 { label: 'Official Store Name', name: 'store_name', type: 'text' },
                 { label: 'Brand Name', name: 'brand_name', type: 'text' },
-                { label: 'Logo URL', name: 'logo_url', type: 'text' },
                 { label: 'Standard Delivery Msg', name: 'delivery_time_msg', type: 'text' },
               ].map(f => (
                 <div key={f.name} className="space-y-1">
@@ -116,6 +127,51 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
                   )}
                 </div>
               ))}
+              
+              {/* Logo Upload Section */}
+              <div className="col-span-1 sm:col-span-2 lg:col-span-3 space-y-2">
+                <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">Logo</label>
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-24 h-24 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center">
+                      {(logoFile ? URL.createObjectURL(logoFile) : formData.logo_url) ? (
+                        <img 
+                          src={logoFile ? URL.createObjectURL(logoFile) : formData.logo_url} 
+                          alt="Logo Preview" 
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-slate-400 text-xs font-black uppercase tracking-widest">No Logo</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <label className="flex items-center justify-center w-full h-12 bg-slate-50 border border-slate-200 border-dashed rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all">
+                      <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Upload Logo</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setLogoFile(e.target.files[0]);
+                          }
+                        }}
+                      />
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Or paste logo URL"
+                      value={formData.logo_url || ''}
+                      onChange={(e) => {
+                        setFormData({ ...formData, logo_url: e.target.value });
+                        setLogoFile(null);
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
