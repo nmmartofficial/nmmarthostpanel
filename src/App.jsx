@@ -5722,6 +5722,7 @@ function UnderDevelopmentView({ title }) {
 const CategoriesView = (props) => (
   <MasterListView 
     {...props} 
+    bucket="category-images"
     fields={[
       { name: 'name', label: 'Category Name', type: 'text', required: true },
       { name: 'image_url', label: 'Image', type: 'image' },
@@ -5744,6 +5745,7 @@ const SubcategoriesView = (props) => (
 const BrandsView = (props) => (
   <MasterListView 
     {...props} 
+    bucket="brand-images"
     fields={[
       { name: 'name', label: 'Brand Name', type: 'text', required: true },
       { name: 'image_url', label: 'Image', type: 'image' },
@@ -5813,6 +5815,7 @@ const UsersView = (props) => (
 const BannersView = (props) => (
   <MasterListView 
     {...props} 
+    bucket="banner-images"
     fields={[
       { name: 'title', label: 'Banner Title', type: 'text' },
       { name: 'image_url', label: 'Banner Image', type: 'image', required: true },
