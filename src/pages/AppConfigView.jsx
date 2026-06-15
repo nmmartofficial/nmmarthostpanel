@@ -27,7 +27,20 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const finalData = { ...formData };
+      const finalData = {};
+      
+      // Only include valid database fields
+      const validFields = [
+        'id', 'store_name', 'brand_name', 'logo_url', 'delivery_time_msg',
+        'primary_color', 'secondary_color', 'accent_color', 'delivery_charge',
+        'tax_rate', 'security_pin', 'maintenance_mode'
+      ];
+      
+      validFields.forEach(field => {
+        if (formData[field] !== undefined) {
+          finalData[field] = formData[field];
+        }
+      });
       
       if (logoFile) {
         const { url, error: uploadError } = await uploadImage(logoFile, 'product-images');
@@ -38,7 +51,9 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
         }
       }
       
-      const res = await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [{ id: 'default', ...finalData }]);
+      finalData.id = 'default';
+      
+      const res = await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [finalData]);
       if (res && !res.success) {
         throw new Error(`Database Error [AppConfig]: ${res.error}`);
       }
@@ -214,16 +229,10 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
-                { label: 'Free Delivery Threshold', name: 'min_order_free_delivery', type: 'number' },
                 { label: 'Base Delivery Fee', name: 'delivery_charge', type: 'number' },
-                { label: 'Order Handling Fee', name: 'handling_charge', type: 'number' },
-                { label: 'Reward Cashback (%)', name: 'cashback_percentage', type: 'number' },
                 { label: 'GST Tax Rate (%)', name: 'tax_rate', type: 'number' },
                 { label: 'Security Admin PIN', name: 'security_pin', type: 'text' },
                 { label: 'App Maintenance Mode', name: 'maintenance_mode', type: 'checkbox' },
-                { label: 'App Version (Latest)', name: 'app_version', type: 'text' },
-                { label: 'Force Update', name: 'force_update', type: 'checkbox' },
-                { label: 'Guard Verification', name: 'enable_guard_verification', type: 'checkbox' },
               ].map(f => (
                 <div key={f.name} className="space-y-1">
                   <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>

@@ -47,16 +47,10 @@ const DEFAULT_APP_CONFIG = {
   primary_color: '#2563eb',
   secondary_color: '#1e40af',
   accent_color: '#3b82f6',
-  min_order_free_delivery: 500,
   delivery_charge: 50,
-  handling_charge: 10,
-  cashback_percentage: 2,
   tax_rate: 18,
   security_pin: '1234',
-  maintenance_mode: false,
-  app_version: '1.0.0',
-  force_update: false,
-  enable_guard_verification: true
+  maintenance_mode: false
 };
 
 // Import New Pages
