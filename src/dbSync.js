@@ -275,16 +275,16 @@ export const dbSync = {
         const { data, error } = await request;
         
         if (error) {
+          if (error.code === '42501') {
+            console.error(`[Security Error] RLS Policy denied access to ${tableName}. Check Supabase policies!`);
+            return [];
+          }
           if (error.code === 'PGRST116' || error.message.includes('cache') || error.message.includes('not found')) {
             console.warn(`[dbSync.fetch] Table not yet available: ${tableName}`);
             return [];
           }
-          if (error.code === '42501') {
-            console.error("Security Error: RLS Policy denied access to this table.");
-            return [];
-          }
           
-          console.error(`[Supabase Fetch Error] ${tableName}:`, error.message);
+          console.error(`[Supabase Fetch Error] ${tableName}:`, error.message, error.details, error.hint);
           return []; // Return empty array instead of throwing
         }
 

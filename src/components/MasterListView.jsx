@@ -48,7 +48,8 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         // Generate IDs for new records
         const recordsToInsert = parsedData.map(item => ({
           ...item,
-          id: item.id || generateUUID()
+          id: item.id || generateUUID(),
+          is_active: true
         }));
 
         // Use insert instead of upsert

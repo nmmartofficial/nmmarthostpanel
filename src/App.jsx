@@ -24,7 +24,7 @@ import { dbSync } from './dbSync';
 import { DB_SCHEMA, USER_ROLES } from './dbSchema';
 import JsBarcode from 'jsbarcode';
 import { handleERPAction, ERP_MODULES, ACTION_TYPES, parseERPCSV, exportToExcel } from './erpController';
-import { supabase } from './supabase';
+import { supabase, isSupabaseMock } from './supabase';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -1749,8 +1749,14 @@ export default function App() {
       {/* --- Footer Status Bar --- */}
       <footer className="bg-slate-800 text-white px-4 py-1 flex justify-between items-center text-[9px] font-black uppercase tracking-widest shadow-inner">
         <div className="flex items-center gap-5">
-          <span className="flex items-center gap-1.5"><Circle size={6} fill="#10B981" className="text-emerald-400" /> Server: Online</span>
-          <span className="flex items-center gap-1.5"><Circle size={6} fill="#3B82F6" className="text-blue-400" /> DB: {stats.products} Records</span>
+          <span className="flex items-center gap-1.5">
+            <Circle size={6} fill={isSupabaseMock ? "#EF4444" : "#10B981"} className={isSupabaseMock ? "text-red-400" : "text-emerald-400"} /> 
+            Server: {isSupabaseMock ? 'Disconnected (Using Mock DB)' : 'Online'}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Circle size={6} fill="#3B82F6" className="text-blue-400" /> 
+            DB: {isSupabaseMock ? '0 (MOCK)' : stats.products} Records
+          </span>
           <span className="flex items-center gap-1.5 opacity-50"><Clock size={10} /> Sync: Just Now</span>
         </div>
         <div className="flex items-center gap-4">

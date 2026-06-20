@@ -5,11 +5,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // Graceful handling instead of throwing errors that crash the app
 let supabaseInstance = null
+let isMockClient = true
 
 if (supabaseUrl && !supabaseUrl.includes('your-project-url') && 
     supabaseAnonKey && !supabaseAnonKey.includes('your-anon-key')) {
   try {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey)
+    isMockClient = false
     console.log('✅ Supabase client initialized successfully')
   } catch (error) {
     console.warn('⚠️ Failed to initialize Supabase client:', error.message)
@@ -75,3 +77,4 @@ const mockSupabase = {
 }
 
 export const supabase = supabaseInstance || mockSupabase
+export const isSupabaseMock = isMockClient

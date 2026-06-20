@@ -207,7 +207,8 @@ export default function ProductsView({ products, categories, brands, subcategori
             cess_percent: parseFloat(item.cess_percent) || 0,
             stock: parseFloat(item.stock) || 0,
             min_qty: parseFloat(item.min_qty) || 0,
-            discount_percent: parseFloat(item.discount_percent) || 0
+            discount_percent: parseFloat(item.discount_percent) || 0,
+            is_active: true
           };
         });
 
