@@ -37,6 +37,7 @@ import {
 } from './utils/security';
 
 import MasterListView from './components/MasterListView';
+import { cn, generateUUID } from './utils/helpers';
 
 const DEFAULT_APP_CONFIG = {
   id: 'default'
@@ -64,23 +65,10 @@ import PurchaseView from './pages/Inventory/PurchaseView';
 import SelfCheckoutView from './pages/SelfCheckoutView';
 import LoyaltyManagementView from './pages/LoyaltyManagementView';
 
-/** Utility for tailwind classes */
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
-
 // --- Global Constants ---
 const BRAND_NAME = "NM MART";
 const PRIMARY_COLOR = "#FFC107"; // Orange
 const SECONDARY_COLOR = "#212121"; // Dark Grey
-
-// --- Helper: Generate UUID ---
-const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
 
 // --- Helper: Pagination Footer ---
 function PaginationFooter({ currentPage, totalPages, rowsPerPage, setRowsPerPage, setCurrentPage, totalRecords }) {
