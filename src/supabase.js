@@ -4,16 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-console.log('🔍 [Supabase Init] Checking credentials...')
-console.log('🔍 [Supabase Init] URL:', supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : '(undefined)')
-console.log('🔍 [Supabase Init] Key:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 10)}...` : '(undefined)')
-
-// Helper function to redact sensitive keys (for safe console logging)
-const redactKey = (key) => {
-  if (!key) return '(not set)'
-  if (key.length <= 8) return key
-  return `${key.substring(0, 5)}...${key.substring(key.length - 3)}`
-}
+console.log('🔍 [Supabase Init] ========== Starting Supabase Init ==========')
+console.log('🔍 [Supabase Init] Full URL:', supabaseUrl)
+console.log('🔍 [Supabase Init] Key length:', supabaseAnonKey ? supabaseAnonKey.length : 0)
+console.log('🔍 [Supabase Init] Key starts with:', supabaseAnonKey ? supabaseAnonKey.substring(0, 10) : '(undefined)')
 
 // Graceful handling instead of throwing errors that crash the app
 let supabaseInstance = null
@@ -21,15 +15,14 @@ let isMockClient = true
 
 // Validate credentials
 const hasValidUrl = supabaseUrl && supabaseUrl.length > 10 && !supabaseUrl.includes('your-project-url')
-const hasValidKey = supabaseAnonKey && supabaseAnonKey.length > 10 && !supabaseAnonKey.includes('your-anon-key')
+const hasValidKey = supabaseAnonKey && supabaseAnonKey.length > 30 && !supabaseAnonKey.includes('your-anon-key') && !supabaseAnonKey.includes('sb_publishable_')
 
 console.log('🔍 [Supabase Init] URL valid:', hasValidUrl)
 console.log('🔍 [Supabase Init] Key valid:', hasValidKey)
 
 if (hasValidUrl && hasValidKey) {
   try {
-    console.log(`🚀 [Supabase Init] Creating client with URL: ${redactKey(supabaseUrl)}`)
-    console.log(`🔑 [Supabase Init] Using key: ${redactKey(supabaseAnonKey)}`)
+    console.log('🚀 [Supabase Init] Creating real Supabase client')
     
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -48,7 +41,9 @@ if (hasValidUrl && hasValidKey) {
   }
 } else {
   console.warn('⚠️ [Supabase Init] Using MOCK client because credentials are missing or invalid!')
-  console.warn('⚠️ [Supabase Init] Please check your .env file has correct VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY!')
+  console.warn('⚠️ [Supabase Init] - URL valid?', hasValidUrl)
+  console.warn('⚠️ [Supabase Init] - Key valid?', hasValidKey)
+  console.warn('⚠️ [Supabase Init] Please get your REAL anon key from Supabase Dashboard!')
 }
 
 // Create a mock client if real one isn't available
