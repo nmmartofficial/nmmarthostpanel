@@ -1,23 +1,54 @@
 import { createClient } from '@supabase/supabase-js'
 
+// Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+console.log('🔍 [Supabase Init] Checking credentials...')
+console.log('🔍 [Supabase Init] URL:', supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : '(undefined)')
+console.log('🔍 [Supabase Init] Key:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 10)}...` : '(undefined)')
+
+// Helper function to redact sensitive keys (for safe console logging)
+const redactKey = (key) => {
+  if (!key) return '(not set)'
+  if (key.length <= 8) return key
+  return `${key.substring(0, 5)}...${key.substring(key.length - 3)}`
+}
 
 // Graceful handling instead of throwing errors that crash the app
 let supabaseInstance = null
 let isMockClient = true
 
-if (supabaseUrl && !supabaseUrl.includes('your-project-url') && 
-    supabaseAnonKey && !supabaseAnonKey.includes('your-anon-key')) {
+// Validate credentials
+const hasValidUrl = supabaseUrl && supabaseUrl.length > 10 && !supabaseUrl.includes('your-project-url')
+const hasValidKey = supabaseAnonKey && supabaseAnonKey.length > 10 && !supabaseAnonKey.includes('your-anon-key')
+
+console.log('🔍 [Supabase Init] URL valid:', hasValidUrl)
+console.log('🔍 [Supabase Init] Key valid:', hasValidKey)
+
+if (hasValidUrl && hasValidKey) {
   try {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey)
+    console.log(`🚀 [Supabase Init] Creating client with URL: ${redactKey(supabaseUrl)}`)
+    console.log(`🔑 [Supabase Init] Using key: ${redactKey(supabaseAnonKey)}`)
+    
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    })
+    
     isMockClient = false
-    console.log('✅ Supabase client initialized successfully')
+    console.log('✅ [Supabase] Client initialized successfully!')
+    console.log('✅ [Supabase] Mock mode:', isMockClient)
   } catch (error) {
-    console.warn('⚠️ Failed to initialize Supabase client:', error.message)
+    console.error('❌ [Supabase Init] Failed to create client:', error.message)
+    console.error('❌ [Supabase Init] Full error:', error)
   }
 } else {
-  console.warn('⚠️ Supabase credentials missing or invalid in .env file')
+  console.warn('⚠️ [Supabase Init] Using MOCK client because credentials are missing or invalid!')
+  console.warn('⚠️ [Supabase Init] Please check your .env file has correct VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY!')
 }
 
 // Create a mock client if real one isn't available
