@@ -1206,6 +1206,16 @@ export default function App() {
                 </button>
               )}
 
+              {inventoryItems.length > 0 && (
+                <NavDropdown 
+                  label="Inventory" 
+                  icon={<Package size={14} className="mr-1.5" />} 
+                  items={inventoryItems} 
+                  activeTab={activeTab} 
+                  setActiveTab={setActiveTab} 
+                />
+              )}
+
               {isAllowed('Purchase') && (
                 <button 
                   onClick={() => setActiveTab('Purchase')}
@@ -1418,6 +1428,25 @@ export default function App() {
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">MASTER</h3>
                   <div className="space-y-1">
                     {masterItems.map(item => (
+                      <button 
+                        key={item.id}
+                        onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
+                          activeTab === item.id ? "bg-blue-100 text-blue-700 font-black" : "text-slate-700 hover:bg-slate-100 font-medium"
+                        )}
+                      >
+                        {item.icon} {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Inventory Menu */}
+                <div>
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">INVENTORY</h3>
+                  <div className="space-y-1">
+                    {inventoryItems.map(item => (
                       <button 
                         key={item.id}
                         onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
