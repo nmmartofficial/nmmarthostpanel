@@ -116,7 +116,7 @@ const logTableAction = async (tableName, action, { oldData = null, newData = nul
 };
 
 /**
- * HELPER: Validate Payload before DB Operations
+ * HELPER: Validate and Normalize Payload before DB Operations
  * "Data Safety: Database mein kachra (dirty data) jane se pehle check karein."
  */
 const validatePayload = (tableName, payload) => {
@@ -124,10 +124,48 @@ const validatePayload = (tableName, payload) => {
     throw new Error(`Invalid payload for ${tableName}`);
   }
 
-  // Generic validations
+  // Generic validations and type normalization
   const records = Array.isArray(payload) ? payload : [payload];
   
   for (const record of records) {
+    console.log(`[validatePayload] Checking record for ${tableName}:`, record);
+    
+    // Numeric fields to normalize
+    const numericFields = [
+      'sale_rate', 'mrp', 'stock', 'price', 'quantity', 'qty', 
+      'total_amount', 'subtotal', 'discount', 'delivery_charge',
+      'wallet_balance', 'amount', 'cgst', 'sgst', 'igst', 'gst_amount'
+    ];
+    
+    // Boolean fields to normalize
+    const booleanFields = ['is_active', 'is_available', 'is_featured', 'is_deleted'];
+    
+    // Normalize numeric fields
+    for (const field of numericFields) {
+      if (record[field] !== undefined && record[field] !== null) {
+        const originalValue = record[field];
+        const parsedValue = parseFloat(originalValue);
+        
+        if (!isNaN(parsedValue)) {
+          if (String(originalValue) !== String(parsedValue)) {
+            console.log(`[validatePayload] Normalizing ${field}: "${originalValue}" -> ${parsedValue}`);
+          }
+          record[field] = parsedValue;
+        }
+      }
+    }
+    
+    // Normalize boolean fields
+    for (const field of booleanFields) {
+      if (record[field] !== undefined && record[field] !== null) {
+        const originalValue = record[field];
+        if (typeof originalValue === 'string') {
+          record[field] = originalValue.toLowerCase() === 'true' || originalValue === '1';
+          console.log(`[validatePayload] Normalizing boolean ${field}: "${originalValue}" -> ${record[field]}`);
+        }
+      }
+    }
+    
     // 1. Check for negative prices/stock if applicable
     if (record.sale_rate !== undefined && record.sale_rate < 0) throw new Error("Sale rate cannot be negative");
     if (record.mrp !== undefined && record.mrp < 0) throw new Error("MRP cannot be negative");
@@ -138,6 +176,8 @@ const validatePayload = (tableName, payload) => {
       throw new Error("Name field cannot be empty");
     }
   }
+  
+  console.log(`[validatePayload] Final payload for ${tableName}:`, payload);
   return true;
 };
 
@@ -243,7 +283,14 @@ export const dbSync = {
       let hasMore = true;
       const limit = query.limit || Infinity;
 
-      console.log(`[dbSync] Fetching ${tableName}...`);
+      console.log(`[dbSync] Fetching ${tableName}...`, { query });
+
+      // List of tables that definitely have is_active column (update this based on your actual schema)
+      const TABLES_WITH_IS_ACTIVE = [
+        'products', 'categories', 'subcategories', 'brands', 'suppliers',
+        'orders', 'users', 'admin_users', 'delivery_boy_master',
+        'delivery_customer_master', 'wallet_master', 'expenses'
+      ];
 
       while (hasMore) {
         if (allData.length >= limit) {
@@ -253,13 +300,15 @@ export const dbSync = {
 
         let request = supabase.from(tableName).select(query.select || '*');
         
-        // Safety: Only filter by 'is_active' if the table is known to have it or we've verified it
-        // To avoid "column does not exist" errors, we wrap this in a check or only apply to specific tables
-        if (!query.includeDeleted && !['app_config', 'system_logs', 'notifications', 'cart', 'wishlist'].includes(tableName)) {
+        // Safety: Only filter by 'is_active' if we know the table has this column
+        if (!query.includeDeleted && TABLES_WITH_IS_ACTIVE.includes(tableName)) {
           request = request.or('is_active.eq.true,is_active.is.null');
         }
 
-        if (query.eq) request = request.eq(query.eq.column, query.eq.value);
+        if (query.eq) {
+          console.log(`[dbSync] Adding eq filter: ${query.eq.column} = ${query.eq.value}`);
+          request = request.eq(query.eq.column, query.eq.value);
+        }
         
         if (query.order) {
           request = request.order(query.order.column, { ascending: query.order.ascending ?? true });
@@ -272,9 +321,28 @@ export const dbSync = {
         
         request = request.range(from, to);
 
+        // Debug: Log the request details
+        console.log(`[dbSync] Executing request on ${tableName}:`, {
+          select: query.select || '*',
+          filters: {
+            eq: query.eq,
+            isActiveFilter: TABLES_WITH_IS_ACTIVE.includes(tableName) && !query.includeDeleted
+          },
+          order: query.order || 'created_at DESC',
+          range: `${from}-${to}`
+        });
+
         const { data, error } = await request;
         
         if (error) {
+          console.error(`[Supabase Fetch Error] ${tableName}:`, {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint,
+            fullError: error
+          });
+          
           if (error.code === '42501') {
             console.error(`[Security Error] RLS Policy denied access to ${tableName}. Check Supabase policies!`);
             return [];
@@ -284,7 +352,6 @@ export const dbSync = {
             return [];
           }
           
-          console.error(`[Supabase Fetch Error] ${tableName}:`, error.message, error.details, error.hint);
           return []; // Return empty array instead of throwing
         }
 
