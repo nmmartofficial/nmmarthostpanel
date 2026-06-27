@@ -46,35 +46,39 @@ if (hasValidUrl && hasValidKey) {
   console.warn('⚠️ [Supabase Init] Please get your REAL anon key from Supabase Dashboard!')
 }
 
+// Helper to create a chainable mock query builder
+const createMockQueryBuilder = () => {
+  const builder = {
+    eq: () => builder,
+    or: () => builder,
+    order: () => builder,
+    range: () => builder,
+    select: () => builder,
+    single: () => ({ data: null, error: null }),
+    then: (resolve) => resolve({ data: [], error: null })
+  };
+  
+  // Make it thenable so it can be awaited
+  return new Proxy(builder, {
+    get(target, prop) {
+      if (prop === 'then') {
+        return (resolve) => resolve({ data: [], error: null });
+      }
+      if (typeof target[prop] === 'function') {
+        return (...args) => {
+          console.log(`[Mock Supabase] Called ${prop} with args:`, args);
+          return target[prop](...args);
+        };
+      }
+      return target[prop];
+    }
+  });
+};
+
 // Create a mock client if real one isn't available
 const mockSupabase = {
   from: () => ({
-    select: () => ({ 
-      eq: () => ({ 
-        order: () => ({ 
-          range: () => ({ 
-            data: [], 
-            error: null 
-          }) 
-        }),
-        single: () => ({ data: null, error: null })
-      }),
-      or: () => ({
-        eq: () => ({
-          order: () => ({
-            range: () => ({ data: [], error: null })
-          }),
-          single: () => ({ data: null, error: null })
-        })
-      }),
-      order: () => ({ 
-        range: () => ({ 
-          data: [], 
-          error: null 
-        }) 
-      }),
-      range: () => ({ data: [], error: null })
-    }),
+    select: () => createMockQueryBuilder(),
     insert: () => ({ select: () => ({ data: [], error: null }) }),
     update: () => ({ eq: () => ({ select: () => ({ data: [], error: null }) }) }),
     delete: () => ({ eq: () => ({ error: null }) }),
