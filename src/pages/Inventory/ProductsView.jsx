@@ -371,7 +371,28 @@ export default function ProductsView({ products, categories, brands, subcategori
             <FileJson size={14} /> IMPORT ITEM
           </button>
           <button 
-            onClick={() => { setEditingProduct(null); setFormData({ sale_rate: 0, mrp: 0, purchase_rate: 0, gst: 0, cess: 0, discount_pct: 0, is_favourite: 'No', is_discountable: 'Yes', is_active: true }); setShowForm(true); }}
+            onClick={() => { 
+              setEditingProduct(null); 
+              setFormData({ 
+                sale_rate: 0, 
+                mrp: 0, 
+                purchase_rate: 0, 
+                gst_percent: 0, 
+                cess_percent: 0, 
+                discount_percent: 0, 
+                is_favourite: 'No', 
+                is_discountable: 'Yes', 
+                is_active: true,
+                category_id: '',
+                category_name: '',
+                subcategory_id: '',
+                subcategory_name: '',
+                brand_id: '',
+                brand_name: '',
+                unit_name: 'NA'
+              }); 
+              setShowForm(true); 
+            }}
             className="flex-1 md:flex-none bg-white text-blue-600 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-blue-50 transition-all border border-blue-600 shadow-sm"
           >
             <Plus size={16} /> Create New
@@ -488,7 +509,34 @@ export default function ProductsView({ products, categories, brands, subcategori
                             <QrCode size={14} />
                           </button>
                           <button 
-                            onClick={() => { setEditingProduct(product); setFormData(product); setShowForm(true); }}
+                            onClick={() => { 
+                              setEditingProduct(product); 
+                              // Pre-fill form data with proper category/subcategory/brand fields
+                              const prefilledData = {
+                                ...product,
+                                category: product.category_name || '',
+                                subcategory: product.subcategory_name || '',
+                                brand: product.brand_name || '',
+                                unit: product.unit_name || 'NA'
+                              };
+                              // If we have category_name but no category_id, try to find it
+                              if (prefilledData.category_name && !prefilledData.category_id) {
+                                const foundCat = categories.find(c => c.name === prefilledData.category_name);
+                                if (foundCat) prefilledData.category_id = foundCat.id;
+                              }
+                              // Same for subcategory
+                              if (prefilledData.subcategory_name && !prefilledData.subcategory_id) {
+                                const foundSubCat = subcategories.find(s => s.name === prefilledData.subcategory_name);
+                                if (foundSubCat) prefilledData.subcategory_id = foundSubCat.id;
+                              }
+                              // Same for brand
+                              if (prefilledData.brand_name && !prefilledData.brand_id) {
+                                const foundBrand = brands.find(b => b.name === prefilledData.brand_name);
+                                if (foundBrand) prefilledData.brand_id = foundBrand.id;
+                              }
+                              setFormData(prefilledData); 
+                              setShowForm(true); 
+                            }}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-all"
                             title="Edit"
                           >
@@ -588,28 +636,52 @@ export default function ProductsView({ products, categories, brands, subcategori
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 border-b border-slate-100 pb-6">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Group Name</label>
-                      <select value={formData.category || ''} onChange={(e) => setFormData({ ...formData, category: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                      <select value={formData.category_id || ''} onChange={(e) => {
+                        const selectedCat = categories.find(c => c.id === e.target.value);
+                        setFormData({
+                          ...formData,
+                          category_id: e.target.value,
+                          category_name: selectedCat?.name || '',
+                          category: selectedCat?.name || ''
+                        });
+                      }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
                         <option value="">NM MART</option>
-                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Sub Category Name</label>
-                      <select value={formData.subcategory || ''} onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                      <select value={formData.subcategory_id || ''} onChange={(e) => {
+                        const selectedSubCat = subcategories.find(s => s.id === e.target.value);
+                        setFormData({
+                          ...formData,
+                          subcategory_id: e.target.value,
+                          subcategory_name: selectedSubCat?.name || '',
+                          subcategory: selectedSubCat?.name || ''
+                        });
+                      }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
                         <option value="">Chocolate</option>
-                        {subcategories?.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                        {subcategories?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Brand Name</label>
-                      <select value={formData.brand || ''} onChange={(e) => setFormData({ ...formData, brand: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                      <select value={formData.brand_id || ''} onChange={(e) => {
+                        const selectedBrand = brands.find(b => b.id === e.target.value);
+                        setFormData({
+                          ...formData,
+                          brand_id: e.target.value,
+                          brand_name: selectedBrand?.name || '',
+                          brand: selectedBrand?.name || ''
+                        });
+                      }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
                         <option value="">NESTLE</option>
-                        {brands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
+                        {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Unit Name</label>
-                      <select value={formData.unit || ''} onChange={(e) => setFormData({ ...formData, unit: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                      <select value={formData.unit || ''} onChange={(e) => setFormData({ ...formData, unit: e.target.value, unit_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
                         <option value="NA">NA</option>
                         <option value="1 pcs">1 pcs</option>
                         <option value="1 kg">1 kg</option>
