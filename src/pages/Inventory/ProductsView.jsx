@@ -120,10 +120,13 @@ export default function ProductsView({ products, categories, brands, subcategori
           'BARCODE': 'barcode',
           'HSNCODE': 'hsn_code',
           'MRP': 'mrp',
+          'SALE RA': 'sale_rate',
           'SALE RATE': 'sale_rate',
+          'PURC RA': 'purchase_rate',
           'PURC RATE': 'purchase_rate',
           'GST%': 'gst_percent',
           'CESS%': 'cess_percent',
+          'OPENING': 'stock',
           'Closing': 'stock',
           'MinQty': 'min_qty',
           'Dis %': 'discount_percent',
@@ -131,9 +134,12 @@ export default function ProductsView({ products, categories, brands, subcategori
           'Colour': 'color',
           'Counter': 'counter_name',
           'MAIN CATEGORY': 'category_name',
+          'SUB CATEGORY': 'subcategory_name',
           'SUBC ATEGORY': 'subcategory_name',
+          'Brand na': 'brand_name',
           'Brand name': 'brand_name',
-          'Unit': 'unit_name'
+          'Unit': 'unit_name',
+          'Basic Sale Price': 'basic_sale_price'
         };
         
         const parsedData = await parseERPCSV(file, columnMapping);
@@ -195,6 +201,11 @@ export default function ProductsView({ products, categories, brands, subcategori
 
         // --- STEP 3: PREPARE PRODUCTS WITH FULL CONSISTENCY ---
         const productsToUpload = parsedData.map(item => {
+          const catName = String(item.category_name || "").toLowerCase().trim();
+          const subCatName = String(item.subcategory_name || "").toLowerCase().trim();
+          const brandName = String(item.brand_name || "").toLowerCase().trim();
+          const unitName = String(item.unit_name || "").trim();
+          
           return {
             id: generateUUID(),
             barcode: String(item.barcode || "").trim() || null,
@@ -208,6 +219,16 @@ export default function ProductsView({ products, categories, brands, subcategori
             stock: parseFloat(item.stock) || 0,
             min_qty: parseFloat(item.min_qty) || 0,
             discount_percent: parseFloat(item.discount_percent) || 0,
+            size: String(item.size || "").trim() || null,
+            color: String(item.color || "").trim() || null,
+            counter_name: String(item.counter_name || "").trim() || null,
+            category_name: catName || null,
+            category_id: catMap[catName] || null,
+            subcategory_name: subCatName || null,
+            subcategory_id: subCatMap[subCatName] || null,
+            brand_name: brandName || null,
+            brand_id: brandMap[brandName] || null,
+            unit_name: unitName || null,
             is_active: true
           };
         });
