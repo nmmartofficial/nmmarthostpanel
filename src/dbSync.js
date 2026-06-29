@@ -144,9 +144,14 @@ const validatePayload = (tableName, payload) => {
     for (const field of numericFields) {
       if (record[field] !== undefined && record[field] !== null) {
         const originalValue = record[field];
-        const parsedValue = parseFloat(originalValue);
+        let parsedValue = parseFloat(originalValue);
         
         if (!isNaN(parsedValue)) {
+          // Ensure stock is never negative
+          if (field === 'stock') {
+            parsedValue = Math.max(0, parsedValue);
+          }
+          
           if (String(originalValue) !== String(parsedValue)) {
             console.log(`[validatePayload] Normalizing ${field}: "${originalValue}" -> ${parsedValue}`);
           }
@@ -166,10 +171,10 @@ const validatePayload = (tableName, payload) => {
       }
     }
     
-    // 1. Check for negative prices/stock if applicable
+    // 1. Check for negative prices if applicable
     if (record.sale_rate !== undefined && record.sale_rate < 0) throw new Error("Sale rate cannot be negative");
     if (record.mrp !== undefined && record.mrp < 0) throw new Error("MRP cannot be negative");
-    if (record.stock !== undefined && record.stock < 0) throw new Error("Stock cannot be negative");
+    // Stock is automatically normalized to 0 if negative, no need to throw error
     
     // 2. Prevent empty names for core entities
     if (record.name !== undefined && String(record.name).trim() === "") {

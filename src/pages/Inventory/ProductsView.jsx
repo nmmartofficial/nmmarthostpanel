@@ -206,6 +206,9 @@ export default function ProductsView({ products, categories, brands, subcategori
           const brandName = String(item.brand_name || "").toLowerCase().trim();
           const unitName = String(item.unit_name || "").trim();
           
+          // Sanitize stock: ensure it's never negative
+          let stock = Math.max(0, parseFloat(item.stock) || 0);
+          
           return {
             id: generateUUID(),
             barcode: String(item.barcode || "").trim() || null,
@@ -216,7 +219,7 @@ export default function ProductsView({ products, categories, brands, subcategori
             purchase_rate: parseFloat(item.purchase_rate) || 0,
             gst_percent: parseFloat(item.gst_percent) || 0,
             cess_percent: parseFloat(item.cess_percent) || 0,
-            stock: parseFloat(item.stock) || 0,
+            stock: stock,
             min_qty: parseFloat(item.min_qty) || 0,
             discount_percent: parseFloat(item.discount_percent) || 0,
             size: String(item.size || "").trim() || null,
