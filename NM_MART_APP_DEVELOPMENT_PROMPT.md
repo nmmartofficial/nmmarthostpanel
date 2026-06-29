@@ -7,7 +7,7 @@ Use this prompt to build the customer-facing app that perfectly syncs with the N
 ## Project Context:
 - **Project Name**: NM MART Customer App
 - **Admin Panel Repo**: https://github.com/nmmartofficial/nmmarthostpanel
-- **Tech Stack**: React Native (Expo) OR Next.js (Web App) - your choice!
+- **Tech Stack**: Native Android (Java/Kotlin) - NO cross-platform!
 - **Backend**: Same Supabase project as admin panel
 - **Admin Panel Local Port**: 5200
 - **Database Schema**: Same as `supabase-schema.sql` from admin panel
@@ -132,7 +132,10 @@ Use this prompt to build the customer-facing app that perfectly syncs with the N
 5. **TEST WITH ADMIN PANEL**: After building any feature, test that admin panel sees the changes correctly!
 
 ## Tech Stack Recommendation:
-- **Cross-Platform App**: React Native with Expo (best for mobile)
-- **Web App**: Next.js 14 (if web is priority)
-- **State Management**: Zustand (lightweight, easy to sync with Supabase)
-- **UI Library**: React Native Paper OR Tailwind CSS (match admin panel's look!)
+- **Native Android**: Java OR Kotlin (developer's choice) - NO React Native/Flutter!
+- **Architecture**: MVVM (Model-View-ViewModel)
+- **Supabase SDK**: Use official Supabase Android SDK for database operations
+- **Image Loading**: Glide OR Picasso
+- **Networking**: Retrofit (if building API layer) OR direct Supabase SDK
+- **Local Storage**: Room Database (for caching products, cart, etc.)
+- **UI Components**: Material Design 3 (match admin panel's theme colors)
