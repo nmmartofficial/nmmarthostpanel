@@ -15,7 +15,7 @@ let isMockClient = true
 
 // Validate credentials
 const hasValidUrl = supabaseUrl && supabaseUrl.length > 10 && !supabaseUrl.includes('your-project-url')
-const hasValidKey = supabaseAnonKey && supabaseAnonKey.length > 30 && !supabaseAnonKey.includes('your-anon-key') && !supabaseAnonKey.includes('sb_publishable_')
+const hasValidKey = supabaseAnonKey && supabaseAnonKey.length > 30 && !supabaseAnonKey.includes('your-anon-key')
 
 console.log('🔍 [Supabase Init] URL valid:', hasValidUrl)
 console.log('🔍 [Supabase Init] Key valid:', hasValidKey)

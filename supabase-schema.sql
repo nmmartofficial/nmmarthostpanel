@@ -665,6 +665,86 @@ DO $$ BEGIN
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
+-- Add missing columns for Excel import
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'brand_name') THEN
+        ALTER TABLE products ADD COLUMN brand_name TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'category_name') THEN
+        ALTER TABLE products ADD COLUMN category_name TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'subcategory_name') THEN
+        ALTER TABLE products ADD COLUMN subcategory_name TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'unit_name') THEN
+        ALTER TABLE products ADD COLUMN unit_name TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'size') THEN
+        ALTER TABLE products ADD COLUMN size TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'color') THEN
+        ALTER TABLE products ADD COLUMN color TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'counter_name') THEN
+        ALTER TABLE products ADD COLUMN counter_name TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'basic_sale_price') THEN
+        ALTER TABLE products ADD COLUMN basic_sale_price NUMERIC DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Make sure all foreign key columns are present
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'category_id') THEN
+        ALTER TABLE products ADD COLUMN category_id UUID REFERENCES categories(id);
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'subcategory_id') THEN
+        ALTER TABLE products ADD COLUMN subcategory_id UUID REFERENCES subcategories(id);
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'brand_id') THEN
+        ALTER TABLE products ADD COLUMN brand_id UUID REFERENCES brands(id);
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'unit_id') THEN
+        ALTER TABLE products ADD COLUMN unit_id UUID REFERENCES unit_master(id);
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'department_id') THEN
+        ALTER TABLE products ADD COLUMN department_id UUID REFERENCES department_master(id);
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
 -- Alter existing columns to NUMERIC type to prevent overflow
 DO $$ BEGIN
     ALTER TABLE products ALTER COLUMN mrp TYPE NUMERIC;
