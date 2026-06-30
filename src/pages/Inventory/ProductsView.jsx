@@ -240,8 +240,21 @@ export default function ProductsView({ products, categories, brands, subcategori
             // Sanitize stock: ensure it's never negative
             let stock = Math.max(0, parseFloat(item.stock) || 0);
             
+            // Check if id from Excel is a valid UUID, if not, generate new one
+            let productId;
+            if (item.id) {
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (uuidRegex.test(String(item.id).trim())) {
+                    productId = item.id;
+                } else {
+                    productId = generateUUID();
+                }
+            } else {
+                productId = generateUUID();
+            }
+            
             return {
-                id: item.id || generateUUID(),
+                id: productId,
                 barcode: String(item.barcode || "").trim() || null,
                 name: String(item.name || "").trim(),
                 print_name: String(item.print_name || "").trim() || null,
