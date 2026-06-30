@@ -745,6 +745,91 @@ DO $$ BEGIN
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
+-- Add columns for Excel import
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'print_name') THEN
+        ALTER TABLE products ADD COLUMN print_name TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'take_rate') THEN
+        ALTER TABLE products ADD COLUMN take_rate NUMERIC DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'retail_rate') THEN
+        ALTER TABLE products ADD COLUMN retail_rate NUMERIC DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'delivery_rate') THEN
+        ALTER TABLE products ADD COLUMN delivery_rate NUMERIC DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'online_rate') THEN
+        ALTER TABLE products ADD COLUMN online_rate NUMERIC DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'item_group') THEN
+        ALTER TABLE products ADD COLUMN item_group TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'item_category') THEN
+        ALTER TABLE products ADD COLUMN item_category TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'department_code') THEN
+        ALTER TABLE products ADD COLUMN department_code TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'k_code') THEN
+        ALTER TABLE products ADD COLUMN k_code TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'shop_id') THEN
+        ALTER TABLE products ADD COLUMN shop_id TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'is_package') THEN
+        ALTER TABLE products ADD COLUMN is_package TEXT DEFAULT 'No';
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'narration') THEN
+        ALTER TABLE products ADD COLUMN narration TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'narration2') THEN
+        ALTER TABLE products ADD COLUMN narration2 TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'item_status') THEN
+        ALTER TABLE products ADD COLUMN item_status TEXT DEFAULT 'Active';
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
 -- Alter existing columns to NUMERIC type to prevent overflow
 DO $$ BEGIN
     ALTER TABLE products ALTER COLUMN mrp TYPE NUMERIC;

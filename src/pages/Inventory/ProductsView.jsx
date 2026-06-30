@@ -105,42 +105,73 @@ export default function ProductsView({ products, categories, brands, subcategori
   }, []);
 
   const handleImportCSV = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv,.xlsx,.xls';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      try {
-        setLoading(true);
-        // EXACT mapping of your Excel headers to Database fields
-        const columnMapping = {
-          'Item Name': 'name',
-          'BARCODE': 'barcode',
-          'HSNCODE': 'hsn_code',
-          'MRP': 'mrp',
-          'SALE RA': 'sale_rate',
-          'SALE RATE': 'sale_rate',
-          'PURC RA': 'purchase_rate',
-          'PURC RATE': 'purchase_rate',
-          'GST%': 'gst_percent',
-          'CESS%': 'cess_percent',
-          'OPENING': 'stock',
-          'Closing': 'stock',
-          'MinQty': 'min_qty',
-          'Dis %': 'discount_percent',
-          'Size': 'size',
-          'Colour': 'color',
-          'Counter': 'counter_name',
-          'MAIN CATEGORY': 'category_name',
-          'SUB CATEGORY': 'subcategory_name',
-          'SUBC ATEGORY': 'subcategory_name',
-          'Brand na': 'brand_name',
-          'Brand name': 'brand_name',
-          'Unit': 'unit_name',
-          'Basic Sale Price': 'basic_sale_price'
-        };
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.csv,.xlsx,.xls';
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                setLoading(true);
+                // EXACT mapping of your Excel headers to Database fields
+                const columnMapping = {
+                    'id': 'id',
+                    'itname': 'name',
+                    'itnameprint': 'print_name',
+                    'barcode': 'barcode',
+                    'imagename': 'image_url',
+                    'itemdescription': 'description',
+                    'hsncode': 'hsn_code',
+                    'picture': 'image_url',
+                    'takerate': 'take_rate',
+                    'restrate': 'retail_rate',
+                    'dlvrate': 'delivery_rate',
+                    'onlinerate': 'online_rate',
+                    'purcrate': 'purchase_rate',
+                    'mrp': 'mrp',
+                    'opstock': 'stock',
+                    'discperc': 'discount_percent',
+                    'isfav': 'is_favourite',
+                    'unitcode': 'unit_name',
+                    'itg': 'item_group',
+                    'itc': 'item_category',
+                    'dtcode': 'department_code',
+                    'kcode': 'k_code',
+                    'brandcode': 'brand_name',
+                    'isdiscountable': 'is_discountable',
+                    'gst': 'gst_percent',
+                    'cess': 'cess_percent',
+                    'shopid': 'shop_id',
+                    'ispackage': 'is_package',
+                    'narration': 'narration',
+                    'narration2': 'narration2',
+                    'itemstatus': 'item_status',
+                    'Item Name': 'name',
+                    'BARCODE': 'barcode',
+                    'HSNCODE': 'hsn_code',
+                    'MRP': 'mrp',
+                    'SALE RA': 'sale_rate',
+                    'SALE RATE': 'sale_rate',
+                    'PURC RA': 'purchase_rate',
+                    'PURC RATE': 'purchase_rate',
+                    'GST%': 'gst_percent',
+                    'CESS%': 'cess_percent',
+                    'OPENING': 'stock',
+                    'Closing': 'stock',
+                    'MinQty': 'min_qty',
+                    'Dis %': 'discount_percent',
+                    'Size': 'size',
+                    'Colour': 'color',
+                    'Counter': 'counter_name',
+                    'MAIN CATEGORY': 'category_name',
+                    'SUB CATEGORY': 'subcategory_name',
+                    'SUBC ATEGORY': 'subcategory_name',
+                    'Brand na': 'brand_name',
+                    'Brand name': 'brand_name',
+                    'Unit': 'unit_name',
+                    'Basic Sale Price': 'basic_sale_price'
+                };
         
         const parsedData = await parseERPCSV(file, columnMapping);
         if (!parsedData || parsedData.length === 0) throw new Error("No data found in file");
@@ -201,39 +232,57 @@ export default function ProductsView({ products, categories, brands, subcategori
 
         // --- STEP 3: PREPARE PRODUCTS WITH FULL CONSISTENCY ---
         const productsToUpload = parsedData.map(item => {
-          const catName = String(item.category_name || "").toLowerCase().trim();
-          const subCatName = String(item.subcategory_name || "").toLowerCase().trim();
-          const brandName = String(item.brand_name || "").toLowerCase().trim();
-          const unitName = String(item.unit_name || "").trim();
-          
-          // Sanitize stock: ensure it's never negative
-          let stock = Math.max(0, parseFloat(item.stock) || 0);
-          
-          return {
-            id: generateUUID(),
-            barcode: String(item.barcode || "").trim() || null,
-            name: String(item.name || "").trim(),
-            hsn_code: String(item.hsn_code || "").trim() || null,
-            mrp: parseFloat(item.mrp) || 0,
-            sale_rate: parseFloat(item.sale_rate) || 0,
-            purchase_rate: parseFloat(item.purchase_rate) || 0,
-            gst_percent: parseFloat(item.gst_percent) || 0,
-            cess_percent: parseFloat(item.cess_percent) || 0,
-            stock: stock,
-            min_qty: parseFloat(item.min_qty) || 0,
-            discount_percent: parseFloat(item.discount_percent) || 0,
-            size: String(item.size || "").trim() || null,
-            color: String(item.color || "").trim() || null,
-            counter_name: String(item.counter_name || "").trim() || null,
-            category_name: catName || null,
-            category_id: catMap[catName] || null,
-            subcategory_name: subCatName || null,
-            subcategory_id: subCatMap[subCatName] || null,
-            brand_name: brandName || null,
-            brand_id: brandMap[brandName] || null,
-            unit_name: unitName || null,
-            is_active: true
-          };
+            const catName = String(item.category_name || "").toLowerCase().trim();
+            const subCatName = String(item.subcategory_name || "").toLowerCase().trim();
+            const brandName = String(item.brand_name || "").toLowerCase().trim();
+            const unitName = String(item.unit_name || "").trim();
+            
+            // Sanitize stock: ensure it's never negative
+            let stock = Math.max(0, parseFloat(item.stock) || 0);
+            
+            return {
+                id: item.id || generateUUID(),
+                barcode: String(item.barcode || "").trim() || null,
+                name: String(item.name || "").trim(),
+                print_name: String(item.print_name || "").trim() || null,
+                hsn_code: String(item.hsn_code || "").trim() || null,
+                mrp: parseFloat(item.mrp) || 0,
+                sale_rate: parseFloat(item.sale_rate) || 0,
+                take_rate: parseFloat(item.take_rate) || 0,
+                retail_rate: parseFloat(item.retail_rate) || 0,
+                delivery_rate: parseFloat(item.delivery_rate) || 0,
+                online_rate: parseFloat(item.online_rate) || 0,
+                purchase_rate: parseFloat(item.purchase_rate) || 0,
+                gst_percent: parseFloat(item.gst_percent) || 0,
+                cess_percent: parseFloat(item.cess_percent) || 0,
+                stock: stock,
+                min_qty: parseFloat(item.min_qty) || 0,
+                discount_percent: parseFloat(item.discount_percent) || 0,
+                size: String(item.size || "").trim() || null,
+                color: String(item.color || "").trim() || null,
+                counter_name: String(item.counter_name || "").trim() || null,
+                category_name: catName || null,
+                category_id: catMap[catName] || null,
+                subcategory_name: subCatName || null,
+                subcategory_id: subCatMap[subCatName] || null,
+                brand_name: brandName || null,
+                brand_id: brandMap[brandName] || null,
+                unit_name: unitName || null,
+                item_group: String(item.item_group || "").trim() || null,
+                item_category: String(item.item_category || "").trim() || null,
+                department_code: String(item.department_code || "").trim() || null,
+                k_code: String(item.k_code || "").trim() || null,
+                shop_id: String(item.shop_id || "").trim() || null,
+                is_package: String(item.is_package || "No").trim(),
+                narration: String(item.narration || "").trim() || null,
+                narration2: String(item.narration2 || "").trim() || null,
+                item_status: String(item.item_status || "Active").trim(),
+                is_favourite: String(item.is_favourite || "No").trim(),
+                is_discountable: String(item.is_discountable || "Yes").trim(),
+                image_url: String(item.image_url || "").trim() || null,
+                description: String(item.description || "").trim() || null,
+                is_active: true
+            };
         });
 
         // --- STEP 4: BULK UPLOAD PRODUCTS ---
