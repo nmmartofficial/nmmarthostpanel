@@ -261,13 +261,32 @@ export const dbSync = {
     try {
       validatePayload(tableName, payload);
 
-      const { data, error } = await supabase
-        .from(tableName)
-        .insert(Array.isArray(payload) ? payload : [payload])
-        .select();
+      // For tables with unique name constraints, use upsert on name
+      const tablesWithUniqueName = ['brands', 'categories', 'subcategories', 'unit_master', 'department_master', 'expense_categories'];
+      
+      let request = supabase.from(tableName);
+      
+      if (tablesWithUniqueName.includes(tableName)) {
+        // For these tables, use upsert with name as conflict key
+        request = request.upsert(Array.isArray(payload) ? payload : [payload], { 
+          onConflict: 'name' 
+        });
+      } else {
+        // For other tables, regular insert
+        request = request.insert(Array.isArray(payload) ? payload : [payload]);
+      }
+      
+      const { data, error } = await request.select();
 
       if (error) {
         if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this insert.");
+        // If it's a unique constraint violation, handle it gracefully
+        if (error.code === '23505') { // 23505 is unique violation in Postgres
+          console.warn(`[dbSync.insert] Duplicate entry, skipping or updating:`, error.message);
+          // Try to fetch existing data if available
+          const existing = await dbSync.fetch(tableName, { includeDeleted: true });
+          return existing;
+        }
         throw error;
       }
 

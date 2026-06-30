@@ -1,7 +1,6 @@
 -- ========================================
 -- NM MART - COMPREHENSIVE SUPABASE SCHEMA
--- Creates tables IF NOT EXISTS (NO TABLE DELETION!)
--- Adds missing columns, creates necessary functions
+-- Creates tables IF NOT EXISTS, adds missing columns, creates functions
 -- ========================================
 
 -- Enable Required Extensions
@@ -9,10 +8,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ========================================
--- 1. CREATE ALL TABLES IF THEY DON'T EXIST
+-- TABLE: app_config
 -- ========================================
-
--- App Config Table
 CREATE TABLE IF NOT EXISTS app_config (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     security_pin TEXT DEFAULT crypt('1234', gen_salt('bf')),
@@ -23,11 +20,18 @@ CREATE TABLE IF NOT EXISTS app_config (
     gst_no TEXT,
     tax_rate NUMERIC DEFAULT 5,
     enable_guard_verification BOOLEAN DEFAULT false,
+    primary_color TEXT DEFAULT '#FFC107',
+    secondary_color TEXT DEFAULT '#212121',
+    accent_color TEXT DEFAULT '#FF5722',
+    logo_url TEXT,
+    brand_name TEXT DEFAULT 'NM MART',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Home Config Table
+-- ========================================
+-- TABLE: home_config
+-- ========================================
 CREATE TABLE IF NOT EXISTS home_config (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     section_name TEXT NOT NULL,
@@ -38,7 +42,9 @@ CREATE TABLE IF NOT EXISTS home_config (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Banners Table
+-- ========================================
+-- TABLE: banners (with click action support)
+-- ========================================
 CREATE TABLE IF NOT EXISTS banners (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title TEXT,
@@ -53,20 +59,9 @@ CREATE TABLE IF NOT EXISTS banners (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Add new columns if they don't exist
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'banners' AND column_name = 'link_url') THEN
-        ALTER TABLE banners ADD COLUMN link_url TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'banners' AND column_name = 'link_type') THEN
-        ALTER TABLE banners ADD COLUMN link_type TEXT DEFAULT 'none';
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Categories Table (Main Categories)
+-- ========================================
+-- TABLE: categories
+-- ========================================
 CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL UNIQUE,
@@ -77,7 +72,9 @@ CREATE TABLE IF NOT EXISTS categories (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Subcategories Table
+-- ========================================
+-- TABLE: subcategories
+-- ========================================
 CREATE TABLE IF NOT EXISTS subcategories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
@@ -88,7 +85,9 @@ CREATE TABLE IF NOT EXISTS subcategories (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Brands Table
+-- ========================================
+-- TABLE: brands
+-- ========================================
 CREATE TABLE IF NOT EXISTS brands (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL UNIQUE,
@@ -98,7 +97,9 @@ CREATE TABLE IF NOT EXISTS brands (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Units Table (Unit Master)
+-- ========================================
+-- TABLE: unit_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS unit_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL UNIQUE,
@@ -108,7 +109,9 @@ CREATE TABLE IF NOT EXISTS unit_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Departments Table
+-- ========================================
+-- TABLE: department_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS department_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL UNIQUE,
@@ -117,20 +120,35 @@ CREATE TABLE IF NOT EXISTS department_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Products Table (Item Master)
+-- ========================================
+-- TABLE: products (FULL SCHEMA for Excel import)
+-- ========================================
 CREATE TABLE IF NOT EXISTS products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     barcode TEXT UNIQUE,
     name TEXT NOT NULL,
+    print_name TEXT,
     category_id UUID REFERENCES categories(id),
-    sub_category_id UUID REFERENCES subcategories(id),
+    category_name TEXT,
+    subcategory_id UUID REFERENCES subcategories(id),
+    subcategory_name TEXT,
     brand_id UUID REFERENCES brands(id),
+    brand_name TEXT,
     unit_id UUID REFERENCES unit_master(id),
+    unit_name TEXT,
     department_id UUID REFERENCES department_master(id),
+    department_code TEXT,
+    k_code TEXT,
+    shop_id TEXT,
     hsn_code TEXT,
     mrp NUMERIC DEFAULT 0.00,
     sale_rate NUMERIC DEFAULT 0.00,
     purchase_rate NUMERIC DEFAULT 0.00,
+    take_rate NUMERIC DEFAULT 0.00,
+    retail_rate NUMERIC DEFAULT 0.00,
+    delivery_rate NUMERIC DEFAULT 0.00,
+    online_rate NUMERIC DEFAULT 0.00,
+    basic_sale_price NUMERIC DEFAULT 0,
     gst NUMERIC DEFAULT 0.00,
     gst_percent NUMERIC DEFAULT 0.00,
     cess NUMERIC DEFAULT 0.00,
@@ -140,17 +158,28 @@ CREATE TABLE IF NOT EXISTS products (
     discount_percent NUMERIC DEFAULT 0.00,
     min_qty NUMERIC DEFAULT 1.00,
     stock NUMERIC DEFAULT 0.00,
+    size TEXT,
+    color TEXT,
+    counter_name TEXT,
     description TEXT,
     image_url TEXT,
     is_favourite TEXT DEFAULT 'No',
     is_discountable TEXT DEFAULT 'Yes',
+    is_package TEXT DEFAULT 'No',
     is_active BOOLEAN DEFAULT true,
     is_live_on_app BOOLEAN DEFAULT false,
+    item_group TEXT,
+    item_category TEXT,
+    narration TEXT,
+    narration2 TEXT,
+    item_status TEXT DEFAULT 'Active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Admin Users Table
+-- ========================================
+-- TABLE: admin_users
+-- ========================================
 CREATE TABLE IF NOT EXISTS admin_users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username TEXT NOT NULL UNIQUE,
@@ -162,7 +191,9 @@ CREATE TABLE IF NOT EXISTS admin_users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Account Master (Customers/Suppliers)
+-- ========================================
+-- TABLE: account_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS account_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
@@ -181,7 +212,9 @@ CREATE TABLE IF NOT EXISTS account_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Credit Master
+-- ========================================
+-- TABLE: credit_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS credit_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     account_id UUID REFERENCES account_master(id),
@@ -199,7 +232,9 @@ CREATE TABLE IF NOT EXISTS credit_master (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Delivery Boys Table
+-- ========================================
+-- TABLE: delivery_boy_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS delivery_boy_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
@@ -213,7 +248,9 @@ CREATE TABLE IF NOT EXISTS delivery_boy_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Delivery Customers Table
+-- ========================================
+-- TABLE: delivery_customer_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS delivery_customer_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
@@ -225,7 +262,9 @@ CREATE TABLE IF NOT EXISTS delivery_customer_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Purchases Table
+-- ========================================
+-- TABLE: purchases
+-- ========================================
 CREATE TABLE IF NOT EXISTS purchases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     invoice_no TEXT,
@@ -240,7 +279,9 @@ CREATE TABLE IF NOT EXISTS purchases (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Purchase Items Table
+-- ========================================
+-- TABLE: purchase_items
+-- ========================================
 CREATE TABLE IF NOT EXISTS purchase_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     purchase_id UUID REFERENCES purchases(id) ON DELETE CASCADE,
@@ -251,7 +292,9 @@ CREATE TABLE IF NOT EXISTS purchase_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Orders Table (Customer Orders)
+-- ========================================
+-- TABLE: orders
+-- ========================================
 CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_number TEXT,
@@ -273,7 +316,9 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Order Items Table
+-- ========================================
+-- TABLE: order_items
+-- ========================================
 CREATE TABLE IF NOT EXISTS order_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
@@ -285,7 +330,9 @@ CREATE TABLE IF NOT EXISTS order_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Wallet Master (User Wallets)
+-- ========================================
+-- TABLE: wallet_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS wallet_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
@@ -295,7 +342,9 @@ CREATE TABLE IF NOT EXISTS wallet_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Wallet Transactions
+-- ========================================
+-- TABLE: wallet_transactions
+-- ========================================
 CREATE TABLE IF NOT EXISTS wallet_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
@@ -307,7 +356,9 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- User Addresses
+-- ========================================
+-- TABLE: addresses
+-- ========================================
 CREATE TABLE IF NOT EXISTS addresses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
@@ -324,7 +375,9 @@ CREATE TABLE IF NOT EXISTS addresses (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Pincode Master (Serviceable Areas)
+-- ========================================
+-- TABLE: pincode_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS pincode_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     pincode TEXT NOT NULL UNIQUE,
@@ -336,7 +389,9 @@ CREATE TABLE IF NOT EXISTS pincode_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Coupons
+-- ========================================
+-- TABLE: coupons
+-- ========================================
 CREATE TABLE IF NOT EXISTS coupons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     code TEXT NOT NULL UNIQUE,
@@ -353,7 +408,9 @@ CREATE TABLE IF NOT EXISTS coupons (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Offers
+-- ========================================
+-- TABLE: offers_master
+-- ========================================
 CREATE TABLE IF NOT EXISTS offers_master (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title TEXT NOT NULL,
@@ -368,7 +425,9 @@ CREATE TABLE IF NOT EXISTS offers_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Cart
+-- ========================================
+-- TABLE: cart
+-- ========================================
 CREATE TABLE IF NOT EXISTS cart (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
@@ -378,7 +437,9 @@ CREATE TABLE IF NOT EXISTS cart (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Wishlist
+-- ========================================
+-- TABLE: wishlist
+-- ========================================
 CREATE TABLE IF NOT EXISTS wishlist (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
@@ -386,7 +447,9 @@ CREATE TABLE IF NOT EXISTS wishlist (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Basket (same as cart for compatibility)
+-- ========================================
+-- TABLE: basket (for compatibility)
+-- ========================================
 CREATE TABLE IF NOT EXISTS basket (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT NOT NULL,
@@ -396,7 +459,9 @@ CREATE TABLE IF NOT EXISTS basket (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Notifications
+-- ========================================
+-- TABLE: notifications
+-- ========================================
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title TEXT NOT NULL,
@@ -408,7 +473,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- System Logs (Enhanced for audit)
+-- ========================================
+-- TABLE: system_logs
+-- ========================================
 CREATE TABLE IF NOT EXISTS system_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     table_name TEXT,
@@ -422,7 +489,9 @@ CREATE TABLE IF NOT EXISTS system_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Users (App Users)
+-- ========================================
+-- TABLE: users (App Users)
+-- ========================================
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
@@ -434,7 +503,9 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Inventory Logs (Audit Trail for stock changes)
+-- ========================================
+-- TABLE: inventory_logs
+-- ========================================
 CREATE TABLE IF NOT EXISTS inventory_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     product_id UUID REFERENCES products(id) ON DELETE CASCADE,
@@ -451,7 +522,9 @@ CREATE TABLE IF NOT EXISTS inventory_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Credit Notes (For Returns/Exchanges)
+-- ========================================
+-- TABLE: credit_notes
+-- ========================================
 CREATE TABLE IF NOT EXISTS credit_notes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     cn_number TEXT UNIQUE NOT NULL,
@@ -463,7 +536,9 @@ CREATE TABLE IF NOT EXISTS credit_notes (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Return Items (Tracking specific items returned)
+-- ========================================
+-- TABLE: return_items
+-- ========================================
 CREATE TABLE IF NOT EXISTS return_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID REFERENCES orders(id),
@@ -473,7 +548,9 @@ CREATE TABLE IF NOT EXISTS return_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Customer Loyalty (Points & Rewards)
+-- ========================================
+-- TABLE: customer_loyalty
+-- ========================================
 CREATE TABLE IF NOT EXISTS customer_loyalty (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_mobile TEXT UNIQUE NOT NULL,
@@ -482,7 +559,9 @@ CREATE TABLE IF NOT EXISTS customer_loyalty (
     last_updated TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Expense Categories
+-- ========================================
+-- TABLE: expense_categories
+-- ========================================
 CREATE TABLE IF NOT EXISTS expense_categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL UNIQUE,
@@ -492,7 +571,9 @@ CREATE TABLE IF NOT EXISTS expense_categories (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Expenses
+-- ========================================
+-- TABLE: expenses
+-- ========================================
 CREATE TABLE IF NOT EXISTS expenses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     amount NUMERIC NOT NULL,
@@ -507,7 +588,9 @@ CREATE TABLE IF NOT EXISTS expenses (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Stock Alerts
+-- ========================================
+-- TABLE: stock_alerts
+-- ========================================
 CREATE TABLE IF NOT EXISTS stock_alerts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     product_id UUID REFERENCES products(id) UNIQUE,
@@ -517,7 +600,9 @@ CREATE TABLE IF NOT EXISTS stock_alerts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Support Tickets
+-- ========================================
+-- TABLE: support_tickets
+-- ========================================
 CREATE TABLE IF NOT EXISTS support_tickets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id TEXT,
@@ -532,337 +617,10 @@ CREATE TABLE IF NOT EXISTS support_tickets (
 );
 
 -- ========================================
--- 2. ADD MISSING COLUMNS TO EXISTING TABLES
+-- INSERT DEFAULT DATA
 -- ========================================
 
--- App Config additional columns for theming
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'primary_color') THEN
-        ALTER TABLE app_config ADD COLUMN primary_color TEXT DEFAULT '#FFC107';
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'secondary_color') THEN
-        ALTER TABLE app_config ADD COLUMN secondary_color TEXT DEFAULT '#212121';
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'accent_color') THEN
-        ALTER TABLE app_config ADD COLUMN accent_color TEXT DEFAULT '#FF5722';
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'logo_url') THEN
-        ALTER TABLE app_config ADD COLUMN logo_url TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'app_config' AND column_name = 'brand_name') THEN
-        ALTER TABLE app_config ADD COLUMN brand_name TEXT DEFAULT 'NM MART';
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Expenses additional columns
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'expenses' AND column_name = 'date') THEN
-        ALTER TABLE expenses ADD COLUMN date DATE DEFAULT CURRENT_DATE;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'expenses' AND column_name = 'expense_date') THEN
-        ALTER TABLE expenses ADD COLUMN expense_date DATE DEFAULT CURRENT_DATE;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Inventory Logs additional columns
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'inventory_logs' AND column_name = 'is_active') THEN
-        ALTER TABLE inventory_logs ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'inventory_logs' AND column_name = 'quantity') THEN
-        ALTER TABLE inventory_logs ADD COLUMN quantity NUMERIC;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'inventory_logs' AND column_name = 'reference_type') THEN
-        ALTER TABLE inventory_logs ADD COLUMN reference_type TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'inventory_logs' AND column_name = 'notes') THEN
-        ALTER TABLE inventory_logs ADD COLUMN notes TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'inventory_logs' AND column_name = 'created_by') THEN
-        ALTER TABLE inventory_logs ADD COLUMN created_by UUID;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Add is_active to all missing tables
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'credit_master' AND column_name = 'is_active') THEN
-        ALTER TABLE credit_master ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'is_active') THEN
-        ALTER TABLE orders ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wallet_transactions' AND column_name = 'is_active') THEN
-        ALTER TABLE wallet_transactions ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'wallet_master' AND column_name = 'is_active') THEN
-        ALTER TABLE wallet_master ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'addresses' AND column_name = 'is_active') THEN
-        ALTER TABLE addresses ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'delivery_customer_master' AND column_name = 'is_active') THEN
-        ALTER TABLE delivery_customer_master ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'purchases' AND column_name = 'is_active') THEN
-        ALTER TABLE purchases ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'delivery_boy_master' AND column_name = 'is_active') THEN
-        ALTER TABLE delivery_boy_master ADD COLUMN is_active BOOLEAN DEFAULT true;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Add cess_percent column to products table
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'cess_percent') THEN
-        ALTER TABLE products ADD COLUMN cess_percent NUMERIC DEFAULT 0.00;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Add discount_percent column to products table
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'discount_percent') THEN
-        ALTER TABLE products ADD COLUMN discount_percent NUMERIC DEFAULT 0.00;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Add min_qty column to products table
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'min_qty') THEN
-        ALTER TABLE products ADD COLUMN min_qty NUMERIC DEFAULT 1.00;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Add missing columns for Excel import
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'brand_name') THEN
-        ALTER TABLE products ADD COLUMN brand_name TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'category_name') THEN
-        ALTER TABLE products ADD COLUMN category_name TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'subcategory_name') THEN
-        ALTER TABLE products ADD COLUMN subcategory_name TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'unit_name') THEN
-        ALTER TABLE products ADD COLUMN unit_name TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'size') THEN
-        ALTER TABLE products ADD COLUMN size TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'color') THEN
-        ALTER TABLE products ADD COLUMN color TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'counter_name') THEN
-        ALTER TABLE products ADD COLUMN counter_name TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'basic_sale_price') THEN
-        ALTER TABLE products ADD COLUMN basic_sale_price NUMERIC DEFAULT 0;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Make sure all foreign key columns are present
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'category_id') THEN
-        ALTER TABLE products ADD COLUMN category_id UUID REFERENCES categories(id);
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'subcategory_id') THEN
-        ALTER TABLE products ADD COLUMN subcategory_id UUID REFERENCES subcategories(id);
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'brand_id') THEN
-        ALTER TABLE products ADD COLUMN brand_id UUID REFERENCES brands(id);
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'unit_id') THEN
-        ALTER TABLE products ADD COLUMN unit_id UUID REFERENCES unit_master(id);
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'department_id') THEN
-        ALTER TABLE products ADD COLUMN department_id UUID REFERENCES department_master(id);
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Add columns for Excel import
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'print_name') THEN
-        ALTER TABLE products ADD COLUMN print_name TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'take_rate') THEN
-        ALTER TABLE products ADD COLUMN take_rate NUMERIC DEFAULT 0;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'retail_rate') THEN
-        ALTER TABLE products ADD COLUMN retail_rate NUMERIC DEFAULT 0;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'delivery_rate') THEN
-        ALTER TABLE products ADD COLUMN delivery_rate NUMERIC DEFAULT 0;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'online_rate') THEN
-        ALTER TABLE products ADD COLUMN online_rate NUMERIC DEFAULT 0;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'item_group') THEN
-        ALTER TABLE products ADD COLUMN item_group TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'item_category') THEN
-        ALTER TABLE products ADD COLUMN item_category TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'department_code') THEN
-        ALTER TABLE products ADD COLUMN department_code TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'k_code') THEN
-        ALTER TABLE products ADD COLUMN k_code TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'shop_id') THEN
-        ALTER TABLE products ADD COLUMN shop_id TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'is_package') THEN
-        ALTER TABLE products ADD COLUMN is_package TEXT DEFAULT 'No';
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'narration') THEN
-        ALTER TABLE products ADD COLUMN narration TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'narration2') THEN
-        ALTER TABLE products ADD COLUMN narration2 TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'item_status') THEN
-        ALTER TABLE products ADD COLUMN item_status TEXT DEFAULT 'Active';
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-
--- Alter existing columns to NUMERIC type to prevent overflow
-DO $$ BEGIN
-    ALTER TABLE products ALTER COLUMN mrp TYPE NUMERIC;
-    ALTER TABLE products ALTER COLUMN sale_rate TYPE NUMERIC;
-    ALTER TABLE products ALTER COLUMN purchase_rate TYPE NUMERIC;
-    ALTER TABLE products ALTER COLUMN gst TYPE NUMERIC;
-    ALTER TABLE products ALTER COLUMN gst_percent TYPE NUMERIC;
-    ALTER TABLE products ALTER COLUMN cess TYPE NUMERIC;
-    ALTER TABLE products ALTER COLUMN discount TYPE NUMERIC;
-    ALTER TABLE products ALTER COLUMN discount_pct TYPE NUMERIC;
-    ALTER TABLE products ALTER COLUMN stock TYPE NUMERIC;
-EXCEPTION WHEN others THEN NULL; END $$;
-
--- ========================================
--- 3. INSERT DEFAULT DATA IF NOT EXISTS
--- ========================================
-
--- Default App Config (only insert if table is empty)
+-- Default App Config
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM app_config LIMIT 1) THEN
@@ -915,16 +673,15 @@ INSERT INTO expense_categories (id, name, description) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ========================================
--- 4. CREATE NECESSARY POSTGRESQL FUNCTIONS
+-- CREATE REQUIRED FUNCTIONS
 -- ========================================
 
--- Verify Admin PIN Function
+-- Verify Admin PIN
 CREATE OR REPLACE FUNCTION verify_admin_pin(input_pin TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE
     is_valid BOOLEAN;
 BEGIN
-    -- First check admin_users table
     SELECT (password = input_pin) INTO is_valid
     FROM admin_users 
     WHERE is_active = true
@@ -934,7 +691,6 @@ BEGIN
         RETURN true;
     END IF;
     
-    -- Fallback to app_config (hashed pin)
     SELECT (security_pin = crypt(input_pin, security_pin)) INTO is_valid
     FROM app_config 
     LIMIT 1;
@@ -943,7 +699,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Atomic Place Order Function
+-- Atomic Place Order
 CREATE OR REPLACE FUNCTION place_order_atomic(
     p_order_items JSONB,
     p_order_data JSONB
@@ -954,7 +710,6 @@ DECLARE
     v_item JSONB;
     v_current_stock NUMERIC;
 BEGIN
-    -- Insert the order
     INSERT INTO orders (
         order_number, user_id, customer_name, user_mobile, address, pincode,
         subtotal, delivery_charge, discount, total_amount, payment_mode,
@@ -975,9 +730,7 @@ BEGIN
         (p_order_data->>'order_status')::TEXT
     ) RETURNING id INTO v_order_id;
     
-    -- Insert order items and update stock
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_order_items) LOOP
-        -- Get current stock
         SELECT stock INTO v_current_stock 
         FROM products 
         WHERE id = (v_item->>'product_id')::UUID;
@@ -986,7 +739,6 @@ BEGIN
             RAISE EXCEPTION 'Insufficient stock for product %', (v_item->>'product_name')::TEXT;
         END IF;
         
-        -- Insert order item
         INSERT INTO order_items (
             order_id, product_id, product_name, quantity, rate, total
         ) VALUES (
@@ -998,13 +750,11 @@ BEGIN
             (v_item->>'total')::NUMERIC
         );
         
-        -- Update stock
         UPDATE products 
         SET stock = stock - (v_item->>'quantity')::NUMERIC,
             updated_at = timezone('utc'::text, now())
         WHERE id = (v_item->>'product_id')::UUID;
         
-        -- Log inventory change
         INSERT INTO inventory_logs (
             product_id, old_stock, new_stock, quantity, change_type, reference_id, created_at
         ) VALUES (
@@ -1022,7 +772,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Atomic Wallet Adjustment Function
+-- Atomic Wallet Adjustment
 CREATE OR REPLACE FUNCTION adjust_wallet_atomic(
     p_user_id TEXT,
     p_amount NUMERIC,
@@ -1034,19 +784,16 @@ DECLARE
     v_wallet_id UUID;
     v_new_balance NUMERIC;
 BEGIN
-    -- Check if wallet exists
     SELECT id INTO v_wallet_id
     FROM wallet_master
     WHERE user_id = p_user_id;
     
     IF v_wallet_id IS NULL THEN
-        -- Create new wallet
         INSERT INTO wallet_master (user_id, balance)
         VALUES (p_user_id, 0.00)
         RETURNING id INTO v_wallet_id;
     END IF;
     
-    -- Update balance
     IF p_type = 'credit' THEN
         UPDATE wallet_master
         SET balance = balance + p_amount,
@@ -1064,62 +811,15 @@ BEGIN
             RAISE EXCEPTION 'Insufficient wallet balance';
         END IF;
     ELSE
-        RAISE EXCEPTION 'Invalid transaction type';
+        RAISE EXCEPTION 'Invalid type: %', p_type;
     END IF;
     
-    -- Log transaction
     INSERT INTO wallet_transactions (
-        user_id, amount, type, reason, transaction_date, created_at
+        user_id, amount, type, reason, created_at
     ) VALUES (
-        p_user_id,
-        p_amount,
-        p_type,
-        p_reason,
-        timezone('utc'::text, now()),
-        timezone('utc'::text, now())
+        p_user_id, p_amount, p_type, p_reason, timezone('utc'::text, now())
     );
     
     RETURN v_new_balance;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ========================================
--- 5. DISABLE RLS FOR EASY TESTING (CAN BE RE-ENABLED LATER)
--- ========================================
-
--- SUPER ROBUST RLS DISABLER - 100% WORKS!
-DO $$ 
-DECLARE 
-    t RECORD;
-BEGIN 
-    -- First, loop through all tables in public schema
-    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP 
-        BEGIN
-            RAISE NOTICE 'Processing table: %', t.tablename;
-            
-            -- 1. Disable RLS completely
-            RAISE NOTICE '  - Disabling RLS';
-            EXECUTE format('ALTER TABLE %I DISABLE ROW LEVEL SECURITY', t.tablename);
-            
-            -- 2. Drop ALL existing policies to be safe
-            RAISE NOTICE '  - Dropping existing policies';
-            EXECUTE format('DROP POLICY IF EXISTS "Public Full Access" ON %I', t.tablename);
-            EXECUTE format('DROP POLICY IF EXISTS "Admin Dashboard Access" ON %I', t.tablename);
-            EXECUTE format('DROP POLICY IF EXISTS "Verified Session Access" ON %I', t.tablename);
-            
-            -- 3. Create a super permissive policy just in case (even though RLS is disabled)
-            RAISE NOTICE '  - Creating permissive policy';
-            EXECUTE format('CREATE POLICY "Super Permissive Access" ON %I FOR ALL USING (true) WITH CHECK (true)', t.tablename);
-            
-            RAISE NOTICE '  - Done!';
-        EXCEPTION
-            WHEN OTHERS THEN
-                RAISE NOTICE '  - Error processing %: %', t.tablename, SQLERRM;
-        END;
-    END LOOP; 
-END $$;
-
--- ========================================
--- FINISHED!
--- ========================================
-NOTIFY pgrst, 'reload schema';
