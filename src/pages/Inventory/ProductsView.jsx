@@ -341,6 +341,7 @@ export default function ProductsView({ products, categories, brands, subcategori
       delete finalData.brand;
       delete finalData.category;
       delete finalData.subcategory;
+      delete finalData.unit;
       
       if (finalData.main_image_file) {
         const { url, error: uploadError } = await uploadImage(finalData.main_image_file, 'product-images');
