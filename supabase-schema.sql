@@ -45,11 +45,26 @@ CREATE TABLE IF NOT EXISTS banners (
     image_url TEXT NOT NULL,
     linked_category_id UUID,
     linked_product_id UUID,
+    link_url TEXT,
+    link_type TEXT DEFAULT 'none', -- 'none', 'product', 'category', 'url'
     is_active BOOLEAN DEFAULT true,
     position INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Add new columns if they don't exist
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'banners' AND column_name = 'link_url') THEN
+        ALTER TABLE banners ADD COLUMN link_url TEXT;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'banners' AND column_name = 'link_type') THEN
+        ALTER TABLE banners ADD COLUMN link_type TEXT DEFAULT 'none';
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- Categories Table (Main Categories)
 CREATE TABLE IF NOT EXISTS categories (

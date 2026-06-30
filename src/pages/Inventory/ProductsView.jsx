@@ -337,6 +337,11 @@ export default function ProductsView({ products, categories, brands, subcategori
     try {
       const finalData = { ...formData };
       
+      // Remove UI-only fields that aren't in the database
+      delete finalData.brand;
+      delete finalData.category;
+      delete finalData.subcategory;
+      
       if (finalData.main_image_file) {
         const { url, error: uploadError } = await uploadImage(finalData.main_image_file, 'product-images');
         if (uploadError) throw new Error(`Product Image Upload Failed: ${uploadError}`);

@@ -73,7 +73,13 @@ Use this prompt to build the customer-facing app that perfectly syncs with the N
 ## App Features (Must Have):
 1. **Home Screen**:
    - Dynamic sections from `home_config`
-   - Banner slider (from `banners` table)
+   - Banner slider (from `banners` table) with click actions:
+     - Use `link_type` field to determine what happens when banner is tapped:
+       - `none`: No action (just display)
+       - `product`: Navigate to product details (use `linked_product_id`)
+       - `category`: Navigate to category product list (use `linked_category_id`)
+       - `url`: Open external URL in browser (use `link_url`)
+     - Order banners by `position` column
    - Categories grid
    - Featured products scroll
    - Promo banners
