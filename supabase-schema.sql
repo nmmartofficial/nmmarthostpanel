@@ -1150,41 +1150,169 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ========================================
--- 5. ENABLE RLS AND CREATE POLICIES
+-- 5. EXPLICITLY ENABLE RLS AND CREATE POLICIES FOR ALL TABLES
 -- ========================================
 
--- Enable RLS on all tables and create permissive policies for admin panel
-DO $$ 
-DECLARE 
-    t RECORD;
-BEGIN 
-    -- First, loop through all tables in public schema
-    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP 
-        BEGIN
-            RAISE NOTICE 'Processing table: %', t.tablename;
-            
-            -- 1. Enable RLS
-            RAISE NOTICE '  - Enabling RLS';
-            EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t.tablename);
-            
-            -- 2. Drop ALL existing policies to be safe
-            RAISE NOTICE '  - Dropping existing policies';
-            EXECUTE format('DROP POLICY IF EXISTS "Public Full Access" ON %I', t.tablename);
-            EXECUTE format('DROP POLICY IF EXISTS "Admin Dashboard Access" ON %I', t.tablename);
-            EXECUTE format('DROP POLICY IF EXISTS "Verified Session Access" ON %I', t.tablename);
-            EXECUTE format('DROP POLICY IF EXISTS "Super Permissive Access" ON %I', t.tablename);
-            
-            -- 3. Create a permissive policy for admin panel
-            RAISE NOTICE '  - Creating permissive policy';
-            EXECUTE format('CREATE POLICY "Admin Full Access" ON %I FOR ALL USING (true) WITH CHECK (true)', t.tablename);
-            
-            RAISE NOTICE '  - Done!';
-        EXCEPTION
-            WHEN OTHERS THEN
-                RAISE NOTICE '  - Error processing %: %', t.tablename, SQLERRM;
-        END;
-    END LOOP; 
-END $$;
+-- Enable RLS and create policies explicitly for each table
+ALTER TABLE app_config ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON app_config;
+CREATE POLICY "Admin Full Access" ON app_config FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE home_config ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON home_config;
+CREATE POLICY "Admin Full Access" ON home_config FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON banners;
+CREATE POLICY "Admin Full Access" ON banners FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON categories;
+CREATE POLICY "Admin Full Access" ON categories FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE subcategories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON subcategories;
+CREATE POLICY "Admin Full Access" ON subcategories FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE brands ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON brands;
+CREATE POLICY "Admin Full Access" ON brands FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE unit_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON unit_master;
+CREATE POLICY "Admin Full Access" ON unit_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE department_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON department_master;
+CREATE POLICY "Admin Full Access" ON department_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE item_groups ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON item_groups;
+CREATE POLICY "Admin Full Access" ON item_groups FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE item_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON item_categories;
+CREATE POLICY "Admin Full Access" ON item_categories FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON products;
+CREATE POLICY "Admin Full Access" ON products FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON admin_users;
+CREATE POLICY "Admin Full Access" ON admin_users FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE account_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON account_master;
+CREATE POLICY "Admin Full Access" ON account_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE credit_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON credit_master;
+CREATE POLICY "Admin Full Access" ON credit_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE delivery_boy_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON delivery_boy_master;
+CREATE POLICY "Admin Full Access" ON delivery_boy_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE delivery_customer_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON delivery_customer_master;
+CREATE POLICY "Admin Full Access" ON delivery_customer_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON purchases;
+CREATE POLICY "Admin Full Access" ON purchases FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE purchase_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON purchase_items;
+CREATE POLICY "Admin Full Access" ON purchase_items FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON orders;
+CREATE POLICY "Admin Full Access" ON orders FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON order_items;
+CREATE POLICY "Admin Full Access" ON order_items FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE wallet_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON wallet_master;
+CREATE POLICY "Admin Full Access" ON wallet_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE wallet_transactions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON wallet_transactions;
+CREATE POLICY "Admin Full Access" ON wallet_transactions FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE addresses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON addresses;
+CREATE POLICY "Admin Full Access" ON addresses FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE pincode_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON pincode_master;
+CREATE POLICY "Admin Full Access" ON pincode_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON coupons;
+CREATE POLICY "Admin Full Access" ON coupons FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE offers_master ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON offers_master;
+CREATE POLICY "Admin Full Access" ON offers_master FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE cart ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON cart;
+CREATE POLICY "Admin Full Access" ON cart FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE wishlist ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON wishlist;
+CREATE POLICY "Admin Full Access" ON wishlist FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE basket ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON basket;
+CREATE POLICY "Admin Full Access" ON basket FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON notifications;
+CREATE POLICY "Admin Full Access" ON notifications FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON system_logs;
+CREATE POLICY "Admin Full Access" ON system_logs FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON users;
+CREATE POLICY "Admin Full Access" ON users FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE inventory_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON inventory_logs;
+CREATE POLICY "Admin Full Access" ON inventory_logs FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE credit_notes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON credit_notes;
+CREATE POLICY "Admin Full Access" ON credit_notes FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE return_items ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON return_items;
+CREATE POLICY "Admin Full Access" ON return_items FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE customer_loyalty ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON customer_loyalty;
+CREATE POLICY "Admin Full Access" ON customer_loyalty FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE expense_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON expense_categories;
+CREATE POLICY "Admin Full Access" ON expense_categories FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON expenses;
+CREATE POLICY "Admin Full Access" ON expenses FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE stock_alerts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON stock_alerts;
+CREATE POLICY "Admin Full Access" ON stock_alerts FOR ALL USING (true) WITH CHECK (true);
+
+ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin Full Access" ON support_tickets;
+CREATE POLICY "Admin Full Access" ON support_tickets FOR ALL USING (true) WITH CHECK (true);
 
 -- ========================================
 -- FINISHED!
