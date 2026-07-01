@@ -302,27 +302,23 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                   {fields.map(f => (
                     <td key={f.name} className="px-4 py-3">
                       {f.type === 'image' ? (
-                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
-                          {getImageUrl(item[f.name]) ? (
-                            <img 
-                              src={getImageUrl(item[f.name])} 
-                              alt="" 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const imgUrl = getImageUrl(item[f.name]);
-                                console.log(`Image failed to load:`, imgUrl, '(Original value:', item[f.name], ')');
-                                e.target.style.display = 'none';
-                                const parent = e.target.parentElement;
-                                const span = document.createElement('span');
-                                span.className = 'text-slate-500 text-[6px] font-black uppercase text-center p-1 break-all';
-                                span.title = imgUrl;
-                                span.textContent = '404';
-                                parent.appendChild(span);
-                              }}
-                            />
-                          ) : (
-                            <span className="text-slate-400 text-[8px] font-black uppercase">No Img</span>
-                          )}
+                        <div 
+                          className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-slate-500"
+                          style={{
+                            backgroundImage: getImageUrl(item[f.name]) ? `url(${getImageUrl(item[f.name])})` : 'none',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                          }}
+                        >
+                          {(() => {
+                            // Check if we have an image
+                            if (getImageUrl(item[f.name])) {
+                              // We'll use the background image, and show nothing else
+                              return null;
+                            }
+                            // Otherwise, show placeholder text
+                            return <span className="text-[8px] font-black uppercase">No Img</span>;
+                          })()}
                         </div>
                       ) : f.type === 'boolean' ? (
                         <span className={cn(
