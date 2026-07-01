@@ -246,13 +246,30 @@ npm run build
 
 ## 11. Last Major Changes (July 1, 2026)
 - **Modified**:
-  - `supabase-schema.sql`: Added `code` columns to brands, unit_master, department_master; Added item_groups and item_categories tables
-  - `src/dbSchema.js`: Added ITEM_GROUPS and ITEM_CATEGORIES entries
+  - `supabase-schema.sql`: 
+    - Added `code` columns to brands, unit_master, department_master
+    - Added item_groups and item_categories tables
+    - Added `image_url` column to subcategories table
+    - Added RLS (Row Level Security) policies for all tables with admin full access
+  - `src/App.jsx`:
+    - Removed duplicate "Item Main Category" view
+    - Updated CategoriesView and SubcategoriesView with custom column mapping
+    - Added image upload support to SubcategoriesView
   - `src/pages/Inventory/ProductsView.jsx`:
     - Updated column mapping to include code columns
     - Implemented code-first lookup logic
     - Restored original behavior (no row skipping)
     - Added better error handling
+  - `src/dbSync.js`:
+    - Removed subcategories from upsert list (until unique constraint is properly applied)
+    - Added safer insert logic
+  - `src/components/MasterListView.jsx`:
+    - Added custom column mapping support for different Excel formats
+    - Added category name display instead of UUID for category_id fields
+    - Improved image preview with fallback placeholders
+    - Added console logging for debugging image fields
+    - Added "category-search" and "product-search" field type support for searchable dropdowns
+  - `PROJECT_DETAILS_HINDI.md`: This file! 😊
 
 ---
 
