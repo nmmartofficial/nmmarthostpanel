@@ -71,7 +71,8 @@ CREATE TABLE IF NOT EXISTS subcategories (
     position INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE (category_id, name)
 );
 
 -- Brands Table
@@ -828,6 +829,18 @@ DO $$ BEGIN
         ALTER TABLE subcategories ADD COLUMN image_url TEXT;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add unique constraint to subcategories (category_id, name)
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE table_name = 'subcategories' 
+        AND constraint_type = 'UNIQUE'
+        AND constraint_name = 'subcategories_category_id_name_key'
+    ) THEN
+        ALTER TABLE subcategories ADD CONSTRAINT subcategories_category_id_name_key UNIQUE (category_id, name);
+    END IF;
+EXCEPTION WHEN duplicate_table THEN NULL; END $$;
 
 -- Add columns for Excel import
 DO $$ BEGIN
