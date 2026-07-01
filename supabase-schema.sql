@@ -823,12 +823,16 @@ DO $$ BEGIN
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
--- Add image_url column to subcategories
+-- Add image_url column to subcategories OR rename imagename to image_url
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subcategories' AND column_name = 'image_url') THEN
+    -- First check if imagename exists, rename it to image_url
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subcategories' AND column_name = 'imagename') THEN
+        ALTER TABLE subcategories RENAME COLUMN imagename TO image_url;
+    -- If not, just add image_url
+    ELSIF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subcategories' AND column_name = 'image_url') THEN
         ALTER TABLE subcategories ADD COLUMN image_url TEXT;
     END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+EXCEPTION WHEN others THEN NULL; END $$;
 
 -- Add unique constraint to subcategories (category_id, name)
 DO $$ BEGIN
