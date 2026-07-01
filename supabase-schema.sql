@@ -830,6 +830,16 @@ DO $$ BEGIN
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
+-- Delete duplicate subcategories (keeping the first one)
+DO $$ BEGIN
+    DELETE FROM subcategories
+    WHERE id NOT IN (
+        SELECT MIN(id)
+        FROM subcategories
+        GROUP BY category_id, name
+    );
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
+
 -- Add unique constraint to subcategories (category_id, name)
 DO $$ BEGIN
     IF NOT EXISTS (
