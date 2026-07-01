@@ -295,7 +295,14 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                     <td key={f.name} className="px-4 py-3">
                       {f.type === 'image' ? (
                         <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
-                          <img src={item[f.name]} alt="" className="w-full h-full object-cover" />
+                          <img 
+                            src={item[f.name] || 'https://via.placeholder.com/40?text=IMG'} 
+                            alt="" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = 'https://via.placeholder.com/40?text=IMG';
+                            }}
+                          />
                         </div>
                       ) : f.type === 'boolean' ? (
                         <span className={cn(
