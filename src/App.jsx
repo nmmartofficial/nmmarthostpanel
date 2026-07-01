@@ -5764,9 +5764,16 @@ const CategoriesView = (props) => (
 const SubcategoriesView = (props) => (
   <MasterListView 
     {...props} 
+    bucket="subcategory-images"
+    customColumnMapping={{
+      'dtname': 'name',
+      'imagename': 'image_url',
+      'id': 'id'
+    }}
     fields={[
       { name: 'category_id', label: 'Category', type: 'select', options: props.categories?.map(c => ({ value: c.id, label: c.name })), required: true },
       { name: 'name', label: 'Subcategory Name', type: 'text', required: true },
+      { name: 'image_url', label: 'Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]} 
   />

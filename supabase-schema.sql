@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS subcategories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
+    image_url TEXT,
     position INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -818,6 +819,13 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'department_id') THEN
         ALTER TABLE products ADD COLUMN department_id UUID REFERENCES department_master(id);
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add image_url column to subcategories
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subcategories' AND column_name = 'image_url') THEN
+        ALTER TABLE subcategories ADD COLUMN image_url TEXT;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
