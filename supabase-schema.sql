@@ -190,6 +190,8 @@ CREATE TABLE IF NOT EXISTS account_master (
     lastPurchaseDate TIMESTAMP WITH TIME ZONE,
     purchase_count INTEGER DEFAULT 0,
     purchaseCount INTEGER DEFAULT 0,
+    total_purchases NUMERIC DEFAULT 0,
+    totalPurchases NUMERIC DEFAULT 0,
     rating NUMERIC DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -702,6 +704,20 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'rating') THEN
         ALTER TABLE account_master ADD COLUMN rating NUMERIC DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add total_purchases column to account_master table
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'total_purchases') THEN
+        ALTER TABLE account_master ADD COLUMN total_purchases NUMERIC DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add totalPurchases column to account_master table (camelCase for app compatibility)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'totalPurchases') THEN
+        ALTER TABLE account_master ADD COLUMN "totalPurchases" NUMERIC DEFAULT 0;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
