@@ -25,7 +25,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Import Logic
-  const handleImportCSV = () => {
+  const handleImportCSV = async () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.csv,.xlsx,.xls'; // Accept both CSV and Excel files
@@ -39,6 +39,16 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
           throw new Error("यह फ़ाइल इमेज है! इमेज अपलोड करने के लिए 'Create New' बटन पर क्लिक करें, फिर फॉर्म में इमेज फील्ड चुनें!");
         }
 
+        // First, fetch any related data we might need for select fields
+        // For example, for subcategories, we need categories to map name to id
+        let fetchedRelatedData = {};
+        if (relatedData.categories) {
+          fetchedRelatedData.categories = relatedData.categories;
+        }
+        if (relatedData.products) {
+          fetchedRelatedData.products = relatedData.products;
+        }
+
         // Create mapping from field labels to names
         const columnMapping = {};
         fields.forEach(f => {
@@ -46,15 +56,54 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
           columnMapping[f.name] = f.name; // also map actual name
         });
         
+        console.log("Column mapping for import:", columnMapping);
+        
         const parsedData = await parseERPCSV(file, columnMapping);
         if (parsedData.length === 0) throw new Error("No data found in file");
 
+        // Process the data to map select fields (like category_id) from name to ID
+        const processedData = parsedData.map(item => {
+          const processedItem = { ...item };
+          
+          fields.forEach(field => {
+            if (field.type === 'select' && processedItem[field.name]) {
+              const value = processedItem[field.name];
+              
+              // If options are available, try to map name to value
+              if (field.options && Array.isArray(field.options)) {
+                const option = field.options.find(opt => 
+                  String(opt.label).toLowerCase() === String(value).toLowerCase() || 
+                  String(opt.value) === String(value)
+                );
+                if (option) {
+                  processedItem[field.name] = option.value;
+                }
+              }
+              
+              // Special case for category_id: use relatedData.categories
+              if (field.name === 'category_id' && fetchedRelatedData.categories) {
+                const category = fetchedRelatedData.categories.find(c => 
+                  String(c.name).toLowerCase() === String(value).toLowerCase() || 
+                  String(c.id) === String(value)
+                );
+                if (category) {
+                  processedItem[field.name] = category.id;
+                }
+              }
+            }
+          });
+          
+          return processedItem;
+        });
+
         // Generate IDs for new records
-        const recordsToInsert = parsedData.map(item => ({
+        const recordsToInsert = processedData.map(item => ({
           ...item,
           id: item.id || generateUUID(),
-          is_active: true
+          is_active: item.is_active !== undefined ? item.is_active : true
         }));
+
+        console.log("Processed records to insert:", recordsToInsert);
 
         // Use insert instead of upsert
         const res = await handleERPAction(table, ACTION_TYPES.INSERT, recordsToInsert);

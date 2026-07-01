@@ -185,6 +185,7 @@ export const parseERPCSV = async (file, columnMapping) => {
         // Get headers from first row
         const headers = cleanRows[0].map(h => String(h || "").trim());
         console.log("Excel file headers found:", headers);
+        console.log("Expected column mapping keys:", Object.keys(columnMapping));
         
         // Create case-insensitive header map
         const headerMap = {};
@@ -197,6 +198,10 @@ export const parseERPCSV = async (file, columnMapping) => {
         Object.keys(columnMapping).forEach(key => {
           normalizedColumnMapping[key.toLowerCase()] = columnMapping[key];
         });
+        
+        // Find which of our expected headers are present
+        const matchedHeaders = Object.keys(normalizedColumnMapping).filter(key => headerMap[key] !== undefined);
+        console.log("Matched headers:", matchedHeaders);
         
         // Parse data rows (starting from row index 1)
         const parsedData = cleanRows.slice(1).map(row => {
@@ -228,7 +233,9 @@ export const parseERPCSV = async (file, columnMapping) => {
         }).filter(record => record !== null);
 
         if (parsedData.length === 0) {
-          reject(new Error("No data found matching the required headers. Please check your Excel column names."));
+          const expectedHeaders = Object.keys(columnMapping).join(", ");
+          const foundHeaders = headers.join(", ");
+          reject(new Error(`No data found matching the required headers.\n\nExpected headers (any of): ${expectedHeaders}\n\nFound headers: ${foundHeaders}\n\nPlease check your Excel column names.`));
           return;
         }
         
