@@ -19,6 +19,14 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
+  // Helper to get full image URL from filename or URL
+  const getImageUrl = (src) => {
+    if (!src) return null;
+    if (src.startsWith('http')) return src;
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+    return `${baseUrl}/storage/v1/object/public/category-images/${src}`;
+  };
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -295,27 +303,25 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                     <td key={f.name} className="px-4 py-3">
                       {f.type === 'image' ? (
                         <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
-                          {(() => {
-                            console.log(`Image field ${f.name}:`, item[f.name]);
-                            return null;
-                          })()}
-                          {item[f.name] ? (
+                          {getImageUrl(item[f.name]) ? (
                             <img 
-                              src={item[f.name]} 
+                              src={getImageUrl(item[f.name])} 
                               alt="" 
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                console.log(`Image failed to load:`, item[f.name]);
+                                const imgUrl = getImageUrl(item[f.name]);
+                                console.log(`Image failed to load:`, imgUrl, '(Original value:', item[f.name], ')');
                                 e.target.style.display = 'none';
                                 const parent = e.target.parentElement;
                                 const span = document.createElement('span');
-                                span.className = 'text-slate-400 text-xs font-black uppercase';
-                                span.textContent = 'Err';
+                                span.className = 'text-slate-500 text-[6px] font-black uppercase text-center p-1 break-all';
+                                span.title = imgUrl;
+                                span.textContent = '404';
                                 parent.appendChild(span);
                               }}
                             />
                           ) : (
-                            <span className="text-slate-400 text-xs font-black uppercase">No Img</span>
+                            <span className="text-slate-400 text-[8px] font-black uppercase">No Img</span>
                           )}
                         </div>
                       ) : f.type === 'boolean' ? (
