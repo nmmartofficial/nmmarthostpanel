@@ -990,6 +990,34 @@ INSERT INTO categories (id, name, image_url, position) VALUES
 (uuid_generate_v4(), 'Personal Care', NULL, 3)
 ON CONFLICT (name) DO NOTHING;
 
+-- Default Subcategories
+INSERT INTO subcategories (id, category_id, name, position)
+SELECT 
+    uuid_generate_v4(),
+    c.id,
+    unnest(ARRAY['Rice', 'Dal', 'Sugar', 'Salt', 'Flour']),
+    generate_series(1, 5)
+FROM categories c WHERE c.name = 'Grocery'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO subcategories (id, category_id, name, position)
+SELECT 
+    uuid_generate_v4(),
+    c.id,
+    unnest(ARRAY['Cold Drinks', 'Juices', 'Tea', 'Coffee']),
+    generate_series(1, 4)
+FROM categories c WHERE c.name = 'Beverages'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO subcategories (id, category_id, name, position)
+SELECT 
+    uuid_generate_v4(),
+    c.id,
+    unnest(ARRAY['Soap', 'Shampoo', 'Toothpaste', 'Creams']),
+    generate_series(1, 4)
+FROM categories c WHERE c.name = 'Personal Care'
+ON CONFLICT DO NOTHING;
+
 -- Default Brands
 INSERT INTO brands (id, name) VALUES 
 (uuid_generate_v4(), 'Amul'),
