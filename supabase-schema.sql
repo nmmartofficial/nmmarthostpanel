@@ -319,7 +319,7 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
 -- User Addresses
 CREATE TABLE IF NOT EXISTS addresses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id TEXT NOT NULL,
+    user_id TEXT,
     full_name TEXT NOT NULL,
     mobile TEXT NOT NULL,
     address_line1 TEXT NOT NULL,
@@ -649,6 +649,13 @@ DO $$ BEGIN
         ALTER TABLE addresses ADD COLUMN is_active BOOLEAN DEFAULT true;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Make user_id column optional in addresses table
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'addresses' AND column_name = 'user_id' AND is_nullable = 'NO') THEN
+        ALTER TABLE addresses ALTER COLUMN user_id DROP NOT NULL;
+    END IF;
+EXCEPTION WHEN others THEN NULL; END $$;
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'delivery_customer_master' AND column_name = 'is_active') THEN
