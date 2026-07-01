@@ -130,6 +130,13 @@ const validatePayload = (tableName, payload) => {
   for (const record of records) {
     console.log(`[validatePayload] Checking record for ${tableName}:`, record);
     
+    // 🔥 100% SAFETY: REMOVE ANY FIELD THAT ENDS WITH "_file" (e.g., image_url_file)
+    const fileFields = Object.keys(record).filter(key => key.endsWith('_file'));
+    if (fileFields.length > 0) {
+      console.warn(`[validatePayload] Removing ${fileFields.length} temporary _file fields from payload:`, fileFields);
+      fileFields.forEach(key => delete record[key]);
+    }
+    
     // Numeric fields to normalize
     const numericFields = [
       'sale_rate', 'mrp', 'stock', 'price', 'quantity', 'qty', 
