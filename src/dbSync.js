@@ -262,7 +262,7 @@ export const dbSync = {
       validatePayload(tableName, payload);
 
       // For tables with unique name constraints, use upsert on name
-      const tablesWithUniqueName = ['brands', 'categories', 'subcategories', 'unit_master', 'department_master', 'expense_categories'];
+      const tablesWithUniqueName = ['brands', 'categories', 'unit_master', 'department_master', 'expense_categories'];
       
       let request = supabase.from(tableName);
       
@@ -272,7 +272,7 @@ export const dbSync = {
           onConflict: 'name' 
         });
       } else {
-        // For other tables, regular insert
+        // For other tables (including subcategories), regular insert
         request = request.insert(Array.isArray(payload) ? payload : [payload]);
       }
       
