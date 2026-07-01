@@ -5847,11 +5847,9 @@ const BannersView = (props) => (
       { name: 'image_url', label: 'Banner Image', type: 'image', required: true },
       { name: 'link_type', label: 'Click Action', type: 'select', options: [
         { value: 'none', label: 'None' },
-        { value: 'product', label: 'Link to Product' },
-        { value: 'category', label: 'Link to Category' }
+        { value: 'product', label: 'Link to Product' }
       ]},
       { name: 'linked_product_id', label: 'Linked Product', type: 'product-search', condition: (formData) => formData.link_type === 'product' },
-      { name: 'linked_category_id', label: 'Linked Category', type: 'category-search', condition: (formData) => formData.link_type === 'category' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]} 
   />
