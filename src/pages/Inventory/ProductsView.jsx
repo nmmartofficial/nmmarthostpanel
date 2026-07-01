@@ -27,6 +27,9 @@ export default function ProductsView({ products, categories, brands, subcategori
   const [showTrash, setShowTrash] = useState(false);
   const [gstError, setGstError] = useState('');
   const [cessError, setCessError] = useState('');
+  // Filter State
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState('');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,6 +37,12 @@ export default function ProductsView({ products, categories, brands, subcategori
   const [barcodeToPrint, setBarcodeToPrint] = useState(null);
   const [labelQuantity, setLabelQuantity] = useState(1);
   const barcodeRef = useRef(null);
+
+  // Filtered subcategories based on selected category
+  const availableSubcategories = useMemo(() => {
+    if (!selectedCategoryId) return [];
+    return subcategories.filter(s => s.category_id === selectedCategoryId);
+  }, [subcategories, selectedCategoryId]);
 
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -48,12 +57,23 @@ export default function ProductsView({ products, categories, brands, subcategori
     if (filter === 'low_stock') {
       list = list.filter(p => p.stock <= 5);
     }
+
+    // Category Filter
+    if (selectedCategoryId) {
+      list = list.filter(p => p.category_id === selectedCategoryId);
+    }
+
+    // Subcategory Filter
+    if (selectedSubcategoryId) {
+      list = list.filter(p => p.subcategory_id === selectedSubcategoryId);
+    }
+
     return list.filter(p => 
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       p.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.hsn_code?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [products, filter, searchTerm, showTrash]);
+  }, [products, filter, searchTerm, showTrash, selectedCategoryId, selectedSubcategoryId]);
 
   const totalPages = Math.ceil(filteredProducts.length / rowsPerPage);
   const paginatedProducts = filteredProducts.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -486,23 +506,74 @@ export default function ProductsView({ products, categories, brands, subcategori
   return (
     <div className="space-y-4">
       {/* Header matching Screenshot 1 */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-50 rounded-lg text-slate-900 border border-slate-100">
-            <GitBranch size={20} />
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-50 rounded-lg text-slate-900 border border-slate-100">
+              <GitBranch size={20} />
+            </div>
+            <h2 className="text-base font-black text-slate-800 uppercase tracking-widest">Item Master</h2>
           </div>
-          <h2 className="text-base font-black text-slate-800 uppercase tracking-widest">Item Master</h2>
+
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            <div className="relative w-full md:w-96">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                type="text"
+                placeholder="Search"
+                className="w-full bg-slate-50 border border-slate-200 rounded-full pl-10 pr-4 py-2 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 transition-all text-slate-900 placeholder-slate-400"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input 
-            type="text"
-            placeholder="Search"
-            className="w-full bg-slate-50 border border-slate-200 rounded-full pl-10 pr-4 py-2 text-xs font-bold focus:ring-2 focus:ring-blue-500/20 transition-all text-slate-900 placeholder-slate-400"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* Filter Row */}
+        <div className="flex flex-col md:flex-row gap-3 items-end">
+          <div className="flex-1 min-w-[200px] space-y-1">
+            <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Category</label>
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => {
+                setSelectedCategoryId(e.target.value);
+                setSelectedSubcategoryId(''); // Reset subcategory when category changes
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:border-blue-500 outline-none transition-all"
+            >
+              <option value="">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex-1 min-w-[200px] space-y-1">
+            <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Subcategory</label>
+            <select
+              value={selectedSubcategoryId}
+              onChange={(e) => setSelectedSubcategoryId(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:border-blue-500 outline-none transition-all"
+              disabled={!selectedCategoryId}
+            >
+              <option value="">All Subcategories</option>
+              {availableSubcategories.map(subcat => (
+                <option key={subcat.id} value={subcat.id}>{subcat.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reset Filter Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCategoryId('');
+              setSelectedSubcategoryId('');
+            }}
+            className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg font-black uppercase tracking-widest text-[9px] hover:bg-slate-200 transition-all"
+          >
+            Reset Filters
+          </button>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">

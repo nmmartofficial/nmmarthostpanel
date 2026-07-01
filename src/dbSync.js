@@ -337,8 +337,11 @@ export const dbSync = {
         }
 
         if (query.eq) {
-          console.log(`[dbSync] Adding eq filter: ${query.eq.column} = ${query.eq.value}`);
-          request = request.eq(query.eq.column, query.eq.value);
+          const eqFilters = Array.isArray(query.eq) ? query.eq : [query.eq];
+          eqFilters.forEach(filter => {
+            console.log(`[dbSync] Adding eq filter: ${filter.column} = ${filter.value}`);
+            request = request.eq(filter.column, filter.value);
+          });
         }
         
         if (query.order) {
