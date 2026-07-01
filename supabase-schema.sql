@@ -188,6 +188,8 @@ CREATE TABLE IF NOT EXISTS account_master (
     credit_days INTEGER DEFAULT 0,
     last_purchase_date TIMESTAMP WITH TIME ZONE,
     lastPurchaseDate TIMESTAMP WITH TIME ZONE,
+    purchase_count INTEGER DEFAULT 0,
+    purchaseCount INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -678,6 +680,20 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'lastPurchaseDate') THEN
         ALTER TABLE account_master ADD COLUMN "lastPurchaseDate" TIMESTAMP WITH TIME ZONE;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add purchase_count column to account_master table
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'purchase_count') THEN
+        ALTER TABLE account_master ADD COLUMN purchase_count INTEGER DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add purchaseCount column to account_master table (camelCase for app compatibility)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'purchaseCount') THEN
+        ALTER TABLE account_master ADD COLUMN "purchaseCount" INTEGER DEFAULT 0;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
