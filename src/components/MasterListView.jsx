@@ -294,15 +294,29 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                   {fields.map(f => (
                     <td key={f.name} className="px-4 py-3">
                       {f.type === 'image' ? (
-                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
-                          <img 
-                            src={item[f.name] || 'https://via.placeholder.com/40?text=IMG'} 
-                            alt="" 
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.src = 'https://via.placeholder.com/40?text=IMG';
-                            }}
-                          />
+                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center">
+                          {(() => {
+                            console.log(`Image field ${f.name}:`, item[f.name]);
+                            return null;
+                          })()}
+                          {item[f.name] ? (
+                            <img 
+                              src={item[f.name]} 
+                              alt="" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.log(`Image failed to load:`, item[f.name]);
+                                e.target.style.display = 'none';
+                                const parent = e.target.parentElement;
+                                const span = document.createElement('span');
+                                span.className = 'text-slate-400 text-xs font-black uppercase';
+                                span.textContent = 'Err';
+                                parent.appendChild(span);
+                              }}
+                            />
+                          ) : (
+                            <span className="text-slate-400 text-xs font-black uppercase">No Img</span>
+                          )}
                         </div>
                       ) : f.type === 'boolean' ? (
                         <span className={cn(
