@@ -1398,15 +1398,7 @@ ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Admin Full Access" ON support_tickets;
 CREATE POLICY "Admin Full Access" ON support_tickets FOR ALL USING (true) WITH CHECK (true);
 
--- ========================================
--- MIGRATION FOR EXISTING DATABASES
--- ========================================
--- Add image_url to subcategories if not present
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subcategories' AND column_name = 'image_url') THEN
-        ALTER TABLE subcategories ADD COLUMN image_url TEXT;
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
 
 -- ========================================
 -- FINISHED!
