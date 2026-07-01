@@ -151,8 +151,15 @@ export default function HomeLayoutManager({ homeConfig, banners, fetchInitialDat
             <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-tighter mb-4">Active Banners</h3>
             <div className="space-y-3">
               {banners.slice(0, 4).map(banner => (
-                <div key={banner.id} className="relative aspect-[21/9] rounded-lg overflow-hidden border border-slate-100 shadow-sm">
-                  <img src={banner.image_url} alt="" className="w-full h-full object-cover" />
+                <div 
+                  key={banner.id} 
+                  className="relative aspect-[21/9] rounded-lg overflow-hidden border border-slate-100 shadow-sm bg-gradient-to-br from-blue-100 to-blue-200"
+                  style={{
+                    backgroundImage: banner.image_url ? `url(${banner.image_url})` : 'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
+                >
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
                     <span className="text-[8px] font-black text-white uppercase truncate">{banner.title}</span>
                   </div>
