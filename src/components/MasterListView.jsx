@@ -52,6 +52,13 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         // Create mapping from field labels to names
         const columnMapping = {};
         fields.forEach(f => {
+          // Add any custom mapping for this field
+          if (f.customMapping) {
+            Object.entries(f.customMapping).forEach(([key, value]) => {
+              columnMapping[key] = value;
+            });
+          }
+          
           columnMapping[f.label] = f.name;
           columnMapping[f.name] = f.name; // also map actual name
           

@@ -5744,17 +5744,26 @@ function UnderDevelopmentView({ title }) {
 }
 
 // --- Master Views using Generic MasterListView ---
-const CategoriesView = (props) => (
-  <MasterListView 
-    {...props} 
-    bucket="category-images"
-    fields={[
-      { name: 'name', label: 'Category Name', type: 'text', required: true },
-      { name: 'image_url', label: 'Image', type: 'image' },
-      { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
-  />
-);
+const CategoriesView = (props) => {
+  // Custom column mapping for user's specific Excel format
+  const customColumnMapping = {
+    'dtname': 'name',
+    'imagename': 'image_url',
+    'id': 'id'
+  };
+  
+  return (
+    <MasterListView 
+      {...props} 
+      bucket="category-images"
+      fields={[
+        { name: 'name', label: 'Category Name', type: 'text', required: true, customMapping: customColumnMapping },
+        { name: 'image_url', label: 'Image', type: 'image', customMapping: customColumnMapping },
+        { name: 'is_active', label: 'Active', type: 'boolean' }
+      ]} 
+    />
+  );
+};
 
 const SubcategoriesView = (props) => (
   <MasterListView 
