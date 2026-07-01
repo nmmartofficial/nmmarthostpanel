@@ -5851,7 +5851,7 @@ const BannersView = (props) => (
         { value: 'category', label: 'Link to Category' },
         { value: 'url', label: 'External URL' }
       ]},
-      { name: 'linked_product_id', label: 'Linked Product ID', type: 'text' },
+      { name: 'linked_product_id', label: 'Linked Product', type: 'product-search' },
       { name: 'linked_category_id', label: 'Linked Category ID', type: 'text' },
       { name: 'link_url', label: 'External URL', type: 'text' },
       { name: 'position', label: 'Display Order', type: 'number' },

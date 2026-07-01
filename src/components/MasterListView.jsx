@@ -15,6 +15,8 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -224,6 +226,10 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                         )}>
                           {item[f.name] ? 'Active' : 'Inactive'}
                         </span>
+                      ) : f.type === 'product-search' ? (
+                        <span className="text-[10px] font-bold text-slate-700">
+                          {relatedData.products?.find(p => p.id === item[f.name])?.name || item[f.name]}
+                        </span>
                       ) : (
                         <span className="text-[10px] font-bold text-slate-700">{item[f.name]}</span>
                       )}
@@ -366,6 +372,60 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                               <Trash2 size={12} />
                             </button>
                           )}
+                        </div>
+                      ) : f.type === 'product-search' ? (
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            placeholder={`Search product to link...`}
+                            value={
+                              formData[f.name] 
+                                ? (relatedData.products?.find(p => p.id === formData[f.name])?.name || productSearchTerm)
+                                : productSearchTerm
+                            }
+                            onChange={(e) => {
+                              setProductSearchTerm(e.target.value);
+                              setShowProductDropdown(true);
+                            }}
+                            onFocus={() => setShowProductDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowProductDropdown(false), 200)}
+                            className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-slate-900 shadow-sm placeholder-slate-300"
+                            required={f.required}
+                          />
+                          <AnimatePresence>
+                            {showProductDropdown && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto"
+                              >
+                                {(relatedData.products || [])
+                                  .filter(p => p.name?.toLowerCase().includes(productSearchTerm.toLowerCase()))
+                                  .slice(0, 5)
+                                  .map(product => (
+                                    <button
+                                      key={product.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setFormData({ ...formData, [f.name]: product.id });
+                                        setProductSearchTerm(product.name);
+                                        setShowProductDropdown(false);
+                                      }}
+                                      className="w-full px-4 py-3 text-left text-[11px] font-bold text-slate-700 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0"
+                                    >
+                                      {product.name}
+                                    </button>
+                                  ))
+                                }
+                                {(relatedData.products || []).filter(p => p.name?.toLowerCase().includes(productSearchTerm.toLowerCase())).length === 0 && (
+                                  <div className="px-4 py-4 text-[11px] font-bold text-slate-400 text-center">
+                                    No products found
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       ) : f.type === 'select' ? (
                         <select 
