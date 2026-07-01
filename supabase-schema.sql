@@ -187,6 +187,7 @@ CREATE TABLE IF NOT EXISTS account_master (
     current_balance NUMERIC DEFAULT 0.00,
     credit_days INTEGER DEFAULT 0,
     last_purchase_date TIMESTAMP WITH TIME ZONE,
+    lastPurchaseDate TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -670,6 +671,13 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'last_purchase_date') THEN
         ALTER TABLE account_master ADD COLUMN last_purchase_date TIMESTAMP WITH TIME ZONE;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add lastPurchaseDate column to account_master table (camelCase for app compatibility)
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'lastPurchaseDate') THEN
+        ALTER TABLE account_master ADD COLUMN "lastPurchaseDate" TIMESTAMP WITH TIME ZONE;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
