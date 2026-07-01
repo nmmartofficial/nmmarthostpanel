@@ -190,6 +190,7 @@ CREATE TABLE IF NOT EXISTS account_master (
     lastPurchaseDate TIMESTAMP WITH TIME ZONE,
     purchase_count INTEGER DEFAULT 0,
     purchaseCount INTEGER DEFAULT 0,
+    rating NUMERIC DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -694,6 +695,13 @@ EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'purchaseCount') THEN
         ALTER TABLE account_master ADD COLUMN "purchaseCount" INTEGER DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+-- Add rating column to account_master table
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'rating') THEN
+        ALTER TABLE account_master ADD COLUMN rating NUMERIC DEFAULT 0;
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
