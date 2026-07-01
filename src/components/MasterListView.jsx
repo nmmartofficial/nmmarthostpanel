@@ -54,6 +54,24 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         fields.forEach(f => {
           columnMapping[f.label] = f.name;
           columnMapping[f.name] = f.name; // also map actual name
+          
+          // Add common variations automatically
+          const labelLower = f.label.toLowerCase();
+          if (labelLower.includes('category')) {
+            columnMapping['Category'] = f.name;
+            columnMapping['Category Name'] = f.name;
+          }
+          if (labelLower.includes('subcategory')) {
+            columnMapping['Subcategory'] = f.name;
+            columnMapping['Sub Category'] = f.name;
+          }
+          if (labelLower.includes('name')) {
+            columnMapping['Name'] = f.name;
+          }
+          if (labelLower.includes('active')) {
+            columnMapping['Active'] = f.name;
+            columnMapping['Is Active'] = f.name;
+          }
         });
         
         console.log("Column mapping for import:", columnMapping);
