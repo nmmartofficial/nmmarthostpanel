@@ -840,7 +840,7 @@ DO $$ BEGIN
     ) THEN
         ALTER TABLE subcategories ADD CONSTRAINT subcategories_category_id_name_key UNIQUE (category_id, name);
     END IF;
-EXCEPTION WHEN duplicate_table THEN NULL; END $$;
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
 -- Add columns for Excel import
 DO $$ BEGIN
