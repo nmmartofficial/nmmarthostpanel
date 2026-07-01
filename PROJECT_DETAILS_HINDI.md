@@ -24,11 +24,12 @@ admin-panel-host/
 ├── src/
 │   ├── components/          # Reusable Components
 │   │   ├── CartItem.jsx
-│   │   ├── MasterListView.jsx
+│   │   ├── MasterListView.jsx      # Master Data Management (Categories, Subcategories, Brands, etc.)
 │   │   ├── NavDropdown.jsx
 │   │   ├── PaginationFooter.jsx
 │   │   ├── ProductCard.jsx
 │   │   ├── Skeleton.jsx
+│   │   ├── SafeImage.jsx          # Safe Image Display with fallback (CSS gradients)
 │   │   └── ThermalReceipt.jsx
 │   ├── pages/
 │   │   ├── Inventory/       # Inventory Management Pages
@@ -50,14 +51,14 @@ admin-panel-host/
 │   │   ├── NotificationsView.jsx
 │   │   ├── LoyaltyManagementView.jsx
 │   │   ├── SupportTicketsView.jsx
-│   │   ├── HomeLayoutManager.jsx
+│   │   ├── HomeLayoutManager.jsx   # Banners + Home Page Management
 │   │   └── SelfCheckoutView.jsx
 │   ├── utils/
 │   │   ├── helpers.js       # Utility Functions (cn, generateUUID, etc.)
 │   │   └── security.js      # Security Helpers
 │   ├── App.jsx              # Main App Component (Routing + State)
 │   ├── main.jsx             # App Entry Point
-│   ├── dbSchema.js          # Database Schema Mapping
+│   ├── dbSchema.js          # Database Schema Mapping (Single Source of Truth for Code)
 │   ├── dbSync.js            # Database Operations (Use this file ONLY, directly Supabase call mat karo!)
 │   ├── erpController.js     # ERP Action Handler
 │   ├── supabase.js          # Supabase Client Initialization
@@ -80,11 +81,17 @@ admin-panel-host/
 
 ### a) supabase-schema.sql
 - Ye file **sabse important** hai!
-- Isme saari database tables, columns, functions define hain
+- Isme saari database tables, columns, functions, RLS policies define hain
 - **Har change pehle is file mein karo phir Supabase SQL Editor mein run karo!**
-- Added:
-  - `code` column in `brands`, `unit_master`, `department_master`
-  - New tables: `item_groups`, `item_categories`
+- Contains:
+  - `code` column in `brands`, `unit_master`, `department_master` for Excel lookup
+  - `image_url` column in `subcategories` (renamed from `imagename`)
+  - All 40+ tables with `IF NOT EXISTS`
+  - All missing columns added safely with `IF NOT EXISTS`
+  - `place_order_atomic`, `adjust_wallet_atomic`, and `verify_admin_pin` functions
+  - **RLS (Row Level Security)** policies enabled for ALL tables with Admin Full Access
+  - Default data with `ON CONFLICT DO NOTHING`
+  - Ends with `NOTIFY pgrst, 'reload schema'` to refresh Supabase cache
 
 ### b) src/pages/Inventory/ProductsView.jsx
 - Ye file Excel upload ke liye hai!
@@ -99,23 +106,35 @@ admin-panel-host/
 
 ### c) src/dbSchema.js
 - Ye file database tables ko map karta hai code mein
-- Isme humne add kiya:
-  - `ITEM_GROUPS`
-  - `ITEM_CATEGORIES`
+- Contains DB_SCHEMA, TABLE_CONSTRAINTS, and USER_ROLES
+- Single source of truth for code-level schema mapping
 
 ### d) src/dbSync.js
 - **IMPORTANT**: Database operations ke liye sirf is file ko use karo! Direct Supabase call mat karo!
+- **SAFETY LAYER**: Line 133 par automatically `*_file` fields ko database bhejne se pehle remove kar deta hai!
 - Ye file `fetch`, `insert`, `update`, `delete` jaise functions provide karta hai
 
 ### e) src/supabase.js
 - Supabase client initialize karta hai
 - Agar credentials valid nahi hote to mock mode mein chalta hai taaki app crash na kare
 
+### f) src/components/SafeImage.jsx
+- Safe image display component
+- Uses CSS gradient backgrounds as fallback instead of external placeholder services
+- No more `net::ERR_CONNECTION_CLOSED` errors!
+
+### g) src/components/MasterListView.jsx
+- Master data management (add/edit/delete categories, subcategories, brands, units, departments, etc.)
+- Supports custom column mappings (like `imagename` → `image_url` for backward compatibility)
+- Image upload support with safe fallbacks
+- Searchable dropdowns for `category-search` and `product-search` field types
+- Display category names instead of UUIDs for better UX
+
 ---
 
 ## 4. Excel Import - Kaise Kaam Karta Hai?
 
-### Excel Column Mapping (ProductsView.jsx line 118-173)
+### Excel Column Mapping (ProductsView.jsx line 118‑173)
 Ye table dikhata hai Excel ke headers ko database fields se map karte hain:
 
 | Excel Header | Database Field | Details |
@@ -164,7 +183,7 @@ Ye table dikhata hai Excel ke headers ko database fields se map karte hain:
 `.env.example` file ko copy karke `.env` banao aur apne values fill karo:
 ```env
 # Supabase Configuration (Supabase Dashboard se le lo)
-VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_URL=https://cpipmysooynedtpreekt.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-very-long
 
 # Admin PIN
@@ -207,26 +226,37 @@ npm run build
 
 ## 9. Common Problems & Solutions
 
-### Problem 1: Excel Upload mein Foreign Key Constraint Error
+### Problem 1: Excel Upload mein Foreign Key Constraint Error
 **Solution**: Check karo ki master tables (brands, units, item_groups, etc.) mein woh code ya name already exist hai ya nahi. Agar nahi hai to pehle master table mein add karo.
 
-### Problem 2: Schema Cache Error
-**Solution**: 
-1. `supabase-schema.sql` ko Supabase SQL Editor mein run karo
+### Problem 2: Schema Cache Error (Database Error: Could not find column in schema cache)
+**Solution**:
+1. `supabase-schema.sql` ko **pura copy karke** Supabase SQL Editor mein run karo
 2. Vercel deployment redeploy karo
-3. Local browser cache clear karo ya hard refresh (Ctrl + Shift + R)
+3. Local browser cache clear karo ya hard refresh (Ctrl + Shift + R)
 
-### Problem 3: ProductsView.jsx mein changes kaam nahi kar rahe
+### Problem 3: ProductsView.jsx mein changes kaam nahi kar rahe
 **Solution**:
 1. Local dev server restart karo
 2. Vite cache clear karo (`.vite` folder delete karo)
 3. Browser hard refresh karo
 
-### Problem 4: Koi master table add karna hai (jaise item_groups)
+### Problem 4: Koi master table add karna hai (jaise item_groups)
 **Solution**:
 1. `supabase-schema.sql` mein table add karo
 2. `dbSchema.js` mein DB_SCHEMA mein entry add karo
 3. (Agar zarurat ho) ProductsView.jsx mein lookup logic add karo
+
+### Problem 5: Image upload mein error (imagename vs image_url)
+**Solution**:
+- `subcategories` table ke column ko `imagename` se `image_url` mein rename karo (supabase-schema.sql mein already included)
+- MasterListView.jsx mein already mapping hai: `{ 'imagename': 'image_url' }`
+- Always use `dbSync.js` for database operations – it automatically handles `*_file` fields!
+
+### Problem 6: `net::ERR_CONNECTION_CLOSED` errors from external placeholders
+**Solution**:
+- We've **COMPLETELY REMOVED** all external placeholder service references!
+- Now we use `SafeImage.jsx` component which uses CSS gradients or local fallback assets!
 
 ---
 
@@ -241,16 +271,22 @@ npm run build
    - `git add` se files stage karo
    - `git commit` se commit karo
    - `git push origin main` se push karo
+7. **Image Fields**:
+   - Use `image_url` column in database
+   - Frontend mein `image_url_file` use karo upload ke liye, `dbSync.js` automatically remove kar dega
+   - Use `SafeImage.jsx` for displaying images to avoid errors!
+8. **RLS Policies**: Always use `supabase-schema.sql` to manage RLS policies, don't do it manually in Supabase Dashboard!
 
 ---
 
-## 11. Last Major Changes (July 1, 2026)
+## 11. Last Major Changes (July 1, 2026)
 - **Modified**:
-  - `supabase-schema.sql`: 
+  - `supabase-schema.sql`:
     - Added `code` columns to brands, unit_master, department_master
-    - Added item_groups and item_categories tables
-    - Added `image_url` column to subcategories table
-    - Added RLS (Row Level Security) policies for all tables with admin full access
+    - Added `image_url` column to subcategories table (with rename from `imagename`)
+    - Added RLS (Row Level Security) policies for ALL tables with admin full access
+    - Added all missing columns for Excel import
+    - Complete safe schema with no duplicates!
   - `src/App.jsx`:
     - Removed duplicate "Item Main Category" view
     - Updated CategoriesView and SubcategoriesView with custom column mapping
@@ -261,6 +297,7 @@ npm run build
     - Restored original behavior (no row skipping)
     - Added better error handling
   - `src/dbSync.js`:
+    - Added SAFETY LAYER (line 133): Auto-remove any `*_file` fields before database operations!
     - Removed subcategories from upsert list (until unique constraint is properly applied)
     - Added safer insert logic
   - `src/components/MasterListView.jsx`:
@@ -269,7 +306,24 @@ npm run build
     - Improved image preview with fallback placeholders
     - Added console logging for debugging image fields
     - Added "category-search" and "product-search" field type support for searchable dropdowns
+  - `src/components/SafeImage.jsx`:
+    - NEW COMPONENT! Safe image display with CSS gradient fallback
+    - No external placeholders anymore!
+  - `src/pages/HomeLayoutManager.jsx`:
+    - Updated to use `SafeImage.jsx` for banners
+    - No more external placeholder errors!
   - `PROJECT_DETAILS_HINDI.md`: This file! 😊
+
+---
+
+## 12. Quick Reference Checklist
+Before you start working:
+- [ ] `supabase-schema.sql` is your only schema source of truth
+- [ ] Use `dbSync.js` for ALL database operations
+- [ ] Use `SafeImage.jsx` for ALL image displays
+- [ ] Run `supabase-schema.sql` in Supabase after any schema changes
+- [ ] Do hard refresh (Ctrl+Shift+R) after schema changes
+- [ ] NEVER commit `.env` file!
 
 ---
 
