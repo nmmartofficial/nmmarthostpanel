@@ -17,6 +17,8 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -230,6 +232,10 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                         <span className="text-[10px] font-bold text-slate-700">
                           {relatedData.products?.find(p => p.id === item[f.name])?.name || item[f.name]}
                         </span>
+                      ) : f.type === 'category-search' ? (
+                        <span className="text-[10px] font-bold text-slate-700">
+                          {relatedData.categories?.find(c => c.id === item[f.name])?.name || item[f.name]}
+                        </span>
                       ) : (
                         <span className="text-[10px] font-bold text-slate-700">{item[f.name]}</span>
                       )}
@@ -327,7 +333,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
 
               <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 <div className="grid grid-cols-1 gap-5">
-                  {fields.map(f => (
+                  {fields.filter(f => !f.condition || f.condition(formData)).map(f => (
                     <div key={f.name} className="space-y-1.5">
                       <div className="flex items-center justify-between px-1">
                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{f.label}</label>
@@ -421,6 +427,60 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                                 {(relatedData.products || []).filter(p => p.name?.toLowerCase().includes(productSearchTerm.toLowerCase())).length === 0 && (
                                   <div className="px-4 py-4 text-[11px] font-bold text-slate-400 text-center">
                                     No products found
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ) : f.type === 'category-search' ? (
+                        <div className="relative">
+                          <input 
+                            type="text"
+                            placeholder={`Search category to link...`}
+                            value={
+                              formData[f.name] 
+                                ? (relatedData.categories?.find(c => c.id === formData[f.name])?.name || categorySearchTerm)
+                                : categorySearchTerm
+                            }
+                            onChange={(e) => {
+                              setCategorySearchTerm(e.target.value);
+                              setShowCategoryDropdown(true);
+                            }}
+                            onFocus={() => setShowCategoryDropdown(true)}
+                            onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
+                            className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-slate-900 shadow-sm placeholder-slate-300"
+                            required={f.required}
+                          />
+                          <AnimatePresence>
+                            {showCategoryDropdown && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto"
+                              >
+                                {(relatedData.categories || [])
+                                  .filter(c => c.name?.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                                  .slice(0, 5)
+                                  .map(category => (
+                                    <button
+                                      key={category.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setFormData({ ...formData, [f.name]: category.id });
+                                        setCategorySearchTerm(category.name);
+                                        setShowCategoryDropdown(false);
+                                      }}
+                                      className="w-full px-4 py-3 text-left text-[11px] font-bold text-slate-700 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0"
+                                    >
+                                      {category.name}
+                                    </button>
+                                  ))
+                                }
+                                {(relatedData.categories || []).filter(c => c.name?.toLowerCase().includes(categorySearchTerm.toLowerCase())).length === 0 && (
+                                  <div className="px-4 py-4 text-[11px] font-bold text-slate-400 text-center">
+                                    No categories found
                                   </div>
                                 )}
                               </motion.div>

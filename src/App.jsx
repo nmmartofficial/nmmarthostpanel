@@ -5848,13 +5848,10 @@ const BannersView = (props) => (
       { name: 'link_type', label: 'Click Action', type: 'select', options: [
         { value: 'none', label: 'None' },
         { value: 'product', label: 'Link to Product' },
-        { value: 'category', label: 'Link to Category' },
-        { value: 'url', label: 'External URL' }
+        { value: 'category', label: 'Link to Category' }
       ]},
-      { name: 'linked_product_id', label: 'Linked Product', type: 'product-search' },
-      { name: 'linked_category_id', label: 'Linked Category ID', type: 'text' },
-      { name: 'link_url', label: 'External URL', type: 'text' },
-      { name: 'position', label: 'Display Order', type: 'number' },
+      { name: 'linked_product_id', label: 'Linked Product', type: 'product-search', condition: (formData) => formData.link_type === 'product' },
+      { name: 'linked_category_id', label: 'Linked Category', type: 'category-search', condition: (formData) => formData.link_type === 'category' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]} 
   />
