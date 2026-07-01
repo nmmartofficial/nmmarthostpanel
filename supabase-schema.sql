@@ -185,6 +185,7 @@ CREATE TABLE IF NOT EXISTS account_master (
     account_type TEXT DEFAULT 'Customer',
     opening_balance NUMERIC DEFAULT 0.00,
     current_balance NUMERIC DEFAULT 0.00,
+    credit_days INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -656,6 +657,13 @@ DO $$ BEGIN
         ALTER TABLE addresses ALTER COLUMN user_id DROP NOT NULL;
     END IF;
 EXCEPTION WHEN others THEN NULL; END $$;
+
+-- Add credit_days column to account_master table
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'account_master' AND column_name = 'credit_days') THEN
+        ALTER TABLE account_master ADD COLUMN credit_days INTEGER DEFAULT 0;
+    END IF;
+EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'delivery_customer_master' AND column_name = 'is_active') THEN
