@@ -223,17 +223,13 @@ export default function ProductsView({ products, categories, brands, subcategori
           dbSubCats, 
           dbBrands, 
           dbUnits, 
-          dbDepartments, 
-          dbItemGroups, 
-          dbItemCategories
+          dbDepartments
         ] = await Promise.all([
           dbSync.fetch(DB_SCHEMA.CATEGORIES.table),
           dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table),
           dbSync.fetch(DB_SCHEMA.BRANDS.table),
           dbSync.fetch(DB_SCHEMA.UNITS.table),
-          dbSync.fetch(DB_SCHEMA.DEPARTMENTS.table),
-          dbSync.fetch(DB_SCHEMA.ITEM_GROUPS.table),
-          dbSync.fetch(DB_SCHEMA.ITEM_CATEGORIES.table)
+          dbSync.fetch(DB_SCHEMA.DEPARTMENTS.table)
         ]);
 
         // Create maps: code -> {id, name} and name -> {id, name}
@@ -252,8 +248,6 @@ export default function ProductsView({ products, categories, brands, subcategori
         const brandMaps = createMasterMap(dbBrands);
         const unitMaps = createMasterMap(dbUnits);
         const deptMaps = createMasterMap(dbDepartments);
-        const igMaps = createMasterMap(dbItemGroups);
-        const icMaps = createMasterMap(dbItemCategories);
 
         // --- STEP 3: VALIDATE AND PREPARE PRODUCTS ---
         const productsToUpload = [];
@@ -280,8 +274,6 @@ export default function ProductsView({ products, categories, brands, subcategori
           const brand = getMaster(item.brand_code, item.brand_name, brandMaps);
           const unit = getMaster(item.unit_code, item.unit_name, unitMaps);
           const dept = getMaster(item.department_code, null, deptMaps);
-          const ig = getMaster(item.item_group_code, null, igMaps);
-          const ic = getMaster(item.item_category_code, null, icMaps);
 
           // Sanitize stock: ensure it's never negative
           let stock = Math.max(0, parseFloat(item.stock) || 0);
@@ -328,8 +320,6 @@ export default function ProductsView({ products, categories, brands, subcategori
             brand_id: brand?.id || null,
             unit_name: unit?.name || null,
             unit_id: unit?.id || null,
-            item_group: ig?.name || null,
-            item_category: ic?.name || null,
             department_code: item.department_code ? String(item.department_code).trim() : null,
             department_id: dept?.id || null,
             k_code: String(item.k_code || "").trim() || null,

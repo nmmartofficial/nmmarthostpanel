@@ -105,26 +105,7 @@ CREATE TABLE IF NOT EXISTS department_master (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Item Groups Table
-CREATE TABLE IF NOT EXISTS item_groups (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL UNIQUE,
-    code TEXT UNIQUE,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
 
--- Item Categories Table
-CREATE TABLE IF NOT EXISTS item_categories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL UNIQUE,
-    code TEXT UNIQUE,
-    item_group_id UUID REFERENCES item_groups(id),
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
 
 -- Products Table (Item Master)
 CREATE TABLE IF NOT EXISTS products (
@@ -944,18 +925,7 @@ DO $$ BEGIN
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
--- Add foreign key columns for item groups and item categories to products table
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'item_group_id') THEN
-        ALTER TABLE products ADD COLUMN item_group_id UUID REFERENCES item_groups(id);
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
-DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'item_category_id') THEN
-        ALTER TABLE products ADD COLUMN item_category_id UUID REFERENCES item_categories(id);
-    END IF;
-EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
 -- Add code columns to products table for Excel import mapping
 DO $$ BEGIN
@@ -1257,13 +1227,7 @@ ALTER TABLE department_master ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Admin Full Access" ON department_master;
 CREATE POLICY "Admin Full Access" ON department_master FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE item_groups ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Admin Full Access" ON item_groups;
-CREATE POLICY "Admin Full Access" ON item_groups FOR ALL USING (true) WITH CHECK (true);
 
-ALTER TABLE item_categories ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Admin Full Access" ON item_categories;
-CREATE POLICY "Admin Full Access" ON item_categories FOR ALL USING (true) WITH CHECK (true);
 
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Admin Full Access" ON products;

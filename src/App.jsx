@@ -1062,8 +1062,7 @@ export default function App() {
   const masterItems = [
     { id: 'Products', label: 'Item Master', icon: <Package size={14} />, shortcut: 'F1' },
     { id: 'Units', label: 'Item Unit Master', icon: <ShoppingCart size={14} /> },
-    { id: 'Categories', label: 'Item Group Master', icon: <Grid size={14} />, shortcut: 'F2' },
-    { id: 'MainCategories', label: 'Item Main Category', icon: <ShoppingBag size={14} /> },
+    { id: 'Categories', label: 'Main Category Master', icon: <Grid size={14} />, shortcut: 'F2' },
     { id: 'Subcategories', label: 'Item Sub Category', icon: <Layers size={14} />, shortcut: 'F3' },
     { id: 'Brands', label: 'Brand Master', icon: <Tag size={14} />, shortcut: 'F4' },
     { id: 'Departments', label: 'Department Master', icon: <GitBranch size={14} /> },
@@ -5915,16 +5914,7 @@ const WalletView = (props) => (
 );
 
 // New Master Views
-const MainCategoriesView = (props) => (
-  <MasterListView 
-    {...props} 
-    fields={[
-      { name: 'name', label: 'Main Category Name', type: 'text', required: true },
-      { name: 'image_url', label: 'Image', type: 'image' },
-      { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
-  />
-);
+
 
 const UserMasterView = (props) => (
   <MasterListView 
@@ -7095,8 +7085,7 @@ function renderTabContent(activeTab, props) {
     case 'Expenses': return <ExpensesView expenses={props.expenses} fetchInitialData={props.fetchInitialData} />;
 
     // Master Dropdown Cases
-    case 'Categories': return <CategoriesView title="Main Categories" table={DB_SCHEMA.CATEGORIES.table} data={props.categories} {...props} />;
-    case 'MainCategories': return <MainCategoriesView title="Main Category Master" table={DB_SCHEMA.CATEGORIES.table} data={props.categories} {...props} />;
+    case 'Categories': return <CategoriesView title="Main Category Master" table={DB_SCHEMA.CATEGORIES.table} data={props.categories} {...props} />;
     case 'Subcategories': return <SubcategoriesView title="Sub Categories" table={DB_SCHEMA.SUBCATEGORIES.table} data={props.subcategories} categories={props.categories} {...props} />;
     case 'Brands': return <BrandsView title="Brand Master" table={DB_SCHEMA.BRANDS.table} data={props.brands} {...props} />;
     case 'Coupons': return <CouponsView title="Coupon Master" table={DB_SCHEMA.COUPONS.table} data={props.coupons} {...props} />;
