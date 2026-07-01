@@ -5849,7 +5849,7 @@ const BannersView = (props) => (
         { value: 'none', label: 'None' },
         { value: 'product', label: 'Link to Product' }
       ]},
-      { name: 'linked_product_id', label: 'Linked Product', type: 'product-search', condition: (formData) => formData.link_type === 'product' },
+      { name: 'linked_product_id', label: 'Linked Product', type: 'product-search' },
       { name: 'position', label: 'Display Order', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]} 
