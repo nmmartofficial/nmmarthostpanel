@@ -308,7 +308,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                         <span className="text-[10px] font-bold text-slate-700">
                           {relatedData.products?.find(p => p.id === item[f.name])?.name || item[f.name]}
                         </span>
-                      ) : f.type === 'category-search' ? (
+                      ) : f.type === 'category-search' || f.name === 'category_id' ? (
                         <span className="text-[10px] font-bold text-slate-700">
                           {relatedData.categories?.find(c => c.id === item[f.name])?.name || item[f.name]}
                         </span>
