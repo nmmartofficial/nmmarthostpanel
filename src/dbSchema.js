@@ -13,6 +13,8 @@ export const DB_SCHEMA = {
   CATEGORIES: { table: 'categories', pk: 'id', label: 'Categories' },
   SUBCATEGORIES: { table: 'subcategories', pk: 'id', label: 'Sub-Categories' },
   BRANDS: { table: 'brands', pk: 'id', label: 'Brands' },
+  ITEM_GROUPS: { table: 'item_groups', pk: 'id', label: 'Item Groups' },
+  ITEM_CATEGORIES: { table: 'item_categories', pk: 'id', label: 'Item Categories' },
   ADMIN_USERS: { table: 'admin_users', pk: 'id', label: 'Admin User Master' },
   CREDITS: { table: 'credit_master', pk: 'id', label: 'Credit Master' },
   DELIVERY_BOYS: { table: 'delivery_boy_master', pk: 'id', label: 'Delivery Boys' },

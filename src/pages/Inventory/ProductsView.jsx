@@ -133,12 +133,12 @@ export default function ProductsView({ products, categories, brands, subcategori
                     'opstock': 'stock',
                     'discperc': 'discount_percent',
                     'isfav': 'is_favourite',
-                    'unitcode': 'unit_name',
-                    'itg': 'item_group',
-                    'itc': 'item_category',
+                    'unitcode': 'unit_code',
+                    'itg': 'item_group_code',
+                    'itc': 'item_category_code',
                     'dtcode': 'department_code',
                     'kcode': 'k_code',
-                    'brandcode': 'brand_name',
+                    'brandcode': 'brand_code',
                     'isdiscountable': 'is_discountable',
                     'gst': 'gst_percent',
                     'cess': 'cess_percent',
@@ -217,85 +217,133 @@ export default function ProductsView({ products, categories, brands, subcategori
         if (uniqueBrands.length > 0) await insertMasterIfNotExists(DB_SCHEMA.BRANDS.table, uniqueBrands);
         if (uniqueUnits.length > 0) await insertMasterIfNotExists(DB_SCHEMA.UNITS.table, uniqueUnits);
 
-        // --- STEP 2: FETCH FRESH IDS FOR LINKING ---
-        const [dbCats, dbSubCats, dbBrands, dbUnits] = await Promise.all([
+        // --- STEP 2: FETCH FRESH MASTER RECORDS FOR LINKING ---
+        const [
+          dbCats, 
+          dbSubCats, 
+          dbBrands, 
+          dbUnits, 
+          dbDepartments, 
+          dbItemGroups, 
+          dbItemCategories
+        ] = await Promise.all([
           dbSync.fetch(DB_SCHEMA.CATEGORIES.table),
           dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table),
           dbSync.fetch(DB_SCHEMA.BRANDS.table),
-          dbSync.fetch(DB_SCHEMA.UNITS.table)
+          dbSync.fetch(DB_SCHEMA.UNITS.table),
+          dbSync.fetch(DB_SCHEMA.DEPARTMENTS.table),
+          dbSync.fetch(DB_SCHEMA.ITEM_GROUPS.table),
+          dbSync.fetch(DB_SCHEMA.ITEM_CATEGORIES.table)
         ]);
 
-        const catMap = Object.fromEntries(dbCats.map(c => [String(c.name).toLowerCase().trim(), c.id]));
-        const subCatMap = Object.fromEntries(dbSubCats.map(s => [String(s.name).toLowerCase().trim(), s.id]));
-        const brandMap = Object.fromEntries(dbBrands.map(b => [String(b.name).toLowerCase().trim(), b.id]));
-        const unitMap = Object.fromEntries(dbUnits.map(u => [String(u.name).toLowerCase().trim(), u.id]));
+        // Create maps: code -> {id, name} and name -> {id, name}
+        const createMasterMap = (records) => {
+          const codeMap = {};
+          const nameMap = {};
+          records.forEach(r => {
+            if (r.code) codeMap[String(r.code).trim()] = { id: r.id, name: r.name };
+            if (r.name) nameMap[String(r.name).toLowerCase().trim()] = { id: r.id, name: r.name };
+          });
+          return { codeMap, nameMap };
+        };
 
-        // --- STEP 3: PREPARE PRODUCTS WITH FULL CONSISTENCY ---
-        const productsToUpload = parsedData.map(item => {
-            const catName = String(item.category_name || "").toLowerCase().trim();
-            const subCatName = String(item.subcategory_name || "").toLowerCase().trim();
-            const brandName = String(item.brand_name || "").toLowerCase().trim();
-            const unitName = String(item.unit_name || "").trim();
-            
-            // Sanitize stock: ensure it's never negative
-            let stock = Math.max(0, parseFloat(item.stock) || 0);
-            
-            // Check if id from Excel is a valid UUID, if not, generate new one
-            let productId;
-            if (item.id) {
-                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-                if (uuidRegex.test(String(item.id).trim())) {
-                    productId = item.id;
-                } else {
-                    productId = generateUUID();
-                }
-            } else {
-                productId = generateUUID();
+        const catMaps = createMasterMap(dbCats);
+        const subCatMaps = createMasterMap(dbSubCats);
+        const brandMaps = createMasterMap(dbBrands);
+        const unitMaps = createMasterMap(dbUnits);
+        const deptMaps = createMasterMap(dbDepartments);
+        const igMaps = createMasterMap(dbItemGroups);
+        const icMaps = createMasterMap(dbItemCategories);
+
+        // --- STEP 3: VALIDATE AND PREPARE PRODUCTS ---
+        const productsToUpload = [];
+        const skippedRows = [];
+
+        parsedData.forEach((item, index) => {
+          const errors = [];
+          
+          // Helper to get master record: try code first, then name, no error if code not found
+          const getMaster = (code, name, maps) => {
+            if (code) {
+              const c = String(code).trim();
+              if (maps.codeMap[c]) return maps.codeMap[c];
             }
-            
-            return {
-                id: productId,
-                barcode: String(item.barcode || "").trim() || null,
-                name: String(item.name || "").trim(),
-                print_name: String(item.print_name || "").trim() || null,
-                hsn_code: String(item.hsn_code || "").trim() || null,
-                mrp: parseFloat(item.mrp) || 0,
-                sale_rate: parseFloat(item.sale_rate) || 0,
-                take_rate: parseFloat(item.take_rate) || 0,
-                retail_rate: parseFloat(item.retail_rate) || 0,
-                delivery_rate: parseFloat(item.delivery_rate) || 0,
-                online_rate: parseFloat(item.online_rate) || 0,
-                purchase_rate: parseFloat(item.purchase_rate) || 0,
-                gst_percent: parseFloat(item.gst_percent) || 0,
-                cess_percent: parseFloat(item.cess_percent) || 0,
-                stock: stock,
-                min_qty: parseFloat(item.min_qty) || 0,
-                discount_percent: parseFloat(item.discount_percent) || 0,
-                size: String(item.size || "").trim() || null,
-                color: String(item.color || "").trim() || null,
-                counter_name: String(item.counter_name || "").trim() || null,
-                category_name: catName || null,
-                category_id: catMap[catName] || null,
-                subcategory_name: subCatName || null,
-                subcategory_id: subCatMap[subCatName] || null,
-                brand_name: brandName || null,
-                brand_id: brandMap[brandName] || null,
-                unit_name: unitName || null,
-                item_group: String(item.item_group || "").trim() || null,
-                item_category: String(item.item_category || "").trim() || null,
-                department_code: String(item.department_code || "").trim() || null,
-                k_code: String(item.k_code || "").trim() || null,
-                shop_id: String(item.shop_id || "").trim() || null,
-                is_package: String(item.is_package || "No").trim(),
-                narration: String(item.narration || "").trim() || null,
-                narration2: String(item.narration2 || "").trim() || null,
-                item_status: String(item.item_status || "Active").trim(),
-                is_favourite: String(item.is_favourite || "No").trim(),
-                is_discountable: String(item.is_discountable || "Yes").trim(),
-                image_url: String(item.image_url || "").trim() || null,
-                description: String(item.description || "").trim() || null,
-                is_active: true
-            };
+            if (name) {
+              const n = String(name).toLowerCase().trim();
+              if (maps.nameMap[n]) return maps.nameMap[n];
+            }
+            return null;
+          };
+
+          const cat = getMaster(null, item.category_name, catMaps);
+          const subCat = getMaster(null, item.subcategory_name, subCatMaps);
+          const brand = getMaster(item.brand_code, item.brand_name, brandMaps);
+          const unit = getMaster(item.unit_code, item.unit_name, unitMaps);
+          const dept = getMaster(item.department_code, null, deptMaps);
+          const ig = getMaster(item.item_group_code, null, igMaps);
+          const ic = getMaster(item.item_category_code, null, icMaps);
+
+          // Sanitize stock: ensure it's never negative
+          let stock = Math.max(0, parseFloat(item.stock) || 0);
+          
+          // Check if id from Excel is a valid UUID, if not, generate new one
+          let productId;
+          if (item.id) {
+              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+              if (uuidRegex.test(String(item.id).trim())) {
+                  productId = item.id;
+              } else {
+                  productId = generateUUID();
+              }
+          } else {
+              productId = generateUUID();
+          }
+          
+          productsToUpload.push({
+            id: productId,
+            barcode: String(item.barcode || "").trim() || null,
+            name: String(item.name || "").trim(),
+            print_name: String(item.print_name || "").trim() || null,
+            hsn_code: String(item.hsn_code || "").trim() || null,
+            mrp: parseFloat(item.mrp) || 0,
+            sale_rate: parseFloat(item.sale_rate) || 0,
+            take_rate: parseFloat(item.take_rate) || 0,
+            retail_rate: parseFloat(item.retail_rate) || 0,
+            delivery_rate: parseFloat(item.delivery_rate) || 0,
+            online_rate: parseFloat(item.online_rate) || 0,
+            purchase_rate: parseFloat(item.purchase_rate) || 0,
+            gst_percent: parseFloat(item.gst_percent) || 0,
+            cess_percent: parseFloat(item.cess_percent) || 0,
+            stock: stock,
+            min_qty: parseFloat(item.min_qty) || 0,
+            discount_percent: parseFloat(item.discount_percent) || 0,
+            size: String(item.size || "").trim() || null,
+            color: String(item.color || "").trim() || null,
+            counter_name: String(item.counter_name || "").trim() || null,
+            category_name: cat?.name || null,
+            category_id: cat?.id || null,
+            subcategory_name: subCat?.name || null,
+            subcategory_id: subCat?.id || null,
+            brand_name: brand?.name || null,
+            brand_id: brand?.id || null,
+            unit_name: unit?.name || null,
+            unit_id: unit?.id || null,
+            item_group: ig?.name || null,
+            item_category: ic?.name || null,
+            department_code: item.department_code ? String(item.department_code).trim() : null,
+            department_id: dept?.id || null,
+            k_code: String(item.k_code || "").trim() || null,
+            shop_id: String(item.shop_id || "").trim() || null,
+            is_package: String(item.is_package || "No").trim(),
+            narration: String(item.narration || "").trim() || null,
+            narration2: String(item.narration2 || "").trim() || null,
+            item_status: String(item.item_status || "Active").trim(),
+            is_favourite: String(item.is_favourite || "No").trim(),
+            is_discountable: String(item.is_discountable || "Yes").trim(),
+            image_url: String(item.image_url || "").trim() || null,
+            description: String(item.description || "").trim() || null,
+            is_active: true
+          });
         });
 
         // --- STEP 4: BULK UPLOAD PRODUCTS ---
