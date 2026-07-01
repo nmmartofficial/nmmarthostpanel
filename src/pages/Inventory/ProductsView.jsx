@@ -211,22 +211,57 @@ export default function ProductsView({ products, categories, brands, subcategori
           }
         };
 
+        // Helper to insert subcategories with category_id if they don't exist
+        const insertSubcategoriesIfNotExists = async (parsedData, catMaps) => {
+          const existing = await dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table);
+          const existingSubCatNames = new Set(existing.map(item => item.name.toLowerCase()));
+          
+          // Create a map of subcategory name to category name (to avoid duplicates)
+          const subCatToCategory = {};
+          parsedData.forEach(item => {
+            const subCatName = String(item.subcategory_name || "").trim();
+            const catName = String(item.category_name || "").trim();
+            if (subCatName && catName) {
+              subCatToCategory[subCatName.toLowerCase()] = catName;
+            }
+          });
+          
+          const newSubCats = [];
+          Object.entries(subCatToCategory).forEach(([subCatLower, catName]) => {
+            if (!existingSubCatNames.has(subCatLower)) {
+              const cat = catMaps.nameMap[catName.toLowerCase()];
+              if (cat) {
+                const originalSubCatName = parsedData.find(item => 
+                  String(item.subcategory_name || "").trim().toLowerCase() === subCatLower
+                )?.subcategory_name || subCatLower;
+                newSubCats.push({
+                  id: generateUUID(),
+                  category_id: cat.id,
+                  name: originalSubCatName,
+                  is_active: true
+                });
+              }
+            }
+          });
+          
+          if (newSubCats.length > 0) {
+            await dbSync.insert(DB_SCHEMA.SUBCATEGORIES.table, newSubCats);
+          }
+        };
+
         // Ensure these exist in Master Tables
         if (uniqueCats.length > 0) await insertMasterIfNotExists(DB_SCHEMA.CATEGORIES.table, uniqueCats);
-        if (uniqueSubCats.length > 0) await insertMasterIfNotExists(DB_SCHEMA.SUBCATEGORIES.table, uniqueSubCats);
         if (uniqueBrands.length > 0) await insertMasterIfNotExists(DB_SCHEMA.BRANDS.table, uniqueBrands);
         if (uniqueUnits.length > 0) await insertMasterIfNotExists(DB_SCHEMA.UNITS.table, uniqueUnits);
 
         // --- STEP 2: FETCH FRESH MASTER RECORDS FOR LINKING ---
         const [
           dbCats, 
-          dbSubCats, 
           dbBrands, 
           dbUnits, 
           dbDepartments
         ] = await Promise.all([
           dbSync.fetch(DB_SCHEMA.CATEGORIES.table),
-          dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table),
           dbSync.fetch(DB_SCHEMA.BRANDS.table),
           dbSync.fetch(DB_SCHEMA.UNITS.table),
           dbSync.fetch(DB_SCHEMA.DEPARTMENTS.table)
@@ -244,10 +279,16 @@ export default function ProductsView({ products, categories, brands, subcategori
         };
 
         const catMaps = createMasterMap(dbCats);
-        const subCatMaps = createMasterMap(dbSubCats);
         const brandMaps = createMasterMap(dbBrands);
         const unitMaps = createMasterMap(dbUnits);
         const deptMaps = createMasterMap(dbDepartments);
+
+        // Insert subcategories now that we have category maps
+        if (uniqueSubCats.length > 0) await insertSubcategoriesIfNotExists(parsedData, catMaps);
+
+        // Now fetch subcategories
+        const dbSubCats = await dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table);
+        const subCatMaps = createMasterMap(dbSubCats);
 
         // --- STEP 3: VALIDATE AND PREPARE PRODUCTS ---
         const productsToUpload = [];
