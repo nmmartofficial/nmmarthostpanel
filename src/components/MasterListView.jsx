@@ -180,9 +180,9 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
             }
           }
           
-          // Fallback if image_url is still empty but required by DB (not-null constraint)
+          // No fallback - image fields can be null
           if (!finalData[field.name]) {
-            finalData[field.name] = 'https://via.placeholder.com/300?text=NM+MART';
+            finalData[field.name] = null;
           }
         } else if (field.type === 'boolean' && !(field.name in finalData)) {
           // Set default boolean to true if not provided

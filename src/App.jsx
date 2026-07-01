@@ -970,8 +970,8 @@ export default function App() {
       
       // Check if supabase.storage is available
       if (!supabase.storage) {
-        console.warn('Supabase storage not available, using placeholder');
-        return { url: 'https://via.placeholder.com/800x400?text=Image', error: null };
+        console.warn('Supabase storage not available');
+        return { url: null, error: null };
       }
       
       const fileExt = file.name.split('.').pop();
@@ -987,8 +987,7 @@ export default function App() {
 
       if (uploadError) {
         console.error(`Supabase Upload Error [Bucket: ${bucket}]:`, uploadError);
-        console.warn('Using placeholder image instead');
-        return { url: 'https://via.placeholder.com/800x400?text=Image', error: null };
+        return { url: null, error: null };
       }
 
       const { data: { publicUrl } } = supabase.storage
@@ -996,15 +995,14 @@ export default function App() {
         .getPublicUrl(filePath);
 
       if (!publicUrl) {
-        console.warn('Failed to generate public URL, using placeholder');
-        return { url: 'https://via.placeholder.com/800x400?text=Image', error: null };
+        console.warn('Failed to generate public URL');
+        return { url: null, error: null };
       }
 
       return { url: publicUrl, error: null };
     } catch (error) {
       console.error("Critical Upload error:", error);
-      console.warn('Using placeholder image instead');
-      return { url: 'https://via.placeholder.com/800x400?text=Image', error: null };
+      return { url: null, error: null };
     }
   };
 

@@ -431,9 +431,9 @@ export default function ProductsView({ products, categories, brands, subcategori
         }
       }
 
-      // Fallback for not-null constraint on image_url
+      // No fallback - image_url can be null
       if (!finalData.image_url) {
-        finalData.image_url = 'https://via.placeholder.com/300?text=PRODUCT+IMAGE';
+        finalData.image_url = null;
       }
 
       let res;

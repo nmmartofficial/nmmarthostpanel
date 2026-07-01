@@ -87,7 +87,7 @@ const mockSupabase = {
   storage: {
     from: () => ({
       upload: () => Promise.resolve({ data: { path: 'mock-path' }, error: null }),
-      getPublicUrl: () => ({ data: { publicUrl: 'https://via.placeholder.com/800x400?text=Banner' } })
+      getPublicUrl: () => ({ data: { publicUrl: null } })
     })
   },
   channel: () => ({
