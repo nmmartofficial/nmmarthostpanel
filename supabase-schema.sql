@@ -1150,10 +1150,10 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ========================================
--- 5. DISABLE RLS FOR EASY TESTING (CAN BE RE-ENABLED LATER)
+-- 5. ENABLE RLS AND CREATE POLICIES
 -- ========================================
 
--- SUPER ROBUST RLS DISABLER - 100% WORKS!
+-- Enable RLS on all tables and create permissive policies for admin panel
 DO $$ 
 DECLARE 
     t RECORD;
@@ -1163,19 +1163,20 @@ BEGIN
         BEGIN
             RAISE NOTICE 'Processing table: %', t.tablename;
             
-            -- 1. Disable RLS completely
-            RAISE NOTICE '  - Disabling RLS';
-            EXECUTE format('ALTER TABLE %I DISABLE ROW LEVEL SECURITY', t.tablename);
+            -- 1. Enable RLS
+            RAISE NOTICE '  - Enabling RLS';
+            EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t.tablename);
             
             -- 2. Drop ALL existing policies to be safe
             RAISE NOTICE '  - Dropping existing policies';
             EXECUTE format('DROP POLICY IF EXISTS "Public Full Access" ON %I', t.tablename);
             EXECUTE format('DROP POLICY IF EXISTS "Admin Dashboard Access" ON %I', t.tablename);
             EXECUTE format('DROP POLICY IF EXISTS "Verified Session Access" ON %I', t.tablename);
+            EXECUTE format('DROP POLICY IF EXISTS "Super Permissive Access" ON %I', t.tablename);
             
-            -- 3. Create a super permissive policy just in case (even though RLS is disabled)
+            -- 3. Create a permissive policy for admin panel
             RAISE NOTICE '  - Creating permissive policy';
-            EXECUTE format('CREATE POLICY "Super Permissive Access" ON %I FOR ALL USING (true) WITH CHECK (true)', t.tablename);
+            EXECUTE format('CREATE POLICY "Admin Full Access" ON %I FOR ALL USING (true) WITH CHECK (true)', t.tablename);
             
             RAISE NOTICE '  - Done!';
         EXCEPTION
