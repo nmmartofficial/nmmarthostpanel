@@ -9,7 +9,7 @@ import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
 import PaginationFooter from './PaginationFooter';
 
-export default function MasterListView({ title, table, bucket, fields, data, uploadImage, fetchInitialData, ...relatedData }) {
+export default function MasterListView({ title, table, bucket, fields, data, uploadImage, fetchInitialData, customColumnMapping, ...relatedData }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -51,14 +51,16 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
 
         // Create mapping from field labels to names
         const columnMapping = {};
+        
+        // First, add any top-level custom mappings
+        if (customColumnMapping) {
+          Object.entries(customColumnMapping).forEach(([key, value]) => {
+            columnMapping[key] = value;
+          });
+        }
+        
+        // Then add standard mappings
         fields.forEach(f => {
-          // Add any custom mapping for this field
-          if (f.customMapping) {
-            Object.entries(f.customMapping).forEach(([key, value]) => {
-              columnMapping[key] = value;
-            });
-          }
-          
           columnMapping[f.label] = f.name;
           columnMapping[f.name] = f.name; // also map actual name
           
