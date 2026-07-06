@@ -416,18 +416,19 @@ export const dbSync = {
   update: async (tableName, id, payload) => {
     try {
       validatePayload(tableName, payload);
+      const pkColumn = dbSync.getPkColumn(tableName);
 
       // Fetch old data first
       const { data: oldData } = await supabase
         .from(tableName)
         .select('*')
-        .eq('id', id)
+        .eq(pkColumn, id)
         .single();
 
       const { data, error } = await supabase
         .from(tableName)
         .update(payload)
-        .eq('id', id)
+        .eq(pkColumn, id)
         .select();
 
       if (error) {
@@ -443,24 +444,32 @@ export const dbSync = {
     }
   },
 
+  // Get PK column for a table
+  getPkColumn: (tableName) => {
+    // Find the schema entry for this table
+    const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
+    return schemaEntry ? schemaEntry.pk : 'id'; // Default to 'id' if not found
+  },
+
   // Delete (Enhanced with Soft Delete Support)
   delete: async (tableName, id, permanent = false) => {
     try {
+      const pkColumn = dbSync.getPkColumn(tableName);
       let error;
       // Fetch old data first
       const { data: oldData } = await supabase
         .from(tableName)
         .select('*')
-        .eq('id', id)
+        .eq(pkColumn, id)
         .single();
 
       if (permanent || ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist'].includes(tableName)) {
         // Hard Delete for specific tables or if requested
-        const res = await supabase.from(tableName).delete().eq('id', id);
+        const res = await supabase.from(tableName).delete().eq(pkColumn, id);
         error = res.error;
       } else {
         // Soft Delete (Security Feature: Data is hidden but not lost)
-        const res = await supabase.from(tableName).update({ is_active: false }).eq('id', id);
+        const res = await supabase.from(tableName).update({ is_active: false }).eq(pkColumn, id);
         error = res.error;
       }
 
