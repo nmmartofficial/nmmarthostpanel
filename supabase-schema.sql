@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS banners (
 -- Categories Table (Main Categories)
 CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL UNIQUE,
+    code TEXT UNIQUE,
+    name TEXT NOT NULL,
     image_url TEXT,
     position INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
@@ -65,7 +66,9 @@ CREATE TABLE IF NOT EXISTS categories (
 -- Subcategories Table
 CREATE TABLE IF NOT EXISTS subcategories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code TEXT UNIQUE,
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+    category_code TEXT,
     name TEXT NOT NULL,
     image_url TEXT,
     position INTEGER DEFAULT 0,
@@ -75,11 +78,10 @@ CREATE TABLE IF NOT EXISTS subcategories (
     UNIQUE (category_id, name)
 );
 
--- Brands Table
+-- Brands Table - Using Code instead of UUID
 CREATE TABLE IF NOT EXISTS brands (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL UNIQUE,
-    code TEXT UNIQUE,
+    code TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
     image_url TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -109,35 +111,39 @@ CREATE TABLE IF NOT EXISTS department_master (
 
 
 
--- Products Table (Item Master)
+-- Products Table (Item Master) - Exact Excel Column Names
 CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY,
+    itname TEXT NOT NULL,
+    itnameprint TEXT,
     barcode TEXT UNIQUE,
-    name TEXT NOT NULL,
-    category_id UUID REFERENCES categories(id),
-    sub_category_id UUID REFERENCES subcategories(id),
-    brand_id UUID REFERENCES brands(id),
-    unit_id UUID REFERENCES unit_master(id),
-    department_id UUID REFERENCES department_master(id),
-    hsn_code TEXT,
+    imagename TEXT,
+    itemdescription TEXT,
+    hsncode TEXT,
+    picture TEXT,
+    takerate NUMERIC DEFAULT 0.00,
+    restrate NUMERIC DEFAULT 0.00,
+    dlvrate NUMERIC DEFAULT 0.00,
+    onlinerate NUMERIC DEFAULT 0.00,
+    purcrate NUMERIC DEFAULT 0.00,
     mrp NUMERIC DEFAULT 0.00,
-    sale_rate NUMERIC DEFAULT 0.00,
-    purchase_rate NUMERIC DEFAULT 0.00,
+    opstock NUMERIC DEFAULT 0.00,
+    discperc NUMERIC DEFAULT 0.00,
+    isfav TEXT DEFAULT 'No',
+    unitcode TEXT,
+    itg TEXT,
+    itc TEXT,
+    dtcode TEXT,
+    kcode TEXT,
+    brandcode TEXT REFERENCES brands(code),
+    isdiscountable TEXT DEFAULT 'Yes',
     gst NUMERIC DEFAULT 0.00,
-    gst_percent NUMERIC DEFAULT 0.00,
     cess NUMERIC DEFAULT 0.00,
-    cess_percent NUMERIC DEFAULT 0.00,
-    discount NUMERIC DEFAULT 0.00,
-    discount_pct NUMERIC DEFAULT 0.00,
-    discount_percent NUMERIC DEFAULT 0.00,
-    min_qty NUMERIC DEFAULT 1.00,
-    stock NUMERIC DEFAULT 0.00,
-    description TEXT,
-    image_url TEXT,
-    is_favourite TEXT DEFAULT 'No',
-    is_discountable TEXT DEFAULT 'Yes',
-    is_active BOOLEAN DEFAULT true,
-    is_live_on_app BOOLEAN DEFAULT false,
+    shopid TEXT,
+    ispackage TEXT DEFAULT 'No',
+    narration TEXT,
+    narration2 TEXT,
+    itemstatus TEXT DEFAULT 'Active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -823,6 +829,37 @@ DO $$ BEGIN
     END IF;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
 
+-- Add missing UUID id columns for categories and subcategories on existing databases
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'categories' AND column_name = 'id') THEN
+        ALTER TABLE categories ADD COLUMN id UUID DEFAULT uuid_generate_v4();
+    END IF;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE table_name = 'categories' AND constraint_type = 'UNIQUE' AND constraint_name = 'categories_id_key'
+    ) THEN
+        ALTER TABLE categories ADD CONSTRAINT categories_id_key UNIQUE (id);
+    END IF;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subcategories' AND column_name = 'id') THEN
+        ALTER TABLE subcategories ADD COLUMN id UUID DEFAULT uuid_generate_v4();
+    END IF;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE table_name = 'subcategories' AND constraint_type = 'UNIQUE' AND constraint_name = 'subcategories_id_key'
+    ) THEN
+        ALTER TABLE subcategories ADD CONSTRAINT subcategories_id_key UNIQUE (id);
+    END IF;
+EXCEPTION WHEN others THEN NULL; END $$;
+
 -- Add image_url column to subcategories OR rename imagename to image_url
 DO $$ BEGIN
     -- First check if imagename exists, rename it to image_url
@@ -845,6 +882,13 @@ DO $$ BEGIN
         ALTER TABLE subcategories ADD CONSTRAINT subcategories_category_id_name_key UNIQUE (category_id, name);
     END IF;
 EXCEPTION WHEN OTHERS THEN NULL; END $$;
+
+-- Add subcategory_id to products table for app compatibility
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'products' AND column_name = 'subcategory_id') THEN
+        ALTER TABLE products ADD COLUMN subcategory_id UUID REFERENCES subcategories(id);
+    END IF;
+EXCEPTION WHEN others THEN NULL; END $$;
 
 -- Add columns for Excel import
 DO $$ BEGIN
