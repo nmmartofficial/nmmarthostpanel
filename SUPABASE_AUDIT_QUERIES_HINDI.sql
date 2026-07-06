@@ -472,5 +472,123 @@ ORDER BY created_at DESC;
 */
 
 -- ========================================
+-- READABLE DATA QUERIES (UUID SKIP KARTE HUE)
+-- ========================================
+-- Ye queries aapko sirf readable data dikhayegi, UUID columns skip honge
+-- Isse data download karna, samajhna aasan hoga
+
+-- Products (Readable View - UUID Skip)
+SELECT 
+  name,
+  itname,
+  barcode,
+  mrp,
+  sale_rate,
+  onlinerate,
+  purchase_rate,
+  stock,
+  opstock,
+  gst,
+  gst_percent,
+  cess,
+  cess_percent,
+  discount,
+  discount_pct,
+  discount_percent,
+  min_qty,
+  description,
+  image_url,
+  is_favourite,
+  is_discountable,
+  is_active,
+  is_live_on_app,
+  hsn_code,
+  created_at,
+  updated_at
+FROM products
+ORDER BY created_at DESC;
+
+-- Categories (Readable View - UUID Skip)
+SELECT 
+  name,
+  image_url,
+  position,
+  is_active,
+  created_at,
+  updated_at
+FROM categories
+ORDER BY name;
+
+-- Brands (Readable View - UUID Skip)
+SELECT 
+  name,
+  code,
+  image_url,
+  is_active,
+  created_at,
+  updated_at
+FROM brands
+ORDER BY name;
+
+-- Banners (Readable View - UUID Skip)
+SELECT 
+  title,
+  image_url,
+  position,
+  is_active,
+  created_at,
+  updated_at
+FROM banners
+ORDER BY position;
+
+-- Coupons (Readable View - UUID Skip)
+SELECT 
+  code,
+  discount_type,
+  discount_value,
+  min_order_value,
+  max_discount,
+  usage_limit,
+  used_count,
+  valid_from,
+  valid_to,
+  is_active,
+  created_at,
+  updated_at
+FROM coupons
+ORDER BY created_at DESC;
+
+-- Orders (Readable View - UUID Skip)
+SELECT 
+  order_number,
+  user_id,
+  customer_name,
+  user_mobile,
+  address,
+  pincode,
+  subtotal,
+  delivery_charge,
+  discount,
+  total_amount,
+  payment_mode,
+  payment_status,
+  order_status,
+  created_at,
+  updated_at
+FROM orders
+ORDER BY created_at DESC;
+
+-- Users (Readable View - UUID Skip)
+SELECT 
+  name,
+  email,
+  mobile,
+  is_active,
+  created_at,
+  updated_at
+FROM users
+ORDER BY created_at DESC;
+
+-- ========================================
 -- YEH SAB QUERIES SUPABASE SQL EDITOR MEIN DIRECT CHALA SAKTE HO!
 -- ========================================
