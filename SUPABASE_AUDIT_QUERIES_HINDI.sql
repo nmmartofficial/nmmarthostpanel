@@ -63,7 +63,23 @@ WHERE schemaname != 'pg_catalog'
 ORDER BY tablename;
 
 -- ========================================
--- 3. AUDIT LOGS - SYSTEM_LOGS TABLE DEKHO
+-- 2B. SABHI TABLES KE SARE COLUMNS DEKHNE KA QUERY
+-- ========================================
+-- Ye query sabhi tables ke saare columns, unke data type etc. dikhayega
+-- Isse aapko pata chalega ki har table mein kya kya fields hain
+
+SELECT 
+  table_name,
+  column_name,
+  data_type,
+  is_nullable,
+  column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+ORDER BY table_name, ordinal_position;
+
+-- ========================================
+-- 4. AUDIT LOGS - SYSTEM_LOGS TABLE DEKHO
 -- ========================================
 -- Ye sabhi audit logs dikhayega (sabse important query)
 
