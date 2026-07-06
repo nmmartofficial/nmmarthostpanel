@@ -320,7 +320,8 @@ export const dbSync = {
       const TABLES_WITH_IS_ACTIVE = [
         'products', 'categories', 'subcategories', 'brands', 'suppliers',
         'orders', 'users', 'admin_users', 'delivery_boy_master',
-        'delivery_customer_master', 'wallet_master', 'expenses'
+        'delivery_customer_master', 'wallet_master', 'expenses',
+        'banners', 'coupons', 'offers'
       ];
 
       while (hasMore) {
@@ -463,7 +464,7 @@ export const dbSync = {
         .eq(pkColumn, id)
         .single();
 
-      if (permanent || ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist'].includes(tableName)) {
+      if (permanent || ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist', 'banners', 'coupons', 'offers', 'categories', 'subcategories', 'brands'].includes(tableName)) {
         // Hard Delete for specific tables or if requested
         const res = await supabase.from(tableName).delete().eq(pkColumn, id);
         error = res.error;
