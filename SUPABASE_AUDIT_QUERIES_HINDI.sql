@@ -191,11 +191,33 @@ LIMIT 100;
 -- 14. PRODUCT WISE INVENTORY LOGS
 -- ========================================
 -- Kisi particular product ke stock changes
+-- NOTE: Is query ko use karne ke liye, product_id ko real UUID se replace karo!
+-- Pehle products table se product ID le lo, phir is query mein daalo
 
+/*
 SELECT *
 FROM inventory_logs
-WHERE product_id = 'your-product-id-here' -- product ID change karo
+WHERE product_id = '12345678-1234-1234-1234-123456789abc' -- Real product ID replace karo
 ORDER BY created_at DESC;
+*/
+
+-- ========================================
+-- 14 (ALTERNATIVE): SABHI PRODUCTS KE INVENTORY LOGS WITH PRODUCT NAME
+-- ========================================
+-- Is query mein product name bhi show hoga
+
+SELECT 
+  il.id,
+  p.name AS product_name,
+  il.change_type,
+  il.quantity_change,
+  il.old_quantity,
+  il.new_quantity,
+  il.created_at
+FROM inventory_logs il
+LEFT JOIN products p ON il.product_id = p.id
+ORDER BY il.created_at DESC
+LIMIT 100;
 
 -- ========================================
 -- 15. RECENT ORDERS DEKHO
@@ -348,7 +370,7 @@ ORDER BY total_amount DESC;
 SELECT 
   tablename,
   rowsecurity AS rls_enabled
-FROM pg_tables
+FROM pg_catalog.pg_tables
 WHERE schemaname = 'public'
 ORDER BY tablename;
 
