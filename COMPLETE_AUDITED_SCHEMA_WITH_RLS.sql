@@ -622,45 +622,42 @@ WHERE schemaname = 'public'
 ORDER BY tablename;
 
 -- Query 2: Get Table Row Counts
-SELECT table_name, COUNT(*) AS row_count 
-FROM (
-    SELECT 'app_config' AS table_name, COUNT(*) FROM app_config UNION ALL
-    SELECT 'addresses', COUNT(*) FROM addresses UNION ALL
-    SELECT 'admin_users', COUNT(*) FROM admin_users UNION ALL
-    SELECT 'banners', COUNT(*) FROM banners UNION ALL
-    SELECT 'basket', COUNT(*) FROM basket UNION ALL
-    SELECT 'brands', COUNT(*) FROM brands UNION ALL
-    SELECT 'cart', COUNT(*) FROM cart UNION ALL
-    SELECT 'categories', COUNT(*) FROM categories UNION ALL
-    SELECT 'credit_master', COUNT(*) FROM credit_master UNION ALL
-    SELECT 'credit_notes', COUNT(*) FROM credit_notes UNION ALL
-    SELECT 'customer_loyalty', COUNT(*) FROM customer_loyalty UNION ALL
-    SELECT 'delivery_boy_master', COUNT(*) FROM delivery_boy_master UNION ALL
-    SELECT 'delivery_customer_master', COUNT(*) FROM delivery_customer_master UNION ALL
-    SELECT 'department_master', COUNT(*) FROM department_master UNION ALL
-    SELECT 'expense_categories', COUNT(*) FROM expense_categories UNION ALL
-    SELECT 'expenses', COUNT(*) FROM expenses UNION ALL
-    SELECT 'home_config', COUNT(*) FROM home_config UNION ALL
-    SELECT 'inventory_logs', COUNT(*) FROM inventory_logs UNION ALL
-    SELECT 'notifications', COUNT(*) FROM notifications UNION ALL
-    SELECT 'offers_master', COUNT(*) FROM offers_master UNION ALL
-    SELECT 'order_items', COUNT(*) FROM order_items UNION ALL
-    SELECT 'orders', COUNT(*) FROM orders UNION ALL
-    SELECT 'pincode_master', COUNT(*) FROM pincode_master UNION ALL
-    SELECT 'products', COUNT(*) FROM products UNION ALL
-    SELECT 'purchase_items', COUNT(*) FROM purchase_items UNION ALL
-    SELECT 'purchases', COUNT(*) FROM purchases UNION ALL
-    SELECT 'return_items', COUNT(*) FROM return_items UNION ALL
-    SELECT 'stock_alerts', COUNT(*) FROM stock_alerts UNION ALL
-    SELECT 'subcategories', COUNT(*) FROM subcategories UNION ALL
-    SELECT 'support_tickets', COUNT(*) FROM support_tickets UNION ALL
-    SELECT 'system_logs', COUNT(*) FROM system_logs UNION ALL
-    SELECT 'unit_master', COUNT(*) FROM unit_master UNION ALL
-    SELECT 'users', COUNT(*) FROM users UNION ALL
-    SELECT 'wallet_master', COUNT(*) FROM wallet_master UNION ALL
-    SELECT 'wallet_transactions', COUNT(*) FROM wallet_transactions UNION ALL
-    SELECT 'wishlist', COUNT(*) FROM wishlist
-) AS counts
+SELECT 'app_config' AS table_name, COUNT(*) AS row_count FROM app_config UNION ALL
+SELECT 'addresses', COUNT(*) FROM addresses UNION ALL
+SELECT 'admin_users', COUNT(*) FROM admin_users UNION ALL
+SELECT 'banners', COUNT(*) FROM banners UNION ALL
+SELECT 'basket', COUNT(*) FROM basket UNION ALL
+SELECT 'brands', COUNT(*) FROM brands UNION ALL
+SELECT 'cart', COUNT(*) FROM cart UNION ALL
+SELECT 'categories', COUNT(*) FROM categories UNION ALL
+SELECT 'credit_master', COUNT(*) FROM credit_master UNION ALL
+SELECT 'credit_notes', COUNT(*) FROM credit_notes UNION ALL
+SELECT 'customer_loyalty', COUNT(*) FROM customer_loyalty UNION ALL
+SELECT 'delivery_boy_master', COUNT(*) FROM delivery_boy_master UNION ALL
+SELECT 'delivery_customer_master', COUNT(*) FROM delivery_customer_master UNION ALL
+SELECT 'department_master', COUNT(*) FROM department_master UNION ALL
+SELECT 'expense_categories', COUNT(*) FROM expense_categories UNION ALL
+SELECT 'expenses', COUNT(*) FROM expenses UNION ALL
+SELECT 'home_config', COUNT(*) FROM home_config UNION ALL
+SELECT 'inventory_logs', COUNT(*) FROM inventory_logs UNION ALL
+SELECT 'notifications', COUNT(*) FROM notifications UNION ALL
+SELECT 'offers_master', COUNT(*) FROM offers_master UNION ALL
+SELECT 'order_items', COUNT(*) FROM order_items UNION ALL
+SELECT 'orders', COUNT(*) FROM orders UNION ALL
+SELECT 'pincode_master', COUNT(*) FROM pincode_master UNION ALL
+SELECT 'products', COUNT(*) FROM products UNION ALL
+SELECT 'purchase_items', COUNT(*) FROM purchase_items UNION ALL
+SELECT 'purchases', COUNT(*) FROM purchases UNION ALL
+SELECT 'return_items', COUNT(*) FROM return_items UNION ALL
+SELECT 'stock_alerts', COUNT(*) FROM stock_alerts UNION ALL
+SELECT 'subcategories', COUNT(*) FROM subcategories UNION ALL
+SELECT 'support_tickets', COUNT(*) FROM support_tickets UNION ALL
+SELECT 'system_logs', COUNT(*) FROM system_logs UNION ALL
+SELECT 'unit_master', COUNT(*) FROM unit_master UNION ALL
+SELECT 'users', COUNT(*) FROM users UNION ALL
+SELECT 'wallet_master', COUNT(*) FROM wallet_master UNION ALL
+SELECT 'wallet_transactions', COUNT(*) FROM wallet_transactions UNION ALL
+SELECT 'wishlist', COUNT(*) FROM wishlist
 ORDER BY row_count DESC;
 
 -- Query 3: Get All Columns for All Tables
