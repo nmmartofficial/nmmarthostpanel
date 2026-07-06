@@ -18,6 +18,15 @@ const validatePercent = (value) => {
   return { isValid: true, message: '' };
 };
 
+const sanitizeMasterCode = (value, fallback = 'master') => {
+  const cleaned = String(value || fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return cleaned.slice(0, 40) || fallback;
+};
+
 export default function ProductsView({ products, categories, brands, subcategories, filter, uploadImage, fetchInitialData, setLoading }) {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -55,7 +64,7 @@ export default function ProductsView({ products, categories, brands, subcategori
     }
 
     if (filter === 'low_stock') {
-      list = list.filter(p => p.stock <= 5);
+      list = list.filter(p => (p.opstock ?? p.stock) <= 5);
     }
 
     // Category Filter
@@ -68,11 +77,14 @@ export default function ProductsView({ products, categories, brands, subcategori
       list = list.filter(p => p.subcategory_id === selectedSubcategoryId);
     }
 
-    return list.filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      p.barcode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.hsn_code?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return list.filter(p => {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        (p.itname ?? p.name)?.toLowerCase().includes(searchLower) || 
+        p.barcode?.toLowerCase().includes(searchLower) ||
+        (p.hsncode ?? p.hsn_code)?.toLowerCase().includes(searchLower)
+      );
+    });
   }, [products, filter, searchTerm, showTrash, selectedCategoryId, selectedSubcategoryId]);
 
   const totalPages = Math.ceil(filteredProducts.length / rowsPerPage);
@@ -137,60 +149,36 @@ export default function ProductsView({ products, categories, brands, subcategori
                 // EXACT mapping of your Excel headers to Database fields
                 const columnMapping = {
                     'id': 'id',
-                    'itname': 'name',
-                    'itnameprint': 'print_name',
+                    'itname': 'itname',
+                    'itnameprint': 'itnameprint',
                     'barcode': 'barcode',
-                    'imagename': 'image_url',
-                    'itemdescription': 'description',
-                    'hsncode': 'hsn_code',
-                    'picture': 'image_url',
-                    'takerate': 'take_rate',
-                    'restrate': 'retail_rate',
-                    'dlvrate': 'delivery_rate',
-                    'onlinerate': 'online_rate',
-                    'purcrate': 'purchase_rate',
+                    'imagename': 'imagename',
+                    'itemdescription': 'itemdescription',
+                    'hsncode': 'hsncode',
+                    'picture': 'picture',
+                    'takerate': 'takerate',
+                    'restrate': 'restrate',
+                    'dlvrate': 'dlvrate',
+                    'onlinerate': 'onlinerate',
+                    'purcrate': 'purcrate',
                     'mrp': 'mrp',
-                    'opstock': 'stock',
-                    'discperc': 'discount_percent',
-                    'isfav': 'is_favourite',
-                    'unitcode': 'unit_code',
-                    'itg': 'item_group_code',
-                    'itc': 'item_category_code',
-                    'dtcode': 'department_code',
-                    'kcode': 'k_code',
-                    'brandcode': 'brand_code',
-                    'isdiscountable': 'is_discountable',
-                    'gst': 'gst_percent',
-                    'cess': 'cess_percent',
-                    'shopid': 'shop_id',
-                    'ispackage': 'is_package',
+                    'opstock': 'opstock',
+                    'discperc': 'discperc',
+                    'isfav': 'isfav',
+                    'unitcode': 'unitcode',
+                    'itg': 'itg',
+                    'itc': 'itc',
+                    'dtcode': 'dtcode',
+                    'kcode': 'kcode',
+                    'brandcode': 'brandcode',
+                    'isdiscountable': 'isdiscountable',
+                    'gst': 'gst',
+                    'cess': 'cess',
+                    'shopid': 'shopid',
+                    'ispackage': 'ispackage',
                     'narration': 'narration',
                     'narration2': 'narration2',
-                    'itemstatus': 'item_status',
-                    'Item Name': 'name',
-                    'BARCODE': 'barcode',
-                    'HSNCODE': 'hsn_code',
-                    'MRP': 'mrp',
-                    'SALE RA': 'sale_rate',
-                    'SALE RATE': 'sale_rate',
-                    'PURC RA': 'purchase_rate',
-                    'PURC RATE': 'purchase_rate',
-                    'GST%': 'gst_percent',
-                    'CESS%': 'cess_percent',
-                    'OPENING': 'stock',
-                    'Closing': 'stock',
-                    'MinQty': 'min_qty',
-                    'Dis %': 'discount_percent',
-                    'Size': 'size',
-                    'Colour': 'color',
-                    'Counter': 'counter_name',
-                    'MAIN CATEGORY': 'category_name',
-                    'SUB CATEGORY': 'subcategory_name',
-                    'SUBC ATEGORY': 'subcategory_name',
-                    'Brand na': 'brand_name',
-                    'Brand name': 'brand_name',
-                    'Unit': 'unit_name',
-                    'Basic Sale Price': 'basic_sale_price'
+                    'itemstatus': 'itemstatus'
                 };
         
         const parsedData = await parseERPCSV(file, columnMapping);
@@ -208,71 +196,73 @@ export default function ProductsView({ products, categories, brands, subcategori
           });
         };
 
-        const uniqueCats = getUniqueNames(parsedData, 'category_name');
-        const uniqueSubCats = getUniqueNames(parsedData, 'subcategory_name');
-        const uniqueBrands = getUniqueNames(parsedData, 'brand_name');
-        const uniqueUnits = getUniqueNames(parsedData, 'unit_name');
+        const uniqueCats = getUniqueNames(parsedData, 'itc');
+        const uniqueBrands = getUniqueNames(parsedData, 'brandcode');
+        const uniqueUnits = getUniqueNames(parsedData, 'unitcode');
 
         console.log(`[Import Orchestration] Found Unique Masters -> Cats: ${uniqueCats.length}, Brands: ${uniqueBrands.length}`);
 
-        // Helper to insert master records if they don't exist
-        const insertMasterIfNotExists = async (table, names) => {
+        const insertMasterIfNotExists = async (table, items, buildRecord) => {
           const existing = await dbSync.fetch(table);
-          const existingNames = new Set(existing.map(item => item.name.toLowerCase()));
-          const newNames = names.filter(name => !existingNames.has(name.toLowerCase()));
-          
-          if (newNames.length > 0) {
-            const records = newNames.map(name => ({ 
-              id: generateUUID(), 
-              name, 
-              is_active: true 
-            }));
-            await dbSync.insert(table, records);
+          const existingKeys = new Set(existing.flatMap(item => {
+            const keys = [];
+            if (item?.name) keys.push(String(item.name).trim().toLowerCase());
+            if (item?.code) keys.push(String(item.code).trim().toLowerCase());
+            return keys;
+          }));
+
+          const newRecords = [];
+          items.forEach((item) => {
+            const name = String(item?.name || item || '').trim();
+            if (!name) return;
+
+            const normalizedCode = sanitizeMasterCode(item?.code || name, name);
+            const nameKey = name.toLowerCase();
+            const codeKey = normalizedCode.toLowerCase();
+
+            if (existingKeys.has(nameKey) || existingKeys.has(codeKey)) return;
+
+            const record = buildRecord ? buildRecord(name, normalizedCode) : {
+              code: normalizedCode,
+              name,
+              is_active: true
+            };
+
+            newRecords.push(record);
+            existingKeys.add(nameKey);
+            existingKeys.add(codeKey);
+          });
+
+          if (newRecords.length > 0) {
+            await dbSync.insert(table, newRecords);
           }
         };
 
-        // Helper to insert subcategories with category_id if they don't exist
-        const insertSubcategoriesIfNotExists = async (parsedData, catMaps) => {
-          const existing = await dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table);
-          const existingSubCatNames = new Set(existing.map(item => item.name.toLowerCase()));
-          
-          // Create a map of subcategory name to category name (to avoid duplicates)
-          const subCatToCategory = {};
-          parsedData.forEach(item => {
-            const subCatName = String(item.subcategory_name || "").trim();
-            const catName = String(item.category_name || "").trim();
-            if (subCatName && catName) {
-              subCatToCategory[subCatName.toLowerCase()] = catName;
-            }
-          });
-          
-          const newSubCats = [];
-          Object.entries(subCatToCategory).forEach(([subCatLower, catName]) => {
-            if (!existingSubCatNames.has(subCatLower)) {
-              const cat = catMaps.nameMap[catName.toLowerCase()];
-              if (cat) {
-                const originalSubCatName = parsedData.find(item => 
-                  String(item.subcategory_name || "").trim().toLowerCase() === subCatLower
-                )?.subcategory_name || subCatLower;
-                newSubCats.push({
-                  id: generateUUID(),
-                  category_id: cat.id,
-                  name: originalSubCatName,
-                  is_active: true
-                });
-              }
-            }
-          });
-          
-          if (newSubCats.length > 0) {
-            await dbSync.insert(DB_SCHEMA.SUBCATEGORIES.table, newSubCats);
-          }
-        };
+        // Subcategories not used in current Excel structure - removed
 
-        // Ensure these exist in Master Tables
-        if (uniqueCats.length > 0) await insertMasterIfNotExists(DB_SCHEMA.CATEGORIES.table, uniqueCats);
-        if (uniqueBrands.length > 0) await insertMasterIfNotExists(DB_SCHEMA.BRANDS.table, uniqueBrands);
-        if (uniqueUnits.length > 0) await insertMasterIfNotExists(DB_SCHEMA.UNITS.table, uniqueUnits);
+        if (uniqueCats.length > 0) {
+          await insertMasterIfNotExists(DB_SCHEMA.CATEGORIES.table, uniqueCats.map(name => ({ name })), (name, code) => ({
+            code,
+            name,
+            is_active: true
+          }));
+        }
+
+        if (uniqueBrands.length > 0) {
+          await insertMasterIfNotExists(DB_SCHEMA.BRANDS.table, uniqueBrands.map(name => ({ name })), (name, code) => ({
+            code,
+            name,
+            is_active: true
+          }));
+        }
+
+        if (uniqueUnits.length > 0) {
+          await insertMasterIfNotExists(DB_SCHEMA.UNITS.table, uniqueUnits.map(name => ({ name })), (name, code) => ({
+            code,
+            name,
+            is_active: true
+          }));
+        }
 
         // --- STEP 2: FETCH FRESH MASTER RECORDS FOR LINKING ---
         const [
@@ -292,8 +282,10 @@ export default function ProductsView({ products, categories, brands, subcategori
           const codeMap = {};
           const nameMap = {};
           records.forEach(r => {
-            if (r.code) codeMap[String(r.code).trim()] = { id: r.id, name: r.name };
-            if (r.name) nameMap[String(r.name).toLowerCase().trim()] = { id: r.id, name: r.name };
+            const recordId = r.id || r.code || null;
+            const mapEntry = { id: recordId, name: r.name };
+            if (r.code) codeMap[String(r.code).trim()] = mapEntry;
+            if (r.name) nameMap[String(r.name).toLowerCase().trim()] = mapEntry;
           });
           return { codeMap, nameMap };
         };
@@ -303,12 +295,7 @@ export default function ProductsView({ products, categories, brands, subcategori
         const unitMaps = createMasterMap(dbUnits);
         const deptMaps = createMasterMap(dbDepartments);
 
-        // Insert subcategories now that we have category maps
-        if (uniqueSubCats.length > 0) await insertSubcategoriesIfNotExists(parsedData, catMaps);
-
-        // Now fetch subcategories
-        const dbSubCats = await dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table);
-        const subCatMaps = createMasterMap(dbSubCats);
+        // Subcategories not used in current Excel structure
 
         // --- STEP 3: VALIDATE AND PREPARE PRODUCTS ---
         const productsToUpload = [];
@@ -330,70 +317,64 @@ export default function ProductsView({ products, categories, brands, subcategori
             return null;
           };
 
-          const cat = getMaster(null, item.category_name, catMaps);
-          const subCat = getMaster(null, item.subcategory_name, subCatMaps);
-          const brand = getMaster(item.brand_code, item.brand_name, brandMaps);
-          const unit = getMaster(item.unit_code, item.unit_name, unitMaps);
-          const dept = getMaster(item.department_code, null, deptMaps);
+          const cat = getMaster(item.itc, null, catMaps);
+          const brand = getMaster(item.brandcode, null, brandMaps);
+          const unit = getMaster(item.unitcode, null, unitMaps);
+          const dept = getMaster(item.dtcode, null, deptMaps);
 
           // Sanitize stock: ensure it's never negative
-          let stock = Math.max(0, parseFloat(item.stock) || 0);
+          let stock = Math.max(0, parseFloat(item.opstock) || 0);
           
-          // Check if id from Excel is a valid UUID, if not, generate new one
-          let productId;
-          if (item.id) {
-              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-              if (uuidRegex.test(String(item.id).trim())) {
-                  productId = item.id;
-              } else {
-                  productId = generateUUID();
-              }
-          } else {
-              productId = generateUUID();
-          }
+          // Use id from Excel directly
+          let productId = String(item.id || "").trim() || generateUUID();
           
           productsToUpload.push({
             id: productId,
+            itname: String(item.itname || "").trim(),
+            itnameprint: String(item.itnameprint || "").trim() || null,
             barcode: String(item.barcode || "").trim() || null,
-            name: String(item.name || "").trim(),
-            print_name: String(item.print_name || "").trim() || null,
-            hsn_code: String(item.hsn_code || "").trim() || null,
+            imagename: String(item.imagename || "").trim() || null,
+            itemdescription: String(item.itemdescription || "").trim() || null,
+            hsncode: String(item.hsncode || "").trim() || null,
+            picture: String(item.picture || "").trim() || null,
+            takerate: parseFloat(item.takerate) || 0,
+            restrate: parseFloat(item.restrate) || 0,
+            dlvrate: parseFloat(item.dlvrate) || 0,
+            onlinerate: parseFloat(item.onlinerate) || 0,
+            purcrate: parseFloat(item.purcrate) || 0,
             mrp: parseFloat(item.mrp) || 0,
-            sale_rate: parseFloat(item.sale_rate) || 0,
-            take_rate: parseFloat(item.take_rate) || 0,
-            retail_rate: parseFloat(item.retail_rate) || 0,
-            delivery_rate: parseFloat(item.delivery_rate) || 0,
-            online_rate: parseFloat(item.online_rate) || 0,
-            purchase_rate: parseFloat(item.purchase_rate) || 0,
-            gst_percent: parseFloat(item.gst_percent) || 0,
-            cess_percent: parseFloat(item.cess_percent) || 0,
-            stock: stock,
-            min_qty: parseFloat(item.min_qty) || 0,
-            discount_percent: parseFloat(item.discount_percent) || 0,
-            size: String(item.size || "").trim() || null,
-            color: String(item.color || "").trim() || null,
-            counter_name: String(item.counter_name || "").trim() || null,
-            category_name: cat?.name || null,
-            category_id: cat?.id || null,
-            subcategory_name: subCat?.name || null,
-            subcategory_id: subCat?.id || null,
-            brand_name: brand?.name || null,
-            brand_id: brand?.id || null,
-            unit_name: unit?.name || null,
-            unit_id: unit?.id || null,
-            department_code: item.department_code ? String(item.department_code).trim() : null,
-            department_id: dept?.id || null,
-            k_code: String(item.k_code || "").trim() || null,
-            shop_id: String(item.shop_id || "").trim() || null,
-            is_package: String(item.is_package || "No").trim(),
+            opstock: stock,
+            discperc: parseFloat(item.discperc) || 0,
+            isfav: String(item.isfav || "No").trim(),
+            unitcode: String(item.unitcode || "").trim() || null,
+            itg: String(item.itg || "").trim() || null,
+            itc: String(item.itc || "").trim() || null,
+            dtcode: String(item.dtcode || "").trim() || null,
+            kcode: String(item.kcode || "").trim() || null,
+            brandcode: String(item.brandcode || "").trim() || null,
+            isdiscountable: String(item.isdiscountable || "Yes").trim(),
+            gst: parseFloat(item.gst) || 0,
+            cess: parseFloat(item.cess) || 0,
+            shopid: String(item.shopid || "").trim() || null,
+            ispackage: String(item.ispackage || "No").trim(),
             narration: String(item.narration || "").trim() || null,
             narration2: String(item.narration2 || "").trim() || null,
-            item_status: String(item.item_status || "Active").trim(),
-            is_favourite: String(item.is_favourite || "No").trim(),
-            is_discountable: String(item.is_discountable || "Yes").trim(),
-            image_url: String(item.image_url || "").trim() || null,
-            description: String(item.description || "").trim() || null,
-            is_active: true
+            itemstatus: String(item.itemstatus || "Active").trim(),
+            // Backward compatibility fields
+            name: String(item.itname || "").trim(),
+            hsn_code: String(item.hsncode || "").trim() || null,
+            sale_rate: parseFloat(item.onlinerate) || 0,
+            purchase_rate: parseFloat(item.purcrate) || 0,
+            stock: stock,
+            discount_percent: parseFloat(item.discperc) || 0,
+            gst_percent: parseFloat(item.gst) || 0,
+            cess_percent: parseFloat(item.cess) || 0,
+            is_favourite: String(item.isfav || "No").trim(),
+            is_discountable: String(item.isdiscountable || "Yes").trim(),
+            image_url: String(item.picture || "").trim() || null,
+            category_name: String(item.itc || "").trim() || null,
+            brand_name: String(item.brandcode || "").trim() || null,
+            unit_name: String(item.unitcode || "").trim() || null
           });
         });
 
@@ -417,8 +398,10 @@ export default function ProductsView({ products, categories, brands, subcategori
     e.preventDefault();
 
     // Validate GST and CESS
-    const gstValid = validatePercent(formData.gst_percent);
-    const cessValid = validatePercent(formData.cess_percent);
+    const gstValue = formData.gst || formData.gst_percent || 0;
+    const cessValue = formData.cess || formData.cess_percent || 0;
+    const gstValid = validatePercent(gstValue);
+    const cessValid = validatePercent(cessValue);
     
     if (!gstValid.isValid) {
       setGstError(gstValid.message);
@@ -434,7 +417,35 @@ export default function ProductsView({ products, categories, brands, subcategori
 
     setIsSubmitting(true);
     try {
-      const finalData = { ...formData };
+      // Build final data with both new and old column names for backward compatibility
+      const finalData = { 
+        ...formData,
+        // Ensure both column names are set
+        name: formData.itname || formData.name,
+        itname: formData.itname || formData.name,
+        hsn_code: formData.hsncode || formData.hsn_code,
+        hsncode: formData.hsncode || formData.hsn_code,
+        sale_rate: formData.onlinerate || formData.sale_rate,
+        onlinerate: formData.onlinerate || formData.sale_rate,
+        purchase_rate: formData.purcrate || formData.purchase_rate,
+        purcrate: formData.purcrate || formData.purchase_rate,
+        stock: formData.opstock || formData.stock,
+        opstock: formData.opstock || formData.stock,
+        discount_percent: formData.discperc || formData.discount_percent,
+        discperc: formData.discperc || formData.discount_percent,
+        gst_percent: formData.gst || formData.gst_percent,
+        gst: formData.gst || formData.gst_percent,
+        cess_percent: formData.cess || formData.cess_percent,
+        cess: formData.cess || formData.cess_percent,
+        is_favourite: formData.isfav || formData.is_favourite,
+        isfav: formData.isfav || formData.is_favourite,
+        category_name: formData.itc || formData.category_name,
+        itc: formData.itc || formData.category_name,
+        brand_name: formData.brandcode || formData.brand_name,
+        brandcode: formData.brandcode || formData.brand_name,
+        unit_name: formData.unitcode || formData.unit_name,
+        unitcode: formData.unitcode || formData.unit_name
+      };
       
       // Remove UI-only fields that aren't in the database
       delete finalData.brand;
@@ -447,13 +458,15 @@ export default function ProductsView({ products, categories, brands, subcategori
         if (uploadError) throw new Error(`Product Image Upload Failed: ${uploadError}`);
         if (url) {
           finalData.image_url = url;
+          finalData.picture = url;
           delete finalData.main_image_file;
         }
       }
 
       // No fallback - image_url can be null
-      if (!finalData.image_url) {
+      if (!finalData.image_url && !finalData.picture) {
         finalData.image_url = null;
+        finalData.picture = null;
       }
 
       let res;
@@ -461,12 +474,14 @@ export default function ProductsView({ products, categories, brands, subcategori
         res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, { id: editingProduct.id, ...finalData });
         
         // Add Log if stock changed
-        if (finalData.stock !== undefined && parseFloat(finalData.stock) !== parseFloat(editingProduct.stock)) {
+        const oldStock = editingProduct.opstock ?? editingProduct.stock ?? 0;
+        const newStock = finalData.opstock ?? finalData.stock ?? 0;
+        if (parseFloat(oldStock) !== parseFloat(newStock)) {
           await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
             id: generateUUID(),
             product_id: editingProduct.id,
-            old_stock: parseFloat(editingProduct.stock) || 0,
-            new_stock: parseFloat(finalData.stock) || 0,
+            old_stock: parseFloat(oldStock) || 0,
+            new_stock: parseFloat(newStock) || 0,
             change_type: 'manual',
             reference_id: 'Manual Update'
           });
@@ -476,11 +491,12 @@ export default function ProductsView({ products, categories, brands, subcategori
         res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.INSERT, finalData);
 
         // Add Log for new product
+        const newStock = finalData.opstock ?? finalData.stock ?? 0;
         await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
           id: generateUUID(),
           product_id: finalData.id,
           old_stock: 0,
-          new_stock: parseFloat(finalData.stock) || 0,
+          new_stock: parseFloat(newStock) || 0,
           change_type: 'manual',
           reference_id: 'New Product'
         });
@@ -616,6 +632,18 @@ export default function ProductsView({ products, categories, brands, subcategori
             onClick={() => { 
               setEditingProduct(null); 
               setFormData({ 
+                // New fields
+                itname: '',
+                onlinerate: 0, 
+                purcrate: 0, 
+                gst: 0, 
+                cess: 0, 
+                discperc: 0, 
+                isfav: 'No', 
+                opstock: 0,
+                hsncode: '',
+                // Old fields for backward compatibility
+                name: '',
                 sale_rate: 0, 
                 mrp: 0, 
                 purchase_rate: 0, 
@@ -660,47 +688,52 @@ export default function ProductsView({ products, categories, brands, subcategori
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {paginatedProducts.map((product, idx) => (
+              {paginatedProducts.map((product, idx) => {
+                // Helper function to get value from either new or old column
+                const getVal = (newField, oldField) => product[newField] ?? product[oldField];
+                const productName = getVal('itname', 'name');
+                
+                return (
                 <tr key={product.id} className="hover:bg-blue-50/30 transition-colors group">
                   <td className="px-4 py-3 text-[10px] font-bold text-slate-500">
                     {(currentPage - 1) * rowsPerPage + idx + 1}
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-[10px] font-black text-slate-800 uppercase tracking-tighter leading-none">{product.name}</p>
+                    <p className="text-[10px] font-black text-slate-800 uppercase tracking-tighter leading-none">{productName}</p>
                     <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">
-                      {product.category_name || 'No Category'} {product.subcategory_name ? `/ ${product.subcategory_name}` : ''}
+                      {getVal('itc', 'category_name') || 'No Category'} {product.subcategory_name ? `/ ${product.subcategory_name}` : ''}
                     </p>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <p className="text-[10px] font-bold text-slate-600">{product.barcode || '-'}</p>
-                    <p className="text-[8px] font-bold text-slate-400 uppercase">HSN: {product.hsn_code || '-'}</p>
+                    <p className="text-[8px] font-bold text-slate-400 uppercase">HSN: {getVal('hsncode', 'hsn_code') || '-'}</p>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <p className="text-[10px] font-bold text-slate-600 uppercase">{product.brand_name || '-'}</p>
+                    <p className="text-[10px] font-bold text-slate-600 uppercase">{getVal('brandcode', 'brand_name') || '-'}</p>
                     <p className="text-[8px] font-bold text-slate-400 uppercase">{product.counter_name || '-'}</p>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex flex-col items-center">
-                      <span className="text-[10px] font-black text-blue-700">Sale: ₹{product.sale_rate}</span>
+                      <span className="text-[10px] font-black text-blue-700">Sale: ₹{getVal('onlinerate', 'sale_rate')}</span>
                       <span className="text-[8px] text-slate-400 line-through font-bold">MRP: ₹{product.mrp}</span>
-                      <span className="text-[8px] text-slate-500 font-bold">Purc: ₹{product.purchase_rate || 0}</span>
+                      <span className="text-[8px] text-slate-500 font-bold">Purc: ₹{getVal('purcrate', 'purchase_rate') || 0}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex flex-col items-center gap-1">
                       <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest">
-                        {product.discount_percent || 0}% OFF
+                        {getVal('discperc', 'discount_percent') || 0}% OFF
                       </span>
-                      <span className="text-[8px] font-bold text-slate-500 uppercase">GST: {product.gst_percent || 0}%</span>
+                      <span className="text-[8px] font-bold text-slate-500 uppercase">GST: {getVal('gst', 'gst_percent') || 0}%</span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="flex flex-col items-center">
                       <span className={cn(
                         "text-[10px] font-black",
-                        (product.stock || 0) <= 5 ? "text-red-600" : "text-green-600"
+                        (getVal('opstock', 'stock') || 0) <= 5 ? "text-red-600" : "text-green-600"
                       )}>
-                        Stock: {product.stock || 0}
+                        Stock: {getVal('opstock', 'stock') || 0}
                       </span>
                       <span className="text-[8px] font-bold text-slate-400 uppercase">
                         {product.size ? `Size: ${product.size}` : ''} {product.color ? `| ${product.color}` : ''}
@@ -709,7 +742,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="w-10 h-10 mx-auto bg-slate-50 rounded-lg border border-slate-200 overflow-hidden p-1">
-                      <img src={product.image_url} alt="" className="w-full h-full object-contain" />
+                      <img src={getVal('picture', 'image_url')} alt="" className="w-full h-full object-contain" />
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -718,7 +751,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                         <>
                           <button 
                             onClick={async () => {
-                              if (window.confirm(`Restore ${product.name}?`)) {
+                              if (window.confirm(`Restore ${productName}?`)) {
                                 await dbSync.update(DB_SCHEMA.PRODUCTS.table, product.id, { is_active: true });
                                 fetchInitialData();
                               }
@@ -730,7 +763,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                           </button>
                           <button 
                             onClick={async () => {
-                              if (window.confirm(`PERMANENTLY DELETE ${product.name}? Yeh wapas nahi aayega!`)) {
+                              if (window.confirm(`PERMANENTLY DELETE ${productName}? Yeh wapas nahi aayega!`)) {
                                 await dbSync.delete(DB_SCHEMA.PRODUCTS.table, product.id, true);
                                 fetchInitialData();
                               }
@@ -756,14 +789,14 @@ export default function ProductsView({ products, categories, brands, subcategori
                               // Pre-fill form data with proper category/subcategory/brand fields
                               const prefilledData = {
                                 ...product,
-                                category: product.category_name || '',
+                                category: getVal('itc', 'category_name') || '',
                                 subcategory: product.subcategory_name || '',
-                                brand: product.brand_name || '',
-                                unit: product.unit_name || 'NA'
+                                brand: getVal('brandcode', 'brand_name') || '',
+                                unit: getVal('unitcode', 'unit_name') || 'NA'
                               };
                               // If we have category_name but no category_id, try to find it
-                              if (prefilledData.category_name && !prefilledData.category_id) {
-                                const foundCat = categories.find(c => c.name === prefilledData.category_name);
+                              if ((prefilledData.category_name || prefilledData.itc) && !prefilledData.category_id) {
+                                const foundCat = categories.find(c => c.name === (prefilledData.category_name || prefilledData.itc));
                                 if (foundCat) prefilledData.category_id = foundCat.id;
                               }
                               // Same for subcategory
@@ -772,8 +805,8 @@ export default function ProductsView({ products, categories, brands, subcategori
                                 if (foundSubCat) prefilledData.subcategory_id = foundSubCat.id;
                               }
                               // Same for brand
-                              if (prefilledData.brand_name && !prefilledData.brand_id) {
-                                const foundBrand = brands.find(b => b.name === prefilledData.brand_name);
+                              if ((prefilledData.brand_name || prefilledData.brandcode) && !prefilledData.brand_id) {
+                                const foundBrand = brands.find(b => b.name === (prefilledData.brand_name || prefilledData.brandcode));
                                 if (foundBrand) prefilledData.brand_id = foundBrand.id;
                               }
                               setFormData(prefilledData); 
@@ -786,7 +819,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                           </button>
                           <button 
                             onClick={async () => {
-                              if (window.confirm(`Delete ${product.name}?`)) {
+                              if (window.confirm(`Delete ${productName}?`)) {
                                 await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.DELETE, { id: product.id });
                                 fetchInitialData();
                               }
@@ -801,7 +834,8 @@ export default function ProductsView({ products, categories, brands, subcategori
                     </div>
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -845,8 +879,8 @@ export default function ProductsView({ products, categories, brands, subcategori
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Name</label>
                       <input 
                         type="text" 
-                        value={formData.name || ''} 
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })} 
+                        value={formData.itname || formData.name || ''} 
+                        onChange={(e) => setFormData({ ...formData, itname: e.target.value, name: e.target.value })} 
                         className="w-full bg-slate-50 border-2 border-blue-100 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" 
                         required 
                       />
@@ -867,8 +901,8 @@ export default function ProductsView({ products, categories, brands, subcategori
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">HSN Code</label>
                       <input 
                         type="text" 
-                        value={formData.hsn_code || ''} 
-                        onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value })} 
+                        value={formData.hsncode || formData.hsn_code || ''} 
+                        onChange={(e) => setFormData({ ...formData, hsncode: e.target.value, hsn_code: e.target.value })} 
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none transition-all" 
                       />
                     </div>
@@ -878,48 +912,122 @@ export default function ProductsView({ products, categories, brands, subcategori
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 border-b border-slate-100 pb-6">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Group Name</label>
-                      <select value={formData.category_id || ''} onChange={(e) => {
-                        const selectedCat = categories.find(c => c.id === e.target.value);
-                        setFormData({
-                          ...formData,
-                          category_id: e.target.value,
-                          category_name: selectedCat?.name || '',
-                          category: selectedCat?.name || ''
-                        });
-                      }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="">NM MART</option>
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
+                      <div className="flex gap-2">
+                        <select value={formData.category_id || ''} onChange={(e) => {
+                          const selectedCat = categories.find(c => c.id === e.target.value);
+                          setFormData({
+                            ...formData,
+                            category_id: e.target.value,
+                            category_name: selectedCat?.name || '',
+                            category: selectedCat?.name || ''
+                          });
+                        }} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                          <option value="">NM MART</option>
+                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        {formData.category_id && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const catName = categories.find(c => c.id === formData.category_id)?.name;
+                              if (window.confirm(`Kya aap sure hain? Delete "${catName}"? Isse yeh category har jagah se delete ho jayega!`)) {
+                                await dbSync.delete(DB_SCHEMA.CATEGORIES.table, formData.category_id, true);
+                                setFormData({
+                                  ...formData,
+                                  category_id: '',
+                                  category_name: '',
+                                  category: '',
+                                  itc: ''
+                                });
+                                fetchInitialData();
+                              }
+                            }}
+                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all border border-red-200"
+                            title="Delete Category"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Sub Category Name</label>
-                      <select value={formData.subcategory_id || ''} onChange={(e) => {
-                        const selectedSubCat = subcategories.find(s => s.id === e.target.value);
-                        setFormData({
-                          ...formData,
-                          subcategory_id: e.target.value,
-                          subcategory_name: selectedSubCat?.name || '',
-                          subcategory: selectedSubCat?.name || ''
-                        });
-                      }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="">Chocolate</option>
-                        {subcategories?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
+                      <div className="flex gap-2">
+                        <select value={formData.subcategory_id || ''} onChange={(e) => {
+                          const selectedSubCat = subcategories.find(s => s.id === e.target.value);
+                          setFormData({
+                            ...formData,
+                            subcategory_id: e.target.value,
+                            subcategory_name: selectedSubCat?.name || '',
+                            subcategory: selectedSubCat?.name || ''
+                          });
+                        }} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                          <option value="">Chocolate</option>
+                          {subcategories?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        {formData.subcategory_id && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const subCatName = subcategories.find(s => s.id === formData.subcategory_id)?.name;
+                              if (window.confirm(`Kya aap sure hain? Delete "${subCatName}"? Isse yeh subcategory har jagah se delete ho jayega!`)) {
+                                await dbSync.delete(DB_SCHEMA.SUBCATEGORIES.table, formData.subcategory_id, true);
+                                setFormData({
+                                  ...formData,
+                                  subcategory_id: '',
+                                  subcategory_name: '',
+                                  subcategory: ''
+                                });
+                                fetchInitialData();
+                              }
+                            }}
+                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all border border-red-200"
+                            title="Delete Subcategory"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Brand Name</label>
-                      <select value={formData.brand_id || ''} onChange={(e) => {
-                        const selectedBrand = brands.find(b => b.id === e.target.value);
-                        setFormData({
-                          ...formData,
-                          brand_id: e.target.value,
-                          brand_name: selectedBrand?.name || '',
-                          brand: selectedBrand?.name || ''
-                        });
-                      }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="">NESTLE</option>
-                        {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                      </select>
+                      <div className="flex gap-2">
+                        <select value={formData.brand_id || ''} onChange={(e) => {
+                          const selectedBrand = brands.find(b => b.id === e.target.value);
+                          setFormData({
+                            ...formData,
+                            brand_id: e.target.value,
+                            brand_name: selectedBrand?.name || '',
+                            brand: selectedBrand?.name || ''
+                          });
+                        }} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                          <option value="">NESTLE</option>
+                          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                        {formData.brand_id && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const brandName = brands.find(b => b.id === formData.brand_id)?.name;
+                              if (window.confirm(`Kya aap sure hain? Delete "${brandName}"? Isse yeh brand har jagah se delete ho jayega!`)) {
+                                await dbSync.delete(DB_SCHEMA.BRANDS.table, formData.brand_id, true);
+                                setFormData({
+                                  ...formData,
+                                  brand_id: '',
+                                  brand_name: '',
+                                  brand: '',
+                                  brandcode: ''
+                                });
+                                fetchInitialData();
+                              }
+                            }}
+                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all border border-red-200"
+                            title="Delete Brand"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Unit Name</label>
@@ -935,8 +1043,8 @@ export default function ProductsView({ products, categories, brands, subcategori
                   {/* Row 3: Sale Rate, MRP, Purchase Rate, GST, Cess, Discount */}
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Sale Rate</label>
-                      <input type="number" value={formData.sale_rate || 0} onChange={(e) => setFormData({ ...formData, sale_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Online Rate</label>
+                      <input type="number" value={formData.onlinerate || formData.sale_rate || 0} onChange={(e) => setFormData({ ...formData, onlinerate: e.target.value, sale_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Mrp</label>
@@ -944,19 +1052,19 @@ export default function ProductsView({ products, categories, brands, subcategori
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Purchase Rate</label>
-                      <input type="number" value={formData.purchase_rate || 0} onChange={(e) => setFormData({ ...formData, purchase_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                      <input type="number" value={formData.purcrate || formData.purchase_rate || 0} onChange={(e) => setFormData({ ...formData, purcrate: e.target.value, purchase_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Gst %</label>
                       <input 
                         type="number" 
-                        value={formData.gst_percent || 0} 
+                        value={formData.gst || formData.gst_percent || 0} 
                         onChange={(e) => {
                           const val = e.target.value;
-                          setFormData({ ...formData, gst_percent: val });
+                          setFormData({ ...formData, gst: val, gst_percent: val });
                           if (gstError) setGstError(validatePercent(val).message);
                         }}
-                        onBlur={() => setGstError(validatePercent(formData.gst_percent).message)}
+                        onBlur={() => setGstError(validatePercent(formData.gst || formData.gst_percent).message)}
                         className={cn(
                           "w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none",
                           gstError ? "border-red-300 text-red-800" : "border-slate-200"
@@ -968,13 +1076,13 @@ export default function ProductsView({ products, categories, brands, subcategori
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Cess %</label>
                       <input 
                         type="number" 
-                        value={formData.cess_percent || 0} 
+                        value={formData.cess || formData.cess_percent || 0} 
                         onChange={(e) => {
                           const val = e.target.value;
-                          setFormData({ ...formData, cess_percent: val });
+                          setFormData({ ...formData, cess: val, cess_percent: val });
                           if (cessError) setCessError(validatePercent(val).message);
                         }}
-                        onBlur={() => setCessError(validatePercent(formData.cess_percent).message)}
+                        onBlur={() => setCessError(validatePercent(formData.cess || formData.cess_percent).message)}
                         className={cn(
                           "w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none",
                           cessError ? "border-red-300 text-red-800" : "border-slate-200"
@@ -984,11 +1092,22 @@ export default function ProductsView({ products, categories, brands, subcategori
                     </div>
                   </div>
 
-                  {/* Row 4: Opening Stock, Low Stock Threshold, Min Qty, Batch No, Expiry Date, Is Perishable */}
+                  {/* Row 4: Opening Stock, Discount %, Is Favourite */}
                   <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Opening Stock</label>
-                      <input type="number" value={formData.stock || 0} onChange={(e) => setFormData({ ...formData, stock: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                      <input type="number" value={formData.opstock || formData.stock || 0} onChange={(e) => setFormData({ ...formData, opstock: e.target.value, stock: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Discount %</label>
+                      <input type="number" value={formData.discperc || formData.discount_percent || 0} onChange={(e) => setFormData({ ...formData, discperc: e.target.value, discount_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is Favourite</label>
+                      <select value={formData.isfav || formData.is_favourite || 'No'} onChange={(e) => setFormData({ ...formData, isfav: e.target.value, is_favourite: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Low Stock Threshold</label>
