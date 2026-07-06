@@ -5,43 +5,49 @@
 -- ========================================
 -- 1. SABSE ZAROORI - SABHI TABLES KA COUNT DEKHNE KA QUERY
 -- ========================================
--- Ye query sabhi tables mein kitni rows hain, check karta hai
+-- Ye query sabhi 40 tables mein kitni rows hain, check karta hai
 -- Ye Supabase mein 100% kaam karega!
 
-SELECT 'app_config' AS table_name, COUNT(*) AS total_rows FROM app_config UNION ALL
-SELECT 'home_config', COUNT(*) FROM home_config UNION ALL
-SELECT 'banners', COUNT(*) FROM banners UNION ALL
-SELECT 'categories', COUNT(*) FROM categories UNION ALL
-SELECT 'subcategories', COUNT(*) FROM subcategories UNION ALL
-SELECT 'brands', COUNT(*) FROM brands UNION ALL
-SELECT 'unit_master', COUNT(*) FROM unit_master UNION ALL
-SELECT 'department_master', COUNT(*) FROM department_master UNION ALL
-SELECT 'products', COUNT(*) FROM products UNION ALL
+SELECT 'account_master' AS table_name, COUNT(*) AS total_rows FROM account_master UNION ALL
+SELECT 'addresses', COUNT(*) FROM addresses UNION ALL
 SELECT 'admin_users', COUNT(*) FROM admin_users UNION ALL
-SELECT 'account_master', COUNT(*) FROM account_master UNION ALL
+SELECT 'app_config', COUNT(*) FROM app_config UNION ALL
+SELECT 'banners', COUNT(*) FROM banners UNION ALL
+SELECT 'basket', COUNT(*) FROM basket UNION ALL
+SELECT 'brands', COUNT(*) FROM brands UNION ALL
+SELECT 'cart', COUNT(*) FROM cart UNION ALL
+SELECT 'categories', COUNT(*) FROM categories UNION ALL
+SELECT 'combo_offers', COUNT(*) FROM combo_offers UNION ALL
+SELECT 'coupons', COUNT(*) FROM coupons UNION ALL
 SELECT 'credit_master', COUNT(*) FROM credit_master UNION ALL
+SELECT 'credit_notes', COUNT(*) FROM credit_notes UNION ALL
+SELECT 'customer_loyalty', COUNT(*) FROM customer_loyalty UNION ALL
 SELECT 'delivery_boy_master', COUNT(*) FROM delivery_boy_master UNION ALL
 SELECT 'delivery_customer_master', COUNT(*) FROM delivery_customer_master UNION ALL
-SELECT 'purchases', COUNT(*) FROM purchases UNION ALL
-SELECT 'purchase_items', COUNT(*) FROM purchase_items UNION ALL
-SELECT 'orders', COUNT(*) FROM orders UNION ALL
-SELECT 'order_items', COUNT(*) FROM order_items UNION ALL
-SELECT 'wallet_master', COUNT(*) FROM wallet_master UNION ALL
-SELECT 'wallet_transactions', COUNT(*) FROM wallet_transactions UNION ALL
-SELECT 'addresses', COUNT(*) FROM addresses UNION ALL
-SELECT 'pincode_master', COUNT(*) FROM pincode_master UNION ALL
-SELECT 'coupons', COUNT(*) FROM coupons UNION ALL
-SELECT 'offers_master', COUNT(*) FROM offers_master UNION ALL
-SELECT 'cart', COUNT(*) FROM cart UNION ALL
-SELECT 'wishlist', COUNT(*) FROM wishlist UNION ALL
-SELECT 'notifications', COUNT(*) FROM notifications UNION ALL
-SELECT 'system_logs', COUNT(*) FROM system_logs UNION ALL
-SELECT 'users', COUNT(*) FROM users UNION ALL
-SELECT 'inventory_logs', COUNT(*) FROM inventory_logs UNION ALL
+SELECT 'department_master', COUNT(*) FROM department_master UNION ALL
 SELECT 'expense_categories', COUNT(*) FROM expense_categories UNION ALL
 SELECT 'expenses', COUNT(*) FROM expenses UNION ALL
+SELECT 'flash_sales', COUNT(*) FROM flash_sales UNION ALL
+SELECT 'home_config', COUNT(*) FROM home_config UNION ALL
+SELECT 'inventory_logs', COUNT(*) FROM inventory_logs UNION ALL
+SELECT 'notifications', COUNT(*) FROM notifications UNION ALL
+SELECT 'offers_master', COUNT(*) FROM offers_master UNION ALL
+SELECT 'order_items', COUNT(*) FROM order_items UNION ALL
+SELECT 'orders', COUNT(*) FROM orders UNION ALL
+SELECT 'pincode_master', COUNT(*) FROM pincode_master UNION ALL
+SELECT 'products', COUNT(*) FROM products UNION ALL
+SELECT 'purchase_items', COUNT(*) FROM purchase_items UNION ALL
+SELECT 'purchases', COUNT(*) FROM purchases UNION ALL
+SELECT 'return_items', COUNT(*) FROM return_items UNION ALL
 SELECT 'stock_alerts', COUNT(*) FROM stock_alerts UNION ALL
-SELECT 'support_tickets', COUNT(*) FROM support_tickets
+SELECT 'subcategories', COUNT(*) FROM subcategories UNION ALL
+SELECT 'support_tickets', COUNT(*) FROM support_tickets UNION ALL
+SELECT 'system_logs', COUNT(*) FROM system_logs UNION ALL
+SELECT 'unit_master', COUNT(*) FROM unit_master UNION ALL
+SELECT 'users', COUNT(*) FROM users UNION ALL
+SELECT 'wallet_master', COUNT(*) FROM wallet_master UNION ALL
+SELECT 'wallet_transactions', COUNT(*) FROM wallet_transactions UNION ALL
+SELECT 'wishlist', COUNT(*) FROM wishlist
 ORDER BY table_name;
 
 -- ========================================
@@ -404,43 +410,49 @@ WHERE (is_active = true OR is_active IS NULL)
 ORDER BY created_at DESC;
 
 -- ========================================
--- QUICK REFERENCE: SABHI TABLES KE NAMES
+-- QUICK REFERENCE: SABHI 40 TABLES KE NAMES
 -- ========================================
 /*
-1. app_config
-2. home_config
-3. banners
-4. categories
-5. subcategories
-6. brands
-7. unit_master
-8. department_master
-9. products (SABSE ZAROORI)
-10. admin_users
-11. account_master
+1. account_master
+2. addresses
+3. admin_users
+4. app_config
+5. banners
+6. basket
+7. brands
+8. cart
+9. categories
+10. combo_offers
+11. coupons
 12. credit_master
-13. delivery_boy_master
-14. delivery_customer_master
-15. purchases
-16. purchase_items
-17. orders
-18. order_items
-19. wallet_master
-20. wallet_transactions
-21. addresses
-22. pincode_master
-23. coupons
+13. credit_notes
+14. customer_loyalty
+15. delivery_boy_master
+16. delivery_customer_master
+17. department_master
+18. expense_categories
+19. expenses
+20. flash_sales
+21. home_config
+22. inventory_logs
+23. notifications
 24. offers_master
-25. cart
-26. wishlist
-27. notifications
-28. system_logs (AUDIT LOGS)
-29. users
-30. inventory_logs
-31. expense_categories
-32. expenses
-33. stock_alerts
+25. order_items
+26. orders
+27. pincode_master
+28. products (SABSE ZAROORI)
+29. purchase_items
+30. purchases
+31. return_items
+32. stock_alerts
+33. subcategories
 34. support_tickets
+35. system_logs (AUDIT LOGS)
+36. unit_master
+37. users
+38. wallet_master
+39. wallet_transactions
+40. wishlist
 */
 
 -- ========================================
