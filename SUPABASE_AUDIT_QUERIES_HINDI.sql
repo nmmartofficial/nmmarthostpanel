@@ -227,15 +227,11 @@ ORDER BY created_at DESC;
 -- 14 (ALTERNATIVE): SABHI PRODUCTS KE INVENTORY LOGS WITH PRODUCT NAME
 -- ========================================
 -- Is query mein product name bhi show hoga
+-- NOTE: Agar specific columns chahiye toh pehle inventory_logs table ki structure check karo!
 
 SELECT 
-  il.id,
-  p.name AS product_name,
-  il.change_type,
-  il.quantity_change,
-  il.old_quantity,
-  il.new_quantity,
-  il.created_at
+  il.*,
+  p.name AS product_name
 FROM inventory_logs il
 LEFT JOIN products p ON il.product_id = p.id
 ORDER BY il.created_at DESC
