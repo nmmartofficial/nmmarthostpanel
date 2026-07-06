@@ -1,25 +1,12 @@
 -- ========================================
--- NM MART - SUPABASE AUDIT QUERIES HINDI MEIN
+-- NM MART - SUPABASE AUDIT QUERIES HINDI MEIN (FIXED FOR SUPABASE)
 -- ========================================
 
 -- ========================================
 -- 1. SABSE ZAROORI - SABHI TABLES KA COUNT DEKHNE KA QUERY
 -- ========================================
 -- Ye query sabhi tables mein kitni rows hain, check karta hai
-
-SELECT 
-  schemaname,
-  tablename,
-  n_tup_ins AS inserts,
-  n_tup_upd AS updates,
-  n_tup_del AS deletes
-FROM pg_stat_user_tables
-ORDER BY tablename;
-
--- ========================================
--- 2. SABHI TABLES KA DATA COUNT DEKHNE KA QUERY (SIMPLE)
--- ========================================
--- Ye query har table mein kitni entries hain, batata hai
+-- Ye Supabase mein 100% kaam karega!
 
 SELECT 'app_config' AS table_name, COUNT(*) AS total_rows FROM app_config UNION ALL
 SELECT 'home_config', COUNT(*) FROM home_config UNION ALL
@@ -56,6 +43,18 @@ SELECT 'expenses', COUNT(*) FROM expenses UNION ALL
 SELECT 'stock_alerts', COUNT(*) FROM stock_alerts UNION ALL
 SELECT 'support_tickets', COUNT(*) FROM support_tickets
 ORDER BY table_name;
+
+-- ========================================
+-- 2. SABHI TABLES KO LIST KARNE KA QUERY
+-- ========================================
+-- Ye query dekhayega ki database mein kaun kaun se tables hain
+
+SELECT tablename
+FROM pg_catalog.pg_tables
+WHERE schemaname != 'pg_catalog' 
+  AND schemaname != 'information_schema'
+  AND schemaname = 'public'
+ORDER BY tablename;
 
 -- ========================================
 -- 3. AUDIT LOGS - SYSTEM_LOGS TABLE DEKHO
