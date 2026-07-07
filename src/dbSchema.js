@@ -58,7 +58,16 @@ export const DB_SCHEMA = {
   SYSTEM_LOGS: { table: 'system_logs', pk: 'id', label: 'Audit Trail' },
   INVENTORY_LOGS: { table: 'inventory_logs', pk: 'id', label: 'Stock Movement Logs' },
   NOTIFICATIONS: { table: 'notifications', pk: 'id', label: 'Push Notifications' },
-  SUPPORT_TICKETS: { table: 'support_tickets', pk: 'id', label: 'User Feedback' }
+  SUPPORT_TICKETS: { table: 'support_tickets', pk: 'id', label: 'User Feedback' },
+  
+  // 8. Readable Views (UUID Skip)
+  READABLE_PRODUCTS: { table: 'readable_products', label: 'Products (Readable)' },
+  READABLE_CATEGORIES: { table: 'readable_categories', label: 'Categories (Readable)' },
+  READABLE_BRANDS: { table: 'readable_brands', label: 'Brands (Readable)' },
+  READABLE_BANNERS: { table: 'readable_banners', label: 'Banners (Readable)' },
+  READABLE_COUPONS: { table: 'readable_coupons', label: 'Coupons (Readable)' },
+  READABLE_ORDERS: { table: 'readable_orders', label: 'Orders (Readable)' },
+  READABLE_USERS: { table: 'readable_users', label: 'Users (Readable)' }
 };
 
 // Constraint Logic for specific tables (Database-First Approach)

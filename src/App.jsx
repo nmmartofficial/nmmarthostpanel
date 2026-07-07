@@ -714,8 +714,8 @@ export default function App() {
     } catch (error) {
       console.error('Login error:', error);
       // Fallback to environment variable if database is disconnected
-      // NOTE: For maximum security, you should disable this fallback in production!
-      const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN || '1234';
+      // NOTE: For maximum security, this fallback is only allowed in development.
+      const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN ?? (import.meta.env.DEV ? '1234' : null);
       if (pin === fallbackPin) {
         // Reset login attempts on success
         loginRateLimiter.recordAttempt(true);
@@ -939,6 +939,8 @@ export default function App() {
         DB_SCHEMA.BANNERS.table,
         DB_SCHEMA.BRANDS.table,
         DB_SCHEMA.CATEGORIES.table,
+        DB_SCHEMA.SUBCATEGORIES.table,
+        DB_SCHEMA.COUPONS.table,
         DB_SCHEMA.WALLET_MASTER.table
       ];
 
@@ -947,8 +949,8 @@ export default function App() {
       );
     };
 
-    // setupSubscriptions(); // Disabled realtime updates to prevent repeated stock updates
-    // return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
+    setupSubscriptions(); // Real-time updates enabled
+    return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
   }, [handleRealtimeUpdate, fetchInitialData]);
 
   const toggleFullscreen = () => {

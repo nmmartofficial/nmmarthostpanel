@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { 
-  ShoppingCart, X, Plus, Minus, Camera, CheckCircle2, IndianRupee, QrCode, Smartphone, ShoppingBag, ArrowLeft } from 'lucide-react';
+  ShoppingCart, X, Plus, Minus, Camera, CheckCircle2, IndianRupee, QrCode, Smartphone, ShoppingBag, ArrowLeft, Maximize2, Minimize2 } from 'lucide-react';
 import { Scanner } from '@yudiel/react-qr-scanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { handleERPAction, ACTION_TYPES, ERP_MODULES } from '../erpController';
@@ -8,7 +8,7 @@ import { DB_SCHEMA } from '../dbSchema';
 import { cn } from '../utils/helpers';
 import { toast } from 'sonner';
 
-export default function SelfCheckoutView({ products, fetchInitialData, appConfig, orders }) {
+export default function SelfCheckoutView({ products, fetchInitialData, appConfig, orders, customerMode, setCustomerMode }) {
   const [cart, setCart] = useState([]);
   const [showScanner, setShowScanner] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('UPI');
@@ -16,6 +16,29 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   const [lastOrder, setLastOrder] = useState(null);
   const [showBarcodeInput, setShowBarcodeInput] = useState('');
   const [currentStep, setCurrentStep] = useState(1); // 1: Scan Items, 2: Payment, 3: Complete
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Full screen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error('Error entering fullscreen:', err);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   const barcodeMap = useMemo(() => {
     const map = new Map();
@@ -34,37 +57,61 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   const finalTotal = Math.round(subTotal + tax);
 
   const addToCart = useCallback((product) => {
-    if (!product) return;
-    if (product.stock <= 0) {
+    console.log('[SelfCheckout] addToCart called with product:', product);
+    if (!product) {
+      console.warn('[SelfCheckout] addToCart: No product provided!');
+      return;
+    }
+    const productName = product.itname || product.name;
+    const productStock = product.opstock || product.stock || 0;
+    const productSaleRate = product.onlinerate || product.sale_rate || 0;
+
+    console.log('[SelfCheckout] Product details:', { productName, productStock, productSaleRate });
+
+    if (productStock <= 0) {
+      console.warn('[SelfCheckout] addToCart: Product out of stock!');
       toast.error('Out of stock!');
       return;
     }
 
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
+      console.log('[SelfCheckout] Existing item in cart:', existing);
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        if (existing.quantity >= productStock) {
+          console.warn('[SelfCheckout] addToCart: Not enough stock!');
           toast.error('Not enough stock!');
           return prev;
         }
+        console.log('[SelfCheckout] Incrementing quantity of existing item');
         return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      return [...prev, { 
-        ...product, 
-        quantity: 1,
-        gst: product.gst,
-        gst_percent: product.gst_percent
-      }];
+    }
+    console.log('[SelfCheckout] Adding new item to cart');
+    return [...prev, { 
+      ...product, 
+      name: productName, 
+      sale_rate: productSaleRate,
+      itname: productName,
+      onlinerate: productSaleRate,
+      opstock: productStock,
+      stock: productStock,
+      gst: product.gst,
+      gst_percent: product.gst_percent,
+      quantity: 1 
+    }];
     });
-    toast.success(`Added ${product.name} to cart`);
+    toast.success(`Added ${productName} to cart`);
   }, []);
 
   const removeFromCart = useCallback((productId) => {
+    console.log('[SelfCheckout] removeFromCart called with productId:', productId);
     setCart(prev => prev.filter(item => item.id !== productId));
   }, []);
 
   const updateQty = useCallback((productId, newQty) => {
+    console.log('[SelfCheckout] updateQty called with productId:', productId, 'newQty:', newQty);
     if (newQty === 0) {
+      console.log('[SelfCheckout] updateQty: Quantity is 0, removing from cart');
       removeFromCart(productId);
       return;
     }
@@ -72,10 +119,16 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   }, [removeFromCart]);
 
   const handleBarcodeKeyDown = useCallback((e) => {
+    console.log('[SelfCheckout] handleBarcodeKeyDown called, key:', e.key);
     if (e.key === 'Enter') {
       const code = showBarcodeInput.trim();
-      if (!code) return;
+      console.log('[SelfCheckout] Barcode entered:', code);
+      if (!code) {
+        console.warn('[SelfCheckout] No barcode entered!');
+        return;
+      }
       const product = barcodeMap.get(code);
+      console.log('[SelfCheckout] Product found for barcode:', product);
       if (product) {
         addToCart(product);
         setShowBarcodeInput('');
@@ -86,9 +139,12 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   }, [addToCart, barcodeMap, showBarcodeInput]);
 
   const handleCameraScan = useCallback((detectedCodes) => {
+    console.log('[SelfCheckout] handleCameraScan called, detectedCodes:', detectedCodes);
     if (detectedCodes.length > 0) {
       const code = detectedCodes[0].rawValue;
+      console.log('[SelfCheckout] Scanned barcode:', code);
       const product = barcodeMap.get(code);
+      console.log('[SelfCheckout] Product found for scanned barcode:', product);
       if (product) {
         addToCart(product);
         setShowScanner(false);
@@ -99,7 +155,11 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   }, [addToCart, barcodeMap]);
 
   const completePayment = async () => {
-    if (cart.length === 0) return;
+    console.log('[SelfCheckout] completePayment called, cart:', cart);
+    if (cart.length === 0) {
+      console.warn('[SelfCheckout] completePayment: Cart is empty!');
+      return;
+    }
     setIsProcessing(true);
     try {
       const lastOrderNo = orders.reduce((max, o) => {
@@ -107,6 +167,7 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
         return isNaN(num) ? max : Math.max(max, num);
       }, 0);
       const nextBillNo = lastOrderNo + 1;
+      console.log('[SelfCheckout] Next bill number:', nextBillNo);
 
       const orderData = {
         order_number: nextBillNo.toString(),
@@ -122,13 +183,17 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
         discount: 0,
         delivery_charge: 0
       };
+      console.log('[SelfCheckout] Order data to insert:', orderData);
 
       const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.INSERT, orderData);
+      console.log('[SelfCheckout] Order insert response:', orderRes);
       if (!orderRes.success) throw new Error(orderRes.error);
 
       const createdOrder = orderRes.data[0];
+      console.log('[SelfCheckout] Created order:', createdOrder);
 
       for (const item of cart) {
+        console.log('[SelfCheckout] Processing order item:', item);
         await handleERPAction(ERP_MODULES.ORDER_ITEMS, ACTION_TYPES.INSERT, {
           order_id: createdOrder.id,
           product_id: item.id,
@@ -139,17 +204,22 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
         });
 
         const product = products.find(p => p.id === item.id);
+        console.log('[SelfCheckout] Found product for stock update:', product);
         if (product) {
+          const productStock = product.opstock || product.stock || 0;
+          const newStock = productStock - item.quantity;
+          console.log('[SelfCheckout] Updating stock:', { productStock, newStock });
           await handleERPAction(ERP_MODULES.ITEM_MASTER, ACTION_TYPES.UPDATE, {
             id: product.id,
-            stock: product.stock - item.quantity
+            stock: newStock,
+            opstock: newStock
           });
 
           await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
             id: crypto.randomUUID(),
             product_id: product.id,
-            old_stock: product.stock,
-            new_stock: product.stock - item.quantity,
+            old_stock: productStock,
+            new_stock: newStock,
             change_type: 'sale',
             reference_id: createdOrder.order_number
           });
@@ -162,10 +232,19 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
       fetchInitialData();
       toast.success('Payment successful! Thank you for shopping!');
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('[SelfCheckout] Payment error:', error);
       toast.error('Payment failed!');
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const clearCart = () => {
+    console.log('[SelfCheckout] clearCart called');
+    if (cart.length === 0) return;
+    if (window.confirm('Are you sure you want to clear the cart?')) {
+      setCart([]);
+      toast.success('Cart cleared!');
     }
   };
 
@@ -186,15 +265,24 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
             <p className="text-xs md:text-sm text-slate-500 font-bold">Scan items yourself!</p>
           </div>
         </div>
-        {currentStep !== 1 && (
-          <button 
-            onClick={reset}
-            className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl text-slate-700 hover:bg-slate-100 transition-all font-bold text-xs"
+        <div className="flex items-center gap-2">
+          {currentStep !== 1 && (
+            <button 
+              onClick={reset}
+              className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl text-slate-700 hover:bg-slate-100 transition-all font-bold text-xs"
+            >
+              <ArrowLeft size={16} />
+              Back
+            </button>
+          )}
+          <button
+            onClick={toggleFullscreen}
+            className="flex items-center justify-center w-10 h-10 bg-white rounded-xl text-slate-700 hover:bg-slate-100 transition-all shadow-sm"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
-            <ArrowLeft size={16} />
-            Back
+            {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
           </button>
-        )}
+        </div>
       </div>
 
       {currentStep === 1 && (
@@ -205,9 +293,19 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
                 <ShoppingBag className="text-indigo-600" size={24} />
                 <h2 className="text-lg font-black text-slate-800">Your Cart</h2>
               </div>
-              <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
-                {cart.length} items
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">
+                  {cart.length} items
+                </span>
+                {cart.length > 0 && (
+                  <button
+                    onClick={clearCart}
+                    className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold hover:bg-red-200 transition-all"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex flex-col gap-2 overflow-y-auto flex-1 max-h-96">
               {cart.length === 0 ? (
