@@ -26,7 +26,11 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   }, [products]);
 
   const subTotal = cart.reduce((sum, item) => sum + (item.sale_rate * item.quantity), 0);
-  const tax = (subTotal * (appConfig?.tax_rate || 5)) / 100;
+  const tax = cart.reduce((sum, item) => {
+    const itemTotal = item.sale_rate * item.quantity;
+    const itemTaxRate = item.gst_percent || item.gst || appConfig?.tax_rate || 5;
+    return sum + (itemTotal * itemTaxRate) / 100;
+  }, 0);
   const finalTotal = Math.round(subTotal + tax);
 
   const addToCart = useCallback((product) => {
@@ -45,7 +49,12 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
         }
         return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { 
+        ...product, 
+        quantity: 1,
+        gst: product.gst,
+        gst_percent: product.gst_percent
+      }];
     });
     toast.success(`Added ${product.name} to cart`);
   }, []);
