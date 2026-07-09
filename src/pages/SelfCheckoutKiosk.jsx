@@ -163,7 +163,8 @@ export default function SelfCheckoutKiosk() {
   const handleBarcodeKeyDown = useCallback((e) => {
     console.log('[SelfCheckoutKiosk] Key pressed:', e.key);
     if (e.key === 'Enter') {
-      const code = (e.target.value || barcodeInput).trim();
+      e.preventDefault(); // Prevent form submission if any
+      const code = barcodeInput.trim(); // Use state value directly
       console.log('[SelfCheckoutKiosk] Barcode entered:', code);
       if (!code) {
         console.log('[SelfCheckoutKiosk] No barcode entered!');
@@ -179,7 +180,7 @@ export default function SelfCheckoutKiosk() {
         setBarcodeInput('');
         setTimeout(() => {
           barcodeInputRef.current?.focus();
-        }, 100);
+        }, 50); // Slightly faster
       } else {
         console.log('[SelfCheckoutKiosk] Product not found for barcode:', code);
         toast.error('Product not found!');
