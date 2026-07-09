@@ -362,6 +362,7 @@ export default function App() {
     const saved = secureStorage.getItem('nm_user_data');
     return saved || null;
   });
+  const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState(localStorage.getItem('nm_active_tab') || 'Dashboard');
@@ -664,65 +665,93 @@ export default function App() {
   // --- Auth Check ---
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!pin) return; // Prevent empty submit
+    console.log('[Login] === START handleLogin ===');
+    console.log('[Login] Form submitted');
+    console.log('[Login] Email state:', email);
+    console.log('[Login] Pin state:', pin);
+    console.log('[Login] isProcessing before set:', isProcessing);
+
+    if (!email || !pin) {
+      console.log('[Login] Missing email or pin');
+      toast.error('Please enter both email and PIN');
+      return; // Prevent empty submit
+    }
 
     // Validate PIN format first
-    if (!validatePIN(pin)) {
-      toast.error('PIN must be 4-8 digits');
+    console.log('[Login] Validating PIN...');
+    const isPinValid = validatePIN(pin);
+    console.log('[Login] PIN valid?', isPinValid);
+    if (!isPinValid) {
+      console.log('[Login] Invalid PIN format');
+      toast.error('PIN must be 4-20 alphanumeric');
       return;
     }
 
     // Check if user is locked out
+    console.log('[Login] Checking lockout status...');
     const lockoutStatus = loginRateLimiter.isLockedOut();
+    console.log('[Login] Lockout status:', lockoutStatus);
     if (lockoutStatus.locked) {
       toast.error(`Too many attempts! Try again in ${lockoutStatus.remainingSeconds} seconds`);
       return;
     }
 
+    console.log('[Login] Setting isProcessing to true');
     setIsProcessing(true);
     try {
-      // Secure server-side PIN verification using RPC
-      const { data: isValid, error } = await supabase.rpc('verify_admin_pin', { input_pin: pin });
-      
-      if (error) throw error;
+      console.log('[Login] Checking admin_users table');
+      console.log('[Login] Supabase table:', DB_SCHEMA.ADMIN_USERS.table);
+      // Check admin_users table directly for matching email and pin
+      console.log('[Login] Sending Supabase request...');
+      const { data: userData, error } = await supabase
+        .from(DB_SCHEMA.ADMIN_USERS.table)
+        .select('*')
+        .eq('email', email)
+        .eq('pin', pin)
+        .single();
 
-      if (isValid) {
+      console.log('[Login] Supabase response:', { userData, error });
+
+      if (error) {
+        // If no user found or error
+        console.error('[Login] Supabase error:', error);
+        loginRateLimiter.recordAttempt(false);
+        const remaining = loginRateLimiter.getRemainingAttempts();
+        toast.error(`Invalid Email or PIN! ${remaining} attempts remaining`);
+        setPin('');
+        return;
+      }
+
+      if (userData) {
         // Reset login attempts on success
+        console.log('[Login] User found, granting access');
         loginRateLimiter.recordAttempt(true);
         
-        // Fetch user details for profile and role
-        const { data: userData } = await supabase
-          .from(DB_SCHEMA.ADMIN_USERS.table)
-          .select('*')
-          .eq('pin', pin)
-          .single();
-
-        const profile = userData || { username: 'Admin', role: 'super_admin' };
-        setCurrentUser(profile);
-        secureStorage.setItem('nm_user_data', profile);
+        setCurrentUser(userData);
+        secureStorage.setItem('nm_user_data', userData);
 
         setIsAuthorized(true);
         secureStorage.setItem('nm_admin_auth', 'true');
         secureStorage.setItem('nm_auth_time', Date.now().toString());
         toast.success('Access Granted');
-      } else {
-        // Increment login attempts on failure
-        loginRateLimiter.recordAttempt(false);
-        const remaining = loginRateLimiter.getRemainingAttempts();
-        
-        toast.error(`Invalid PIN! ${remaining} attempts remaining`);
-        setPin('');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[Login] === CATCH BLOCK ===');
+      console.error('[Login] Error:', error);
       // Fallback to environment variable if database is disconnected
       // NOTE: For maximum security, this fallback is only allowed in development.
-      const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN ?? (import.meta.env.DEV ? '1234' : null);
-      if (pin === fallbackPin) {
+      const fallbackEmail = import.meta.env.VITE_ADMIN_EMAIL ?? (import.meta.env.DEV ? 'nmmart07@gmail.com' : null);
+      const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN ?? (import.meta.env.DEV ? 'nmmart2026' : null);
+      
+      console.log('[Login] Fallback check:', { email, fallbackEmail, pin, fallbackPin });
+      console.log('[Login] Email match?', email === fallbackEmail);
+      console.log('[Login] PIN match?', pin === fallbackPin);
+      if (email === fallbackEmail && pin === fallbackPin) {
+        console.log('[Login] Fallback credentials match, granting offline access');
         // Reset login attempts on success
         loginRateLimiter.recordAttempt(true);
         
-        const profile = { username: 'Offline Admin', role: 'super_admin' };
+        const profile = { username: 'Offline Admin', role: 'super_admin', email: fallbackEmail };
         setCurrentUser(profile);
         secureStorage.setItem('nm_user_data', profile);
 
@@ -734,10 +763,13 @@ export default function App() {
         loginRateLimiter.recordAttempt(false);
         const remaining = loginRateLimiter.getRemainingAttempts();
         
-        toast.error(`Connection Error or Invalid PIN! ${remaining} attempts remaining`);
+        toast.error(`Connection Error or Invalid Credentials! ${remaining} attempts remaining`);
+        setPin('');
       }
     } finally {
+      console.log('[Login] Finally block, setting isProcessing to false');
       setIsProcessing(false);
+      console.log('[Login] === END handleLogin ===');
     }
   };
 
@@ -1040,13 +1072,21 @@ export default function App() {
           
           <form onSubmit={handleLogin} className="space-y-4">
             <input 
+              type="email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter Admin Email"
+              disabled={isProcessing}
+              className="w-full bg-slate-100 border-none rounded-2xl px-6 py-4 text-center text-lg focus:ring-2 focus:ring-primary transition-all font-bold text-slate-900 placeholder-slate-400 disabled:opacity-50"
+              autoFocus
+            />
+            <input 
               type="password" 
               value={pin}
               onChange={(e) => setPin(e.target.value)}
-              placeholder=""
+              placeholder="Enter Security PIN"
               disabled={isProcessing}
-              className="w-full bg-slate-100 border-none rounded-2xl px-6 py-4 text-center text-2xl tracking-[1em] focus:ring-2 focus:ring-primary transition-all font-black text-slate-900 placeholder-slate-400 disabled:opacity-50"
-              autoFocus
+              className="w-full bg-slate-100 border-none rounded-2xl px-6 py-4 text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-primary transition-all font-black text-slate-900 placeholder-slate-400 disabled:opacity-50"
             />
             <button 
               type="submit"

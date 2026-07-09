@@ -15,11 +15,11 @@ export const sanitizeHTML = (input) => {
 };
 
 /**
- * Validate PIN format (4-8 digits)
+ * Validate PIN format (4-20 alphanumeric)
  */
 export const validatePIN = (pin) => {
   const pinStr = String(pin || '');
-  const regex = /^\d{4,8}$/;
+  const regex = /^[a-zA-Z0-9]{4,20}$/;
   return regex.test(pinStr);
 };
 
