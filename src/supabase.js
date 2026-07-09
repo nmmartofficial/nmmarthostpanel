@@ -111,12 +111,7 @@ const mockSupabase = {
       })
     })
   }),
-  rpc: (fnName, params) => {
-    if (fnName === 'verify_admin_pin' && params?.input_pin) {
-      // Only allow a default weak fallback in development for convenience.
-      const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN ?? (import.meta.env.DEV ? '1234' : null)
-      return { data: fallbackPin ? params.input_pin === fallbackPin : false, error: null }
-    }
+  rpc: () => {
     return { data: null, error: null }
   }
 }
