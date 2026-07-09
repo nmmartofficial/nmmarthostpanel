@@ -699,22 +699,18 @@ export default function App() {
     console.log('[Login] Setting isProcessing to true');
     setIsProcessing(true);
     try {
-      console.log('[Login] Checking admin_users table');
-      console.log('[Login] Supabase table:', DB_SCHEMA.ADMIN_USERS.table);
-      // Check admin_users table directly for matching email and pin
-      console.log('[Login] Sending Supabase request...');
+      console.log('[Login] Checking via verify_admin_pin RPC');
+      // Use secure server-side RPC function to verify PIN (uses hashed PINs!)
       const { data: userData, error } = await supabase
-        .from(DB_SCHEMA.ADMIN_USERS.table)
+        .rpc('verify_admin_pin', { email_input: email, pin_input: pin })
         .select('*')
-        .eq('email', email)
-        .eq('pin', pin)
         .single();
 
-      console.log('[Login] Supabase response:', { userData, error });
+      console.log('[Login] RPC response:', { userData, error });
 
-      if (error) {
+      if (error || !userData) {
         // If no user found or error
-        console.error('[Login] Supabase error:', error);
+        console.error('[Login] Auth failed:', error);
         loginRateLimiter.recordAttempt(false);
         const remaining = loginRateLimiter.getRemainingAttempts();
         toast.error(`Invalid Email or PIN! ${remaining} attempts remaining`);
@@ -722,52 +718,51 @@ export default function App() {
         return;
       }
 
-      if (userData) {
-        // Reset login attempts on success
-        console.log('[Login] User found, granting access');
-        loginRateLimiter.recordAttempt(true);
-        
-        setCurrentUser(userData);
-        secureStorage.setItem('nm_user_data', userData);
+      // Success!
+      console.log('[Login] User authenticated, granting access');
+      loginRateLimiter.recordAttempt(true);
+      
+      setCurrentUser(userData);
+      secureStorage.setItem('nm_user_data', userData);
 
-        setIsAuthorized(true);
-        secureStorage.setItem('nm_admin_auth', 'true');
-        secureStorage.setItem('nm_auth_time', Date.now().toString());
-        toast.success('Access Granted');
-      }
+      setIsAuthorized(true);
+      secureStorage.setItem('nm_admin_auth', 'true');
+      secureStorage.setItem('nm_auth_time', Date.now().toString());
+      toast.success('Access Granted');
     } catch (error) {
       console.error('[Login] === CATCH BLOCK ===');
       console.error('[Login] Error:', error);
-      // Fallback to environment variable if database is disconnected
-      // NOTE: For maximum security, this fallback is only allowed in development.
-      const fallbackEmail = import.meta.env.VITE_ADMIN_EMAIL ?? (import.meta.env.DEV ? 'nmmart07@gmail.com' : null);
-      const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN ?? (import.meta.env.DEV ? 'nmmart2026' : null);
-      
-      console.log('[Login] Fallback check:', { email, fallbackEmail, pin, fallbackPin });
-      console.log('[Login] Email match?', email === fallbackEmail);
-      console.log('[Login] PIN match?', pin === fallbackPin);
-      if (email === fallbackEmail && pin === fallbackPin) {
-        console.log('[Login] Fallback credentials match, granting offline access');
-        // Reset login attempts on success
-        loginRateLimiter.recordAttempt(true);
+      // Fallback only for DEVELOPMENT!
+      if (import.meta.env.DEV) {
+        const fallbackEmail = import.meta.env.VITE_ADMIN_EMAIL ?? 'nmmart07@gmail.com';
+        const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN ?? 'nmmart2026';
         
-        const profile = { username: 'Offline Admin', role: 'super_admin', email: fallbackEmail };
-        setCurrentUser(profile);
-        secureStorage.setItem('nm_user_data', profile);
+        console.log('[Login] DEV fallback check');
+        if (email === fallbackEmail && pin === fallbackPin) {
+          console.log('[Login] DEV fallback credentials match');
+          loginRateLimiter.recordAttempt(true);
+          
+          const profile = { username: 'Offline Admin', role: 'super_admin', email: fallbackEmail };
+          setCurrentUser(profile);
+          secureStorage.setItem('nm_user_data', profile);
 
-        setIsAuthorized(true);
-        secureStorage.setItem('nm_admin_auth', 'true');
-        toast.success('Offline Access Granted');
+          setIsAuthorized(true);
+          secureStorage.setItem('nm_admin_auth', 'true');
+          toast.success('Offline Access Granted');
+        } else {
+          loginRateLimiter.recordAttempt(false);
+          const remaining = loginRateLimiter.getRemainingAttempts();
+          toast.error(`Invalid Credentials! ${remaining} attempts remaining`);
+          setPin('');
+        }
       } else {
-        // Increment login attempts on failure
         loginRateLimiter.recordAttempt(false);
         const remaining = loginRateLimiter.getRemainingAttempts();
-        
-        toast.error(`Connection Error or Invalid Credentials! ${remaining} attempts remaining`);
+        toast.error(`Login failed! ${remaining} attempts remaining`);
         setPin('');
       }
     } finally {
-      console.log('[Login] Finally block, setting isProcessing to false');
+      console.log('[Login] Finally block');
       setIsProcessing(false);
       console.log('[Login] === END handleLogin ===');
     }
