@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { 
   Package, Layers, Grid, List, Tag, Building2, 
   Users, Image as ImageIcon, CreditCard, 
@@ -12,7 +13,7 @@ import {
   Trash, Activity, Lock, History, GitBranch,
   Calculator, PieChart, BarChart3, Receipt,
   Box, MapPin, Truck, XCircle, MessageCircle, Book,
-  Monitor, Maximize2, ChevronRight, Circle, FileJson,
+  Monitor, Maximize2, Minimize2, ChevronRight, Circle, FileJson,
   Upload, ExternalLink, ShoppingBag, IndianRupee, Flag,
   Repeat, Wrench, ArrowLeftRight, Key, QrCode,
   Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Smartphone
@@ -365,6 +366,7 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState(localStorage.getItem('nm_active_tab') || 'Dashboard');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [customerMode, setCustomerMode] = useState(false);
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ old: '', new: '', confirm: '' });
@@ -1062,7 +1064,7 @@ export default function App() {
   const masterItems = [
     { id: 'Products', label: 'Item Master', icon: <Package size={14} />, shortcut: 'F1' },
     { id: 'Units', label: 'Item Unit Master', icon: <ShoppingCart size={14} /> },
-    { id: 'Categories', label: 'Main Category Master', icon: <Grid size={14} />, shortcut: 'F2' },
+    { id: 'Categories', label: 'Item Main Category', icon: <Grid size={14} />, shortcut: 'F2' },
     { id: 'Subcategories', label: 'Item Sub Category', icon: <Layers size={14} />, shortcut: 'F3' },
     { id: 'Brands', label: 'Brand Master', icon: <Tag size={14} />, shortcut: 'F4' },
     { id: 'Departments', label: 'Department Master', icon: <GitBranch size={14} /> },
@@ -1146,7 +1148,29 @@ export default function App() {
   ].filter(item => isAllowed(item.id));
 
   return (
-    <div className={cn("min-h-screen flex flex-col font-sans antialiased", darkMode ? "bg-slate-900" : "bg-[#F0F2F5]")}>
+    customerMode ? (
+      <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-purple-50 font-sans antialiased">
+        {/* Exit Button for Admin */}
+        <button
+          onClick={() => setCustomerMode(false)}
+          className="absolute top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-xs font-black uppercase tracking-wider shadow-lg hover:bg-slate-700 transition-all"
+        >
+          <Minimize2 size={14} />
+          Exit Customer Mode
+        </button>
+        
+        {/* Self Checkout in Full Screen */}
+        <SelfCheckoutView 
+          orders={orders} 
+          products={products} 
+          fetchInitialData={fetchInitialData} 
+          appConfig={appConfig} 
+          customerMode={customerMode}
+          setCustomerMode={setCustomerMode}
+        />
+      </div>
+    ) : (
+      <div className={cn("min-h-screen flex flex-col font-sans antialiased", darkMode ? "bg-slate-900" : "bg-[#F0F2F5]")}>
       {/* --- Top Navigation Bar --- */}
       <header className={cn("border-b sticky top-0 z-[100] shadow-sm select-none", darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200")}>
         <div className="max-w-full mx-auto px-4 h-12 flex items-center justify-between">
@@ -1193,16 +1217,28 @@ export default function App() {
                 </button>
               )}
               {isAllowed('SelfCheckout') && (
-                <button 
-                  onClick={() => setActiveTab('SelfCheckout')}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
-                    activeTab === 'SelfCheckout' ? "text-indigo-700 bg-indigo-50" : "text-slate-700 hover:bg-slate-100"
-                  )}
-                >
-                  <Smartphone size={14} className="text-slate-500" />
-                  <span>Self Checkout</span>
-                </button>
+                <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => setActiveTab('SelfCheckout')}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
+                      activeTab === 'SelfCheckout' ? "text-indigo-700 bg-indigo-50" : "text-slate-700 hover:bg-slate-100"
+                    )}
+                  >
+                    <Smartphone size={14} className="text-slate-500" />
+                    <span>Self Checkout</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('SelfCheckout');
+                      setCustomerMode(true);
+                    }}
+                    className="flex items-center justify-center w-8 h-8 rounded-md bg-green-600 text-white hover:bg-green-700 transition-all shadow-sm"
+                    title="Open Customer Mode (Full Screen)"
+                  >
+                    <Maximize2 size={14} />
+                  </button>
+                </div>
               )}
 
               {inventoryItems.length > 0 && (
@@ -1756,7 +1792,8 @@ export default function App() {
                 setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setUsers, setCoupons,
                 setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
                 setFestivals, setPreviewFestival, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
-                uploadImage, fetchInitialData, setLoading
+                uploadImage, fetchInitialData, setLoading,
+                customerMode, setCustomerMode
               })}
           </motion.div>
         </AnimatePresence>
@@ -1780,7 +1817,8 @@ export default function App() {
           <span className="bg-blue-600 px-2 py-0.5 rounded text-[8px]">LICENSE: ACTIVE</span>
         </div>
       </footer>
-    </div>
+      </div>
+    )
   );
 }
 
@@ -7085,7 +7123,7 @@ function renderTabContent(activeTab, props) {
     case 'Analytics': return <AnalyticsView {...props} />;
     case 'CustomerAnalytics': return <CustomerAnalyticsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
-    case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} />;
+    case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} customerMode={props.customerMode} setCustomerMode={props.setCustomerMode} />;
     case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
     case 'HomeLayout': return <HomeLayoutManager {...props} />;
     
@@ -7097,7 +7135,7 @@ function renderTabContent(activeTab, props) {
     case 'Expenses': return <ExpensesView expenses={props.expenses} fetchInitialData={props.fetchInitialData} />;
 
     // Master Dropdown Cases
-    case 'Categories': return <CategoriesView title="Main Category Master" table={DB_SCHEMA.CATEGORIES.table} data={props.categories} {...props} />;
+    case 'Categories': return <CategoriesView title="Item Main Category" table={DB_SCHEMA.CATEGORIES.table} data={props.categories} {...props} />;
     case 'Subcategories': return <SubcategoriesView title="Sub Categories" table={DB_SCHEMA.SUBCATEGORIES.table} data={props.subcategories} categories={props.categories} {...props} />;
     case 'Brands': return <BrandsView title="Brand Master" table={DB_SCHEMA.BRANDS.table} data={props.brands} {...props} />;
     case 'Coupons': return <CouponsView title="Coupon Master" table={DB_SCHEMA.COUPONS.table} data={props.coupons} {...props} />;

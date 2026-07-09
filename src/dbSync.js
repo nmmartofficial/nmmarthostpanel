@@ -454,24 +454,33 @@ export const dbSync = {
 
   // Delete (Enhanced with Soft Delete Support)
   delete: async (tableName, id, permanent = false) => {
+    console.log('[dbSync.delete] Called with:', { tableName, id, permanent });
     try {
       const pkColumn = dbSync.getPkColumn(tableName);
+      console.log('[dbSync.delete] pkColumn:', pkColumn);
       let error;
       // Fetch old data first
-      const { data: oldData } = await supabase
+      const { data: oldData, error: fetchError } = await supabase
         .from(tableName)
         .select('*')
         .eq(pkColumn, id)
         .single();
+      console.log('[dbSync.delete] oldData:', oldData, 'fetchError:', fetchError);
 
-      if (permanent || ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist', 'banners', 'coupons', 'offers', 'categories', 'subcategories', 'brands'].includes(tableName)) {
+      const hardDeleteTables = ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist', 'banners', 'coupons', 'offers_master', 'categories', 'subcategories', 'brands'];
+      const shouldHardDelete = permanent || hardDeleteTables.includes(tableName);
+      console.log('[dbSync.delete] shouldHardDelete:', shouldHardDelete);
+
+      if (shouldHardDelete) {
         // Hard Delete for specific tables or if requested
         const res = await supabase.from(tableName).delete().eq(pkColumn, id);
         error = res.error;
+        console.log('[dbSync.delete] Hard delete res.error:', error);
       } else {
         // Soft Delete (Security Feature: Data is hidden but not lost)
         const res = await supabase.from(tableName).update({ is_active: false }).eq(pkColumn, id);
         error = res.error;
+        console.log('[dbSync.delete] Soft delete res.error:', error);
       }
 
       if (error) {
@@ -479,7 +488,7 @@ export const dbSync = {
         throw error;
       }
 
-      await logTableAction(tableName, permanent ? 'HARD_DELETE' : 'SOFT_DELETE', { oldData });
+      await logTableAction(tableName, shouldHardDelete ? 'HARD_DELETE' : 'SOFT_DELETE', { oldData });
       return true;
     } catch (error) {
       console.error(`[Delete Error] ${tableName}:`, error.message);

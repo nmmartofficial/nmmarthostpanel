@@ -184,87 +184,7 @@ export default function ProductsView({ products, categories, brands, subcategori
         const parsedData = await parseERPCSV(file, columnMapping);
         if (!parsedData || parsedData.length === 0) throw new Error("No data found in file");
 
-        // --- STEP 1: AUTOMATIC MASTER UPDATE (BY NAME) ---
-        const getUniqueNames = (data, field) => {
-          const names = data.map(item => String(item[field] || "").trim()).filter(Boolean);
-          const seen = new Set();
-          return names.filter(name => {
-            const lower = name.toLowerCase();
-            if (seen.has(lower)) return false;
-            seen.add(lower);
-            return true;
-          });
-        };
-
-        const uniqueCats = getUniqueNames(parsedData, 'itc');
-        const uniqueBrands = getUniqueNames(parsedData, 'brandcode');
-        const uniqueUnits = getUniqueNames(parsedData, 'unitcode');
-
-        console.log(`[Import Orchestration] Found Unique Masters -> Cats: ${uniqueCats.length}, Brands: ${uniqueBrands.length}`);
-
-        const insertMasterIfNotExists = async (table, items, buildRecord) => {
-          const existing = await dbSync.fetch(table);
-          const existingKeys = new Set(existing.flatMap(item => {
-            const keys = [];
-            if (item?.name) keys.push(String(item.name).trim().toLowerCase());
-            if (item?.code) keys.push(String(item.code).trim().toLowerCase());
-            return keys;
-          }));
-
-          const newRecords = [];
-          items.forEach((item) => {
-            const name = String(item?.name || item || '').trim();
-            if (!name) return;
-
-            const normalizedCode = sanitizeMasterCode(item?.code || name, name);
-            const nameKey = name.toLowerCase();
-            const codeKey = normalizedCode.toLowerCase();
-
-            if (existingKeys.has(nameKey) || existingKeys.has(codeKey)) return;
-
-            const record = buildRecord ? buildRecord(name, normalizedCode) : {
-              code: normalizedCode,
-              name,
-              is_active: true
-            };
-
-            newRecords.push(record);
-            existingKeys.add(nameKey);
-            existingKeys.add(codeKey);
-          });
-
-          if (newRecords.length > 0) {
-            await dbSync.insert(table, newRecords);
-          }
-        };
-
-        // Subcategories not used in current Excel structure - removed
-
-        if (uniqueCats.length > 0) {
-          await insertMasterIfNotExists(DB_SCHEMA.CATEGORIES.table, uniqueCats.map(name => ({ name })), (name, code) => ({
-            code,
-            name,
-            is_active: true
-          }));
-        }
-
-        if (uniqueBrands.length > 0) {
-          await insertMasterIfNotExists(DB_SCHEMA.BRANDS.table, uniqueBrands.map(name => ({ name })), (name, code) => ({
-            code,
-            name,
-            is_active: true
-          }));
-        }
-
-        if (uniqueUnits.length > 0) {
-          await insertMasterIfNotExists(DB_SCHEMA.UNITS.table, uniqueUnits.map(name => ({ name })), (name, code) => ({
-            code,
-            name,
-            is_active: true
-          }));
-        }
-
-        // --- STEP 2: FETCH FRESH MASTER RECORDS FOR LINKING ---
+        // --- STEP 1: FETCH EXISTING MASTER RECORDS ONLY (NO AUTOMATIC CREATION) ---
         const [
           dbCats, 
           dbBrands, 
@@ -381,7 +301,7 @@ export default function ProductsView({ products, categories, brands, subcategori
         // --- STEP 4: BULK UPLOAD PRODUCTS ---
         await dbSync.insert(DB_SCHEMA.PRODUCTS.table, productsToUpload);
         
-        alert(`SUCCESS! ${productsToUpload.length} items imported.\nBrands: ${uniqueBrands.length}, Categories: ${uniqueCats.length}.\nMaster tables and reports are now fully synchronized.`);
+        alert(`SUCCESS! ${productsToUpload.length} items imported.`);
         
         window.location.reload(); 
       } catch (error) {
@@ -417,6 +337,15 @@ export default function ProductsView({ products, categories, brands, subcategori
 
     setIsSubmitting(true);
     try {
+      // Only use existing Category, Brand, Subcategory from master tables
+      let finalCategoryId = formData.category_id;
+      let finalSubcategoryId = formData.subcategory_id;
+      let finalBrandId = formData.brand_id;
+      
+      // Get category/brand names from existing records for backward compatibility
+      const categoryNameToUse = categories.find(c => c.id === finalCategoryId)?.name || formData.category_name || formData.itc || '';
+      const brandNameToUse = brands.find(b => b.id === finalBrandId)?.name || formData.brand_name || formData.brandcode || '';
+
       // Build final data with both new and old column names for backward compatibility
       const finalData = { 
         ...formData,
@@ -439,12 +368,15 @@ export default function ProductsView({ products, categories, brands, subcategori
         cess: formData.cess || formData.cess_percent,
         is_favourite: formData.isfav || formData.is_favourite,
         isfav: formData.isfav || formData.is_favourite,
-        category_name: formData.itc || formData.category_name,
-        itc: formData.itc || formData.category_name,
-        brand_name: formData.brandcode || formData.brand_name,
-        brandcode: formData.brandcode || formData.brand_name,
+        category_name: categoryNameToUse,
+        itc: categoryNameToUse,
+        brand_name: brandNameToUse,
+        brandcode: brandNameToUse,
         unit_name: formData.unitcode || formData.unit_name,
-        unitcode: formData.unitcode || formData.unit_name
+        unitcode: formData.unitcode || formData.unit_name,
+        category_id: finalCategoryId,
+        subcategory_id: finalSubcategoryId,
+        brand_id: finalBrandId
       };
       
       // Remove UI-only fields that aren't in the database
@@ -509,7 +441,7 @@ export default function ProductsView({ products, categories, brands, subcategori
       setShowForm(false);
       setEditingProduct(null);
       setFormData({});
-      fetchInitialData();
+      fetchInitialData(); // Refresh all data including master tables
       alert("Product saved successfully!");
     } catch (error) {
       console.error("Product Save Error:", error);

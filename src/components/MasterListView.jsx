@@ -249,6 +249,39 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
           
           <div className="flex items-center gap-2 w-full md:w-auto">
             <button 
+              onClick={async () => {
+                console.log('[MasterListView Delete All] Button clicked! table:', table, 'data:', data);
+                let confirmMessage = `Are you sure you want to delete ALL ${title}? This cannot be undone!`;
+                if (table === DB_SCHEMA.CATEGORIES.table) {
+                  confirmMessage = "ARE YOU SURE? This will PERMANENTLY DELETE ALL CATEGORIES and REMOVE THEM FROM ALL PRODUCTS!";
+                } else if (table === DB_SCHEMA.SUBCATEGORIES.table) {
+                  confirmMessage = "ARE YOU SURE? This will PERMANENTLY DELETE ALL SUBCATEGORIES and REMOVE THEM FROM ALL PRODUCTS!";
+                } else if (table === DB_SCHEMA.BRANDS.table) {
+                  confirmMessage = "ARE YOU SURE? This will PERMANENTLY DELETE ALL BRANDS and REMOVE THEM FROM ALL PRODUCTS!";
+                }
+                
+                if (!window.confirm(confirmMessage)) {
+                  console.log('[MasterListView Delete All] User cancelled');
+                  return;
+                }
+                
+                // Delete all records
+                const itemsToDelete = data || [];
+                console.log('[MasterListView Delete All] Items to delete:', itemsToDelete);
+                for (const item of itemsToDelete) {
+                  console.log('[MasterListView Delete All] Deleting item:', item);
+                  const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                  console.log('[MasterListView Delete All] Deleted item, response:', res);
+                }
+                console.log('[MasterListView Delete All] All items deleted, calling fetchInitialData');
+                fetchInitialData();
+                alert(`All ${title} deleted successfully!`);
+              }}
+              className="flex-1 md:flex-none bg-red-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-red-700 transition-all border border-red-600 shadow-sm"
+            >
+              <Trash2 size={14} /> Delete All
+            </button>
+            <button 
               onClick={handleImportCSV}
               className="flex-1 md:flex-none bg-white text-blue-600 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-blue-50 transition-all border border-blue-600 shadow-sm"
             >
@@ -364,11 +397,27 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                       </button>
                       <button 
                         onClick={async () => {
-                          // Confirmation only for Item Master (Products)
+                          console.log('[MasterListView Delete] Button clicked! item:', item, 'table:', table);
+                          // Confirmation for all master tables
+                          let confirmMessage = "Are you sure you want to delete this entry permanently?";
                           if (table === DB_SCHEMA.PRODUCTS.table) {
-                            if (!window.confirm("ARE YOU SURE? This will permanently delete this Item Master entry!")) return;
+                            confirmMessage = "ARE YOU SURE? This will permanently delete this Item Master entry!";
+                          } else if (table === DB_SCHEMA.CATEGORIES.table) {
+                            confirmMessage = "ARE YOU SURE? This will permanently delete this Category and it will be removed from all products!";
+                          } else if (table === DB_SCHEMA.SUBCATEGORIES.table) {
+                            confirmMessage = "ARE YOU SURE? This will permanently delete this Subcategory and it will be removed from all products!";
+                          } else if (table === DB_SCHEMA.BRANDS.table) {
+                            confirmMessage = "ARE YOU SURE? This will permanently delete this Brand and it will be removed from all products!";
                           }
-                          await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                          
+                          if (!window.confirm(confirmMessage)) {
+                            console.log('[MasterListView Delete] User cancelled');
+                            return;
+                          }
+                          
+                          console.log('[MasterListView Delete] Calling handleERPAction');
+                          const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                          console.log('[MasterListView Delete] handleERPAction response:', res);
                           fetchInitialData();
                         }}
                         className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100 shadow-sm hover:shadow-md"

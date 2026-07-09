@@ -95,7 +95,8 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
 
       case ACTION_TYPES.DELETE:
         if (!payload.id) throw new Error("Delete requires an ID");
-        data = await dbSync.delete(moduleName, payload.id);
+        const isHardDeleteTable = ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist', 'banners', 'coupons', 'offers_master', 'categories', 'subcategories', 'brands'].includes(moduleName);
+        data = await dbSync.delete(moduleName, payload.id, isHardDeleteTable);
         break;
 
       case ACTION_TYPES.BULK_UPSERT:

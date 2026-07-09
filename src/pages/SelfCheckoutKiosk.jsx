@@ -20,6 +20,10 @@ export default function SelfCheckoutKiosk() {
   const [appConfig, setAppConfig] = useState(null);
   const [qrImageUrl, setQrImageUrl] = useState('');
   const [upiId, setUpiId] = useState('example@upi');
+  
+  // Refs to prevent infinite loops
+  const qrGeneratedForRef = useRef(null);
+  const barcodeInputRef = useRef(null);
 
   // --- Full Screen Logic ---
   useEffect(() => {
@@ -76,19 +80,27 @@ export default function SelfCheckoutKiosk() {
   const barcodeMap = useMemo(() => {
     const map = new Map();
     (products || []).forEach(p => {
-      if (p.barcode) map.set(p.barcode.trim(), p);
+      if (p.barcode) {
+        const trimmedBarcode = p.barcode.trim();
+        map.set(trimmedBarcode, p);
+        console.log('[SelfCheckoutKiosk] Added product to barcodeMap:', { 
+          barcode: trimmedBarcode, 
+          name: p.itname || p.name 
+        });
+      }
     });
+    console.log('[SelfCheckoutKiosk] Final barcodeMap has', map.size, 'products');
     return map;
   }, [products]);
 
   // --- Calculations ---
   const subTotal = cart.reduce((sum, item) => sum + (item.sale_rate * item.quantity), 0);
-  const tax = cart.reduce((sum, item) => {
+  const totalTax = cart.reduce((sum, item) => {
     const itemTotal = item.sale_rate * item.quantity;
     const itemTaxRate = item.gst_percent || item.gst || appConfig?.tax_rate || 5;
     return sum + (itemTotal * itemTaxRate) / 100;
   }, 0);
-  const finalTotal = Math.round(subTotal + tax);
+  const finalTotal = Math.round(subTotal + totalTax);
 
   // --- Cart Functions ---
   const addToCart = useCallback((product) => {
@@ -149,14 +161,27 @@ export default function SelfCheckoutKiosk() {
 
   // --- Barcode Handling ---
   const handleBarcodeKeyDown = useCallback((e) => {
+    console.log('[SelfCheckoutKiosk] Key pressed:', e.key);
     if (e.key === 'Enter') {
-      const code = barcodeInput.trim();
-      if (!code) return;
+      const code = (e.target.value || barcodeInput).trim();
+      console.log('[SelfCheckoutKiosk] Barcode entered:', code);
+      if (!code) {
+        console.log('[SelfCheckoutKiosk] No barcode entered!');
+        return;
+      }
+      
+      console.log('[SelfCheckoutKiosk] Looking for barcode in barcodeMap...');
       const product = barcodeMap.get(code);
+      console.log('[SelfCheckoutKiosk] Found product:', product);
+      
       if (product) {
         addToCart(product);
         setBarcodeInput('');
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 100);
       } else {
+        console.log('[SelfCheckoutKiosk] Product not found for barcode:', code);
         toast.error('Product not found!');
       }
     }
@@ -169,6 +194,9 @@ export default function SelfCheckoutKiosk() {
       if (product) {
         addToCart(product);
         setShowScanner(false);
+        setTimeout(() => {
+          barcodeInputRef.current?.focus();
+        }, 100);
       } else {
         toast.error('Product not found!');
       }
@@ -189,9 +217,13 @@ export default function SelfCheckoutKiosk() {
 
   useEffect(() => {
     if (currentStep === 2 && cart.length > 0) {
-      generateUPIQR();
+      const currentKey = `${finalTotal}-${upiId}`;
+      if (qrGeneratedForRef.current !== currentKey) {
+        generateUPIQR();
+        qrGeneratedForRef.current = currentKey;
+      }
     }
-  }, [currentStep, cart, generateUPIQR]);
+  }, [currentStep, finalTotal, upiId, cart.length, generateUPIQR]);
 
   // --- Complete Order ---
   const completeOrder = async () => {
@@ -211,6 +243,7 @@ export default function SelfCheckoutKiosk() {
         user_mobile: '',
         address: '',
         subtotal: subTotal,
+        tax: totalTax,
         total_amount: finalTotal,
         payment_method: 'UPI',
         payment_status: 'paid',
@@ -275,10 +308,23 @@ export default function SelfCheckoutKiosk() {
     setCurrentStep(1);
     setLastOrder(null);
     setQrImageUrl('');
+    qrGeneratedForRef.current = null;
+    setTimeout(() => {
+      barcodeInputRef.current?.focus();
+    }, 100);
   };
 
+  // Auto-focus barcode input on mount and when on step 1
+  useEffect(() => {
+    if (currentStep === 1) {
+      setTimeout(() => {
+        barcodeInputRef.current?.focus();
+      }, 300);
+    }
+  }, [currentStep]);
+
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-[#f0f2f5] via-white to-[#e0e7ff] overflow-hidden flex flex-col font-sans">
+    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden flex flex-col font-sans">
       {/* Header */}
       <header className="relative z-20 bg-white/30 backdrop-blur-xl border-b border-white/30 px-8 py-6 shadow-lg shadow-indigo-500/10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -400,6 +446,7 @@ export default function SelfCheckoutKiosk() {
                     </div>
                     <div className="space-y-4">
                       <input
+                        ref={barcodeInputRef}
                         type="text"
                         value={barcodeInput}
                         onChange={(e) => setBarcodeInput(e.target.value)}
@@ -426,8 +473,8 @@ export default function SelfCheckoutKiosk() {
                         <span>₹{subTotal.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between items-center text-lg font-bold text-slate-600">
-                        <span>Tax ({appConfig?.tax_rate || 5}%)</span>
-                        <span>₹{tax.toLocaleString()}</span>
+                        <span>Total Tax</span>
+                        <span>₹{totalTax.toLocaleString()}</span>
                       </div>
                       <div className="h-px bg-slate-300/60 my-2" />
                       <div className="flex justify-between items-center text-3xl font-black text-slate-800">
@@ -438,7 +485,7 @@ export default function SelfCheckoutKiosk() {
                     <button
                       onClick={() => setCurrentStep(2)}
                       disabled={cart.length === 0 || isProcessing}
-                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-6 rounded-2xl font-black text-2xl hover:from-green-700 hover:to-emerald-700 transition-all shadow-2xl shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                      className="w-full bg-gradient-to-r from-green-700 to-emerald-700 text-white py-6 rounded-2xl font-black text-2xl hover:from-green-800 hover:to-emerald-800 transition-all shadow-2xl shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                     >
                       Proceed to Checkout
                     </button>
@@ -487,7 +534,7 @@ export default function SelfCheckoutKiosk() {
                   <button
                     onClick={completeOrder}
                     disabled={isProcessing}
-                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-5 rounded-2xl font-black text-xl hover:from-green-700 hover:to-emerald-700 transition-all shadow-xl shadow-green-500/30 disabled:opacity-50"
+                    className="flex-1 bg-gradient-to-r from-green-700 to-emerald-700 text-white py-5 rounded-2xl font-black text-xl hover:from-green-800 hover:to-emerald-800 transition-all shadow-xl shadow-green-500/30 disabled:opacity-50"
                   >
                     {isProcessing ? 'Processing...' : 'Mark as Paid'}
                   </button>
