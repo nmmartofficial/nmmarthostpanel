@@ -95,12 +95,8 @@ export default function SelfCheckoutKiosk() {
 
   // --- Calculations ---
   const subTotal = cart.reduce((sum, item) => sum + (item.sale_rate * item.quantity), 0);
-  const totalTax = cart.reduce((sum, item) => {
-    const itemTotal = item.sale_rate * item.quantity;
-    const itemTaxRate = item.gst_percent || item.gst || appConfig?.tax_rate || 5;
-    return sum + (itemTotal * itemTaxRate) / 100;
-  }, 0);
-  const finalTotal = Math.round(subTotal + totalTax);
+  // GST is already included in MRP, so no separate tax calculation
+  const finalTotal = Math.round(subTotal);
 
   // --- Cart Functions ---
   const addToCart = useCallback((product) => {
@@ -326,29 +322,29 @@ export default function SelfCheckoutKiosk() {
   }, [currentStep]);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden flex flex-col font-sans">
+    <div className="fixed inset-0 w-full bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex flex-col font-sans overflow-hidden">
       {/* Header */}
-      <header className="relative z-20 bg-white/30 backdrop-blur-xl border-b border-white/30 px-8 py-6 shadow-lg shadow-indigo-500/10">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/30">
-              <ShoppingBag size={32} />
+      <header className="relative z-20 bg-white/30 backdrop-blur-xl border-b border-white/30 px-6 py-4 shadow-lg shadow-indigo-500/10 flex-shrink-0">
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/30">
+              <ShoppingBag size={28} />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-slate-800 tracking-tight">NM MART</h1>
-              <p className="text-sm font-bold text-slate-600">Self Checkout Kiosk</p>
+              <h1 className="text-2xl font-black text-slate-800 tracking-tight">NM MART</h1>
+              <p className="text-xs font-bold text-slate-600">Self Checkout Kiosk</p>
             </div>
           </div>
           <div className="flex items-center gap-3 bg-green-50 text-green-700 px-4 py-2 rounded-full border border-green-200">
-            <ShieldCheck size={20} className="text-green-600" />
-            <span className="text-sm font-black uppercase tracking-wide">Secure Payment</span>
+            <ShieldCheck size={18} className="text-green-600" />
+            <span className="text-xs font-black uppercase tracking-wide">Secure Payment</span>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 p-6 flex flex-col overflow-hidden">
+        <div className="flex-1 w-full h-full">
           <AnimatePresence mode="wait">
             {/* Step 1: Scan & Cart */}
             {currentStep === 1 && (
@@ -357,39 +353,39 @@ export default function SelfCheckoutKiosk() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+                className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full"
               >
                 {/* Cart Card - Glassmorphism */}
-                <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl border border-white/30 rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-500/10 flex flex-col">
-                  <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-200/50">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                        <ShoppingCart size={24} />
+                <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl border border-white/30 rounded-[2.5rem] p-6 shadow-2xl shadow-indigo-500/10 flex flex-col">
+                  <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                        <ShoppingCart size={20} />
                       </div>
                       <div>
-                        <h2 className="text-2xl font-black text-slate-800">Your Shopping Cart</h2>
-                        <p className="text-sm font-bold text-slate-500">{cart.length} items</p>
+                        <h2 className="text-xl font-black text-slate-800">Your Shopping Cart</h2>
+                        <p className="text-xs font-bold text-slate-500">{cart.length} items</p>
                       </div>
                     </div>
                     {cart.length > 0 && (
                       <button
                         onClick={clearCart}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 rounded-xl font-black text-sm hover:bg-red-100 transition-all border border-red-100"
+                        className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl font-black text-xs hover:bg-red-100 transition-all border border-red-100"
                       >
-                        <X size={18} />
+                        <X size={16} />
                         Clear Cart
                       </button>
                     )}
                   </div>
 
-                  <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                     {cart.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center text-center py-16">
-                        <div className="w-32 h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mb-8 shadow-inner">
-                          <ShoppingCart size={64} className="text-indigo-400" />
+                      <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
+                        <div className="w-28 h-28 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                          <ShoppingCart size={56} className="text-indigo-400" />
                         </div>
-                        <h3 className="text-3xl font-black text-slate-800 mb-2">Welcome to NM MART</h3>
-                        <p className="text-lg font-bold text-slate-500 max-w-md">Experience the fastest way to shop. Scan, Pay & Go!</p>
+                        <h3 className="text-2xl font-black text-slate-800 mb-2">Welcome to NM MART</h3>
+                        <p className="text-base font-bold text-slate-500 max-w-md">Experience the fastest way to shop. Scan, Pay & Go!</p>
                       </div>
                     ) : (
                       cart.map((item, idx) => (
@@ -398,36 +394,36 @@ export default function SelfCheckoutKiosk() {
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: idx * 0.05 }}
-                          className="flex items-center gap-6 p-6 bg-white/60 rounded-2xl border border-slate-200/50 hover:bg-white/80 transition-all"
+                          className="flex items-center gap-4 p-4 bg-white/60 rounded-2xl border border-slate-200/50 hover:bg-white/80 transition-all"
                         >
                           <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="text-xl font-black text-slate-800">{item.itname}</h3>
-                              <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <h3 className="text-lg font-black text-slate-800">{item.itname}</h3>
+                              <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => updateQty(item.id, item.quantity - 1)}
-                                  className="w-10 h-10 flex items-center justify-center bg-white border-2 border-slate-300 rounded-full text-slate-700 font-black hover:bg-slate-50 transition-all shadow-sm"
+                                  className="w-8 h-8 flex items-center justify-center bg-white border-2 border-slate-300 rounded-full text-slate-700 font-black hover:bg-slate-50 transition-all shadow-sm"
                                 >
-                                  <Minus size={16} />
+                                  <Minus size={14} />
                                 </button>
-                                <span className="w-12 text-center text-2xl font-black text-slate-800">{item.quantity}</span>
+                                <span className="w-10 text-center text-lg font-black text-slate-800">{item.quantity}</span>
                                 <button
                                   onClick={() => updateQty(item.id, item.quantity + 1)}
-                                  className="w-10 h-10 flex items-center justify-center bg-white border-2 border-slate-300 rounded-full text-slate-700 font-black hover:bg-slate-50 transition-all shadow-sm"
+                                  className="w-8 h-8 flex items-center justify-center bg-white border-2 border-slate-300 rounded-full text-slate-700 font-black hover:bg-slate-50 transition-all shadow-sm"
                                 >
-                                  <Plus size={16} />
+                                  <Plus size={14} />
                                 </button>
                               </div>
                             </div>
                             <div className="flex items-center justify-between">
-                              <p className="text-base font-bold text-slate-500">₹{item.sale_rate.toLocaleString()}/item</p>
-                              <div className="flex items-center gap-4">
-                                <p className="text-2xl font-black text-slate-800">₹{(item.sale_rate * item.quantity).toLocaleString()}</p>
+                              <p className="text-sm font-bold text-slate-500">₹{item.sale_rate.toLocaleString()}/item</p>
+                              <div className="flex items-center gap-3">
+                                <p className="text-xl font-black text-slate-800">₹{(item.sale_rate * item.quantity).toLocaleString()}</p>
                                 <button
                                   onClick={() => removeFromCart(item.id)}
-                                  className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                  className="p-1 text-red-500 hover:bg-red-50 rounded-full transition-all"
                                 >
-                                  <X size={20} />
+                                  <X size={18} />
                                 </button>
                               </div>
                             </div>
@@ -439,14 +435,14 @@ export default function SelfCheckoutKiosk() {
                 </div>
 
                 {/* Scanner & Total Cards - Glassmorphism */}
-                <div className="space-y-8">
+                <div className="space-y-6 flex flex-col">
                   {/* Scanner Card */}
-                  <div className="bg-white/70 backdrop-blur-xl border border-white/30 rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-500/10">
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200/50">
-                      <Scan size={24} className="text-indigo-600" />
-                      <h3 className="text-xl font-black text-slate-800">Scan Product</h3>
+                  <div className="bg-white/70 backdrop-blur-xl border border-white/30 rounded-[2.5rem] p-6 shadow-2xl shadow-indigo-500/10 flex-shrink-0">
+                    <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-200/50">
+                      <Scan size={20} className="text-indigo-600" />
+                      <h3 className="text-lg font-black text-slate-800">Scan Product</h3>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <input
                         ref={barcodeInputRef}
                         type="text"
@@ -454,32 +450,28 @@ export default function SelfCheckoutKiosk() {
                         onChange={(e) => setBarcodeInput(e.target.value)}
                         onKeyDown={handleBarcodeKeyDown}
                         placeholder="Enter barcode or scan..."
-                        className="w-full px-6 py-5 bg-white/80 border-2 border-slate-200 rounded-2xl text-xl font-black text-slate-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all placeholder-slate-400"
+                        className="w-full px-5 py-4 bg-white/80 border-2 border-slate-200 rounded-2xl text-lg font-black text-slate-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 outline-none transition-all placeholder-slate-400"
                         autoFocus
                       />
                       <button
                         onClick={() => setShowScanner(true)}
-                        className="w-full flex items-center justify-center gap-3 px-6 py-5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl font-black text-xl hover:from-indigo-700 hover:to-blue-700 transition-all shadow-xl shadow-indigo-500/30"
+                        className="w-full flex items-center justify-center gap-2 px-5 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-2xl font-black text-lg hover:from-indigo-700 hover:to-blue-700 transition-all shadow-xl shadow-indigo-500/30"
                       >
-                        <Camera size={24} />
+                        <Camera size={22} />
                         Quick Scan
                       </button>
                     </div>
                   </div>
 
                   {/* Total Card */}
-                  <div className="bg-white/70 backdrop-blur-xl border border-white/30 rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-500/10">
-                    <div className="space-y-4 mb-8">
-                      <div className="flex justify-between items-center text-lg font-bold text-slate-600">
+                  <div className="bg-white/70 backdrop-blur-xl border border-white/30 rounded-[2.5rem] p-6 shadow-2xl shadow-indigo-500/10 flex-1 flex flex-col">
+                    <div className="space-y-3 mb-6">
+                      <div className="flex justify-between items-center text-base font-bold text-slate-600">
                         <span>Subtotal</span>
                         <span>₹{subTotal.toLocaleString()}</span>
                       </div>
-                      <div className="flex justify-between items-center text-lg font-bold text-slate-600">
-                        <span>Total Tax</span>
-                        <span>₹{totalTax.toLocaleString()}</span>
-                      </div>
-                      <div className="h-px bg-slate-300/60 my-2" />
-                      <div className="flex justify-between items-center text-3xl font-black text-slate-800">
+                      <div className="h-px bg-slate-300/60 my-1" />
+                      <div className="flex justify-between items-center text-2xl font-black text-slate-800">
                         <span>Total</span>
                         <span className="text-indigo-600">₹{finalTotal.toLocaleString()}</span>
                       </div>
@@ -487,7 +479,7 @@ export default function SelfCheckoutKiosk() {
                     <button
                       onClick={() => setCurrentStep(2)}
                       disabled={cart.length === 0 || isProcessing}
-                      className="w-full bg-gradient-to-r from-green-700 to-emerald-700 text-white py-6 rounded-2xl font-black text-2xl hover:from-green-800 hover:to-emerald-800 transition-all shadow-2xl shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                      className="w-full mt-auto bg-gradient-to-r from-green-700 to-emerald-700 text-white py-5 rounded-2xl font-black text-xl hover:from-green-800 hover:to-emerald-800 transition-all shadow-2xl shadow-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                     >
                       Proceed to Checkout
                     </button>
