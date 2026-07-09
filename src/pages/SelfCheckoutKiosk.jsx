@@ -106,13 +106,14 @@ export default function SelfCheckoutKiosk() {
   const addToCart = useCallback((product) => {
     if (!product) return;
     const productName = product.itname || product.name;
-    const productStock = product.opstock || product.stock || 0;
-    const productSaleRate = product.onlinerate || product.sale_rate || 0;
+    const productStock = product.opstock || product.stock || 999; // Default to 999 if stock not available
+    const productSaleRate = product.onlinerate || product.sale_rate || product.price || 0; // Default to 0 if price not available, or add product.price too
 
-    if (productStock <= 0) {
-      toast.error('Out of stock!');
-      return;
-    }
+    // Allow even if productStock is 0 (kiosk mode, no strict stock check)
+    // if (productStock <= 0) {
+    //   toast.error('Out of stock!');
+    //   return;
+    // }
 
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
