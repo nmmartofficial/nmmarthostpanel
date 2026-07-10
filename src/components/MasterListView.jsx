@@ -251,13 +251,13 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
             <button 
               onClick={async () => {
                 console.log('[MasterListView Delete All] Button clicked! table:', table, 'data:', data);
-                let confirmMessage = `Are you sure you want to delete ALL ${title}? This cannot be undone!`;
+                let confirmMessage = `क्या आप वाकई सभी ${title} को PERMANENTLY DELETE करना चाहते हैं? ये वापस नहीं लाया जा सकता!`;
                 if (table === DB_SCHEMA.CATEGORIES.table) {
-                  confirmMessage = "ARE YOU SURE? This will PERMANENTLY DELETE ALL CATEGORIES and REMOVE THEM FROM ALL PRODUCTS!";
+                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी CATEGORIES को HAMESHA KE LIYE DELETE कर देगा और सभी PRODUCTS से उन्हें REMOVE कर देगा!";
                 } else if (table === DB_SCHEMA.SUBCATEGORIES.table) {
-                  confirmMessage = "ARE YOU SURE? This will PERMANENTLY DELETE ALL SUBCATEGORIES and REMOVE THEM FROM ALL PRODUCTS!";
+                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी SUBCATEGORIES को HAMESHA KE LIYE DELETE कर देगा और सभी PRODUCTS से उन्हें REMOVE कर देगा!";
                 } else if (table === DB_SCHEMA.BRANDS.table) {
-                  confirmMessage = "ARE YOU SURE? This will PERMANENTLY DELETE ALL BRANDS and REMOVE THEM FROM ALL PRODUCTS!";
+                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी BRANDS को HAMESHA KE LIYE DELETE कर देगा और सभी PRODUCTS से उन्हें REMOVE कर देगा!";
                 }
                 
                 if (!window.confirm(confirmMessage)) {
@@ -275,7 +275,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                 }
                 console.log('[MasterListView Delete All] All items deleted, calling fetchInitialData');
                 fetchInitialData();
-                alert(`All ${title} deleted successfully!`);
+                alert(`सभी ${title} सफलतापूर्वक DELETE कर दिए गए!`);
               }}
               className="flex-1 md:flex-none bg-red-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-red-700 transition-all border border-red-600 shadow-sm"
             >
@@ -399,15 +399,15 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                         onClick={async () => {
                           console.log('[MasterListView Delete] Button clicked! item:', item, 'table:', table);
                           // Confirmation for all master tables
-                          let confirmMessage = "Are you sure you want to delete this entry permanently?";
+                          let confirmMessage = "क्या आप वाकई इस entry को HAMESHA KE LIYE DELETE करना चाहते हैं?";
                           if (table === DB_SCHEMA.PRODUCTS.table) {
-                            confirmMessage = "ARE YOU SURE? This will permanently delete this Item Master entry!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Item Master entry को हमेशा के लिए DELETE कर देगा!";
                           } else if (table === DB_SCHEMA.CATEGORIES.table) {
-                            confirmMessage = "ARE YOU SURE? This will permanently delete this Category and it will be removed from all products!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Category को हमेशा के लिए DELETE कर देगा और सभी products से इसे remove कर देगा!";
                           } else if (table === DB_SCHEMA.SUBCATEGORIES.table) {
-                            confirmMessage = "ARE YOU SURE? This will permanently delete this Subcategory and it will be removed from all products!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Subcategory को हमेशा के लिए DELETE कर देगा और सभी products से इसे remove कर देगा!";
                           } else if (table === DB_SCHEMA.BRANDS.table) {
-                            confirmMessage = "ARE YOU SURE? This will permanently delete this Brand and it will be removed from all products!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Brand को हमेशा के लिए DELETE कर देगा और सभी products से इसे remove कर देगा!";
                           }
                           
                           if (!window.confirm(confirmMessage)) {
@@ -418,7 +418,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                           console.log('[MasterListView Delete] Calling handleERPAction');
                           const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
                           console.log('[MasterListView Delete] handleERPAction response:', res);
-                          fetchInitialData();
+                          await fetchInitialData();
                         }}
                         className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100 shadow-sm hover:shadow-md"
                         title="Delete"
