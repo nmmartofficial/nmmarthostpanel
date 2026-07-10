@@ -20,31 +20,31 @@ export async function processImageForUpload(file) {
       canvas.width = targetSize;
       canvas.height = targetSize;
 
-      // Calculate aspect ratios for center crop
+      // Calculate aspect ratios for fitting the entire image without cropping
       const imgRatio = img.width / img.height;
       const canvasRatio = 1;
 
       let drawWidth, drawHeight, offsetX, offsetY;
 
       if (imgRatio > canvasRatio) {
-        // Image is wider than square - crop sides
-        drawHeight = targetSize;
-        drawWidth = img.width * (targetSize / img.height);
-        offsetX = (targetSize - drawWidth) / 2;
-        offsetY = 0;
-      } else {
-        // Image is taller than square - crop top/bottom
+        // Image is wider than square - fit width and center vertically
         drawWidth = targetSize;
-        drawHeight = img.height * (targetSize / img.width);
+        drawHeight = targetSize / imgRatio;
         offsetX = 0;
         offsetY = (targetSize - drawHeight) / 2;
+      } else {
+        // Image is taller than square - fit height and center horizontally
+        drawHeight = targetSize;
+        drawWidth = targetSize * imgRatio;
+        offsetX = (targetSize - drawWidth) / 2;
+        offsetY = 0;
       }
 
       // Draw white background (in case image has transparency)
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, targetSize, targetSize);
 
-      // Draw the image with center crop
+      // Draw the entire image centered with padding
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
 
       // Convert canvas to blob - prefer WebP, fallback to JPG
