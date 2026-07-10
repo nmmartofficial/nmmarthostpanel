@@ -5954,9 +5954,21 @@ const BannersView = (props) => (
       { name: 'image_url', label: 'Banner Image', type: 'image', required: true },
       { name: 'link_type', label: 'Click Action', type: 'select', options: [
         { value: 'none', label: 'None' },
-        { value: 'product', label: 'Link to Product' }
+        { value: 'product', label: 'Link to Product' },
+        { value: 'category', label: 'Link to Category' }
       ]},
-      { name: 'linked_product_id', label: 'Linked Product', type: 'product-search' },
+      { 
+        name: 'linked_product_id', 
+        label: 'Linked Product', 
+        type: 'product-search',
+        condition: (formData) => formData.link_type === 'product' 
+      },
+      { 
+        name: 'linked_category_id', 
+        label: 'Linked Category', 
+        type: 'category-search',
+        condition: (formData) => formData.link_type === 'category' 
+      },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]} 
   />
@@ -7199,7 +7211,7 @@ function renderTabContent(activeTab, props) {
     case 'Coupons': return <CouponsView title="Coupon Master" table={DB_SCHEMA.COUPONS.table} data={props.coupons} {...props} />;
     case 'Users': return <UsersView title="App Users" table={DB_SCHEMA.USERS.table} data={props.users} {...props} />;
     case 'UserMaster': return <UserMasterView title="User Master" table={DB_SCHEMA.ADMIN_USERS.table} data={props.adminUsers} {...props} />;
-    case 'Banners': return <BannersView title="App Banners" table={DB_SCHEMA.BANNERS.table} data={props.banners} {...props} />;
+    case 'Banners': return <BannersView title="App Banners" table={DB_SCHEMA.BANNERS.table} data={props.banners} products={props.products} categories={props.categories} {...props} />;
     case 'Offers': return <OffersView title="Offer Master" table={DB_SCHEMA.OFFERS.table} data={props.offers} {...props} />;
     case 'Credits': return <CreditsView title="Credit Master" table={DB_SCHEMA.CREDITS.table} data={props.credits} {...props} />;
     case 'DeliveryBoys': return <DeliveryBoysView title="Delivery Boy Master" table={DB_SCHEMA.DELIVERY_BOYS.table} data={props.deliveryBoys} {...props} />;
