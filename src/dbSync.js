@@ -453,12 +453,47 @@ export const dbSync = {
     return schemaEntry ? schemaEntry.pk : 'id'; // Default to 'id' if not found
   },
 
-  // Delete (Enhanced with Soft Delete Support)
+  // Delete (Enhanced with Soft Delete Support + Child Check)
   delete: async (tableName, id, permanent = false) => {
     console.log('[dbSync.delete] Called with:', { tableName, id, permanent });
     try {
       const pkColumn = dbSync.getPkColumn(tableName);
       console.log('[dbSync.delete] pkColumn:', pkColumn);
+
+      // --- 1. Check for related child records BEFORE deletion ---
+      let relatedRecords = [];
+      let relatedRecordsMessage = null;
+
+      if (tableName === DB_SCHEMA.CATEGORIES.table) {
+        // Check for related products and subcategories
+        const [productsCheck, subcategoriesCheck] = await Promise.all([
+          supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('category_id', id),
+          supabase.from(DB_SCHEMA.SUBCATEGORIES.table).select('id').eq('category_id', id),
+        ]);
+        relatedRecords = [...(productsCheck.data || []), ...(subcategoriesCheck.data || [])];
+        if (relatedRecords.length > 0) {
+          relatedRecordsMessage = `यह Category ${productsCheck.data?.length || 0} Products और ${subcategoriesCheck.data?.length || 0} Subcategories से जुड़ी हुई है!`;
+        }
+      } else if (tableName === DB_SCHEMA.SUBCATEGORIES.table) {
+        // Check for related products
+        const productsCheck = await supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('subcategory_id', id);
+        relatedRecords = productsCheck.data || [];
+        if (relatedRecords.length > 0) {
+          relatedRecordsMessage = `यह Subcategory ${relatedRecords.length} Products से जुड़ी हुई है!`;
+        }
+      } else if (tableName === DB_SCHEMA.BRANDS.table) {
+        // Check for related products
+        const productsCheck = await supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('brand_id', id);
+        relatedRecords = productsCheck.data || [];
+        if (relatedRecords.length > 0) {
+          relatedRecordsMessage = `यह Brand ${relatedRecords.length} Products से जुड़ा हुआ है!`;
+        }
+      }
+
+      if (relatedRecordsMessage) {
+        throw new Error(`409_CONFLICT:${relatedRecordsMessage}`);
+      }
+
       let error;
       // Fetch old data first
       const { data: oldData, error: fetchError } = await supabase
@@ -468,7 +503,7 @@ export const dbSync = {
         .single();
       console.log('[dbSync.delete] oldData:', oldData, 'fetchError:', fetchError);
 
-      const hardDeleteTables = ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist', 'banners', 'coupons', 'offers_master', 'categories', 'subcategories', 'brands'];
+      const hardDeleteTables = ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist', 'banners', 'coupons', 'offers_master'];
       const shouldHardDelete = permanent || hardDeleteTables.includes(tableName);
       console.log('[dbSync.delete] shouldHardDelete:', shouldHardDelete);
 
@@ -478,7 +513,7 @@ export const dbSync = {
         error = res.error;
         console.log('[dbSync.delete] Hard delete res.error:', error);
       } else {
-        // Soft Delete (Security Feature: Data is hidden but not lost)
+        // Soft Delete (Security Feature: Data is hidden but not lost - for categories/subcategories/brands now!)
         const res = await supabase.from(tableName).update({ is_active: false }).eq(pkColumn, id);
         error = res.error;
         console.log('[dbSync.delete] Soft delete res.error:', error);
@@ -486,6 +521,10 @@ export const dbSync = {
 
       if (error) {
         if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this deletion.");
+        // Handle foreign key conflict (409)
+        if (error.code === '23503') {
+          throw new Error(`409_CONFLICT:Foreign Key Constraint - इस table से जुड़े records मौजूद हैं!`);
+        }
         throw error;
       }
 

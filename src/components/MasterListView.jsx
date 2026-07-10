@@ -253,11 +253,11 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                 console.log('[MasterListView Delete All] Button clicked! table:', table, 'data:', data);
                 let confirmMessage = `क्या आप वाकई सभी ${title} को PERMANENTLY DELETE करना चाहते हैं? ये वापस नहीं लाया जा सकता!`;
                 if (table === DB_SCHEMA.CATEGORIES.table) {
-                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी CATEGORIES को HAMESHA KE LIYE DELETE कर देगा और सभी PRODUCTS से उन्हें REMOVE कर देगा!";
+                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी CATEGORIES को soft delete करेगा (hide कर देगा)!";
                 } else if (table === DB_SCHEMA.SUBCATEGORIES.table) {
-                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी SUBCATEGORIES को HAMESHA KE LIYE DELETE कर देगा और सभी PRODUCTS से उन्हें REMOVE कर देगा!";
+                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी SUBCATEGORIES को soft delete करेगा (hide कर देगा)!";
                 } else if (table === DB_SCHEMA.BRANDS.table) {
-                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी BRANDS को HAMESHA KE LIYE DELETE कर देगा और सभी PRODUCTS से उन्हें REMOVE कर देगा!";
+                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी BRANDS को soft delete करेगा (hide कर देगा)!";
                 }
                 
                 if (!window.confirm(confirmMessage)) {
@@ -268,14 +268,36 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                 // Delete all records
                 const itemsToDelete = data || [];
                 console.log('[MasterListView Delete All] Items to delete:', itemsToDelete);
+                let hasError = false;
+                let firstErrorMsg = null;
+                
                 for (const item of itemsToDelete) {
                   console.log('[MasterListView Delete All] Deleting item:', item);
                   const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
                   console.log('[MasterListView Delete All] Deleted item, response:', res);
+                  
+                  if (!res.success) {
+                    hasError = true;
+                    if (!firstErrorMsg) {
+                      firstErrorMsg = res.error;
+                    }
+                    break; // Stop at first error
+                  }
                 }
-                console.log('[MasterListView Delete All] All items deleted, calling fetchInitialData');
-                fetchInitialData();
-                alert(`सभी ${title} सफलतापूर्वक DELETE कर दिए गए!`);
+                
+                console.log('[MasterListView Delete All] All items processed, calling fetchInitialData');
+                await fetchInitialData();
+                
+                if (hasError) {
+                  if (firstErrorMsg && firstErrorMsg.startsWith('409_CONFLICT:')) {
+                    const errorMsg = firstErrorMsg.replace('409_CONFLICT:', '');
+                    alert(`⚠️ SAB DELETE NAHI HO PAYE!\n\n${errorMsg}\n\nकृपया पहले जुड़े Records को हटाएँ!`);
+                  } else {
+                    alert(`Delete All Failed!\n\n${firstErrorMsg}`);
+                  }
+                } else {
+                  alert(`सभी ${title} सफलतापूर्वक DELETE कर दिए गए!`);
+                }
               }}
               className="flex-1 md:flex-none bg-red-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-red-700 transition-all border border-red-600 shadow-sm"
             >
@@ -403,11 +425,11 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                           if (table === DB_SCHEMA.PRODUCTS.table) {
                             confirmMessage = "क्या आप वाकई SURE हैं? ये इस Item Master entry को हमेशा के लिए DELETE कर देगा!";
                           } else if (table === DB_SCHEMA.CATEGORIES.table) {
-                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Category को हमेशा के लिए DELETE कर देगा और सभी products से इसे remove कर देगा!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Category को soft delete करेगा (hide कर देगा)!";
                           } else if (table === DB_SCHEMA.SUBCATEGORIES.table) {
-                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Subcategory को हमेशा के लिए DELETE कर देगा और सभी products से इसे remove कर देगा!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Subcategory को soft delete करेगा (hide कर देगा)!";
                           } else if (table === DB_SCHEMA.BRANDS.table) {
-                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Brand को हमेशा के लिए DELETE कर देगा और सभी products से इसे remove कर देगा!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Brand को soft delete करेगा (hide कर देगा)!";
                           }
                           
                           if (!window.confirm(confirmMessage)) {
@@ -418,6 +440,19 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                           console.log('[MasterListView Delete] Calling handleERPAction');
                           const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
                           console.log('[MasterListView Delete] handleERPAction response:', res);
+                          
+                          if (!res.success) {
+                            // --- Handle 409 Conflict error ---
+                            if (res.error && res.error.startsWith('409_CONFLICT:')) {
+                              const errorMsg = res.error.replace('409_CONFLICT:', '');
+                              alert(`⚠️ DELETE नहीं हो पाया!\n\n${errorMsg}\n\nकृपया पहले इससे जुड़े Products/Subcategories को हटाएँ या unlink करें!`);
+                              return;
+                            } else {
+                              alert(`Delete Failed!\n\n${res.error}`);
+                              return;
+                            }
+                          }
+                          
                           await fetchInitialData();
                         }}
                         className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100 shadow-sm hover:shadow-md"
