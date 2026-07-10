@@ -220,6 +220,7 @@ export default function ProductsView({ products, categories, brands, subcategori
         // --- STEP 3: VALIDATE AND PREPARE PRODUCTS ---
         const productsToUpload = [];
         const skippedRows = [];
+        const seenCombinations = new Set(); // Track combinations in CSV to avoid duplicates within the file
 
         parsedData.forEach((item, index) => {
           const errors = [];
@@ -247,8 +248,32 @@ export default function ProductsView({ products, categories, brands, subcategori
           
           // Use id from Excel directly
           let productId = String(item.id || "").trim() || generateUUID();
+
+          // --- DUPLICATE CHECK FOR CSV IMPORT ---
+          const catId = cat?.id || null;
+          const brandId = brand?.id || null;
+          const combinationKey = `${brandId}-${catId}-null`; // Subcategory not used in current Excel structure
+
+          // Check 1: Duplicate within the CSV file itself
+          if (seenCombinations.has(combinationKey)) {
+            skippedRows.push({ row: index + 1, reason: "Duplicate combination in CSV file" });
+            return;
+          }
+
+          // Check 2: Duplicate already exists in the database
+          const isDuplicateInDB = products.some(product => 
+            product.brand_id === brandId && product.category_id === catId
+          );
+
+          if (isDuplicateInDB) {
+            skippedRows.push({ row: index + 1, reason: "Combination already exists in database" });
+            return;
+          }
+
+          // If no duplicates, add to upload list and mark combination as seen
+          seenCombinations.add(combinationKey);
           
-          productsToUpload.push({
+          const productToAdd = {
             id: productId,
             itname: String(item.itname || "").trim(),
             itnameprint: String(item.itnameprint || "").trim() || null,
@@ -294,14 +319,29 @@ export default function ProductsView({ products, categories, brands, subcategori
             image_url: String(item.picture || "").trim() || null,
             category_name: String(item.itc || "").trim() || null,
             brand_name: String(item.brandcode || "").trim() || null,
-            unit_name: String(item.unitcode || "").trim() || null
-          });
+            unit_name: String(item.unitcode || "").trim() || null,
+            category_id: catId,
+            brand_id: brandId
+          };
+          productsToUpload.push(productToAdd);
         });
 
         // --- STEP 4: BULK UPLOAD PRODUCTS ---
         await dbSync.insert(DB_SCHEMA.PRODUCTS.table, productsToUpload);
         
-        alert(`SUCCESS! ${productsToUpload.length} items imported.`);
+        // Prepare success/info message
+        let message = `SUCCESS! ${productsToUpload.length} items imported.`;
+        if (skippedRows.length > 0) {
+          message += `\n\n⚠️ Skipped ${skippedRows.length} duplicate rows:\n`;
+          skippedRows.slice(0, 5).forEach(row => { // Show first 5 skipped rows
+            message += `Row ${row.row}: ${row.reason}\n`;
+          });
+          if (skippedRows.length > 5) {
+            message += `... and ${skippedRows.length - 5} more`;
+          }
+        }
+        
+        alert(message);
         
         window.location.reload(); 
       } catch (error) {
@@ -331,6 +371,37 @@ export default function ProductsView({ products, categories, brands, subcategori
     
     if (!cessValid.isValid) {
       setCessError(cessValid.message);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // --- DUPLICATE ENTRY PREVENTION CHECK ---
+    const finalCategoryId = formData.category_id;
+    const finalSubcategoryId = formData.subcategory_id;
+    const finalBrandId = formData.brand_id;
+
+    // Check if all required fields are selected
+    if (!finalCategoryId || !finalBrandId) {
+      alert("Please select both Category and Brand!");
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Check for existing product with same brand + category + subcategory combination
+    const isDuplicate = products.some(product => {
+      // If editing, skip the current product itself
+      if (editingProduct && product.id === editingProduct.id) {
+        return false;
+      }
+      return (
+        product.brand_id === finalBrandId &&
+        product.category_id === finalCategoryId &&
+        product.subcategory_id === finalSubcategoryId
+      );
+    });
+
+    if (isDuplicate) {
+      alert("⚠️ Duplicate Entry! This Brand + Category + Subcategory combination already exists for another product.");
       setIsSubmitting(false);
       return;
     }
