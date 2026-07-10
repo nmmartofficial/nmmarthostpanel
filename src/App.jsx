@@ -36,6 +36,7 @@ import {
   secureStorage, isSecureConnection, forceHTTPS,
   LoginRateLimiter, validateProduct, preventClickjacking
 } from './utils/security';
+import { processImageForUpload } from './utils/imageHandler';
 
 import MasterListView from './components/MasterListView';
 import { cn, generateUUID } from './utils/helpers';
@@ -995,9 +996,32 @@ export default function App() {
   };
 
   // --- Storage Helper ---
-  const uploadImage = async (file, bucket) => {
+  const uploadImage = async (file, bucket, processAsSquare = true) => {
     try {
       if (!file) throw new Error("No file selected");
+      
+      let fileToUpload = file;
+      
+      // Process image if it's an image file and processing is enabled
+      if (processAsSquare && file.type.startsWith('image/')) {
+        try {
+          const processedBlob = await processImageForUpload(file);
+          // Determine the correct extension based on the blob type
+          const newExt = processedBlob.type.includes('webp') ? 'webp' : 'jpg';
+          // Create a File object from the Blob
+          fileToUpload = new File(
+            [processedBlob],
+            `${Date.now()}-${Math.random().toString(36).substring(2)}.${newExt}`,
+            {
+              type: processedBlob.type,
+              lastModified: Date.now()
+            }
+          );
+        } catch (processError) {
+          console.warn('Image processing failed, using original file:', processError);
+          fileToUpload = file;
+        }
+      }
       
       // Check if supabase.storage is available
       if (!supabase.storage) {
@@ -1005,13 +1029,12 @@ export default function App() {
         return { url: null, error: null };
       }
       
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const fileName = fileToUpload.name;
       const filePath = `${fileName}`;
 
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, {
+        .upload(filePath, fileToUpload, {
           cacheControl: '3600',
           upsert: false
         });

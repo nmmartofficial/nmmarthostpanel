@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { DB_SCHEMA } from './dbSchema';
 import * as XLSX from 'xlsx';
 import { secureStorage } from './utils/security';
+import { processImageForUpload } from './utils/imageHandler';
 
 /**
  * NM MART - Table Synchronization Module
@@ -500,17 +501,31 @@ export const dbSync = {
    * STORAGE: Upload Image/File to Supabase Storage
    * @param {string} bucket - Bucket name (e.g., 'banners', 'products')
    * @param {File} file - The file object to upload
+   * @param {boolean} processImage - Whether to process image to 500x500 square (default: true)
    * @returns {string} Public URL of the uploaded file
    */
-  uploadFile: async (bucket, file) => {
+  uploadFile: async (bucket, file, processImage = true) => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      let fileToUpload = file;
+      
+      // Process image if it's an image file and processing is enabled
+      if (processImage && file.type.startsWith('image/')) {
+        const processedBlob = await processImageForUpload(file);
+        // Create a new File from the processed Blob
+        const originalExt = file.name.split('.').pop();
+        const newExt = processedBlob.type.includes('webp') ? 'webp' : 'jpg';
+        fileToUpload = new File([processedBlob], `processed_${Date.now()}.${newExt}`, {
+          type: processedBlob.type,
+          lastModified: Date.now()
+        });
+      }
+
+      const fileName = fileToUpload.name;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) throw uploadError;
 
@@ -531,7 +546,7 @@ export const dbSync = {
    * Uploads banner to storage and syncs metadata to database.
    * "Supabase Storage aur Database ke saath perfectly integrate ho."
    */
-  uploadAndSyncBanner: async (file, bannerDetails) => {
+  uploadAndSyncBanner: async (file, bannerDetails, processAsSquare = false) => {
     try {
       // 1. Cleanup Old Image if exists
       // "Cleanup Logic: Jab aap kisi purane banner ko UPSERT karke replace karte hain, toh purani image delete ho rahi hai?"
@@ -550,18 +565,31 @@ export const dbSync = {
         }
       }
 
-      // 2. Image Optimization (Compression)
-      // "Agar aapka Admin panel web par slow chal raha ho... badi photos ko upload karne se pehle compress kar de."
-      const optimizedFile = file.type.startsWith('image/') ? await compressImage(file) : file;
+      // 2. Image Optimization
+      let fileToUpload = file;
+      if (file.type.startsWith('image/')) {
+        if (processAsSquare) {
+          // Process as 500x500 square
+          const processedBlob = await processImageForUpload(file);
+          const newExt = processedBlob.type.includes('webp') ? 'webp' : 'jpg';
+          fileToUpload = new File([processedBlob], `banner_${Date.now()}.${newExt}`, {
+            type: processedBlob.type,
+            lastModified: Date.now()
+          });
+        } else {
+          // Use old compressImage for banners (since banners are not square)
+          fileToUpload = await compressImage(file);
+        }
+      }
 
       // 3. Upload to Storage (banner-images bucket)
-      const fileExt = optimizedFile.name.split('.').pop();
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `banners/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('banner-images')
-        .upload(filePath, optimizedFile);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) throw new Error(`Storage Upload Failed: ${uploadError.message}`);
 
