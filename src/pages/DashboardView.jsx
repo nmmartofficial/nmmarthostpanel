@@ -7,7 +7,7 @@ import { cn } from '../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
 
-export default function DashboardView({ stats, orders, products, setActiveTab, festivals, activeFestival }) {
+export default function DashboardView({ stats, orders, orderItems, products, setActiveTab, festivals, activeFestival }) {
   const getUpcomingFestivals = () => {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -19,6 +19,51 @@ export default function DashboardView({ stats, orders, products, setActiveTab, f
   };
   
   const upcomingFestivals = getUpcomingFestivals();
+
+  // --- Inventory Intelligence Logic ---
+  const smartInsights = useMemo(() => {
+    const today = new Date();
+    const fifteenDaysFromNow = new Date();
+    fifteenDaysFromNow.setDate(today.getDate() + 15);
+
+    // 1. Predictive Stock (Last 30 days analysis)
+    // Calculate average daily sales per product
+    const salesMap = {};
+    (orderItems || []).forEach(item => {
+      const pId = item.product_id;
+      salesMap[pId] = (salesMap[pId] || 0) + (parseFloat(item.quantity) || 0);
+    });
+
+    const runOutRisk = products
+      .map(p => {
+        const totalSold = salesMap[p.id] || 0;
+        const avgDailySales = totalSold / 30;
+        const currentStock = parseFloat(p.stock || p.opstock || 0);
+
+        if (avgDailySales === 0) return null;
+
+        const daysRemaining = currentStock / avgDailySales;
+        if (daysRemaining <= 5 && currentStock > 0) {
+          return { ...p, daysRemaining: Math.round(daysRemaining), type: 'RUN_OUT' };
+        }
+        return null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.daysRemaining - b.daysRemaining);
+
+    // 2. Urgent Expiry (Next 15 days)
+    const urgentExpiry = products
+      .filter(p => {
+        if (!p.expiry_date) return false;
+        const expDate = new Date(p.expiry_date);
+        return expDate >= today && expDate <= fifteenDaysFromNow;
+      })
+      .map(p => ({ ...p, type: 'EXPIRY', daysToExpiry: Math.ceil((new Date(p.expiry_date) - today) / (1000 * 60 * 60 * 24)) }))
+      .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+
+    return { runOutRisk, urgentExpiry };
+  }, [products, orderItems]);
+
   const revenue = useMemo(() => {
     return orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
   }, [orders]);
@@ -207,28 +252,61 @@ export default function DashboardView({ stats, orders, products, setActiveTab, f
           </div>
         </div>
 
-        {/* Sidebar Actions & Alerts */}
-        <div className="space-y-2">
-          <div className="bg-white rounded-xl border border-neutral-200 p-3 shadow-enterprise">
-            <h4 className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-2">Critical Alerts</h4>
-            <div className="space-y-1.5">
-              {[
-                ...products.filter(p => p.stock <= 5).map(p => ({ ...p, alert_type: 'STOCK' })),
-              ].slice(0, 4).map((p, idx) => (
-                <div key={idx} className="flex items-center justify-between p-1.5 bg-neutral-50 rounded-lg border border-neutral-100">
+        {/* Sidebar Actions & Smart Inventory Insights */}
+        <div className="space-y-2 flex flex-col h-full">
+          <div className="bg-white rounded-xl border border-neutral-200 p-3 shadow-enterprise flex-1 flex flex-col min-h-0">
+            <h4 className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+              Inventory Intelligence
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              </div>
+            </h4>
+
+            <div className="space-y-1.5 overflow-y-auto pr-1 custom-scrollbar">
+              {/* Predictive: Run-out Risk */}
+              {smartInsights.runOutRisk.slice(0, 3).map((p, idx) => (
+                <div key={`runout-${idx}`} className="flex items-center justify-between p-1.5 bg-red-50 rounded-lg border border-red-100">
                   <div className="flex items-center gap-2 min-w-0">
-                    <img src={p.image_url} alt="" className="w-5 h-5 object-contain bg-white rounded shadow-sm p-0.5" />
-                    <span className="text-[8px] font-bold text-neutral-700 truncate">{p.name}</span>
+                    <div className="w-5 h-5 rounded bg-white flex items-center justify-center text-[10px] shadow-xs shrink-0">📉</div>
+                    <span className="text-[8px] font-bold text-red-900 truncate">{p.name || p.itname}</span>
                   </div>
-                  <span className={cn(
-                    "text-[7px] font-black px-1.5 py-0.5 rounded flex-shrink-0 shadow-xs",
-                    p.stock <= 0 ? "bg-red-50 text-red-600 border border-red-100" : "bg-amber-50 text-amber-600 border border-amber-100"
-                  )}>{p.stock <= 0 ? 'CRITICAL' : 'WARNING'}</span>
+                  <span className="text-[7px] font-black px-1.5 py-0.5 bg-red-600 text-white rounded flex-shrink-0 uppercase">
+                    Ends in {p.daysRemaining}d
+                  </span>
                 </div>
               ))}
-              {products.filter(p => p.stock <= 5).length === 0 && (
-                <div className="flex items-center justify-center p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
-                  <p className="text-[8px] text-emerald-700 font-black uppercase">All Systems Normal</p>
+
+              {/* Urgent Expiry */}
+              {smartInsights.urgentExpiry.slice(0, 3).map((p, idx) => (
+                <div key={`expiry-${idx}`} className="flex items-center justify-between p-1.5 bg-amber-50 rounded-lg border border-amber-100">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-5 h-5 rounded bg-white flex items-center justify-center text-[10px] shadow-xs shrink-0">⏳</div>
+                    <span className="text-[8px] font-bold text-amber-900 truncate">{p.name || p.itname}</span>
+                  </div>
+                  <span className="text-[7px] font-black px-1.5 py-0.5 bg-amber-600 text-white rounded flex-shrink-0 uppercase">
+                    Exp: {p.daysToExpiry}d
+                  </span>
+                </div>
+              ))}
+
+              {/* Legacy Critical Stock */}
+              {products.filter(p => (parseFloat(p.stock || p.opstock || 0)) <= 0).slice(0, 2).map((p, idx) => (
+                <div key={`out-${idx}`} className="flex items-center justify-between p-1.5 bg-neutral-100 rounded-lg border border-neutral-200">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-5 h-5 rounded bg-white flex items-center justify-center text-[10px] shadow-xs shrink-0">🚫</div>
+                    <span className="text-[8px] font-bold text-neutral-700 truncate">{p.name || p.itname}</span>
+                  </div>
+                  <span className="text-[7px] font-black px-1.5 py-0.5 bg-neutral-900 text-white rounded flex-shrink-0 uppercase">
+                    OUT
+                  </span>
+                </div>
+              ))}
+
+              {smartInsights.runOutRisk.length === 0 && smartInsights.urgentExpiry.length === 0 && products.filter(p => (parseFloat(p.stock || p.opstock || 0)) <= 0).length === 0 && (
+                <div className="flex flex-col items-center justify-center py-4 opacity-40">
+                  <UserCheck size={20} className="text-emerald-500" />
+                  <p className="text-[8px] font-black uppercase mt-1">All Good</p>
                 </div>
               )}
             </div>

@@ -822,6 +822,11 @@ export default function App() {
     if (!silent) setLoading(true);
     console.log("[Audit] Initializing Data Orchestration...");
     try {
+      // Calculate date 30 days ago for order items
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const dateStr = thirtyDaysAgo.toISOString();
+
       const results = await Promise.allSettled([
         dbSync.fetch(DB_SCHEMA.PRODUCTS.table),
         dbSync.fetch(DB_SCHEMA.CATEGORIES.table, { order: { column: 'name', ascending: true } }),
@@ -849,12 +854,18 @@ export default function App() {
         dbSync.fetch(DB_SCHEMA.UNITS.table),
         dbSync.fetch(DB_SCHEMA.ACCOUNTS.table),
         dbSync.fetch(DB_SCHEMA.INVENTORY_LOGS.table, { order: { column: 'created_at', ascending: false }, limit: 100 }),
-        dbSync.fetch(DB_SCHEMA.EXPENSES.table, { order: { column: 'date', ascending: false } })
+        dbSync.fetch(DB_SCHEMA.EXPENSES.table, { order: { column: 'date', ascending: false } }),
+        // Fetch last 30 days of order items
+        supabase.from(DB_SCHEMA.ORDER_ITEMS.table).select('*').gte('created_at', dateStr)
       ]);
 
       const getData = (index, fallback = []) => {
         if (!results[index]) return fallback;
-        return results[index].status === 'fulfilled' ? results[index].value : fallback;
+        if (results[index].status === 'fulfilled') {
+          if (index === 27) return results[index].value.data || fallback;
+          return results[index].value;
+        }
+        return fallback;
       };
 
       const productsData = getData(0);
@@ -884,11 +895,13 @@ export default function App() {
       const accountsData = getData(24);
       const inventoryLogsData = getData(25);
       const expensesData = getData(26);
+      const orderItemsData = getData(27);
 
       setProducts(productsData);
       setCategories(categoriesData);
       setOrders(ordersData);
-      
+      setOrderItems(orderItemsData);
+
       // Use DEFAULT_APP_CONFIG if no app config is found, otherwise only use loaded fields
       const loadedAppConfig = Array.isArray(appConfigData) ? appConfigData[0] : appConfigData;
       console.log("Loaded appConfig from DB:", loadedAppConfig);
@@ -1843,11 +1856,11 @@ export default function App() {
           >
             {renderTabContent(activeTab, { 
                 activeTab, setActiveTab,
-                stats, appConfig, banners, categories, subcategories, brands, products, orders, users, coupons,
+                stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems, users, coupons,
                 offers, pincodes, homeConfig, walletTx, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                 purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
                 loyaltyPoints, loyaltyTransactions, loyaltyTiers,
-                setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setUsers, setCoupons,
+                setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems, setUsers, setCoupons,
                 setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
                 setFestivals, setPreviewFestival, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
                 uploadImage, fetchInitialData, setLoading,
