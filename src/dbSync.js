@@ -312,15 +312,22 @@ export const dbSync = {
     try {
       validatePayload(tableName, payload);
 
-      // For tables with unique name constraints, use upsert on name
-      const tablesWithUniqueName = ['brands', 'categories', 'unit_master', 'department_master', 'expense_categories'];
+      // For tables with unique name constraints, use upsert
+      const conflictKeys = {
+        'brands': 'name',
+        'categories': 'name',
+        'unit_master': 'name',
+        'department_master': 'name',
+        'expense_categories': 'name',
+        'products': 'itname' // 🔥 Added products with itname as conflict key
+      };
       
       let request = supabase.from(tableName);
       
-      if (tablesWithUniqueName.includes(tableName)) {
-        // For these tables, use upsert with name as conflict key
+      if (conflictKeys[tableName]) {
+        // For these tables, use upsert with specific conflict key
         request = request.upsert(Array.isArray(payload) ? payload : [payload], { 
-          onConflict: 'name' 
+          onConflict: conflictKeys[tableName]
         });
       } else {
         // For other tables (including subcategories), regular insert
@@ -1030,10 +1037,11 @@ export const dbSync = {
    */
   deleteAll: async (tableName) => {
     try {
+      // Use a universal filter that works for both bigint and uuid
       const { error } = await supabase
         .from(tableName)
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deletes everything that has an ID
+        .not('id', 'is', null);
 
       if (error) throw error;
       await logTableAction(tableName, 'BULK_DELETE_ALL');

@@ -184,6 +184,17 @@ export default function ProductsView({ products, categories, brands, subcategori
         const parsedData = await parseERPCSV(file, columnMapping);
         if (!parsedData || parsedData.length === 0) throw new Error("No data found in file");
 
+        // --- STEP 2.5: CHECK FOR DUPLICATES IN EXCEL (User Requirement) ---
+        const nameSet = new Set();
+        for (const item of parsedData) {
+          const name = String(item.itname || "").trim();
+          if (!name) continue;
+          if (nameSet.has(name)) {
+            throw new Error(`Duplicate product name found in Excel: "${name}", please fix and re-upload`);
+          }
+          nameSet.add(name);
+        }
+
         // --- STEP 3: VALIDATE AND PREPARE PRODUCTS ---
         const productsToUpload = [];
         const skippedRows = [];

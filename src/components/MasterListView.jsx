@@ -227,21 +227,21 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   return (
     <div className="space-y-4">
       {/* Header Section matching Item Master style */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-neutral-200 shadow-enterprise">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-600 rounded-lg text-white shadow-md">
+          <div className="p-2 bg-primary-600 rounded-lg text-white shadow-md">
             <GitBranch size={20} />
           </div>
-          <h2 className="text-base font-black text-slate-800 uppercase tracking-widest">{title}</h2>
+          <h2 className="text-base font-black text-neutral-800 uppercase tracking-widest">{title}</h2>
         </div>
         
         <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
           <div className="relative w-full md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={14} />
             <input 
               type="text"
               placeholder={`Search ${title}...`}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-[10px] font-black focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-slate-400 text-slate-900"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-lg pl-9 pr-4 py-2 text-[10px] font-black focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder-neutral-400 text-neutral-900 outline-none"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -305,15 +305,15 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
             </button>
             <button 
               onClick={handleImportCSV}
-              className="flex-1 md:flex-none bg-white text-blue-600 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-blue-50 transition-all border border-blue-600 shadow-sm"
+              className="flex-1 md:flex-none bg-white text-primary-600 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-primary-50 transition-all border border-primary-600 shadow-sm"
             >
               <FileJson size={14} /> Import
             </button>
             <button 
               onClick={() => handleERPAction(table, ACTION_TYPES.MAINTENANCE_EXPORT, { fileName: `${title}_Export` })}
-              className="flex-1 md:flex-none bg-white text-slate-700 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-slate-50 transition-all border border-slate-200 shadow-sm"
+              className="flex-1 md:flex-none bg-white text-neutral-700 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-neutral-50 transition-all border border-neutral-200 shadow-sm"
             >
-              <Download size={14} className="text-blue-600" /> Export
+              <Download size={14} className="text-primary-600" /> Export
             </button>
             <button 
               onClick={() => { 
@@ -328,7 +328,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                 setFormData(defaultFormData); 
                 setShowForm(true); 
               }}
-              className="flex-1 md:flex-none bg-blue-700 text-white px-5 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:translate-y-[-1px] transition-all"
+              className="flex-1 md:flex-none bg-primary-600 text-white px-5 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 shadow-lg shadow-primary-600/20 hover:translate-y-[-1px] transition-all hover:bg-primary-700"
             >
               <Plus size={14} /> Create New
             </button>
@@ -336,29 +336,29 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-enterprise">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-200">
-                <th className="px-4 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest w-16">SNo.</th>
+              <tr className="bg-neutral-50/50 border-b border-neutral-200">
+                <th className="px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest w-16">SNo.</th>
                 {fields.map(f => (
-                  <th key={f.name} className="px-4 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">{f.label}</th>
+                  <th key={f.name} className="px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest">{f.label}</th>
                 ))}
-                <th className="px-4 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
+                <th className="px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-neutral-100">
               {paginatedData.length > 0 ? paginatedData.map((item, index) => (
-                <tr key={item.id} className="hover:bg-blue-50/30 transition-colors group">
-                  <td className="px-4 py-3 text-[10px] font-black text-slate-400">
+                <tr key={item.id} className="hover:bg-primary-50 transition-colors group">
+                  <td className="px-4 py-3 text-[10px] font-black text-neutral-400">
                     {(currentPage - 1) * rowsPerPage + index + 1}
                   </td>
                   {fields.map(f => (
                     <td key={f.name} className="px-4 py-3">
                       {f.type === 'image' ? (
                         <div 
-                          className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-slate-500"
+                          className="w-10 h-10 rounded-lg overflow-hidden border border-neutral-200 bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center text-primary-300"
                           style={{
                             backgroundImage: getImageUrl(item[f.name]) ? `url(${getImageUrl(item[f.name])})` : 'none',
                             backgroundSize: 'cover',
@@ -372,26 +372,26 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                               return null;
                             }
                             // Otherwise, show placeholder text
-                            return <span className="text-[8px] font-black uppercase">No Img</span>;
+                            return <ImageIcon size={14} />;
                           })()}
                         </div>
                       ) : f.type === 'boolean' ? (
                         <span className={cn(
                           "text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full",
-                          item[f.name] ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-red-50 text-red-600 border border-red-100"
+                          item[f.name] ? "bg-success-50 text-success-700 border border-success-100" : "bg-error-50 text-error-700 border border-error-100"
                         )}>
                           {item[f.name] ? 'Active' : 'Inactive'}
                         </span>
                       ) : f.type === 'product-search' ? (
-                        <span className="text-[10px] font-bold text-slate-700">
+                        <span className="text-[10px] font-bold text-neutral-700">
                           {relatedData.products?.find(p => p.id === item[f.name])?.name || item[f.name]}
                         </span>
                       ) : f.type === 'category-search' || f.name === 'category_id' ? (
-                        <span className="text-[10px] font-bold text-slate-700">
+                        <span className="text-[10px] font-bold text-neutral-700">
                           {relatedData.categories?.find(c => c.id === item[f.name])?.name || item[f.name]}
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold text-slate-700">{item[f.name]}</span>
+                        <span className="text-[10px] font-bold text-neutral-700">{item[f.name]}</span>
                       )}
                     </td>
                   ))}
@@ -399,7 +399,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                     <div className="flex items-center justify-end gap-1">
                       <button 
                         onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all border border-transparent hover:border-blue-100 shadow-sm hover:shadow-md"
+                        className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-all border border-transparent hover:border-primary-100 shadow-sm hover:shadow-md"
                         title="Edit"
                       >
                         <Edit2 size={14} />
@@ -412,7 +412,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                             fetchInitialData();
                           }
                         }}
-                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-all border border-transparent hover:border-amber-100 shadow-sm hover:shadow-md"
+                        className="p-2 text-warning-600 hover:bg-warning-50 rounded-lg transition-all border border-transparent hover:border-warning-100 shadow-sm hover:shadow-md"
                         title="Toggle"
                       >
                         <Eye size={14} />
@@ -497,20 +497,20 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200"
             >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-600 rounded-lg text-white">
+                  <div className="p-2 bg-primary-600 rounded-lg text-white">
                     <Plus size={18} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                    <h3 className="text-sm font-black text-neutral-900 uppercase tracking-widest">
                       {title} [ {editingItem ? 'MODIFY' : 'NEW'} ]
                     </h3>
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Enter details below to {editingItem ? 'update' : 'create'} record</p>
+                    <p className="text-[8px] font-black text-neutral-400 uppercase tracking-widest mt-0.5">Enter details below to {editingItem ? 'update' : 'create'} record</p>
                   </div>
                 </div>
-                <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white rounded-xl transition-all border border-transparent hover:border-slate-200 hover:shadow-sm">
-                  <X size={20} className="text-slate-400" />
+                <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white rounded-xl transition-all border border-transparent hover:border-neutral-200 hover:shadow-sm">
+                  <X size={20} className="text-neutral-400" />
                 </button>
               </div>
 
@@ -519,18 +519,18 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                   {fields.filter(f => !f.condition || f.condition(formData)).map(f => (
                     <div key={f.name} className="space-y-1.5">
                       <div className="flex items-center justify-between px-1">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{f.label}</label>
-                        {f.required && <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">Required</span>}
+                        <label className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">{f.label}</label>
+                        {f.required && <span className="text-[8px] font-black text-error-500 uppercase tracking-widest">Required</span>}
                       </div>
                       
                       {f.type === 'image' ? (
-                        <div className="flex items-center gap-4 bg-slate-50 p-3 rounded-xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-colors group relative overflow-hidden">
+                        <div className="flex items-center gap-4 bg-neutral-50 p-3 rounded-xl border-2 border-dashed border-neutral-200 hover:border-primary-400 transition-colors group relative overflow-hidden">
                           <input 
                             type="file" 
                             onChange={(e) => setFormData({ ...formData, [`${f.name}_file`]: e.target.files[0] })}
                             className="absolute inset-0 opacity-0 cursor-pointer z-10"
                           />
-                          <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 overflow-hidden shadow-sm flex-shrink-0">
+                          <div className="w-16 h-16 rounded-lg bg-white border border-neutral-200 overflow-hidden shadow-sm flex-shrink-0">
                             {(formData[`${f.name}_file`] || formData[f.name]) ? (
                               <img 
                                 src={formData[`${f.name}_file`] ? URL.createObjectURL(formData[`${f.name}_file`]) : formData[f.name]} 
@@ -538,16 +538,16 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-50">
+                              <div className="w-full h-full flex items-center justify-center text-neutral-300 bg-neutral-50">
                                 <ImageIcon size={24} />
                               </div>
                             )}
                           </div>
                           <div className="flex-1">
-                            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                            <p className="text-[10px] font-black text-neutral-700 uppercase tracking-widest">
                               {formData[`${f.name}_file`]?.name || 'Choose Image File'}
                             </p>
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Click or drag to upload</p>
+                            <p className="text-[8px] font-black text-neutral-400 uppercase tracking-widest mt-0.5">Click or drag to upload</p>
                           </div>
                           {(formData[`${f.name}_file`] || formData[f.name]) && (
                             <button 
@@ -556,7 +556,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                                 e.stopPropagation();
                                 setFormData({ ...formData, [f.name]: null, [`${f.name}_file`]: null });
                               }}
-                              className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg shadow-lg z-20 hover:scale-110 transition-transform"
+                              className="absolute top-2 right-2 p-1.5 bg-error-500 text-white rounded-lg shadow-lg z-20 hover:scale-110 transition-transform"
                             >
                               <Trash2 size={12} />
                             </button>
@@ -578,7 +578,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                             }}
                             onFocus={() => setShowProductDropdown(true)}
                             onBlur={() => setTimeout(() => setShowProductDropdown(false), 200)}
-                            className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-slate-900 shadow-sm placeholder-slate-300"
+                            className="w-full bg-white border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 focus:ring-4 focus:ring-primary-50 transition-all text-neutral-900 shadow-sm placeholder-neutral-300 outline-none"
                             required={f.required}
                           />
                           <AnimatePresence>
@@ -718,14 +718,14 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                   <button 
                     type="button" 
                     onClick={() => setShowForm(false)}
-                    className="flex-1 bg-slate-100 text-slate-500 font-black py-3.5 rounded-xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all shadow-sm"
+                    className="flex-1 bg-neutral-100 text-neutral-500 font-black py-3.5 rounded-xl uppercase tracking-widest text-[10px] hover:bg-neutral-200 transition-all shadow-sm"
                   >
                     Discard
                   </button>
                   <button 
                     type="submit" 
                     disabled={isSubmitting}
-                    className="flex-1 bg-blue-700 text-white font-black py-3.5 rounded-xl uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 hover:translate-y-[-2px] active:translate-y-[0px] transition-all flex items-center justify-center gap-2"
+                    className="flex-1 bg-primary-600 text-white font-black py-3.5 rounded-xl uppercase tracking-widest text-[10px] shadow-lg shadow-primary-600/20 hover:translate-y-[-2px] active:translate-y-[0px] transition-all flex items-center justify-center gap-2 hover:bg-primary-700"
                   >
                     {isSubmitting ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
                     {editingItem ? 'Update Record' : 'Confirm Entry'}

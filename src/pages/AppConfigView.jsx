@@ -82,20 +82,20 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
   if (!isVerified) {
     return (
       <div className="flex flex-col items-center justify-center pt-20">
-        <form onSubmit={handlePasswordSubmit} className="flex items-center gap-4 bg-white p-8 rounded-xl shadow-sm border border-slate-100">
-          <label className="text-sm font-medium text-slate-700 whitespace-nowrap">Password :</label>
+        <form onSubmit={handlePasswordSubmit} className="flex items-center gap-4 bg-white p-8 rounded-2xl shadow-enterprise border border-neutral-100">
+          <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest whitespace-nowrap">Admin PIN :</label>
           <input 
             type="password" 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-64 border-2 border-blue-200 rounded-lg px-4 py-1.5 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 transition-all font-bold"
+            className="w-64 border-2 border-primary-100 rounded-xl px-4 py-2.5 outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-50 transition-all font-black text-center tracking-[0.5em] text-neutral-900"
             autoFocus
           />
           <button 
             type="submit"
-            className="bg-[#1e293b] text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-slate-800 transition-all shadow-md"
+            className="bg-primary-600 text-white px-8 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg shadow-primary-600/20"
           >
-            Submit
+            Unlock Settings
           </button>
         </form>
       </div>
@@ -139,41 +139,41 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
   const settingsFields = getFieldsByCategory('settings');
 
   return (
-    <div className="max-w-4xl bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-5 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
-        <div className="p-2 bg-blue-600 rounded-lg text-white shadow-md">
-          <Settings size={20} />
+    <div className="max-w-4xl bg-white rounded-2xl border border-neutral-200 shadow-enterprise overflow-hidden">
+      <div className="p-6 border-b border-neutral-100 flex items-center gap-4 bg-neutral-50/50">
+        <div className="p-2.5 bg-primary-600 rounded-xl text-white shadow-lg shadow-primary-600/20">
+          <Settings size={22} />
         </div>
         <div>
-          <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Global ERP Configuration</h3>
-          <p className="text-slate-800 font-black text-[8px] uppercase tracking-widest">Master Store Controls</p>
+          <h3 className="text-sm font-black text-neutral-900 uppercase tracking-widest">Global ERP Configuration</h3>
+          <p className="text-neutral-400 font-black text-[9px] uppercase tracking-widest mt-0.5">Master Store Controls & Branding</p>
         </div>
       </div>
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Store & Branding */}
           {(brandingFields.length > 0 || existingFields.includes('logo_url')) && (
-            <div className="border border-slate-100 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
-                <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Store & Branding</h4>
+            <div className="border border-neutral-100 rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-neutral-50 px-5 py-3.5 border-b border-neutral-100">
+                <h4 className="text-[11px] font-black text-neutral-800 uppercase tracking-widest">Store & Branding</h4>
               </div>
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {brandingFields.filter(f => f.name !== 'logo_url').map(f => (
-                  <div key={f.name} className="space-y-1">
-                    <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
+                  <div key={f.name} className="space-y-2">
+                    <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">{f.label}</label>
                     {f.type === 'checkbox' ? (
-                      <div className="flex items-center h-[34px]">
+                      <div className="flex items-center h-[42px]">
                         <button
                           type="button"
                           onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
                           className={cn(
-                            "w-12 h-6 rounded-full p-1 transition-all duration-300",
-                            formData[f.name] ? "bg-blue-600" : "bg-slate-300"
+                            "w-12 h-6 rounded-full transition-all duration-300 relative shadow-inner",
+                            formData[f.name] ? "bg-primary-600" : "bg-neutral-300"
                           )}
                         >
                           <div className={cn(
-                            "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 transform",
-                            formData[f.name] ? "translate-x-6" : "translate-x-0"
+                            "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 absolute top-1",
+                            formData[f.name] ? "left-7" : "left-1"
                           )} />
                         </button>
                       </div>
@@ -182,7 +182,7 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
                         type={f.type}
                         value={formData[f.name] || ''}
                         onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
+                        className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 focus:ring-4 focus:ring-primary-50 transition-all text-neutral-900 outline-none"
                       />
                     )}
                   </div>
@@ -309,10 +309,10 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
         <button 
           type="submit" 
           disabled={isSubmitting}
-          className="w-full bg-slate-800 text-white font-black py-3 rounded-xl uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 hover:translate-y-[-1px] transition-all"
+          className="w-full bg-primary-600 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-xl shadow-primary-600/20 flex items-center justify-center gap-3 hover:bg-primary-700 hover:translate-y-[-2px] transition-all disabled:opacity-50"
         >
-          {isSubmitting ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
-          Apply Global Settings
+          {isSubmitting ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
+          Save Global Configuration
         </button>
       </form>
     </div>

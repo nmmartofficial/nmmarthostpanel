@@ -546,11 +546,11 @@ export default function POSView({ products, categories, fetchInitialData, appCon
   };
 
   return (
-    <div className="flex h-[calc(100vh-60px)] bg-[#A5D1E1] overflow-hidden -m-4">
+    <div className="flex h-[calc(100vh-60px)] bg-neutral-100 overflow-hidden -m-4">
       {/* LEFT SIDEBAR - Categories */}
-      <div className="w-48 bg-[#D9E9F0] flex flex-col border-r border-slate-300">
+      <div className="w-48 bg-white flex flex-col border-r border-neutral-200">
         <div className="p-2 flex-1 overflow-y-auto">
-          <div className="bg-[#1E293B] text-white text-[10px] p-2 rounded font-black mb-2 uppercase text-center truncate">
+          <div className="bg-primary-900 text-white text-[10px] p-2 rounded font-black mb-2 uppercase text-center truncate shadow-sm">
             {appConfig?.shop_name || 'NM MART'}
           </div>
           <div className="space-y-1">
@@ -558,7 +558,7 @@ export default function POSView({ products, categories, fetchInitialData, appCon
               onClick={() => setActiveCategory('All')}
               className={cn(
                 "w-full text-left px-3 py-2.5 rounded text-[11px] font-black uppercase shadow-sm transition-all",
-                activeCategory === 'All' ? "bg-[#E11D48] text-white" : "bg-white text-slate-700 hover:bg-slate-50"
+                activeCategory === 'All' ? "bg-primary-600 text-white shadow-primary-600/20" : "bg-white text-neutral-700 hover:bg-neutral-50"
               )}
             >
               All Items
@@ -569,7 +569,7 @@ export default function POSView({ products, categories, fetchInitialData, appCon
                 onClick={() => setActiveCategory(cat.id)}
                 className={cn(
                   "w-full text-left px-3 py-2.5 rounded text-[11px] font-black uppercase shadow-sm transition-all",
-                  activeCategory === cat.id ? "bg-[#E11D48] text-white" : "bg-white text-slate-700 hover:bg-slate-50"
+                  activeCategory === cat.id ? "bg-primary-600 text-white shadow-primary-600/20" : "bg-white text-neutral-700 hover:bg-neutral-50"
                 )}
               >
                 {cat.name}
@@ -578,18 +578,18 @@ export default function POSView({ products, categories, fetchInitialData, appCon
           </div>
         </div>
         
-        <div className="p-2 space-y-2 border-t border-slate-300 bg-[#D9E9F0]">
+        <div className="p-2 space-y-2 border-t border-neutral-200 bg-neutral-50">
           <button 
             onClick={() => {
               setPosFilter(posFilter === 'TopSale' ? 'All' : 'TopSale');
               setActiveCategory('All');
             }}
             className={cn(
-              "w-full p-2 rounded font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-md transition-all",
-              posFilter === 'TopSale' ? "bg-red-600 text-white" : "bg-[#FBBF24] text-slate-900"
+              "w-full p-2 rounded font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-md transition-all border",
+              posFilter === 'TopSale' ? "bg-primary-600 text-white border-primary-700" : "bg-white text-neutral-700 border-neutral-200"
             )}
           >
-            <Zap size={14} /> Top Sale
+            <Zap size={14} className={posFilter === 'TopSale' ? "text-white" : "text-primary-600"} /> Top Sale
           </button>
           <button 
             onClick={() => {
@@ -597,18 +597,18 @@ export default function POSView({ products, categories, fetchInitialData, appCon
               setActiveCategory('All');
             }}
             className={cn(
-              "w-full p-2 rounded font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-md transition-all",
-              posFilter === 'Favourite' ? "bg-red-600 text-white" : "bg-[#1E293B] text-white"
+              "w-full p-2 rounded font-black text-[10px] uppercase flex items-center justify-center gap-2 shadow-md transition-all border",
+              posFilter === 'Favourite' ? "bg-primary-600 text-white border-primary-700" : "bg-white text-neutral-700 border-neutral-200"
             )}
           >
-            <CheckCircle2 size={14} /> Favourite
+            <CheckCircle2 size={14} className={posFilter === 'Favourite' ? "text-white" : "text-primary-600"} /> Favourite
           </button>
         </div>
       </div>
 
       {/* CENTER - Product Grid */}
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="p-2 flex gap-2 bg-[#A5D1E1] relative">
+        <div className="p-2 flex gap-2 bg-neutral-100 relative border-b border-neutral-200 shadow-sm">
           {/* Alerts Bell Component */}
           <div className="relative">
             <button 
@@ -721,26 +721,26 @@ export default function POSView({ products, categories, fetchInitialData, appCon
             ref={barcodeInputRef}
             type="text" 
             placeholder="Scan Barcode..." 
-            className="w-48 bg-white border-none rounded px-3 py-1.5 text-xs font-black text-black shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-48 bg-white border border-neutral-200 rounded px-3 py-1.5 text-xs font-black text-black shadow-sm outline-none focus:ring-2 focus:ring-primary-500 transition-all"
             onKeyDown={handleBarcodeScan}
             autoFocus
           />
           <button 
             onClick={() => setShowScanner(true)}
-            className="bg-emerald-600 text-white px-3 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap active:scale-95 transition-transform flex items-center gap-1"
+            className="bg-success-600 text-white px-3 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap active:scale-95 transition-transform flex items-center gap-1 hover:bg-success-700"
             title="Use Camera"
           >
             <Camera size={14} />
           </button>
           <button 
             onClick={handleSerialClick}
-            className="bg-[#2563EB] text-white px-4 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap active:scale-95 transition-transform"
+            className="bg-primary-600 text-white px-4 py-1.5 rounded text-xs font-black shadow-md whitespace-nowrap active:scale-95 transition-transform hover:bg-primary-700"
           >
             Serial
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 content-start">
+        <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 content-start">
           {filteredProducts.map((product, idx) => (
             <ProductCard key={`prod-${product.id}-${idx}`} product={product} addToCart={addToCart} />
           ))}
@@ -807,26 +807,26 @@ export default function POSView({ products, categories, fetchInitialData, appCon
       </AnimatePresence>
 
       {/* RIGHT SIDEBAR - Billing */}
-      <div className="w-[420px] bg-white flex flex-col border-l border-slate-300 shadow-2xl">
+      <div className="w-[420px] bg-white flex flex-col border-l border-neutral-200 shadow-2xl">
         {/* Customer Header */}
-        <div className="bg-slate-800 text-white p-4 space-y-3 relative">
-          <div className="flex gap-3">
-            <div className="flex-1 space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Customer Name</label>
+        <div className="bg-primary-900 text-white p-5 space-y-4 relative shadow-lg">
+          <div className="flex gap-4">
+            <div className="flex-1 space-y-1.5">
+              <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest">Customer Name</label>
               <input 
                 type="text" 
                 placeholder="Enter Name" 
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm font-semibold placeholder-white/30 outline-none focus:bg-white/20 focus:border-white/40 transition-all"
+                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-semibold placeholder-white/20 outline-none focus:bg-white/20 focus:border-white/30 transition-all shadow-inner"
                 value={customerInfo.name}
                 onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
               />
             </div>
-            <div className="w-32 space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mobile No</label>
+            <div className="w-36 space-y-1.5">
+              <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest">Mobile No</label>
               <input 
                 type="text" 
                 placeholder="Number" 
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm font-semibold placeholder-white/30 outline-none focus:bg-white/20 focus:border-white/40 transition-all"
+                className="w-full bg-white/10 border border-white/10 rounded-xl px-4 py-2.5 text-sm font-semibold placeholder-white/20 outline-none focus:bg-white/20 focus:border-white/30 transition-all shadow-inner"
                 value={customerInfo.mob}
                 onChange={(e) => setCustomerInfo({...customerInfo, mob: e.target.value})}
               />
@@ -1064,7 +1064,7 @@ export default function POSView({ products, categories, fetchInitialData, appCon
               if (isSplitPayment) handleCheckout('Split');
               else setShowPaymentModal(true);
             }}
-            className="w-full bg-[#E11D48] text-white py-5 rounded-2xl font-black text-sm uppercase shadow-xl shadow-red-200 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+            className="w-full bg-primary-600 text-white py-5 rounded-2xl font-black text-sm uppercase shadow-xl shadow-primary-600/20 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3 hover:bg-primary-700"
           >
             {isProcessing ? <RefreshCw className="animate-spin" size={20} /> : <><Save size={20}/> {isSplitPayment ? 'Complete Split Sale' : 'Complete Bill (F12)'}</>}
           </button>

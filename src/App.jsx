@@ -69,8 +69,8 @@ import LoyaltyManagementView from './pages/LoyaltyManagementView';
 
 // --- Global Constants ---
 const BRAND_NAME = "NM MART";
-const PRIMARY_COLOR = "#FFC107"; // Orange
-const SECONDARY_COLOR = "#212121"; // Dark Grey
+const PRIMARY_COLOR = "#0062FF"; // Enterprise Blue
+const SECONDARY_COLOR = "#111827"; // Dark Slate
 
 // --- Helper: Pagination Footer ---
 function PaginationFooter({ currentPage, totalPages, rowsPerPage, setRowsPerPage, setCurrentPage, totalRecords }) {
@@ -644,12 +644,12 @@ export default function App() {
     localStorage.setItem('nm_dark_mode', darkMode);
     if (darkMode) {
       document.documentElement.classList.add('dark');
-      document.body.classList.add('bg-slate-900', 'text-slate-100');
-      document.body.classList.remove('bg-[#F0F2F5]', 'text-slate-900');
+      document.body.classList.add('bg-neutral-950', 'text-neutral-50');
+      document.body.classList.remove('bg-neutral-50', 'text-neutral-900');
     } else {
       document.documentElement.classList.remove('dark');
-      document.body.classList.add('bg-[#F0F2F5]', 'text-slate-900');
-      document.body.classList.remove('bg-slate-900', 'text-slate-100');
+      document.body.classList.add('bg-neutral-50', 'text-neutral-900');
+      document.body.classList.remove('bg-neutral-950', 'text-neutral-50');
     }
   }, [darkMode]);
   
@@ -1076,17 +1076,17 @@ export default function App() {
   // --- UI Components ---
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-secondary flex items-center justify-center p-4">
+      <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-md text-center"
+          className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-md text-center border border-neutral-200"
         >
-          <div className="bg-primary w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary/20">
-            <ShieldCheck size={40} className="text-secondary" />
+          <div className="bg-primary-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary-600/20">
+            <ShieldCheck size={40} className="text-white" />
           </div>
-          <h1 className="text-3xl font-black text-secondary mb-2 tracking-tighter uppercase">{BRAND_NAME} ADMIN</h1>
-          <p className="text-slate-800 font-black mb-8">Enter security PIN to access the panel</p>
+          <h1 className="text-3xl font-black text-neutral-900 mb-2 tracking-tighter uppercase">{BRAND_NAME} ADMIN</h1>
+          <p className="text-neutral-500 font-bold mb-8">Secure Enterprise Login</p>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <input 
@@ -1095,7 +1095,7 @@ export default function App() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter Admin Email"
               disabled={isProcessing}
-              className="w-full bg-slate-100 border-none rounded-2xl px-6 py-4 text-center text-lg focus:ring-2 focus:ring-primary transition-all font-bold text-slate-900 placeholder-slate-400 disabled:opacity-50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-6 py-4 text-center text-lg focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all font-bold text-neutral-900 placeholder-neutral-400 disabled:opacity-50 outline-none"
               autoFocus
             />
             <input 
@@ -1104,12 +1104,12 @@ export default function App() {
               onChange={(e) => setPin(e.target.value)}
               placeholder="Enter Security PIN"
               disabled={isProcessing}
-              className="w-full bg-slate-100 border-none rounded-2xl px-6 py-4 text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-primary transition-all font-black text-slate-900 placeholder-slate-400 disabled:opacity-50"
+              className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-6 py-4 text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all font-black text-neutral-900 placeholder-neutral-400 disabled:opacity-50 outline-none"
             />
             <button 
               type="submit"
               disabled={isProcessing}
-              className="w-full bg-secondary text-primary font-black py-4 rounded-2xl hover:bg-black transition-all uppercase tracking-widest shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-primary-600 text-white font-black py-4 rounded-2xl hover:bg-primary-700 transition-all uppercase tracking-widest shadow-xl shadow-primary-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? 'Verifying...' : 'Authorize Access'}
             </button>
@@ -1228,9 +1228,9 @@ export default function App() {
         />
       </div>
     ) : (
-      <div className={cn("min-h-screen flex flex-col font-sans antialiased", darkMode ? "bg-slate-900" : "bg-[#F0F2F5]")}>
+      <div className={cn("min-h-screen flex flex-col font-sans antialiased transition-colors duration-200", darkMode ? "bg-neutral-950" : "bg-neutral-50")}>
       {/* --- Top Navigation Bar --- */}
-      <header className={cn("border-b sticky top-0 z-[100] shadow-sm select-none", darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200")}>
+      <header className={cn("border-b sticky top-0 z-[100] shadow-sm select-none", darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
         <div className="max-w-full mx-auto px-4 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Brand Name / Logo */}

@@ -8,8 +8,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Neutral System (WCAG AA Compliant)
-        gray: {
+        // Enterprise Neutral System (GitHub/Linear inspired)
+        neutral: {
           50: "#F9FAFB",
           100: "#F3F4F6",
           200: "#E5E7EB",
@@ -20,97 +20,111 @@ export default {
           700: "#374151",
           800: "#1F2937",
           900: "#111827",
+          950: "#030712",
         },
 
-        // Enterprise Primary (Professional Blue - Shopify/Microsoft 365 inspired)
+        // Professional Enterprise Blue (Microsoft/IBM Carbon inspired)
         primary: {
-          50: "#EFF6FF",
-          100: "#DBEAFE",
-          200: "#BFDBFE",
-          300: "#93C5FD",
-          400: "#60A5FA",
-          500: "#3B82F6", // Default Primary Accent
-          600: "#2563EB",
-          700: "#1D4ED8",
-          800: "#1E40AF",
-          900: "#1E3A8A",
+          50: "#F0F7FF",
+          100: "#E0EFFF",
+          200: "#BBDDFF",
+          300: "#7BBFFF",
+          400: "#3B9DFF",
+          500: "#0062FF", // Deep Professional Blue
+          600: "#0052D9",
+          700: "#0040B0",
+          800: "#003080",
+          900: "#002050",
+          DEFAULT: "#0062FF",
         },
 
-        // Secondary Accent (Indigo for highlights)
+        // Secondary Indigo (Linear inspired)
         secondary: {
-          50: "#EEF2FF",
-          100: "#E0E7FF",
-          200: "#C7D2FE",
-          300: "#A5B4FC",
-          400: "#818CF8",
-          500: "#6366F1",
-          600: "#4F46E5",
-          700: "#4338CA",
-          800: "#3730A3",
-          900: "#312E81",
+          50: "#F5F3FF",
+          100: "#EDE9FE",
+          200: "#DDD6FE",
+          300: "#C4B5FD",
+          400: "#A78BFA",
+          500: "#8B5CF6",
+          600: "#7C3AED",
+          700: "#6D28D9",
+          800: "#5B21B6",
+          900: "#4C1D95",
+          DEFAULT: "#8B5CF6",
         },
 
-        // Semantic Status Colors (WCAG AA Compliant)
+        // Semantic Colors
         success: {
           50: "#F0FDF4",
-          100: "#DCFCE7",
-          200: "#BBF7D0",
-          300: "#86EFAC",
-          400: "#4ADE80",
-          500: "#22C55E", // Default Success
-          600: "#16A34A",
-          700: "#15803D",
-          800: "#166534",
-          900: "#14532D",
+          500: "#10B981",
+          600: "#059669",
+          700: "#047857",
+          DEFAULT: "#10B981",
         },
         warning: {
           50: "#FFFBEB",
-          100: "#FEF3C7",
-          200: "#FDE68A",
-          300: "#FCD34D",
-          400: "#FBBF24",
-          500: "#F59E0B", // Default Warning
+          500: "#F59E0B",
           600: "#D97706",
           700: "#B45309",
-          800: "#92400E",
-          900: "#78350F",
+          DEFAULT: "#F59E0B",
         },
         error: {
           50: "#FEF2F2",
-          100: "#FEE2E2",
-          200: "#FECACA",
-          300: "#FCA5A5",
-          400: "#F87171",
-          500: "#EF4444", // Default Error
+          500: "#EF4444",
           600: "#DC2626",
           700: "#B91C1C",
-          800: "#991B1B",
-          900: "#7F1D1D",
+          DEFAULT: "#EF4444",
         },
         info: {
           50: "#F0F9FF",
-          100: "#E0F2FE",
-          200: "#BAE6FD",
-          300: "#7DD3FC",
-          400: "#38BDF8",
-          500: "#0EA5E9", // Default Info
-          600: "#0284C7",
-          700: "#0369A1",
-          800: "#075985",
-          900: "#0C4A6E",
+          500: "#0EA5E9",
+          DEFAULT: "#0EA5E9",
         },
 
-        // Legacy Colors (kept for compatibility, but use new ones above)
-        accent: "#6366F1", // secondary 500
-        background: "#F9FAFB",
-        surface: "#FFFFFF",
+        // Override default colors to maintain consistency even with hardcoded classes
+        blue: {
+          50: "#F0F7FF",
+          100: "#E0EFFF",
+          200: "#BBDDFF",
+          300: "#7BBFFF",
+          400: "#3B9DFF",
+          500: "#0062FF",
+          600: "#0052D9",
+          700: "#0040B0",
+          800: "#003080",
+          900: "#002050",
+        },
+        indigo: {
+          50: "#F5F3FF",
+          100: "#EDE9FE",
+          200: "#DDD6FE",
+          300: "#C4B5FD",
+          400: "#A78BFA",
+          500: "#8B5CF6",
+          600: "#7C3AED",
+          700: "#6D28D9",
+          800: "#5B21B6",
+          900: "#4C1D95",
+        },
+        slate: {
+          50: "#F9FAFB",
+          100: "#F3F4F6",
+          200: "#E5E7EB",
+          300: "#D1D5DB",
+          400: "#9CA3AF",
+          500: "#6B7280",
+          600: "#4B5563",
+          700: "#374151",
+          800: "#1F2937",
+          900: "#111827",
+        }
       },
       boxShadow: {
-        // Enterprise-grade subtle shadows (Linear inspired)
-        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-        soft: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)",
-        medium: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+        'enterprise': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
+        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+        'dropdown': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
       }
+
     },
   },
   plugins: [],
