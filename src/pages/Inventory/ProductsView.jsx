@@ -67,12 +67,12 @@ export default function ProductsView({ products, categories, brands, subcategori
       list = list.filter(p => (p.opstock ?? p.stock) <= 5);
     }
 
-    // Category Filter
+    // Category Filter (only apply to products that have category_id)
     if (selectedCategoryId) {
       list = list.filter(p => p.category_id === selectedCategoryId);
     }
 
-    // Subcategory Filter
+    // Subcategory Filter (only apply to products that have subcategory_id)
     if (selectedSubcategoryId) {
       list = list.filter(p => p.subcategory_id === selectedSubcategoryId);
     }
