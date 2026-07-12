@@ -78,11 +78,15 @@ export default function ProductsView({ products, categories, brands, subcategori
     }
 
     return list.filter(p => {
-      const searchLower = searchTerm.toLowerCase();
+      const searchLower = (searchTerm || '').toLowerCase();
+      const name = (p.itname || p.name || '').toLowerCase();
+      const bcode = (p.barcode || '').toLowerCase();
+      const hsn = (p.hsncode || p.hsn_code || '').toLowerCase();
+
       return (
-        (p.itname ?? p.name)?.toLowerCase().includes(searchLower) || 
-        p.barcode?.toLowerCase().includes(searchLower) ||
-        (p.hsncode ?? p.hsn_code)?.toLowerCase().includes(searchLower)
+        name.includes(searchLower) ||
+        bcode.includes(searchLower) ||
+        hsn.includes(searchLower)
       );
     });
   }, [products, filter, searchTerm, showTrash, selectedCategoryId, selectedSubcategoryId]);

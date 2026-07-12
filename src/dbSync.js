@@ -218,6 +218,8 @@ const validatePayload = (tableName, payload) => {
         if (typeof originalValue === 'string') {
           record[field] = originalValue.toLowerCase() === 'true' || originalValue === '1';
           console.log(`[validatePayload] Normalizing boolean ${field}: "${originalValue}" -> ${record[field]}`);
+        } else if (typeof originalValue === 'number') {
+          record[field] = originalValue === 1;
         }
       }
     }

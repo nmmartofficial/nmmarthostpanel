@@ -317,15 +317,16 @@ export default function POSView({ products, categories, fetchInitialData, appCon
   // Search Results (Debounced)
   const searchResults = useMemo(() => {
     if (!debouncedSearchTerm || debouncedSearchTerm.length < 1) return [];
-    return products.filter(p => 
-      p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
-      (p.barcode && p.barcode.includes(debouncedSearchTerm))
-    ).slice(0, 10);
+    return products.filter(p => {
+      const pName = (p.itname || p.name || '').toLowerCase();
+      return pName.includes(debouncedSearchTerm.toLowerCase()) ||
+        (p.barcode && p.barcode.includes(debouncedSearchTerm));
+    }).slice(0, 10);
   }, [debouncedSearchTerm, products]);
 
   const handleProductSelect = (product) => {
     setSelectedProduct(product);
-    setSearchTerm(product.name);
+    setSearchTerm(product.itname || product.name || '');
     setShowSearchDropdown(false);
   };
 
@@ -345,7 +346,10 @@ export default function POSView({ products, categories, fetchInitialData, appCon
     }
 
     if (searchTerm) {
-      const product = products.find(p => p.name.toLowerCase() === searchTerm.toLowerCase() || p.barcode === searchTerm);
+      const product = products.find(p => {
+        const pName = (p.itname || p.name || '').toLowerCase();
+        return pName === searchTerm.toLowerCase() || p.barcode === searchTerm;
+      });
       if (product) setSelectedProduct(product);
       else alert("Product not found!");
     }
@@ -362,7 +366,8 @@ export default function POSView({ products, categories, fetchInitialData, appCon
     const uniqueProducts = Array.from(uniqueProductsMap.values());
 
     return uniqueProducts.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+      const pName = (p.itname || p.name || '').toLowerCase();
+      const matchesSearch = pName.includes(debouncedSearchTerm.toLowerCase());
       const matchesCategory = activeCategory === 'All' || p.category_id === activeCategory;
       
       if (posFilter === 'TopSale') {

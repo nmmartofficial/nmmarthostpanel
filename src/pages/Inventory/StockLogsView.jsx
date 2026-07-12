@@ -26,10 +26,12 @@ export default function StockLogsView({ inventoryLogs, products }) {
 
   const filteredLogs = useMemo(() => {
     return enrichedLogs.filter(log => {
-      const matchesSearch = log.product_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          log.barcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          log.reference_id?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = typeFilter === 'All' || log.change_type === typeFilter.toLowerCase();
+      const search = (searchTerm || '').toLowerCase();
+      const typeF = (typeFilter || 'All').toLowerCase();
+      const matchesSearch = (log.product_name || '').toLowerCase().includes(search) ||
+                          (log.barcode || '').toLowerCase().includes(search) ||
+                          (log.reference_id || '').toLowerCase().includes(search);
+      const matchesType = typeF === 'all' || (log.change_type || '').toLowerCase() === typeF;
       return matchesSearch && matchesType;
     });
   }, [enrichedLogs, searchTerm, typeFilter]);

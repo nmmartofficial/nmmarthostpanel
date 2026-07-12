@@ -590,7 +590,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                                 className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto"
                               >
                                 {(relatedData.products || [])
-                                  .filter(p => p.name?.toLowerCase().includes(productSearchTerm.toLowerCase()))
+                                  .filter(p => (p.name || '').toLowerCase().includes(productSearchTerm.toLowerCase()))
                                   .slice(0, 5)
                                   .map(product => (
                                     <button
@@ -644,7 +644,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                                 className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto"
                               >
                                 {(relatedData.categories || [])
-                                  .filter(c => c.name?.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                                  .filter(c => (c.name || '').toLowerCase().includes(categorySearchTerm.toLowerCase()))
                                   .slice(0, 5)
                                   .map(category => (
                                     <button

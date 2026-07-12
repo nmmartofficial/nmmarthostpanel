@@ -2247,8 +2247,8 @@ function TransactionView({ users, fetchInitialData }) {
 
   const filteredData = useMemo(() => {
     return reportData.filter(row => 
-      row.ledgerName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      row.vNo.toLowerCase().includes(searchTerm.toLowerCase())
+      (row.ledgerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (row.vNo || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [reportData, searchTerm]);
 
@@ -5017,7 +5017,7 @@ function LedgerView({ users, accounts }) {
         const matchesDate = txDate >= fromDate && txDate <= toDate;
         
         const user = users.find(u => u.id === tx.user_id);
-        const partyName = user ? (user.name || user.mobile) : 'Unknown';
+        const partyName = user ? (user.name || user.mobile || '') : 'Unknown';
         const matchesParty = !searchParty || partyName.toLowerCase().includes(searchParty.toLowerCase());
         
         // Ac Type logic (simplified: mapping tx type to account types if needed)
@@ -5358,8 +5358,8 @@ function ItemStatementReportView({ products, departments }) {
     setIsGenerating(true);
     try {
       const selectedProduct = products.find(p => 
-        p.name.toLowerCase().includes(searchItem.toLowerCase()) || 
-        p.barcode?.toLowerCase() === searchItem.toLowerCase()
+        (p.name || '').toLowerCase().includes(searchItem.toLowerCase()) ||
+        (p.barcode || '').toLowerCase() === searchItem.toLowerCase()
       );
 
       if (!selectedProduct) {
@@ -5609,7 +5609,7 @@ function StockReportView({ products, purchases, orders, categories, departments 
         if (group !== 'All' && productCategory !== group) return null;
         
         // Filter by search
-        if (searchItem && !product.name.toLowerCase().includes(searchItem.toLowerCase())) return null;
+        if (searchItem && !(product.name || '').toLowerCase().includes(searchItem.toLowerCase())) return null;
 
         // Calculate Stock In/Out within range
         const inItems = purchaseItems.filter(pi => {
