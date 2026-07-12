@@ -1,13 +1,15 @@
 import React, { useMemo } from 'react';
 import {
   Package, ShoppingCart, Users, Zap, DollarSign,
-  PlusCircle, Download, Bot, Sparkles, PartyPopper
+  PlusCircle, Download, Bot, Sparkles, PartyPopper, UserCheck
 } from 'lucide-react';
 import { cn } from '../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
 
-export default function DashboardView({ stats, orders, orderItems, products, setActiveTab, festivals, activeFestival }) {
+export default function DashboardView(props) {
+  const { stats, orders, products, setActiveTab, festivals, activeFestival } = props;
+  const orderItems = props.orderItems || [];
   const getUpcomingFestivals = () => {
     const today = new Date();
     today.setHours(0,0,0,0);

@@ -440,6 +440,7 @@ export default function App() {
   const [accounts, setAccounts] = useState([]);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [orderItems, setOrderItems] = useState([]);
   const [users, setUsers] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [offers, setOffers] = useState([]);
@@ -1856,11 +1857,11 @@ export default function App() {
           >
             {renderTabContent(activeTab, { 
                 activeTab, setActiveTab,
-                stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems, users, coupons,
+                stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons,
                 offers, pincodes, homeConfig, walletTx, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                 purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
                 loyaltyPoints, loyaltyTransactions, loyaltyTiers,
-                setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems, setUsers, setCoupons,
+                setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems: setOrderItems || (() => {}), setUsers, setCoupons,
                 setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
                 setFestivals, setPreviewFestival, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
                 uploadImage, fetchInitialData, setLoading,
@@ -7197,7 +7198,7 @@ function renderTabContent(activeTab, props) {
     case 'LoyaltyPoints': return <LoyaltyManagementView orders={props.orders} fetchInitialData={props.fetchInitialData} />;
     case 'BarcodeLabels': return <BarcodeLabelGenerator {...props} />;
     case 'MultiStore': return <MultiStoreManager {...props} />;
-    case 'Dashboard': return <DashboardView {...props} />;
+    case 'Dashboard': return <DashboardView orderItems={props.orderItems || []} {...props} />;
     case 'Products': return <ProductsView {...props} />;
     case 'Orders': return <OrdersView {...props} />;
     case 'Notifications': return <NotificationsView {...props} />;
