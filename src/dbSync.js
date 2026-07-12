@@ -362,7 +362,7 @@ export const dbSync = {
 
       // List of tables that definitely have is_active column (update this based on your actual schema)
       const TABLES_WITH_IS_ACTIVE = [
-        'products', 'categories', 'subcategories', 'brands', 'suppliers',
+        'categories', 'subcategories', 'brands', 'suppliers',
         'orders', 'users', 'admin_users', 'delivery_boy_master',
         'delivery_customer_master', 'wallet_master', 'expenses',
         'banners', 'coupons', 'offers'
