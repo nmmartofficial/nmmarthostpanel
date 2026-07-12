@@ -9,9 +9,8 @@ import { processImageForUpload } from './utils/imageHandler';
  * Unified CRUD logic for all 18 tables with Audit Logging.
  */
 
-// Strict whitelist of allowed product columns - NO EXTRA COLUMNS ALLOWED
+// Strict whitelist of allowed product columns - EXACTLY MATCHES YOUR DB SCHEMA!
 const PRODUCT_WHITELIST = [
-  'id',
   'itname',
   'itnameprint',
   'barcode',
@@ -393,12 +392,7 @@ export const dbSync = {
         if (query.order) {
           request = request.order(query.order.column, { ascending: query.order.ascending ?? true });
         } else {
-          // For products table, don't assume created_at exists; order by id instead
-          if (tableName === DB_SCHEMA.PRODUCTS.table) {
-            request = request.order('id', { ascending: true });
-          } else {
-            request = request.order('created_at', { ascending: false });
-          }
+          request = request.order('created_at', { ascending: false });
         }
         
         const currentBatchLimit = Math.min(BATCH_SIZE, limit - allData.length);

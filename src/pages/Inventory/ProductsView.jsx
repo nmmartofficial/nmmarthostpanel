@@ -189,46 +189,43 @@ export default function ProductsView({ products, categories, brands, subcategori
         const skippedRows = [];
 
         parsedData.forEach((item, index) => {
-          // Sanitize stock: ensure it's never negative
-          let stock = Math.max(0, parseFloat(item.opstock) || 0);
-          
-          // Use id from Excel directly
-          let productId = String(item.id || "").trim() || generateUUID();
-          
-          // Strict whitelist - only include allowed product columns!
-          const productToAdd = {
-            id: productId,
-            itname: String(item.itname || "").trim(),
-            itnameprint: String(item.itnameprint || "").trim() || null,
-            barcode: String(item.barcode || "").trim() || null,
-            imagename: String(item.imagename || "").trim() || null,
-            itemdescription: String(item.itemdescription || "").trim() || null,
-            hsncode: String(item.hsncode || "").trim() || null,
-            picture: String(item.picture || "").trim() || null,
-            takerate: parseFloat(item.takerate) || 0,
-            restrate: parseFloat(item.restrate) || 0,
-            dlvrate: parseFloat(item.dlvrate) || 0,
-            onlinerate: parseFloat(item.onlinerate) || 0,
-            purcrate: parseFloat(item.purcrate) || 0,
-            mrp: parseFloat(item.mrp) || 0,
-            opstock: stock,
-            discperc: parseFloat(item.discperc) || 0,
-            isfav: String(item.isfav || "No").trim(),
-            unitcode: String(item.unitcode || "").trim() || null,
-            itg: String(item.itg || "").trim() || null,
-            itc: String(item.itc || "").trim() || null,
-            dtcode: String(item.dtcode || "").trim() || null,
-            kcode: String(item.kcode || "").trim() || null,
-            brandcode: String(item.brandcode || "").trim() || null,
-            isdiscountable: String(item.isdiscountable || "Yes").trim(),
-            gst: parseFloat(item.gst) || 0,
-            cess: parseFloat(item.cess) || 0,
-            shopid: String(item.shopid || "").trim() || null,
-            ispackage: String(item.ispackage || "No").trim(),
-            narration: String(item.narration || "").trim() || null,
-            narration2: String(item.narration2 || "").trim() || null,
-            itemstatus: String(item.itemstatus || "Active").trim()
-          };
+                // Sanitize stock: ensure it's never negative
+                let stock = Math.max(0, parseFloat(item.opstock) || 0);
+                
+                // Strict whitelist - only include allowed product columns!
+                // DON'T set id - Supabase will auto-generate it (bigint identity)
+                const productToAdd = {
+                  itname: String(item.itname || "").trim(),
+                  itnameprint: String(item.itnameprint || "").trim() || null,
+                  barcode: String(item.barcode || "").trim() || null,
+                  imagename: String(item.imagename || "").trim() || null,
+                  itemdescription: String(item.itemdescription || "").trim() || null,
+                  hsncode: String(item.hsncode || "").trim() || null,
+                  picture: String(item.picture || "").trim() || null,
+                  takerate: parseFloat(item.takerate) || 0,
+                  restrate: parseFloat(item.restrate) || 0,
+                  dlvrate: parseFloat(item.dlvrate) || 0,
+                  onlinerate: parseFloat(item.onlinerate) || 0,
+                  purcrate: parseFloat(item.purcrate) || 0,
+                  mrp: parseFloat(item.mrp) || 0,
+                  opstock: stock,
+                  discperc: parseFloat(item.discperc) || 0,
+                  isfav: String(item.isfav || "No").trim() === 'true' || String(item.isfav || "No").trim() === 'yes' || String(item.isfav || "No").trim() === '1',
+                  unitcode: String(item.unitcode || "").trim() || null,
+                  itg: String(item.itg || "").trim() || null,
+                  itc: String(item.itc || "").trim() || null,
+                  dtcode: String(item.dtcode || "").trim() || null,
+                  kcode: String(item.kcode || "").trim() || null,
+                  brandcode: String(item.brandcode || "").trim() || null,
+                  isdiscountable: String(item.isdiscountable || "Yes").trim() !== 'false' && String(item.isdiscountable || "Yes").trim() !== 'no' && String(item.isdiscountable || "Yes").trim() !== '0',
+                  gst: parseFloat(item.gst) || 0,
+                  cess: parseFloat(item.cess) || 0,
+                  shopid: String(item.shopid || "").trim() || null,
+                  ispackage: String(item.ispackage || "No").trim() === 'true' || String(item.ispackage || "No").trim() === 'yes' || String(item.ispackage || "No").trim() === '1',
+                  narration: String(item.narration || "").trim() || null,
+                  narration2: String(item.narration2 || "").trim() || null,
+                  itemstatus: String(item.itemstatus || "Active").trim()
+                };
           productsToUpload.push(productToAdd);
         });
 
@@ -413,6 +410,7 @@ export default function ProductsView({ products, categories, brands, subcategori
       }
 
       let res;
+      let insertedProduct = null;
       if (editingProduct) {
         res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, { id: editingProduct.id, ...finalData });
         
@@ -430,19 +428,26 @@ export default function ProductsView({ products, categories, brands, subcategori
           });
         }
       } else {
-        finalData.id = finalData.id || generateUUID();
+        // DON'T set id - let Supabase auto-generate!
         res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.INSERT, finalData);
+        
+        // Get the inserted product from the response!
+        if (res.success && res.data && res.data.length > 0) {
+          insertedProduct = res.data[0];
+        }
 
         // Add Log for new product
         const newStock = finalData.opstock ?? finalData.stock ?? 0;
-        await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-          id: generateUUID(),
-          product_id: finalData.id,
-          old_stock: 0,
-          new_stock: parseFloat(newStock) || 0,
-          change_type: 'manual',
-          reference_id: 'New Product'
-        });
+        if (insertedProduct && insertedProduct.id) {
+          await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
+            id: generateUUID(),
+            product_id: insertedProduct.id,
+            old_stock: 0,
+            new_stock: parseFloat(newStock) || 0,
+            change_type: 'manual',
+            reference_id: 'New Product'
+          });
+        }
       }
 
       if (res && !res.success) {
