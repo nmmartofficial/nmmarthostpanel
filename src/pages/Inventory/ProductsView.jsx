@@ -184,158 +184,50 @@ export default function ProductsView({ products, categories, brands, subcategori
         const parsedData = await parseERPCSV(file, columnMapping);
         if (!parsedData || parsedData.length === 0) throw new Error("No data found in file");
 
-        // --- STEP 1: FETCH EXISTING MASTER RECORDS ONLY (NO AUTOMATIC CREATION) ---
-        const [
-          dbCats, 
-          dbBrands, 
-          dbUnits, 
-          dbDepartments
-        ] = await Promise.all([
-          dbSync.fetch(DB_SCHEMA.CATEGORIES.table),
-          dbSync.fetch(DB_SCHEMA.BRANDS.table),
-          dbSync.fetch(DB_SCHEMA.UNITS.table),
-          dbSync.fetch(DB_SCHEMA.DEPARTMENTS.table)
-        ]);
-
-        // Create maps: code -> {id, name} and name -> {id, name}
-        const createMasterMap = (records) => {
-          const codeMap = {};
-          const nameMap = {};
-          records.forEach(r => {
-            const recordId = r.id || r.code || null;
-            const mapEntry = { id: recordId, name: r.name };
-            if (r.code) codeMap[String(r.code).trim()] = mapEntry;
-            if (r.name) nameMap[String(r.name).toLowerCase().trim()] = mapEntry;
-          });
-          return { codeMap, nameMap };
-        };
-
-        const catMaps = createMasterMap(dbCats);
-        const brandMaps = createMasterMap(dbBrands);
-        const unitMaps = createMasterMap(dbUnits);
-        const deptMaps = createMasterMap(dbDepartments);
-
-        // Subcategories not used in current Excel structure
-
         // --- STEP 3: VALIDATE AND PREPARE PRODUCTS ---
         const productsToUpload = [];
         const skippedRows = [];
-        const seenCombinations = new Set(); // Track combinations in CSV to avoid duplicates within the file
 
         parsedData.forEach((item, index) => {
-          const errors = [];
-          
-          // Helper to get master record: try code first, then name, no error if code not found
-          const getMaster = (code, name, maps) => {
-            if (code) {
-              const c = String(code).trim();
-              if (maps.codeMap[c]) return maps.codeMap[c];
-            }
-            if (name) {
-              const n = String(name).toLowerCase().trim();
-              if (maps.nameMap[n]) return maps.nameMap[n];
-            }
-            return null;
-          };
-
-          const cat = getMaster(item.itc, null, catMaps);
-          const brand = getMaster(item.brandcode, null, brandMaps);
-          const unit = getMaster(item.unitcode, null, unitMaps);
-          const dept = getMaster(item.dtcode, null, deptMaps);
-
           // Sanitize stock: ensure it's never negative
           let stock = Math.max(0, parseFloat(item.opstock) || 0);
           
           // Use id from Excel directly
           let productId = String(item.id || "").trim() || generateUUID();
-
-          // --- DUPLICATE CHECK FOR CSV IMPORT ---
-          const catId = cat?.id || null;
-          const brandId = brand?.id || null;
-          const combinationKey = `${brandId}-${catId}-null`; // Subcategory not used in current Excel structure
-
-          // Check 1: Duplicate within the CSV file itself
-          if (seenCombinations.has(combinationKey)) {
-            skippedRows.push({ row: index + 1, reason: "Duplicate combination in CSV file" });
-            return;
-          }
-
-          // Check 2: Duplicate already exists in the database
-          const isDuplicateInDB = products.some(product => 
-            product.brand_id === brandId && product.category_id === catId
-          );
-
-          if (isDuplicateInDB) {
-            skippedRows.push({ row: index + 1, reason: "Combination already exists in database" });
-            return;
-          }
-
-          // If no duplicates, add to upload list and mark combination as seen
-          seenCombinations.add(combinationKey);
           
+          // Strict whitelist - only include allowed product columns!
           const productToAdd = {
             id: productId,
             itname: String(item.itname || "").trim(),
             itnameprint: String(item.itnameprint || "").trim() || null,
-            print_name: String(item.itnameprint || "").trim() || null,
             barcode: String(item.barcode || "").trim() || null,
             imagename: String(item.imagename || "").trim() || null,
             itemdescription: String(item.itemdescription || "").trim() || null,
-            description: String(item.itemdescription || "").trim() || null,
             hsncode: String(item.hsncode || "").trim() || null,
-            hsn_code: String(item.hsncode || "").trim() || null,
             picture: String(item.picture || "").trim() || null,
-            image_url: String(item.picture || "").trim() || null,
             takerate: parseFloat(item.takerate) || 0,
-            take_rate: parseFloat(item.takerate) || 0,
             restrate: parseFloat(item.restrate) || 0,
-            retail_rate: parseFloat(item.restrate) || 0,
             dlvrate: parseFloat(item.dlvrate) || 0,
-            delivery_rate: parseFloat(item.dlvrate) || 0,
             onlinerate: parseFloat(item.onlinerate) || 0,
-            online_rate: parseFloat(item.onlinerate) || 0,
-            sale_rate: parseFloat(item.onlinerate) || 0,
             purcrate: parseFloat(item.purcrate) || 0,
-            purchase_rate: parseFloat(item.purcrate) || 0,
             mrp: parseFloat(item.mrp) || 0,
             opstock: stock,
-            stock: stock,
             discperc: parseFloat(item.discperc) || 0,
-            discount_pct: parseFloat(item.discperc) || 0,
-            discount_percent: parseFloat(item.discperc) || 0,
-            discount: parseFloat(item.discperc) || 0,
             isfav: String(item.isfav || "No").trim(),
-            is_favourite: String(item.isfav || "No").trim(),
             unitcode: String(item.unitcode || "").trim() || null,
-            unit_name: String(item.unitcode || "").trim() || null,
             itg: String(item.itg || "").trim() || null,
-            item_group: String(item.itg || "").trim() || null,
             itc: String(item.itc || "").trim() || null,
-            item_category: String(item.itc || "").trim() || null,
-            category_name: String(item.itc || "").trim() || null,
             dtcode: String(item.dtcode || "").trim() || null,
-            department_code: String(item.dtcode || "").trim() || null,
             kcode: String(item.kcode || "").trim() || null,
-            k_code: String(item.kcode || "").trim() || null,
             brandcode: String(item.brandcode || "").trim() || null,
-            brand_code: String(item.brandcode || "").trim() || null,
-            brand_name: String(item.brandcode || "").trim() || null,
             isdiscountable: String(item.isdiscountable || "Yes").trim(),
-            is_discountable: String(item.isdiscountable || "Yes").trim(),
             gst: parseFloat(item.gst) || 0,
-            gst_percent: parseFloat(item.gst) || 0,
             cess: parseFloat(item.cess) || 0,
-            cess_percent: parseFloat(item.cess) || 0,
             shopid: String(item.shopid || "").trim() || null,
-            shop_id: String(item.shopid || "").trim() || null,
             ispackage: String(item.ispackage || "No").trim(),
-            is_package: String(item.ispackage || "No").trim(),
             narration: String(item.narration || "").trim() || null,
             narration2: String(item.narration2 || "").trim() || null,
-            itemstatus: String(item.itemstatus || "Active").trim(),
-            item_status: String(item.itemstatus || "Active").trim(),
-            category_id: catId,
-            brand_id: brandId
+            itemstatus: String(item.itemstatus || "Active").trim()
           };
           productsToUpload.push(productToAdd);
         });

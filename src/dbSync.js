@@ -9,6 +9,41 @@ import { processImageForUpload } from './utils/imageHandler';
  * Unified CRUD logic for all 18 tables with Audit Logging.
  */
 
+// Strict whitelist of allowed product columns - NO EXTRA COLUMNS ALLOWED
+const PRODUCT_WHITELIST = [
+  'id',
+  'itname',
+  'itnameprint',
+  'barcode',
+  'imagename',
+  'itemdescription',
+  'hsncode',
+  'picture',
+  'takerate',
+  'restrate',
+  'dlvrate',
+  'onlinerate',
+  'purcrate',
+  'mrp',
+  'opstock',
+  'discperc',
+  'isfav',
+  'unitcode',
+  'itg',
+  'itc',
+  'dtcode',
+  'kcode',
+  'brandcode',
+  'isdiscountable',
+  'gst',
+  'cess',
+  'shopid',
+  'ispackage',
+  'narration',
+  'narration2',
+  'itemstatus'
+];
+
 /**
  * HELPER: Compress Image using Canvas
  * "Image Optimization: Badi photos ko upload karne se pehle compress kar de."
@@ -130,6 +165,15 @@ const validatePayload = (tableName, payload) => {
   
   for (const record of records) {
     console.log(`[validatePayload] Checking record for ${tableName}:`, record);
+
+    // 🔥 STRICT WHITELIST FOR PRODUCTS TABLE ONLY
+    if (tableName === DB_SCHEMA.PRODUCTS.table) {
+      const keysToDelete = Object.keys(record).filter(key => !PRODUCT_WHITELIST.includes(key));
+      if (keysToDelete.length > 0) {
+        console.warn(`[validatePayload] Removing ${keysToDelete.length} non-whitelisted fields from product:`, keysToDelete);
+        keysToDelete.forEach(key => delete record[key]);
+      }
+    }
     
     // 🔥 100% SAFETY: REMOVE ANY FIELD THAT ENDS WITH "_file" (e.g., image_url_file)
     const fileFields = Object.keys(record).filter(key => key.endsWith('_file'));
