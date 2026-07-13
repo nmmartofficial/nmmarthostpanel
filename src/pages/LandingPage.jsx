@@ -88,6 +88,9 @@ export default function LandingPage() {
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
             © 2026 NM MART <span className="text-blue-600">ULTRA</span> • SOLUTIONS
           </p>
+          <a href="/nm-mart" className="text-[10px] font-black text-slate-300 hover:text-slate-900 transition-colors uppercase tracking-[0.2em]">
+            Staff Portal
+          </a>
         </div>
       </footer>
 

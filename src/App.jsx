@@ -47,6 +47,7 @@ const DEFAULT_APP_CONFIG = {
 
 // Import New Pages
 import DashboardView from './pages/DashboardView';
+import LoginView from './pages/LoginView';
 import ProductsView from './pages/Inventory/ProductsView';
 import OrdersView from './pages/Orders/OrdersView';
 import NotificationsView from './pages/NotificationsView';
@@ -370,70 +371,16 @@ export default function App() {
   const sessionTimeoutRef = useRef(null);
   const warningTimeoutRef = useRef(null);
 
-  const [email, setEmail] = useState('');
-  const [pin, setPin] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginError, setLoginError] = useState('');
-
   // 1. Initial Session Check (Clean)
   useEffect(() => {
     const auth = secureStorage.getItem('nm_admin_auth');
     const user = secureStorage.getItem('nm_user_data');
-    const rememberedEmail = secureStorage.getItem('nm_remembered_email');
-
-    if (rememberedEmail && !email) {
-      setEmail(rememberedEmail);
-      setRememberMe(true);
-    }
 
     if (auth === 'true' && user && user.company_code) {
       setIsAuthorized(true);
       setCurrentUser(user);
     }
   }, []);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoginError('');
-
-    if (!email) return setLoginError('Email is required');
-    if (!validateEmail(email)) return setLoginError('Invalid email format');
-    if (!pin) return setLoginError('Password is required');
-
-    setIsProcessing(true);
-    try {
-      const { data: userData, error } = await supabase.rpc('verify_admin_pin', { email_input: email, pin_input: pin }).single();
-
-      if (error || !userData) {
-        setLoginError('Invalid email or password');
-        setIsProcessing(false);
-        return;
-      }
-
-      if (!userData.company_code) {
-        setLoginError('Account not linked to any company.');
-        setIsProcessing(false);
-        return;
-      }
-
-      if (rememberMe) {
-        secureStorage.setItem('nm_remembered_email', email);
-      } else {
-        secureStorage.removeItem('nm_remembered_email');
-      }
-
-      secureStorage.setItem('nm_user_data', userData);
-      secureStorage.setItem('nm_admin_auth', 'true');
-
-      toast.success('Authorized Access Granted');
-      window.location.reload();
-    } catch (err) {
-      setLoginError('Login failed. Please try again.');
-      setIsProcessing(false);
-    }
-  };
 
   const handleLogout = useCallback(() => {
     secureStorage.clear();
@@ -981,166 +928,11 @@ export default function App() {
 
   // --- UI Components ---
   if (!isAuthorized) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6 font-sans antialiased">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-[420px]"
-        >
-          <div className="bg-white rounded-[20px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] border border-[#F1F5F9] p-10 flex flex-col items-center">
-            {/* Logo & Header */}
-            <div className="mb-10 text-center">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 mx-auto mb-6">
-                <ShoppingBag size={28} className="text-white" />
-              </div>
-              <h1 className="text-2xl font-black text-[#0F172A] tracking-tight mb-1">{BRAND_NAME}</h1>
-              <p className="text-sm font-bold text-[#334155] mb-2">Retail ERP Management System</p>
-              <p className="text-xs font-medium text-[#94A3B8]">Secure access to your business dashboard</p>
-            </div>
-
-            {/* Error Message */}
-            <AnimatePresence>
-              {loginError && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="w-full bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-3 mb-6"
-                >
-                  <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-xs font-bold text-red-600 leading-relaxed">{loginError}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Login Form */}
-            <form onSubmit={handleLogin} className="w-full space-y-6">
-              {/* Email Input */}
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-xs font-black text-[#64748B] uppercase tracking-wider ml-1">Email Address</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] group-focus-within:text-blue-600 transition-colors">
-                    <Mail size={18} />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (loginError) setLoginError('');
-                    }}
-                    placeholder="Enter your email"
-                    disabled={isProcessing}
-                    className="w-full h-[50px] bg-white border border-[#E2E8F0] rounded-xl pl-11 pr-4 text-sm font-bold text-[#0F172A] outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all placeholder:text-[#94A3B8] disabled:opacity-50"
-                    autoFocus
-                    autoComplete="email"
-                    spellCheck="false"
-                  />
-                </div>
-              </div>
-
-              {/* Password Input */}
-              <div className="space-y-2">
-                <label htmlFor="pin" className="text-xs font-black text-[#64748B] uppercase tracking-wider ml-1">Password</label>
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] group-focus-within:text-blue-600 transition-colors">
-                    <Lock size={18} />
-                  </div>
-                  <input
-                    id="pin"
-                    type={showPassword ? "text" : "password"}
-                    value={pin}
-                    onChange={(e) => {
-                      setPin(e.target.value);
-                      if (loginError) setLoginError('');
-                    }}
-                    placeholder="Enter your password"
-                    disabled={isProcessing}
-                    className="w-full h-[50px] bg-white border border-[#E2E8F0] rounded-xl pl-11 pr-12 text-sm font-bold text-[#0F172A] outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all placeholder:text-[#94A3B8] disabled:opacity-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B] transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setRememberMe(!rememberMe)}>
-                  <div className={cn(
-                    "w-4 h-4 rounded border flex items-center justify-center transition-all",
-                    rememberMe ? "bg-blue-600 border-blue-600" : "bg-white border-[#CBD5E1]"
-                  )}>
-                    {rememberMe && <CheckCircle2 size={12} className="text-white" />}
-                  </div>
-                  <span className="text-xs font-bold text-[#64748B]">Remember Me</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => toast.info('Please contact your administrator to reset your password.')}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  Forgot Password?
-                </button>
-              </div>
-
-              {/* Login Button */}
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="w-full h-[52px] bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-sm uppercase tracking-widest rounded-xl shadow-lg shadow-blue-200/50 hover:shadow-xl hover:shadow-blue-300/50 hover:-translate-y-[1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all flex items-center justify-center gap-3 overflow-hidden relative"
-              >
-                <AnimatePresence mode="wait">
-                  {isProcessing ? (
-                    <motion.div
-                      key="loading"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="flex items-center gap-3"
-                    >
-                      <Loader2 size={20} className="animate-spin" />
-                      <span>Verifying...</span>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="idle"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      className="flex items-center gap-3"
-                    >
-                      <span>Sign In</span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </button>
-            </form>
-
-            {/* Footer */}
-            <div className="mt-12 text-center space-y-4">
-              <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em]">
-                © {new Date().getFullYear()} {BRAND_NAME} Retail ERP
-              </p>
-              <div className="flex items-center justify-center gap-4 text-[10px] font-bold text-[#64748B] uppercase tracking-widest">
-                <button className="hover:text-blue-600 transition-colors">Privacy Policy</button>
-                <span className="w-1 h-1 bg-[#CBD5E1] rounded-full" />
-                <button className="hover:text-blue-600 transition-colors">Terms</button>
-                <span className="w-1 h-1 bg-[#CBD5E1] rounded-full" />
-                <button className="hover:text-blue-600 transition-colors">Support</button>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    );
+    return <LoginView onLoginSuccess={(userData) => {
+      setIsAuthorized(true);
+      setCurrentUser(userData);
+      fetchInitialData(true, false);
+    }} />;
   }
 
   const masterItems = [
