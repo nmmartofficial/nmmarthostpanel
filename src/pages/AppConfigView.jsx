@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, RefreshCw } from 'lucide-react';
+import { Settings, Save, RefreshCw, Link as LinkIcon, Copy } from 'lucide-react';
 import { handleERPAction, ACTION_TYPES } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
 import { cn } from '../utils/helpers';
+import { toast } from 'sonner';
 
 export default function AppConfigView({ appConfig, setAppConfig, fetchInitialData, uploadImage }) {
   const [formData, setFormData] = useState(appConfig);
@@ -10,6 +11,23 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
   const [password, setPassword] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
+
+  // Secret link logic
+  const [currentSecretPath, setCurrentSecretPath] = useState("nm-mart");
+  const adminUrl = `${window.location.origin}/${currentSecretPath}`;
+
+  const generateNewSecret = () => {
+    const newPath = `admin-${Math.random().toString(36).substring(2, 10)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    if (window.confirm("Changing this will change your Admin URL. You must remember the new link to login again. Continue?")) {
+      setCurrentSecretPath(newPath);
+      toast.success("New Secret Path Generated! Click SAVE to apply.");
+    }
+  };
+
+  const copyAdminLink = () => {
+    navigator.clipboard.writeText(adminUrl);
+    toast.success("Admin Portal Link Copied!");
+  };
 
   useEffect(() => {
     // Initialize formData only with fields that exist in appConfig (from DB)
@@ -139,8 +157,8 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
   const settingsFields = getFieldsByCategory('settings');
 
   return (
-    <div className="max-w-4xl bg-white rounded-2xl border border-neutral-200 shadow-enterprise overflow-hidden">
-      <div className="p-6 border-b border-neutral-100 flex items-center gap-4 bg-neutral-50/50">
+    <div className="h-[calc(100vh-12rem)] flex flex-col max-w-4xl bg-white rounded-2xl border border-neutral-200 shadow-enterprise overflow-hidden">
+      <div className="p-6 border-b border-neutral-100 flex items-center gap-4 bg-neutral-50/50 flex-shrink-0">
         <div className="p-2.5 bg-primary-600 rounded-xl text-white shadow-lg shadow-primary-600/20">
           <Settings size={22} />
         </div>
@@ -149,171 +167,209 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
           <p className="text-neutral-400 font-black text-[9px] uppercase tracking-widest mt-0.5">Master Store Controls & Branding</p>
         </div>
       </div>
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
-        <div className="space-y-8">
-          {/* Store & Branding */}
-          {(brandingFields.length > 0 || existingFields.includes('logo_url')) && (
-            <div className="border border-neutral-100 rounded-2xl overflow-hidden shadow-sm">
-              <div className="bg-neutral-50 px-5 py-3.5 border-b border-neutral-100">
-                <h4 className="text-[11px] font-black text-neutral-800 uppercase tracking-widest">Store & Branding</h4>
-              </div>
-              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {brandingFields.filter(f => f.name !== 'logo_url').map(f => (
-                  <div key={f.name} className="space-y-2">
-                    <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">{f.label}</label>
-                    {f.type === 'checkbox' ? (
-                      <div className="flex items-center h-[42px]">
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
-                          className={cn(
-                            "w-12 h-6 rounded-full transition-all duration-300 relative shadow-inner",
-                            formData[f.name] ? "bg-primary-600" : "bg-neutral-300"
-                          )}
-                        >
-                          <div className={cn(
-                            "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 absolute top-1",
-                            formData[f.name] ? "left-7" : "left-1"
-                          )} />
-                        </button>
-                      </div>
-                    ) : (
-                      <input 
-                        type={f.type}
-                        value={formData[f.name] || ''}
-                        onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                        className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 focus:ring-4 focus:ring-primary-50 transition-all text-neutral-900 outline-none"
-                      />
-                    )}
+      <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          <div className="space-y-8">
+            {/* Secure Admin Portal Link */}
+            <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden border border-white/5">
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-600 rounded-lg"><LinkIcon size={16} /></div>
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.2em]">Secure Admin Portal Link</h4>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold mb-4 uppercase tracking-widest leading-relaxed">
+                  Only people with this secret link can access the admin panel.
+                  Regular visitors will only see the home page.
+                </p>
+                <div className="flex items-center gap-2 bg-black/40 p-3 rounded-xl border border-white/10 group">
+                  <code className="flex-1 text-xs font-black text-blue-400 truncate">{adminUrl}</code>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={copyAdminLink}
+                      className="p-2 bg-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center gap-2 text-[9px] font-black uppercase tracking-widest shadow-lg"
+                    >
+                      <Copy size={12} /> Copy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={generateNewSecret}
+                      className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all flex items-center gap-2 text-[9px] font-black uppercase tracking-widest"
+                    >
+                      <RefreshCw size={12} /> Regenerate
+                    </button>
                   </div>
-                ))}
-                
-                {/* Logo Upload Section */}
-                <div className="col-span-1 sm:col-span-2 lg:col-span-3 space-y-2">
-                  <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">Logo</label>
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-24 h-24 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center">
-                        {(logoFile ? URL.createObjectURL(logoFile) : formData.logo_url) ? (
-                          <img 
-                            src={logoFile ? URL.createObjectURL(logoFile) : formData.logo_url} 
-                            alt="Logo Preview" 
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <div className="text-slate-400 text-xs font-black uppercase tracking-widest">No Logo</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <label className="flex items-center justify-center w-full h-12 bg-slate-50 border border-slate-200 border-dashed rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all">
-                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Upload Logo</span>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              setLogoFile(e.target.files[0]);
-                            }
-                          }}
+                </div>
+              </div>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+            </div>
+
+            {/* Store & Branding */}
+            {(brandingFields.length > 0 || existingFields.includes('logo_url')) && (
+              <div className="border border-neutral-100 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-neutral-50 px-5 py-3.5 border-b border-neutral-100">
+                  <h4 className="text-[11px] font-black text-neutral-800 uppercase tracking-widest">Store & Branding</h4>
+                </div>
+                <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {brandingFields.filter(f => f.name !== 'logo_url').map(f => (
+                    <div key={f.name} className="space-y-2">
+                      <label className="text-[10px] font-black text-neutral-500 uppercase tracking-widest ml-1">{f.label}</label>
+                      {f.type === 'checkbox' ? (
+                        <div className="flex items-center h-[42px]">
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
+                            className={cn(
+                              "w-12 h-6 rounded-full transition-all duration-300 relative shadow-inner",
+                              formData[f.name] ? "bg-primary-600" : "bg-neutral-300"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 absolute top-1",
+                              formData[f.name] ? "left-7" : "left-1"
+                            )} />
+                          </button>
+                        </div>
+                      ) : (
+                        <input
+                          type={f.type}
+                          value={formData[f.name] || ''}
+                          onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                          className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 focus:ring-4 focus:ring-primary-50 transition-all text-neutral-900 outline-none"
                         />
-                      </label>
-                      <input 
-                        type="text" 
-                        placeholder="Or paste logo URL"
-                        value={formData.logo_url || ''}
-                        onChange={(e) => {
-                          setFormData({ ...formData, logo_url: e.target.value });
-                          setLogoFile(null);
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
-                      />
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Logo Upload Section */}
+                  <div className="col-span-1 sm:col-span-2 lg:col-span-3 space-y-2">
+                    <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">Logo</label>
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0">
+                        <div className="w-24 h-24 bg-slate-100 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center">
+                          {(logoFile ? URL.createObjectURL(logoFile) : formData.logo_url) ? (
+                            <img
+                              src={logoFile ? URL.createObjectURL(logoFile) : formData.logo_url}
+                              alt="Logo Preview"
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <div className="text-slate-400 text-xs font-black uppercase tracking-widest">No Logo</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <label className="flex items-center justify-center w-full h-12 bg-slate-50 border border-slate-200 border-dashed rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all">
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Upload Logo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                setLogoFile(e.target.files[0]);
+                              }
+                            }}
+                          />
+                        </label>
+                        <input 
+                          type="text"
+                          placeholder="Or paste logo URL"
+                          value={formData.logo_url || ''}
+                          onChange={(e) => {
+                            setFormData({ ...formData, logo_url: e.target.value });
+                            setLogoFile(null);
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Theme Colors */}
-          {themeFields.length > 0 && (
-            <div className="border border-slate-100 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
-                <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">App Theme Colors</h4>
-              </div>
-              <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
-                {themeFields.map(f => (
-                  <div key={f.name} className="space-y-2">
-                    <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
-                    <div className="flex items-center gap-3">
-                      <input 
-                        type="color"
-                        value={formData[f.name] || '#FFFFFF'}
-                        onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                        className="w-16 h-10 rounded-lg border-2 border-slate-200 cursor-pointer"
-                      />
-                      <input 
-                        type="text"
-                        value={formData[f.name] || ''}
-                        onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900 uppercase"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Financial & Settings */}
-          {(financialFields.length > 0 || settingsFields.length > 0) && (
-            <div className="border border-slate-100 rounded-xl overflow-hidden">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
-                <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Financial & Settings</h4>
-              </div>
-              <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[...financialFields, ...settingsFields].map(f => (
-                  <div key={f.name} className="space-y-1">
-                    <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
-                    {f.type === 'checkbox' ? (
-                      <div className="flex items-center h-[34px]">
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
-                          className={cn(
-                            "w-12 h-6 rounded-full p-1 transition-all duration-300",
-                            formData[f.name] ? "bg-blue-600" : "bg-slate-300"
-                          )}
-                        >
-                          <div className={cn(
-                            "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 transform",
-                            formData[f.name] ? "translate-x-6" : "translate-x-0"
-                          )} />
-                        </button>
+            {/* Theme Colors */}
+            {themeFields.length > 0 && (
+              <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+                  <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">App Theme Colors</h4>
+                </div>
+                <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  {themeFields.map(f => (
+                    <div key={f.name} className="space-y-2">
+                      <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={formData[f.name] || '#FFFFFF'}
+                          onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                          className="w-16 h-10 rounded-lg border-2 border-slate-200 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={formData[f.name] || ''}
+                          onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                          className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900 uppercase"
+                        />
                       </div>
-                    ) : (
-                      <input 
-                        type={f.type}
-                        value={formData[f.name] || ''}
-                        onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
-                      />
-                    )}
-                  </div>
-                ))}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Financial & Settings */}
+            {(financialFields.length > 0 || settingsFields.length > 0) && (
+              <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <div className="bg-slate-50 px-4 py-3 border-b border-slate-100">
+                  <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Financial & Settings</h4>
+                </div>
+                <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[...financialFields, ...settingsFields].map(f => (
+                    <div key={f.name} className="space-y-1">
+                      <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">{f.label}</label>
+                      {f.type === 'checkbox' ? (
+                        <div className="flex items-center h-[34px]">
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, [f.name]: !formData[f.name] })}
+                            className={cn(
+                              "w-12 h-6 rounded-full p-1 transition-all duration-300",
+                              formData[f.name] ? "bg-blue-600" : "bg-slate-300"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 transform",
+                              formData[f.name] ? "translate-x-6" : "translate-x-0"
+                            )} />
+                          </button>
+                        </div>
+                      ) : (
+                        <input
+                          type={f.type}
+                          value={formData[f.name] || ''}
+                          onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <button 
-          type="submit" 
-          disabled={isSubmitting}
-          className="w-full bg-primary-600 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-xl shadow-primary-600/20 flex items-center justify-center gap-3 hover:bg-primary-700 hover:translate-y-[-2px] transition-all disabled:opacity-50"
-        >
-          {isSubmitting ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
-          Save Global Configuration
-        </button>
+        <div className="p-4 bg-white border-t border-neutral-100 flex-shrink-0">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full bg-primary-600 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-[11px] shadow-xl shadow-primary-600/20 flex items-center justify-center gap-3 hover:bg-primary-700 hover:translate-y-[-2px] transition-all disabled:opacity-50"
+          >
+            {isSubmitting ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
+            Save Global Configuration
+          </button>
+        </div>
       </form>
     </div>
   );

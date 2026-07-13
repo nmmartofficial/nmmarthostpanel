@@ -57,8 +57,8 @@ export default function SupportTicketsView() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6">
+      <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-purple-600 rounded-lg text-white shadow-md">
             <MessageSquare size={20} />
@@ -76,13 +76,13 @@ export default function SupportTicketsView() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 min-h-0 overflow-hidden">
         {/* Left: Ticket List */}
-        <div className="md:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[70vh]">
-          <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="md:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
+          <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex-shrink-0">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Recent Inquiries</h3>
           </div>
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-50 custom-scrollbar">
             {loading ? (
               <div className="p-8 text-center"><RefreshCw className="animate-spin mx-auto text-slate-300" /></div>
             ) : tickets.length === 0 ? (
@@ -114,10 +114,10 @@ export default function SupportTicketsView() {
         </div>
 
         {/* Right: Ticket Detail */}
-        <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[70vh]">
+        <div className="md:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
           {selectedTicket ? (
             <>
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
                     <User size={24} />
@@ -143,7 +143,7 @@ export default function SupportTicketsView() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                 <div className="space-y-2">
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Inquiry Message</h4>
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-slate-700 text-xs leading-relaxed">
@@ -155,7 +155,7 @@ export default function SupportTicketsView() {
                 </div>
 
                 {selectedTicket.status !== 'resolved' && (
-                  <form onSubmit={handleSendReply} className="space-y-3">
+                  <form onSubmit={handleSendReply} className="space-y-3 pb-4">
                     <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Quick Reply</h4>
                     <textarea 
                       placeholder="Type your response to the user..."

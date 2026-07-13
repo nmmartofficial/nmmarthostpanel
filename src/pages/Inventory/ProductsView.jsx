@@ -29,6 +29,7 @@ const sanitizeMasterCode = (value, fallback = 'master') => {
 
 export default function ProductsView({ products, categories, brands, subcategories, filter, uploadImage, fetchInitialData, setLoading }) {
   const [showForm, setShowForm] = useState(false);
+  const [formStep, setFormStep] = useState(1);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,7 +43,7 @@ export default function ProductsView({ products, categories, brands, subcategori
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
   const [barcodeToPrint, setBarcodeToPrint] = useState(null);
   const [labelQuantity, setLabelQuantity] = useState(1);
   const barcodeRef = useRef(null);
@@ -483,9 +484,9 @@ export default function ProductsView({ products, categories, brands, subcategori
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
       {/* Header matching Screenshot 1 */}
-      <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-slate-50 rounded-lg text-slate-900 border border-slate-100">
@@ -594,7 +595,8 @@ export default function ProductsView({ products, categories, brands, subcategori
           <button 
             onClick={() => { 
               setEditingProduct(null); 
-              setFormData({ 
+              setFormStep(1);
+              setFormData({
                 // New fields
                 itname: '',
                 onlinerate: 0, 
@@ -634,11 +636,11 @@ export default function ProductsView({ products, categories, brands, subcategori
       </div>
 
       {/* Table matching Screenshot 1 */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">SNo</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Name / Category</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Barcode / HSN</th>
@@ -772,7 +774,8 @@ export default function ProductsView({ products, categories, brands, subcategori
                                 const foundBrand = brands.find(b => b.name === (prefilledData.brand_name || prefilledData.brandcode));
                                 if (foundBrand) prefilledData.brand_id = foundBrand.id;
                               }
-                              setFormData(prefilledData); 
+                              setFormStep(1);
+                              setFormData(prefilledData);
                               setShowForm(true); 
                             }}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-all"
@@ -803,14 +806,16 @@ export default function ProductsView({ products, categories, brands, subcategori
           </table>
         </div>
 
-        <PaginationFooter 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          setCurrentPage={setCurrentPage}
-          totalRecords={filteredProducts.length}
-        />
+        <div className="flex-shrink-0">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            setCurrentPage={setCurrentPage}
+            totalRecords={filteredProducts.length}
+          />
+        </div>
       </div>
 
 
@@ -835,417 +840,379 @@ export default function ProductsView({ products, categories, brands, subcategori
               </div>
 
               <div className="flex-1 overflow-y-auto p-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Row 1: Item Name, Barcode, HSN */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <div className="md:col-span-6 space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Name</label>
-                      <input 
-                        type="text" 
-                        value={formData.itname || formData.name || ''} 
-                        onChange={(e) => setFormData({ ...formData, itname: e.target.value, name: e.target.value })} 
-                        className="w-full bg-slate-50 border-2 border-blue-100 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" 
-                        required 
-                      />
-                    </div>
-                    <div className="md:col-span-3 space-y-1.5">
-                      <div className="flex justify-between items-center px-1">
-                        <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Barcode</label>
-                        <button type="button" onClick={() => setFormData({...formData, barcode: Math.random().toString().slice(2, 12)})} className="text-[9px] font-bold text-blue-600 hover:underline">Generate code</button>
-                      </div>
-                      <input 
-                        type="text" 
-                        value={formData.barcode || ''} 
-                        onChange={(e) => setFormData({ ...formData, barcode: e.target.value })} 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none transition-all" 
-                      />
-                    </div>
-                    <div className="md:col-span-3 space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">HSN Code</label>
-                      <input 
-                        type="text" 
-                        value={formData.hsncode || formData.hsn_code || ''} 
-                        onChange={(e) => setFormData({ ...formData, hsncode: e.target.value, hsn_code: e.target.value })} 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none transition-all" 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Row 2: Group, Sub Category, Brand, Unit */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 border-b border-slate-100 pb-6">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Group Name</label>
-                      <div className="flex gap-2">
-                        <select value={formData.category_id || ''} onChange={(e) => {
-                          const selectedCat = categories.find(c => c.id === e.target.value);
-                          setFormData({
-                            ...formData,
-                            category_id: e.target.value,
-                            category_name: selectedCat?.name || '',
-                            category: selectedCat?.name || ''
-                          });
-                        }} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                          <option value="">NM MART</option>
-                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                        {formData.category_id && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const catName = categories.find(c => c.id === formData.category_id)?.name;
-                              if (window.confirm(`Kya aap sure hain? Delete "${catName}"? Isse yeh category har jagah se delete ho jayega!`)) {
-                                await dbSync.delete(DB_SCHEMA.CATEGORIES.table, formData.category_id, true);
-                                setFormData({
-                                  ...formData,
-                                  category_id: '',
-                                  category_name: '',
-                                  category: '',
-                                  itc: ''
-                                });
-                                fetchInitialData();
-                              }
-                            }}
-                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all border border-red-200"
-                            title="Delete Category"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Sub Category Name</label>
-                      <div className="flex gap-2">
-                        <select value={formData.subcategory_id || ''} onChange={(e) => {
-                          const selectedSubCat = subcategories.find(s => s.id === e.target.value);
-                          setFormData({
-                            ...formData,
-                            subcategory_id: e.target.value,
-                            subcategory_name: selectedSubCat?.name || '',
-                            subcategory: selectedSubCat?.name || ''
-                          });
-                        }} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                          <option value="">Chocolate</option>
-                          {subcategories?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                        {formData.subcategory_id && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const subCatName = subcategories.find(s => s.id === formData.subcategory_id)?.name;
-                              if (window.confirm(`Kya aap sure hain? Delete "${subCatName}"? Isse yeh subcategory har jagah se delete ho jayega!`)) {
-                                await dbSync.delete(DB_SCHEMA.SUBCATEGORIES.table, formData.subcategory_id, true);
-                                setFormData({
-                                  ...formData,
-                                  subcategory_id: '',
-                                  subcategory_name: '',
-                                  subcategory: ''
-                                });
-                                fetchInitialData();
-                              }
-                            }}
-                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all border border-red-200"
-                            title="Delete Subcategory"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Brand Name</label>
-                      <div className="flex gap-2">
-                        <select value={formData.brand_id || ''} onChange={(e) => {
-                          const selectedBrand = brands.find(b => b.id === e.target.value);
-                          setFormData({
-                            ...formData,
-                            brand_id: e.target.value,
-                            brand_name: selectedBrand?.name || '',
-                            brand: selectedBrand?.name || ''
-                          });
-                        }} className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                          <option value="">NESTLE</option>
-                          {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
-                        {formData.brand_id && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const brandName = brands.find(b => b.id === formData.brand_id)?.name;
-                              if (window.confirm(`Kya aap sure hain? Delete "${brandName}"? Isse yeh brand har jagah se delete ho jayega!`)) {
-                                await dbSync.delete(DB_SCHEMA.BRANDS.table, formData.brand_id, true);
-                                setFormData({
-                                  ...formData,
-                                  brand_id: '',
-                                  brand_name: '',
-                                  brand: '',
-                                  brandcode: ''
-                                });
-                                fetchInitialData();
-                              }
-                            }}
-                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all border border-red-200"
-                            title="Delete Brand"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Unit Name</label>
-                      <select value={formData.unit || ''} onChange={(e) => setFormData({ ...formData, unit: e.target.value, unit_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="NA">NA</option>
-                        <option value="1 pcs">1 pcs</option>
-                        <option value="1 kg">1 kg</option>
-                        <option value="1 ltr">1 ltr</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Row 3: Sale Rate, MRP, Purchase Rate, GST, Cess, Discount */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Online Rate</label>
-                      <input type="number" value={formData.onlinerate || formData.sale_rate || 0} onChange={(e) => setFormData({ ...formData, onlinerate: e.target.value, sale_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Mrp</label>
-                      <input type="number" value={formData.mrp || 0} onChange={(e) => setFormData({ ...formData, mrp: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Purchase Rate</label>
-                      <input type="number" value={formData.purcrate || formData.purchase_rate || 0} onChange={(e) => setFormData({ ...formData, purcrate: e.target.value, purchase_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Gst %</label>
-                      <input 
-                        type="number" 
-                        value={formData.gst || formData.gst_percent || 0} 
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setFormData({ ...formData, gst: val, gst_percent: val });
-                          if (gstError) setGstError(validatePercent(val).message);
-                        }}
-                        onBlur={() => setGstError(validatePercent(formData.gst || formData.gst_percent).message)}
-                        className={cn(
-                          "w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none",
-                          gstError ? "border-red-300 text-red-800" : "border-slate-200"
-                        )}
-                      />
-                      {gstError && <p className="text-[9px] font-black text-red-500 flex items-center gap-1"><AlertCircle size={10}/> {gstError}</p>}
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Cess %</label>
-                      <input 
-                        type="number" 
-                        value={formData.cess || formData.cess_percent || 0} 
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setFormData({ ...formData, cess: val, cess_percent: val });
-                          if (cessError) setCessError(validatePercent(val).message);
-                        }}
-                        onBlur={() => setCessError(validatePercent(formData.cess || formData.cess_percent).message)}
-                        className={cn(
-                          "w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none",
-                          cessError ? "border-red-300 text-red-800" : "border-slate-200"
-                        )}
-                      />
-                      {cessError && <p className="text-[9px] font-black text-red-500 flex items-center gap-1"><AlertCircle size={10}/> {cessError}</p>}
-                    </div>
-                  </div>
-
-                  {/* Row 4: Opening Stock, Discount %, Is Favourite */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Opening Stock</label>
-                      <input type="number" value={formData.opstock || formData.stock || 0} onChange={(e) => setFormData({ ...formData, opstock: e.target.value, stock: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Discount %</label>
-                      <input type="number" value={formData.discperc || formData.discount_percent || 0} onChange={(e) => setFormData({ ...formData, discperc: e.target.value, discount_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is Favourite</label>
-                      <select value={formData.isfav || formData.is_favourite || 'No'} onChange={(e) => setFormData({ ...formData, isfav: e.target.value, is_favourite: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="No">No</option>
-                        <option value="Yes">Yes</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Low Stock Threshold</label>
-                      <input type="number" value={formData.low_stock_threshold || 10} onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Min Qty</label>
-                      <input type="number" value={formData.min_qty || 0} onChange={(e) => setFormData({ ...formData, min_qty: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Batch No</label>
-                      <input type="text" value={formData.batch_no || ''} onChange={(e) => setFormData({ ...formData, batch_no: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Expiry Date</label>
-                      <input type="date" value={formData.expiry_date || ''} onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is Perishable?</label>
-                      <select value={formData.is_perishable ? 'Yes' : 'No'} onChange={(e) => setFormData({ ...formData, is_perishable: e.target.value === 'Yes' })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="No">No</option>
-                        <option value="Yes">Yes</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Row 5: Favourite, Discountable */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Discount %</label>
-                      <input type="number" value={formData.discount_percent || 0} onChange={(e) => setFormData({ ...formData, discount_percent: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is favourite</label>
-                      <select value={formData.is_favourite || 'No'} onChange={(e) => setFormData({ ...formData, is_favourite: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="No">No</option>
-                        <option value="Yes">Yes</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is Discountable</label>
-                      <select value={formData.is_discountable || 'Yes'} onChange={(e) => setFormData({ ...formData, is_discountable: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Row 6: Size, Colour, Counter, Category Name, Subcat Name, Brand Name */}
-                  <div className="grid grid-cols-2 md:grid-cols-6 gap-5">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Size</label>
-                      <input type="text" value={formData.size || ''} onChange={(e) => setFormData({ ...formData, size: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Colour</label>
-                      <input type="text" value={formData.color || ''} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Counter</label>
-                      <input type="text" value={formData.counter_name || ''} onChange={(e) => setFormData({ ...formData, counter_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Category Name</label>
-                      <input type="text" value={formData.category_name || ''} onChange={(e) => setFormData({ ...formData, category_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Subcategory Name</label>
-                      <input type="text" value={formData.subcategory_name || ''} onChange={(e) => setFormData({ ...formData, subcategory_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Brand Name</label>
-                      <input type="text" value={formData.brand_name || ''} onChange={(e) => setFormData({ ...formData, brand_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
-                    </div>
-                  </div>
-
-                  {/* Row 5: Item Description */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Description</label>
-                    <input 
-                      type="text" 
-                      value={formData.description || ''} 
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none transition-all" 
-                    />
-                    <p className="text-[9px] font-bold text-slate-400 ml-1">{formData.description?.length || 0}/250 Characters</p>
-                  </div>
-
-                  {/* Row 6: Image Upload & Preview */}
-                  <div className="flex flex-col sm:flex-row items-end gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <div className="flex-1 space-y-1.5 w-full">
-                      <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Picture</label>
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="file" 
-                          id="product-image-upload"
-                          onChange={(e) => setFormData({ ...formData, main_image_file: e.target.files[0] })}
-                          className="hidden"
-                        />
-                        <button 
-                          type="button"
-                          onClick={() => document.getElementById('product-image-upload').click()}
-                          className="bg-blue-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] hover:bg-blue-700 transition-all shadow-md"
-                        >
-                          Choose File
-                        </button>
-                        <span className="text-[10px] font-bold text-slate-400 truncate max-w-[150px]">
-                          {formData.main_image_file?.name || 'No file chosen'}
-                        </span>
-                      </div>
-                    </div>
-                    { (formData.main_image_file || formData.image_url) && (
-                      <div className="w-20 h-20 rounded-lg border-2 border-white shadow-md overflow-hidden bg-white">
-                        <img src={formData.main_image_file ? URL.createObjectURL(formData.main_image_file) : formData.image_url} alt="Preview" className="w-full h-full object-contain" />
-                      </div>
-                    )}
-                    <button 
-                      type="button" 
-                      onClick={async () => {
-                        if (formData.main_image_file) {
-                          const { url, error } = await uploadImage(formData.main_image_file, 'product-images');
-                          if (url) {
-                            setFormData({ ...formData, image_url: url, main_image_file: null });
-                            alert("Image Uploaded Successfully!");
-                          } else {
-                            alert("Upload Failed: " + error);
-                          }
-                        } else {
-                          alert("Please choose a file first");
-                        }
-                      }}
-                      className="bg-slate-100 text-slate-800 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center gap-2 border border-slate-200 hover:bg-slate-200"
-                    >
-                      <Upload size={14} /> Upload
-                    </button>
-                  </div>
-
-                  {/* Status Toggle */}
-                  <div className="flex items-center gap-3 py-1">
-                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Status:</label>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, is_active: !formData.is_active })}
-                      className={cn(
-                        "w-10 h-5 rounded-full transition-all relative",
-                        formData.is_active ? "bg-blue-600" : "bg-slate-300"
-                      )}
-                    >
+                {/* Step Indicators */}
+                <div className="flex items-center justify-between mb-8 px-4">
+                  {[1, 2, 3, 4, 5, 6].map((step) => (
+                    <div key={step} className="flex flex-col items-center gap-2">
                       <div className={cn(
-                        "absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all",
-                        formData.is_active ? "left-5.5" : "left-0.5"
-                      )} />
-                    </button>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      {formData.is_active ? 'Active' : 'Hidden'}
-                    </span>
-                  </div>
+                        "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-all",
+                        formStep === step ? "bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110" :
+                        formStep > step ? "bg-green-500 text-white" : "bg-slate-100 text-slate-400"
+                      )}>
+                        {formStep > step ? "✓" : step}
+                      </div>
+                      <span className={cn(
+                        "text-[8px] font-black uppercase tracking-widest",
+                        formStep === step ? "text-blue-600" : "text-slate-400"
+                      )}>
+                        {step === 1 ? "Basic" : step === 2 ? "Pricing" : step === 3 ? "Stock" : step === 4 ? "Tax" : step === 5 ? "Images" : "More"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
 
-                  {/* Form Actions */}
-                  <div className="pt-4 flex gap-3 pb-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  {formStep === 1 && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                        <div className="md:col-span-6 space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Name</label>
+                          <input
+                            type="text"
+                            value={formData.itname || formData.name || ''}
+                            onChange={(e) => setFormData({ ...formData, itname: e.target.value, name: e.target.value })}
+                            className="w-full bg-slate-50 border-2 border-blue-100 rounded-lg px-4 py-2 text-xs font-black text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <div className="md:col-span-3 space-y-1.5">
+                          <div className="flex justify-between items-center px-1">
+                            <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Barcode</label>
+                            <button type="button" onClick={() => setFormData({...formData, barcode: Math.random().toString().slice(2, 12)})} className="text-[9px] font-bold text-blue-600 hover:underline">Generate code</button>
+                          </div>
+                          <input
+                            type="text"
+                            value={formData.barcode || ''}
+                            onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none transition-all"
+                          />
+                        </div>
+                        <div className="md:col-span-3 space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">HSN Code</label>
+                          <input
+                            type="text"
+                            value={formData.hsncode || formData.hsn_code || ''}
+                            onChange={(e) => setFormData({ ...formData, hsncode: e.target.value, hsn_code: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Group Name</label>
+                          <select value={formData.category_id || ''} onChange={(e) => {
+                            const selectedCat = categories.find(c => c.id === e.target.value);
+                            setFormData({
+                              ...formData,
+                              category_id: e.target.value,
+                              category_name: selectedCat?.name || '',
+                              category: selectedCat?.name || ''
+                            });
+                          }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                            <option value="">NM MART</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Sub Category Name</label>
+                          <select value={formData.subcategory_id || ''} onChange={(e) => {
+                            const selectedSubCat = subcategories.find(s => s.id === e.target.value);
+                            setFormData({
+                              ...formData,
+                              subcategory_id: e.target.value,
+                              subcategory_name: selectedSubCat?.name || '',
+                              subcategory: selectedSubCat?.name || ''
+                            });
+                          }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                            <option value="">Chocolate</option>
+                            {subcategories?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Brand Name</label>
+                          <select value={formData.brand_id || ''} onChange={(e) => {
+                            const selectedBrand = brands.find(b => b.id === e.target.value);
+                            setFormData({
+                              ...formData,
+                              brand_id: e.target.value,
+                              brand_name: selectedBrand?.name || '',
+                              brand: selectedBrand?.name || ''
+                            });
+                          }} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                            <option value="">NESTLE</option>
+                            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Unit Name</label>
+                          <select value={formData.unit || ''} onChange={(e) => setFormData({ ...formData, unit: e.target.value, unit_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                            <option value="NA">NA</option>
+                            <option value="1 pcs">1 pcs</option>
+                            <option value="1 kg">1 kg</option>
+                            <option value="1 ltr">1 ltr</option>
+                          </select>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {formStep === 2 && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Online Rate (Sale Rate)</label>
+                          <input type="number" value={formData.onlinerate || formData.sale_rate || 0} onChange={(e) => setFormData({ ...formData, onlinerate: e.target.value, sale_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">MRP</label>
+                          <input type="number" value={formData.mrp || 0} onChange={(e) => setFormData({ ...formData, mrp: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Purchase Rate</label>
+                          <input type="number" value={formData.purcrate || formData.purchase_rate || 0} onChange={(e) => setFormData({ ...formData, purcrate: e.target.value, purchase_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Retail Rate</label>
+                          <input type="number" value={formData.restrate || formData.retail_rate || 0} onChange={(e) => setFormData({ ...formData, restrate: e.target.value, retail_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Take Rate</label>
+                          <input type="number" value={formData.takerate || formData.take_rate || 0} onChange={(e) => setFormData({ ...formData, takerate: e.target.value, take_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Delivery Rate</label>
+                          <input type="number" value={formData.dlvrate || formData.delivery_rate || 0} onChange={(e) => setFormData({ ...formData, dlvrate: e.target.value, delivery_rate: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {formStep === 3 && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Opening Stock</label>
+                          <input type="number" value={formData.opstock || formData.stock || 0} onChange={(e) => setFormData({ ...formData, opstock: e.target.value, stock: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Low Stock Threshold</label>
+                          <input type="number" value={formData.low_stock_threshold || 10} onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Min Qty</label>
+                          <input type="number" value={formData.min_qty || 0} onChange={(e) => setFormData({ ...formData, min_qty: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Batch No</label>
+                          <input type="text" value={formData.batch_no || ''} onChange={(e) => setFormData({ ...formData, batch_no: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Expiry Date</label>
+                          <input type="date" value={formData.expiry_date || ''} onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is Perishable?</label>
+                          <select value={formData.is_perishable ? 'Yes' : 'No'} onChange={(e) => setFormData({ ...formData, is_perishable: e.target.value === 'Yes' })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {formStep === 4 && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">GST %</label>
+                          <input
+                            type="number"
+                            value={formData.gst || formData.gst_percent || 0}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setFormData({ ...formData, gst: val, gst_percent: val });
+                              if (gstError) setGstError(validatePercent(val).message);
+                            }}
+                            onBlur={() => setGstError(validatePercent(formData.gst || formData.gst_percent).message)}
+                            className={cn(
+                              "w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none",
+                              gstError ? "border-red-300 text-red-800" : "border-slate-200"
+                            )}
+                          />
+                          {gstError && <p className="text-[9px] font-black text-red-500 flex items-center gap-1"><AlertCircle size={10}/> {gstError}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Cess %</label>
+                          <input
+                            type="number"
+                            value={formData.cess || formData.cess_percent || 0}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setFormData({ ...formData, cess: val, cess_percent: val });
+                              if (cessError) setCessError(validatePercent(val).message);
+                            }}
+                            onBlur={() => setCessError(validatePercent(formData.cess || formData.cess_percent).message)}
+                            className={cn(
+                              "w-full bg-slate-50 border rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none",
+                              cessError ? "border-red-300 text-red-800" : "border-slate-200"
+                            )}
+                          />
+                          {cessError && <p className="text-[9px] font-black text-red-500 flex items-center gap-1"><AlertCircle size={10}/> {cessError}</p>}
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {formStep === 5 && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                      <div className="flex flex-col sm:flex-row items-center gap-8 bg-slate-50 p-8 rounded-xl border border-slate-200">
+                        <div className="w-48 h-48 rounded-2xl border-2 border-white shadow-xl overflow-hidden bg-white flex-shrink-0">
+                          {(formData.main_image_file || formData.image_url || formData.picture) ? (
+                            <img src={formData.main_image_file ? URL.createObjectURL(formData.main_image_file) : (formData.image_url || formData.picture)} alt="Preview" className="w-full h-full object-contain" />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 gap-2">
+                              <Upload size={48} />
+                              <span className="text-[10px] font-black uppercase tracking-widest">No Image</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-4">
+                          <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Product Image</h4>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+                            Recommended size: 512x512 pixels.<br/>
+                            Supports JPG, PNG, WEBP.
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="file"
+                              id="product-image-upload"
+                              onChange={(e) => setFormData({ ...formData, main_image_file: e.target.files[0] })}
+                              className="hidden"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => document.getElementById('product-image-upload').click()}
+                              className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                            >
+                              Select Image
+                            </button>
+                            {formData.main_image_file && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const { url, error } = await uploadImage(formData.main_image_file, 'product-images');
+                                  if (url) {
+                                    setFormData({ ...formData, image_url: url, picture: url, main_image_file: null });
+                                    alert("Image Uploaded Successfully!");
+                                  } else {
+                                    alert("Upload Failed: " + error);
+                                  }
+                                }}
+                                className="bg-emerald-500 text-white px-6 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-600 transition-all shadow-lg"
+                              >
+                                Upload Now
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {formStep === 6 && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Item Description</label>
+                        <textarea
+                          value={formData.description || formData.itemdescription || ''}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value, itemdescription: e.target.value })}
+                          rows={3}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none transition-all"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Size</label>
+                          <input type="text" value={formData.size || ''} onChange={(e) => setFormData({ ...formData, size: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Colour</label>
+                          <input type="text" value={formData.color || ''} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Counter</label>
+                          <input type="text" value={formData.counter_name || ''} onChange={(e) => setFormData({ ...formData, counter_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Discount %</label>
+                          <input type="number" value={formData.discount_percent || formData.discperc || 0} onChange={(e) => setFormData({ ...formData, discount_percent: e.target.value, discperc: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is favourite</label>
+                          <select value={formData.is_favourite || formData.isfav || 'No'} onChange={(e) => setFormData({ ...formData, is_favourite: e.target.value, isfav: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Is Discountable</label>
+                          <select value={formData.is_discountable || formData.isdiscountable || 'Yes'} onChange={(e) => setFormData({ ...formData, is_discountable: e.target.value, isdiscountable: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                            <option value="Yes">Yes</option>
+                            <option value="No">No</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Status</label>
+                          <select value={formData.is_active ? 'Active' : 'Hidden'} onChange={(e) => setFormData({ ...formData, is_active: e.target.value === 'Active' })} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black text-slate-900 focus:border-blue-500 outline-none">
+                            <option value="Active">Active</option>
+                            <option value="Hidden">Hidden</option>
+                          </select>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Form Footer Navigation */}
+                  <div className="pt-8 flex justify-between items-center border-t border-slate-100 flex-shrink-0">
                     <button 
                       type="button" 
-                      onClick={() => setShowForm(false)}
-                      className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all"
+                      onClick={() => {
+                        if (formStep > 1) setFormStep(prev => prev - 1);
+                        else setShowForm(false);
+                      }}
+                      className="px-6 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all"
                     >
-                      Discard
+                      {formStep === 1 ? "Discard" : "Previous"}
                     </button>
-                    <button 
-                      type="submit" 
-                      disabled={isSubmitting}
-                      className="flex-1 bg-blue-700 text-white font-black py-3 rounded-xl uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 flex items-center justify-center gap-2 hover:translate-y-[-1px] transition-all"
-                    >
-                      {isSubmitting ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
-                      {editingProduct ? 'Apply Changes' : 'Confirm Entry'}
-                    </button>
+
+                    <div className="flex gap-3">
+                      {formStep < 6 ? (
+                        <button
+                          type="button"
+                          onClick={() => setFormStep(prev => prev + 1)}
+                          className="bg-blue-600 text-white px-8 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-200 hover:translate-y-[-1px] transition-all"
+                        >
+                          Next Step
+                        </button>
+                      ) : (
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className="bg-blue-700 text-white px-10 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-300 flex items-center justify-center gap-2 hover:translate-y-[-2px] active:translate-y-0 transition-all"
+                        >
+                          {isSubmitting ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
+                          {editingProduct ? 'Apply Changes' : 'Confirm Entry'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </form>
               </div>

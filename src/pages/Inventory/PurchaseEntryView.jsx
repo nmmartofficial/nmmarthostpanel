@@ -145,8 +145,8 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6">
+      <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-emerald-600 rounded-lg text-white shadow-md">
             <ShoppingBag size={20} />
@@ -158,10 +158,10 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0 overflow-hidden">
         {/* Left: Invoice Details */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="lg:col-span-1 space-y-6 flex flex-col min-h-0">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex-shrink-0">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-2">Invoice Details</h3>
             
             <div className="space-y-3">
@@ -212,7 +212,7 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
             </div>
           </div>
 
-          <div className="bg-emerald-600 p-6 rounded-2xl text-white shadow-xl shadow-emerald-100 space-y-4">
+          <div className="bg-emerald-600 p-6 rounded-2xl text-white shadow-xl shadow-emerald-100 space-y-4 flex-1">
             <h3 className="text-[10px] font-black uppercase tracking-widest opacity-70">Payment Summary</h3>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
@@ -249,8 +249,8 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
         </div>
 
         {/* Right: Items List */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative">
+        <div className="lg:col-span-2 space-y-4 flex flex-col min-h-0">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative flex-shrink-0">
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -284,13 +284,13 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
                       <div className="flex items-center gap-3">
                         <img src={p.image_url} alt="" className="w-8 h-8 object-contain bg-slate-50 rounded" />
                         <div className="text-left">
-                          <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{p.item_name}</p>
+                          <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{p.itname || p.name}</p>
                           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Barcode: {p.barcode || 'N/A'}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-black text-emerald-600">₹{p.purchase_rate || 0}</p>
-                        <p className="text-[8px] font-bold text-slate-400 uppercase">Stock: {p.stock}</p>
+                        <p className="text-[10px] font-black text-emerald-600">₹{p.purcrate || p.purchase_rate || 0}</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase">Stock: {p.opstock || p.stock}</p>
                       </div>
                     </button>
                   )) : (
@@ -301,64 +301,66 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
             </AnimatePresence>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm min-h-[400px]">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Product</th>
-                  <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-24">Qty</th>
-                  <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-32">Rate</th>
-                  <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-32">Total</th>
-                  <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {items.length > 0 ? items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{item.item_name}</p>
-                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{item.barcode}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input 
-                        type="number" 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-black outline-none focus:ring-1 focus:ring-emerald-500"
-                        value={item.quantity}
-                        onChange={e => updateItem(idx, 'quantity', e.target.value)}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">₹</span>
+          <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col min-h-0">
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-50">
+                  <tr className="border-b border-slate-200">
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Product</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-24">Qty</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-32">Rate</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-32">Total</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {items.length > 0 ? items.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{item.itname || item.name}</p>
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{item.barcode}</p>
+                      </td>
+                      <td className="px-4 py-3">
                         <input 
                           type="number" 
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-4 pr-2 py-1.5 text-[10px] font-black outline-none focus:ring-1 focus:ring-emerald-500"
-                          value={item.rate}
-                          onChange={e => updateItem(idx, 'rate', e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-black outline-none focus:ring-1 focus:ring-emerald-500"
+                          value={item.quantity}
+                          onChange={e => updateItem(idx, 'quantity', e.target.value)}
                         />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-[10px] font-black text-slate-800">₹{item.total.toLocaleString()}</p>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => removeItem(idx)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan="5" className="px-4 py-20 text-center">
-                      <div className="flex flex-col items-center gap-2 text-slate-200">
-                        <Package size={64} strokeWidth={1} />
-                        <p className="text-[10px] font-black uppercase tracking-widest">Add products to start purchase entry</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">₹</span>
+                          <input
+                            type="number"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-4 pr-2 py-1.5 text-[10px] font-black outline-none focus:ring-1 focus:ring-emerald-500"
+                            value={item.rate}
+                            onChange={e => updateItem(idx, 'rate', e.target.value)}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-[10px] font-black text-slate-800">₹{item.total.toLocaleString()}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => removeItem(idx)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="5" className="px-4 py-20 text-center">
+                        <div className="flex flex-col items-center gap-2 text-slate-200">
+                          <Package size={64} strokeWidth={1} />
+                          <p className="text-[10px] font-black uppercase tracking-widest">Add products to start purchase entry</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

@@ -87,8 +87,8 @@ export default function LoyaltyManagementView({ orders, fetchInitialData }) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-blue-50 to-indigo-50 p-6 gap-6">
-      <div className="flex items-center justify-between">
+    <div className="h-[calc(100vh-12rem)] flex flex-col bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-6 gap-6 overflow-hidden">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
             <Trophy size={28} />
@@ -107,49 +107,49 @@ export default function LoyaltyManagementView({ orders, fetchInitialData }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 flex-shrink-0">
         {LOYALTY_TIERS.map((tier) => (
-          <div key={tier.name} className={`p-6 rounded-2xl border-2 ${tier.bg} ${tier.border} shadow-md`}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className={`font-black text-lg ${tier.color}`}>{tier.name}</h3>
-              <Trophy size={24} className={tier.color} />
+          <div key={tier.name} className={`p-4 rounded-2xl border-2 ${tier.bg} ${tier.border} shadow-md`}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className={`font-black text-sm ${tier.color}`}>{tier.name}</h3>
+              <Trophy size={18} className={tier.color} />
             </div>
-            <p className="text-sm font-bold text-slate-600">Min: {tier.minPoints} points</p>
-            <p className="text-2xl font-black text-slate-800 mt-1">{tier.discount}% OFF</p>
+            <p className="text-[10px] font-bold text-slate-600">Min: {tier.minPoints} pts</p>
+            <p className="text-xl font-black text-slate-800 mt-1">{tier.discount}% OFF</p>
           </div>
         ))}
-        <div className="p-6 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200 shadow-md">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-black text-lg text-green-700">Total Customers</h3>
-            <Users size={24} className="text-green-700" />
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-100 border-2 border-green-200 shadow-md">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-black text-sm text-green-700">Total Users</h3>
+            <Users size={18} className="text-green-700" />
           </div>
-          <p className="text-3xl font-black text-green-800 mt-1">{processedCustomers.length}</p>
+          <p className="text-2xl font-black text-green-800 mt-1">{processedCustomers.length}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-shrink-0">
         <div className="flex-1 relative">
           <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search customers by name or mobile..."
+            placeholder="Search customers..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 rounded-xl bg-white border border-slate-200 text-slate-800 font-bold shadow-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none"
+            className="w-full pl-12 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 font-bold shadow-sm outline-none"
           />
         </div>
       </div>
 
-      <div className="flex-1 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50">
+      <div className="flex-1 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
               <tr>
                 <th className="px-6 py-4 text-xs font-black text-slate-700 uppercase tracking-widest">Customer</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-700 uppercase tracking-widest">Mobile</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-700 uppercase tracking-widest">Tier</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-700 uppercase tracking-widest text-center">Points</th>
-                <th className="px-6 py-4 text-xs font-black text-slate-700 uppercase tracking-widest text-center">Total Spent</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-700 uppercase tracking-widest text-center">Spent</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-700 uppercase tracking-widest text-center">Orders</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-700 uppercase tracking-widest">Actions</th>
               </tr>
@@ -203,15 +203,6 @@ export default function LoyaltyManagementView({ orders, fetchInitialData }) {
             </tbody>
           </table>
         </div>
-        {filteredCustomers.length === 0 && (
-          <div className="py-16 text-center">
-            <div className="w-20 h-20 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
-              <Users size={40} className="text-slate-400" />
-            </div>
-            <h3 className="font-black text-slate-700">No customers found</h3>
-            <p className="text-sm text-slate-500 font-bold mt-1">Add customers to start tracking loyalty</p>
-          </div>
-        )}
       </div>
 
       <AnimatePresence>

@@ -49,9 +49,9 @@ export default function NotificationsView({ notifications, fetchInitialData }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="h-[calc(100vh-12rem)] flex flex-col max-w-4xl mx-auto space-y-4 overflow-hidden">
       {/* Tab Switcher */}
-      <div className="flex bg-white p-1 rounded-xl border border-slate-200 w-fit">
+      <div className="flex bg-white p-1 rounded-xl border border-slate-200 w-fit flex-shrink-0">
         <button 
           onClick={() => setActiveTab('system')}
           className={cn(
@@ -72,127 +72,129 @@ export default function NotificationsView({ notifications, fetchInitialData }) {
         </button>
       </div>
 
-      {activeTab === 'system' ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter">System Notifications</h3>
-            <button 
-              onClick={async () => {
-                const unread = notifications.filter(n => !n.is_read);
-                await Promise.all(unread.map(n => handleERPAction(DB_SCHEMA.NOTIFICATIONS.table, ACTION_TYPES.UPDATE, { id: n.id, is_read: true })));
-                fetchInitialData();
-              }}
-              className="text-[9px] font-black text-blue-600 hover:underline uppercase tracking-widest"
-            >
-              Mark all as read
-            </button>
-          </div>
+      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+        {activeTab === 'system' ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between sticky top-0 bg-neutral-50/80 backdrop-blur-sm py-2 z-10">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter">System Notifications</h3>
+              <button
+                onClick={async () => {
+                  const unread = notifications.filter(n => !n.is_read);
+                  await Promise.all(unread.map(n => handleERPAction(DB_SCHEMA.NOTIFICATIONS.table, ACTION_TYPES.UPDATE, { id: n.id, is_read: true })));
+                  fetchInitialData();
+                }}
+                className="text-[9px] font-black text-blue-600 hover:underline uppercase tracking-widest"
+              >
+                Mark all as read
+              </button>
+            </div>
 
-          <div className="space-y-2">
-            {notifications.length === 0 ? (
-              <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
-                <Bell size={40} className="mx-auto text-slate-200 mb-4" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No notifications found</p>
-              </div>
-            ) : notifications.map((n) => (
-              <div key={n.id} className={cn(
-                "bg-white p-4 rounded-xl border transition-all flex items-start gap-4",
-                n.is_read ? "border-slate-100 opacity-60" : "border-blue-100 shadow-sm shadow-blue-50"
-              )}>
-                <div className={cn(
-                  "p-2 rounded-lg",
-                  n.type === 'low_stock' ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600"
+            <div className="space-y-2">
+              {notifications.length === 0 ? (
+                <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
+                  <Bell size={40} className="mx-auto text-slate-200 mb-4" />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No notifications found</p>
+                </div>
+              ) : notifications.map((n) => (
+                <div key={n.id} className={cn(
+                  "bg-white p-4 rounded-xl border transition-all flex items-start gap-4",
+                  n.is_read ? "border-slate-100 opacity-60" : "border-blue-100 shadow-sm shadow-blue-50"
                 )}>
-                  {n.type === 'low_stock' ? <Package size={16} /> : <Bell size={16} />}
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{n.title}</h4>
-                    <span className="text-[8px] font-bold text-slate-400">{new Date(n.created_at).toLocaleString()}</span>
+                  <div className={cn(
+                    "p-2 rounded-lg",
+                    n.type === 'low_stock' ? "bg-orange-100 text-orange-600" : "bg-blue-100 text-blue-600"
+                  )}>
+                    {n.type === 'low_stock' ? <Package size={16} /> : <Bell size={16} />}
                   </div>
-                  <p className="text-[10px] font-bold text-slate-600 mt-1">{n.message}</p>
-                  {!n.is_read && (
-                    <button 
-                      onClick={() => markAsRead(n.id)}
-                      className="mt-3 text-[8px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 hover:underline"
-                    >
-                      <CheckCircle2 size={10} /> Mark as Read
-                    </button>
-                  )}
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{n.title}</h4>
+                      <span className="text-[8px] font-bold text-slate-400">{new Date(n.created_at).toLocaleString()}</span>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-600 mt-1">{n.message}</p>
+                    {!n.is_read && (
+                      <button
+                        onClick={() => markAsRead(n.id)}
+                        className="mt-3 text-[8px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 hover:underline"
+                      >
+                        <CheckCircle2 size={10} /> Mark as Read
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm mb-4">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-3 bg-blue-600 rounded-xl text-white">
+                <Send size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-800 uppercase tracking-tighter">Push Notification Console</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Send real-time alerts to all app users</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSendUserNotification} className="space-y-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Notification Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Special Offer: 50% OFF on Fruits!"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
+                  value={userNotif.title}
+                  onChange={e => setUserNotif({...userNotif, title: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Message Body</label>
+                <textarea
+                  placeholder="Enter the detailed message here..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20 h-32 resize-none"
+                  value={userNotif.message}
+                  onChange={e => setUserNotif({...userNotif, message: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Target Audience</label>
+                  <select
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none"
+                    value={userNotif.target}
+                    onChange={e => setUserNotif({...userNotif, target: e.target.value})}
+                  >
+                    <option value="all">All Registered Users</option>
+                    <option value="active">Active Last 7 Days</option>
+                    <option value="new">New Users (Last 24h)</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Action Type</label>
+                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none">
+                    <option value="none">Just Open App</option>
+                    <option value="category">Open Category Page</option>
+                    <option value="product">Open Product Page</option>
+                    <option value="offer">Open Offers Page</option>
+                  </select>
                 </div>
               </div>
-            ))}
+
+              <button
+                type="submit"
+                disabled={isSending}
+                className="w-full bg-blue-700 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-xs shadow-xl shadow-blue-200 flex items-center justify-center gap-3 hover:translate-y-[-1px] transition-all"
+              >
+                {isSending ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
+                Send Broadcast Notification
+              </button>
+            </form>
           </div>
-        </div>
-      ) : (
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-blue-600 rounded-xl text-white">
-              <Send size={20} />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-slate-800 uppercase tracking-tighter">Push Notification Console</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Send real-time alerts to all app users</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleSendUserNotification} className="space-y-6">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Notification Title</label>
-              <input 
-                type="text" 
-                placeholder="e.g. Special Offer: 50% OFF on Fruits!"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
-                value={userNotif.title}
-                onChange={e => setUserNotif({...userNotif, title: e.target.value})}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Message Body</label>
-              <textarea 
-                placeholder="Enter the detailed message here..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20 h-32 resize-none"
-                value={userNotif.message}
-                onChange={e => setUserNotif({...userNotif, message: e.target.value})}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Target Audience</label>
-                <select 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none"
-                  value={userNotif.target}
-                  onChange={e => setUserNotif({...userNotif, target: e.target.value})}
-                >
-                  <option value="all">All Registered Users</option>
-                  <option value="active">Active Last 7 Days</option>
-                  <option value="new">New Users (Last 24h)</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Action Type</label>
-                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none">
-                  <option value="none">Just Open App</option>
-                  <option value="category">Open Category Page</option>
-                  <option value="product">Open Product Page</option>
-                  <option value="offer">Open Offers Page</option>
-                </select>
-              </div>
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={isSending}
-              className="w-full bg-blue-700 text-white font-black py-4 rounded-2xl uppercase tracking-widest text-xs shadow-xl shadow-blue-200 flex items-center justify-center gap-3 hover:translate-y-[-1px] transition-all"
-            >
-              {isSending ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
-              Send Broadcast Notification
-            </button>
-          </form>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

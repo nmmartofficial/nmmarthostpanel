@@ -93,145 +93,147 @@ export default function CustomerAnalyticsView({ orders, users }) {
   }, [customerData, orders]);
 
   return (
-    <div className="space-y-6">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Customer Analytics & Segmentation</h2>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Understand your customers better</p>
         </div>
       </div>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((m, i) => (
-          <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div className="flex justify-between items-start mb-4">
-              <div className={cn("p-2.5 rounded-xl shadow-inner", m.bg, m.color)}>
-                {m.icon}
+      <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar">
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+          {metrics.map((m, i) => (
+            <div key={i} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+              <div className="flex justify-between items-start mb-2">
+                <div className={cn("p-2.5 rounded-xl shadow-inner", m.bg, m.color)}>
+                  {m.icon}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{m.label}</p>
+                <h3 className="text-xl font-black text-slate-800 tracking-tighter">{m.value}</h3>
               </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{m.label}</p>
-              <h3 className="text-2xl font-black text-slate-800 tracking-tighter">{m.value}</h3>
+          ))}
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Customer Segmentation Pie Chart */}
+          <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6">Customer Segments</h3>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={segmentChartData}
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {segmentChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend
+                    layout="horizontal"
+                    verticalAlign="bottom"
+                    align="center"
+                    wrapperStyle={{fontSize: '8px', fontWeight: 'bold', textTransform: 'uppercase'}}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Customer Segmentation Pie Chart */}
-        <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6">Customer Segments</h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={segmentChartData}
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {segmentChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend 
-                  layout="vertical" 
-                  verticalAlign="middle" 
-                  align="right"
-                  wrapperStyle={{fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase'}}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* Top Customers Bar Chart */}
+          <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6">Top 10 Customers (Total Spend)</h3>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topCustomers} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{fontSize: 10, fontWeight: 700, fill: '#1e293b'}}
+                    width={120}
+                  />
+                  <Tooltip
+                    contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold'}}
+                    formatter={(value) => [`₹${value}`, 'Total Spent']}
+                  />
+                  <Bar dataKey="totalSpent" fill="#3B82F6" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 
-        {/* Top Customers Bar Chart */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6">Top 10 Customers (Total Spend)</h3>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topCustomers} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" hide />
-                <YAxis 
-                  dataKey="name" 
-                  type="category" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fontSize: 10, fontWeight: 700, fill: '#1e293b'}} 
-                  width={120}
-                />
-                <Tooltip 
-                  contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '10px', fontWeight: 'bold'}}
-                  formatter={(value) => [`₹${value}`, 'Total Spent']}
-                />
-                <Bar dataKey="totalSpent" fill="#3B82F6" radius={[0, 4, 4, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Customers Tables Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-4">
+          {/* VIP Customers */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-black text-purple-600 uppercase tracking-widest flex items-center gap-2">
+                <Award size={16} /> VIP Customers
+              </h3>
+              <span className="text-[9px] font-black text-slate-400">{customerData.segments.VIP.length} customers</span>
+            </div>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              {customerData.segments.VIP.length === 0 ? (
+                <p className="text-[10px] font-bold text-slate-400 text-center py-8">No VIP customers yet</p>
+              ) : (
+                customerData.segments.VIP.map((customer, i) => (
+                  <div key={i} className="flex items-center justify-between p-2.5 bg-purple-50 rounded-xl border border-purple-100">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-800">{customer.name}</p>
+                      <p className="text-[8px] font-bold text-slate-500">{customer.mobile}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-purple-600">₹{Math.round(customer.totalSpent).toLocaleString()}</p>
+                      <p className="text-[8px] font-bold text-slate-500">{customer.orderCount} orders</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Customers Tables Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* VIP Customers */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xs font-black text-purple-600 uppercase tracking-widest flex items-center gap-2">
-              <Award size={16} /> VIP Customers
-            </h3>
-            <span className="text-[9px] font-black text-slate-400">{customerData.segments.VIP.length} customers</span>
-          </div>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
-            {customerData.segments.VIP.length === 0 ? (
-              <p className="text-[10px] font-bold text-slate-400 text-center py-8">No VIP customers yet</p>
-            ) : (
-              customerData.segments.VIP.map((customer, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-purple-50 rounded-xl border border-purple-100">
-                  <div>
-                    <p className="text-[11px] font-black text-slate-800">{customer.name}</p>
-                    <p className="text-[9px] font-bold text-slate-500">{customer.mobile}</p>
+          {/* Inactive Customers */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
+                <Clock size={16} /> Inactive Customers (30+ days)
+              </h3>
+              <span className="text-[9px] font-black text-slate-400">{customerData.segments.Inactive.length} customers</span>
+            </div>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              {customerData.segments.Inactive.length === 0 ? (
+                <p className="text-[10px] font-bold text-slate-400 text-center py-8">No inactive customers, great!</p>
+              ) : (
+                customerData.segments.Inactive.map((customer, i) => (
+                  <div key={i} className="flex items-center justify-between p-2.5 bg-red-50 rounded-xl border border-red-100">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-800">{customer.name}</p>
+                      <p className="text-[8px] font-bold text-slate-500">{customer.mobile}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-bold text-slate-500">Last: {new Date(customer.lastOrderDate).toLocaleDateString()}</p>
+                      <p className="text-[10px] font-black text-slate-700">₹{Math.round(customer.totalSpent).toLocaleString()}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[11px] font-black text-purple-600">₹{Math.round(customer.totalSpent).toLocaleString()}</p>
-                    <p className="text-[9px] font-bold text-slate-500">{customer.orderCount} orders</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Inactive Customers */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xs font-black text-red-600 uppercase tracking-widest flex items-center gap-2">
-              <Clock size={16} /> Inactive Customers (30+ days)
-            </h3>
-            <span className="text-[9px] font-black text-slate-400">{customerData.segments.Inactive.length} customers</span>
-          </div>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
-            {customerData.segments.Inactive.length === 0 ? (
-              <p className="text-[10px] font-bold text-slate-400 text-center py-8">No inactive customers, great!</p>
-            ) : (
-              customerData.segments.Inactive.map((customer, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-red-50 rounded-xl border border-red-100">
-                  <div>
-                    <p className="text-[11px] font-black text-slate-800">{customer.name}</p>
-                    <p className="text-[9px] font-bold text-slate-500">{customer.mobile}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-bold text-slate-500">Last order: {new Date(customer.lastOrderDate).toLocaleDateString()}</p>
-                    <p className="text-[11px] font-black text-slate-700">₹{Math.round(customer.totalSpent).toLocaleString()}</p>
-                  </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

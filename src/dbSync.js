@@ -36,7 +36,7 @@ const PRODUCT_WHITELIST = [
   'isdiscountable',
   'gst',
   'cess',
-  'shopid',
+  'company_code',
   'ispackage',
   'narration',
   'narration2',
@@ -87,6 +87,9 @@ const compressImage = async (file, maxWidth = 1200, quality = 0.7) => {
  */
 const checkLowStockAndNotify = async (productId, bufferLimit = 5) => {
   try {
+    const userData = secureStorage.getItem('nm_user_data');
+    const companyCode = userData?.company_code;
+
     const { data: product, error } = await supabase
       .from(DB_SCHEMA.PRODUCTS.table)
       .select('name, stock') // Updated from stock_qty to stock
@@ -104,6 +107,7 @@ const checkLowStockAndNotify = async (productId, bufferLimit = 5) => {
           message: message,
           type: 'low_stock',
           reference_id: productId,
+          company_code: companyCode,
           created_at: new Date().toISOString()
         }]);
       }
@@ -121,14 +125,14 @@ const checkLowStockAndNotify = async (productId, bufferLimit = 5) => {
  */
 const logTableAction = async (tableName, action, { oldData = null, newData = null, metadata = {} } = {}) => {
   const timestamp = new Date().toISOString();
-  let user = { username: 'system', role: 'system' };
+  let user = { username: 'system', role: 'system', company_code: 'SYSTEM' };
   try {
     const userData = secureStorage.getItem('nm_user_data');
     if (userData) {
       user = userData;
     }
   } catch (e) {
-    console.warn('Failed to get nm_user_data from secureStorage, using system user');
+    console.warn('Failed to get user data for audit log');
   }
   
   try {
@@ -138,6 +142,7 @@ const logTableAction = async (tableName, action, { oldData = null, newData = nul
         action_type: action,
         username: user.username,
         user_role: user.role,
+        company_code: user.company_code,
         old_data: oldData ? JSON.stringify(oldData) : null,
         new_data: newData ? JSON.stringify(newData) : null,
         metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
@@ -313,6 +318,16 @@ export const dbSync = {
   insert: async (tableName, payload) => {
     try {
       validatePayload(tableName, payload);
+      const userData = secureStorage.getItem('nm_user_data');
+      const companyCode = userData?.company_code;
+
+      const records = Array.isArray(payload) ? payload : [payload];
+      // Injection of company_code for multi-tenancy
+      const tenantRecords = records.map(r => ({
+        ...r,
+        company_code: r.company_code || companyCode,
+        created_at: new Date().toISOString()
+      }));
 
       // For tables with unique name constraints, use upsert
       const conflictKeys = {
@@ -321,19 +336,17 @@ export const dbSync = {
         'unit_master': 'name',
         'department_master': 'name',
         'expense_categories': 'name',
-        'products': 'itname' // 🔥 Added products with itname as conflict key
+        'products': 'itname'
       };
       
       let request = supabase.from(tableName);
       
       if (conflictKeys[tableName]) {
-        // For these tables, use upsert with specific conflict key
-        request = request.upsert(Array.isArray(payload) ? payload : [payload], { 
+        request = request.upsert(tenantRecords, {
           onConflict: conflictKeys[tableName]
         });
       } else {
-        // For other tables (including subcategories), regular insert
-        request = request.insert(Array.isArray(payload) ? payload : [payload]);
+        request = request.insert(tenantRecords);
       }
       
       const { data, error } = await request.select();
@@ -377,6 +390,10 @@ export const dbSync = {
         'banners', 'coupons', 'offers'
       ];
 
+      // --- Multi-Tenant Logic: Get current User's Company Code ---
+      const userData = secureStorage.getItem('nm_user_data');
+      const companyCode = userData?.company_code;
+
       while (hasMore) {
         if (allData.length >= limit) {
           hasMore = false;
@@ -385,6 +402,15 @@ export const dbSync = {
 
         let request = supabase.from(tableName).select(query.select || '*');
         
+        // --- AUTO-FILTER BY COMPANY_CODE ---
+        // Apply filter to all tables except global system tables
+        if (companyCode) {
+          const systemTables = ['companies', 'system_logs'];
+          if (!systemTables.includes(tableName)) {
+            request = request.eq('company_code', companyCode);
+          }
+        }
+
         // Safety: Only filter by 'is_active' if we know the table has this column
         if (!query.includeDeleted && TABLES_WITH_IS_ACTIVE.includes(tableName)) {
           request = request.or('is_active.eq.true,is_active.is.null');

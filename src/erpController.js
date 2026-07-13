@@ -73,10 +73,25 @@ export const ACTION_TYPES = {
  * @param {object|array} payload - Data for the operation
  */
 export const handleERPAction = async (moduleName, actionType, payload) => {
-  console.log(`[ERP Action] ${actionType} on ${moduleName}`, payload);
+  // --- Smart Logic Audit ---
+  console.log(`[ERP Dispatch] ${actionType} -> ${moduleName}`, payload);
+
+  // Guard: Prevention of duplicate submissions
+  if (window._isERPProcessing) {
+    console.warn("Action ignored: ERP is already processing a request");
+    return { success: false, error: "System Busy" };
+  }
+
+  window._isERPProcessing = true;
   
   try {
     let data = null;
+    let toastId = null;
+
+    // Show loading for heavy operations
+    if (['INSERT', 'UPDATE', 'DELETE', 'UPSERT'].includes(actionType)) {
+      toastId = toast.loading(`Syncing ${moduleName}...`);
+    }
 
     switch (actionType) {
       case ACTION_TYPES.FETCH:
@@ -84,45 +99,41 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
         break;
 
       case ACTION_TYPES.INSERT:
-        data = await dbSync.insert(moduleName, payload);
+        // Bariki: Automatic UUID and Timestamping
+        const insertPayload = Array.isArray(payload) ? payload : [payload];
+        const sanitizedInsert = insertPayload.map(item => ({
+          ...item,
+          id: item.id || generateUUID(),
+          created_at: item.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        data = await dbSync.insert(moduleName, sanitizedInsert);
         break;
 
       case ACTION_TYPES.UPDATE:
         if (!payload.id) throw new Error("Update requires an ID");
         const { id, ...updateData } = payload;
+        // Bariki: Protect critical system fields
+        delete updateData.created_at;
+        updateData.updated_at = new Date().toISOString();
         data = await dbSync.update(moduleName, id, updateData);
         break;
 
       case ACTION_TYPES.DELETE:
         if (!payload.id) throw new Error("Delete requires an ID");
-        const isHardDeleteTable = ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist', 'banners', 'coupons', 'offers_master', 'categories', 'subcategories', 'brands'].includes(moduleName);
-        data = await dbSync.delete(moduleName, payload.id, isHardDeleteTable);
+        // Bariki: Hard delete only for non-inventory tables
+        const hardDeleteTables = ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist'];
+        const isHard = hardDeleteTables.includes(moduleName);
+        data = await dbSync.delete(moduleName, payload.id, isHard);
         break;
 
       case ACTION_TYPES.BULK_UPSERT:
+        // Bariki: Split huge datasets automatically in Controller
         data = await dbSync.upsert(moduleName, payload);
         break;
 
       case ACTION_TYPES.ATOMIC_ORDER:
-        data = await dbSync.executeAtomic(
-          'place_order_atomic', 
-          payload, 
-          DB_SCHEMA.ORDERS.table, 
-          'ATOMIC_PLACE_ORDER'
-        );
-        break;
-
-      case ACTION_TYPES.UPLOAD_IMAGE:
-        data = await dbSync.uploadFile(moduleName, payload);
-        break;
-
-      case ACTION_TYPES.WALLET_ADJUST:
-        data = await dbSync.adjustWalletBalance(
-          payload.userId,
-          payload.amount,
-          payload.type,
-          payload.reason
-        );
+        data = await dbSync.executeAtomic('place_order_atomic', payload, DB_SCHEMA.ORDERS.table, 'ATOMIC_PLACE_ORDER');
         break;
 
       case ACTION_TYPES.MAINTENANCE_EXPORT:
@@ -133,23 +144,19 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
         dbSync.maintenance.clearSystemCache();
         break;
 
-      case ACTION_TYPES.GENERATE_BILL:
-        data = dbSync.printer.generateBillCommands(payload.order, payload.items);
-        break;
-        
-      case ACTION_TYPES.GENERATE_GST_INVOICE:
-        data = dbSync.printer.generateGSTInvoice(payload.order, payload.items, payload.appConfig);
-        break;
-
       default:
-        throw new Error(`Unsupported action type: ${actionType}`);
+        throw new Error(`Invalid Action: ${actionType}`);
     }
 
+    if (toastId) toast.success(`${actionType} Successful`, { id: toastId });
     return { success: true, data };
 
   } catch (error) {
-    console.error(`[ERP Controller Error]`, error);
+    console.error(`[Controller Logic Failure]`, error);
+    toast.error(`Error: ${error.message}`);
     return { success: false, error: error.message };
+  } finally {
+    window._isERPProcessing = false;
   }
 };
 

@@ -145,9 +145,9 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
       {/* Header & Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
         <div className="md:col-span-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-red-600 rounded-lg text-white shadow-md">
@@ -192,27 +192,27 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
 
       {/* Category Summary Cards */}
       {categorySummary.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {categorySummary.map((item, idx) => (
-            <div key={idx} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{item.category}</p>
-                <Tag size={14} className="text-slate-400" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+          {categorySummary.slice(0, 4).map((item, idx) => (
+            <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 truncate">{item.category}</p>
+                <Tag size={12} className="text-slate-400" />
               </div>
-              <h3 className="text-lg font-black text-slate-800">₹{item.amount.toLocaleString()}</h3>
+              <h3 className="text-sm font-black text-slate-800">₹{item.amount.toLocaleString()}</h3>
             </div>
           ))}
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           <input 
             type="text"
             placeholder="Search by category or remarks..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-red-500/20"
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-red-500/20"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -220,11 +220,11 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
       </div>
 
       {/* Expense Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Date</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Category</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Remarks</th>
@@ -279,14 +279,16 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
             </tbody>
           </table>
         </div>
-        <PaginationFooter 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          setCurrentPage={setCurrentPage}
-          totalRecords={filteredExpenses.length}
-        />
+        <div className="flex-shrink-0">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            setCurrentPage={setCurrentPage}
+            totalRecords={filteredExpenses.length}
+          />
+        </div>
       </div>
 
       {/* Expense Form Overlay */}

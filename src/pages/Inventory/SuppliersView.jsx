@@ -74,9 +74,9 @@ export default function SuppliersView({ accounts, fetchInitialData }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
       {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-600 rounded-lg text-white shadow-md">
             <Users size={20} />
@@ -108,11 +108,11 @@ export default function SuppliersView({ accounts, fetchInitialData }) {
       </div>
 
       {/* Supplier List Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Supplier Name</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Contact Info</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">GST Details</th>
@@ -179,14 +179,16 @@ export default function SuppliersView({ accounts, fetchInitialData }) {
           </table>
         </div>
         
-        <PaginationFooter 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          setCurrentPage={setCurrentPage}
-          totalRecords={filteredSuppliers.length}
-        />
+        <div className="flex-shrink-0">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            setCurrentPage={setCurrentPage}
+            totalRecords={filteredSuppliers.length}
+          />
+        </div>
       </div>
 
       {/* Supplier Form Overlay */}

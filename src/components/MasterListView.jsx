@@ -5,11 +5,12 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, generateUUID } from '../utils/helpers';
+import { secureStorage } from '../utils/security';
 import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
 import PaginationFooter from './PaginationFooter';
 
-export default function MasterListView({ title, table, bucket, fields, data, uploadImage, fetchInitialData, customColumnMapping, ...relatedData }) {
+export default function MasterListView({ title, table, bucket, fields, data, uploadImage, fetchInitialData, loading, customColumnMapping, ...relatedData }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -30,7 +31,60 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Bulk Actions
+  const toggleSelectAll = () => {
+    if (selectedIds.length === paginatedData.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(paginatedData.map(item => item.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkStatus = async (status) => {
+    if (!window.confirm(`Change status for ${selectedIds.length} items to ${status ? 'Active' : 'Inactive'}?`)) return;
+    setIsSubmitting(true);
+    try {
+      const updates = selectedIds.map(id => ({ id, is_active: status }));
+      const res = await handleERPAction(table, ACTION_TYPES.BULK_UPSERT, updates);
+      if (res.success) {
+        toast.success(`Successfully updated ${selectedIds.length} items`);
+        setSelectedIds([]);
+        fetchInitialData();
+      } else throw new Error(res.error);
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`PERMANENTLY DELETE ${selectedIds.length} items? This cannot be undone!`)) return;
+    setIsSubmitting(true);
+    try {
+      let successCount = 0;
+      for (const id of selectedIds) {
+        const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id }, true);
+        if (res.success) successCount++;
+      }
+      toast.success(`Deleted ${successCount} items`);
+      setSelectedIds([]);
+      fetchInitialData();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   // Import Logic
   const handleImportCSV = async () => {
@@ -132,9 +186,13 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         });
 
         // Generate IDs for new records
+        const userData = secureStorage.getItem('nm_user_data');
+        const shopId = userData?.shop_id;
+
         const recordsToInsert = processedData.map(item => ({
           ...item,
           id: item.id || generateUUID(),
+          shop_id: shopId, // MANDATORY TENANT ID
           is_active: item.is_active !== undefined ? item.is_active : true
         }));
 
@@ -166,6 +224,28 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // --- Detailed Validation Bariki ---
+    if (table === DB_SCHEMA.PRODUCTS.table) {
+      if (formData.sale_rate > formData.mrp) {
+        toast.error("Sale Rate cannot be higher than MRP!");
+        return;
+      }
+      // Check for duplicate barcode in local state first (Performance win)
+      const duplicate = data.find(p => p.barcode === formData.barcode && p.id !== editingItem?.id);
+      if (duplicate && formData.barcode) {
+        toast.error(`Barcode ${formData.barcode} is already assigned to ${duplicate.name}!`);
+        return;
+      }
+    }
+
+    if (table === DB_SCHEMA.USERS.table || table === DB_SCHEMA.DELIVERY_CUSTOMERS.table) {
+      if (formData.mobile && !/^[6-9]\d{9}$/.test(formData.mobile)) {
+        toast.error("Invalid Mobile Number! Please enter 10 digits.");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const finalData = { ...formData };
@@ -225,9 +305,9 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
       {/* Header Section matching Item Master style */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-neutral-200 shadow-enterprise">
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-neutral-200 shadow-enterprise flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary-600 rounded-lg text-white shadow-md">
             <GitBranch size={20} />
@@ -336,26 +416,103 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-enterprise">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-neutral-50/50 border-b border-neutral-200">
+      <div className="flex-1 bg-white rounded-xl border border-neutral-200 overflow-hidden shadow-enterprise flex flex-col relative">
+        {/* Bulk Action Bar */}
+        <AnimatePresence>
+          {selectedIds.length > 0 && (
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -50, opacity: 0 }}
+              className="absolute top-0 left-0 right-0 z-20 bg-slate-900 text-white px-6 py-3 flex items-center justify-between shadow-2xl"
+            >
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-black uppercase tracking-widest bg-blue-600 px-3 py-1 rounded-full">{selectedIds.length} Selected</span>
+                <button onClick={() => setSelectedIds([])} className="text-[10px] font-bold text-slate-400 hover:text-white uppercase tracking-widest">Clear Selection</button>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => handleBulkStatus(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <RefreshCw size={14} /> Activate
+                </button>
+                <button onClick={() => handleBulkStatus(false)} className="flex items-center gap-2 bg-amber-600 hover:bg-amber-700 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <X size={14} /> Inactivate
+                </button>
+                <button onClick={handleBulkDelete} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                  <Trash2 size={14} /> Bulk Delete
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-left border-collapse sticky-header">
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="bg-neutral-50 border-b border-neutral-200">
+                <th className="px-4 py-4 w-12 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.length === paginatedData.length && paginatedData.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
                 <th className="px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest w-16">SNo.</th>
-                {fields.map(f => (
-                  <th key={f.name} className="px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest">{f.label}</th>
+                {fields.map((f, i) => (
+                  <th
+                    key={f.name}
+                    className={cn(
+                      "px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest",
+                      i > 1 && "hidden md:table-cell"
+                    )}
+                  >
+                    {f.label}
+                  </th>
                 ))}
                 <th className="px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {paginatedData.length > 0 ? paginatedData.map((item, index) => (
-                <tr key={item.id} className="hover:bg-primary-50 transition-colors group">
+              {loading ? (
+                [1,2,3,4,5].map(i => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-4 py-4 w-12"><div className="h-4 bg-slate-100 rounded w-4 mx-auto" /></td>
+                    <td className="px-4 py-4 w-16"><div className="h-4 bg-slate-100 rounded w-8" /></td>
+                    {fields.map((_, idx) => (
+                      <td key={idx} className={cn("px-4 py-4", idx > 1 && "hidden md:table-cell")}>
+                        <div className="h-4 bg-slate-50 rounded w-full" />
+                      </td>
+                    ))}
+                    <td className="px-4 py-4"><div className="h-8 bg-slate-50 rounded w-20 ml-auto" /></td>
+                  </tr>
+                ))
+              ) : paginatedData.length > 0 ? paginatedData.map((item, index) => (
+                <tr
+                  key={item.id}
+                  className={cn(
+                    "hover:bg-primary-50 transition-colors group",
+                    selectedIds.includes(item.id) && "bg-blue-50/50"
+                  )}
+                >
+                  <td className="px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-4 py-3 text-[10px] font-black text-neutral-400">
                     {(currentPage - 1) * rowsPerPage + index + 1}
                   </td>
-                  {fields.map(f => (
-                    <td key={f.name} className="px-4 py-3">
+                  {fields.map((f, i) => (
+                    <td
+                      key={f.name}
+                      className={cn(
+                        "px-4 py-3",
+                        i > 1 && "hidden md:table-cell"
+                      )}
+                    >
                       {f.type === 'image' ? (
                         <div 
                           className="w-10 h-10 rounded-lg overflow-hidden border border-neutral-200 bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center text-primary-300"
@@ -421,39 +578,39 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                         onClick={async () => {
                           console.log('[MasterListView Delete] Button clicked! item:', item, 'table:', table);
                           // Confirmation for all master tables
-                          let confirmMessage = "क्या आप वाकई इस entry को HAMESHA KE LIYE DELETE करना चाहते हैं?";
+                          let confirmMessage = "क्या आप वाकई इस entry को DELETE करना चाहते हैं?";
                           if (table === DB_SCHEMA.PRODUCTS.table) {
-                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Item Master entry को हमेशा के लिए DELETE कर देगा!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Item Master entry को DELETE कर देगा!";
                           } else if (table === DB_SCHEMA.CATEGORIES.table) {
-                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Category को soft delete करेगा (hide कर देगा)!";
-                          } else if (table === DB_SCHEMA.SUBCATEGORIES.table) {
-                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Subcategory को soft delete करेगा (hide कर देगा)!";
-                          } else if (table === DB_SCHEMA.BRANDS.table) {
-                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Brand को soft delete करेगा (hide कर देगा)!";
+                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Category को hide कर देगा!";
                           }
                           
-                          if (!window.confirm(confirmMessage)) {
-                            console.log('[MasterListView Delete] User cancelled');
-                            return;
-                          }
+                          if (!window.confirm(confirmMessage)) return;
                           
-                          console.log('[MasterListView Delete] Calling handleERPAction');
                           const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
-                          console.log('[MasterListView Delete] handleERPAction response:', res);
-                          
-                          if (!res.success) {
-                            // --- Handle 409 Conflict error ---
+
+                          if (res.success) {
+                            toast.success(`${title.slice(0, -1)} deleted`, {
+                              action: {
+                                label: 'Undo',
+                                onClick: async () => {
+                                  const restoreRes = await handleERPAction(table, ACTION_TYPES.UPDATE, { id: item.id, is_active: true });
+                                  if (restoreRes.success) {
+                                    toast.success('Restored successfully!');
+                                    fetchInitialData();
+                                  }
+                                }
+                              },
+                              duration: 5000
+                            });
+                            await fetchInitialData();
+                          } else {
                             if (res.error && res.error.startsWith('409_CONFLICT:')) {
-                              const errorMsg = res.error.replace('409_CONFLICT:', '');
-                              alert(`⚠️ DELETE नहीं हो पाया!\n\n${errorMsg}\n\nकृपया पहले इससे जुड़े Products/Subcategories को हटाएँ या unlink करें!`);
-                              return;
+                              alert(`⚠️ DELETE नहीं हो पाया!\n\n${res.error.replace('409_CONFLICT:', '')}`);
                             } else {
-                              alert(`Delete Failed!\n\n${res.error}`);
-                              return;
+                              toast.error(`Delete Failed: ${res.error}`);
                             }
                           }
-                          
-                          await fetchInitialData();
                         }}
                         className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100 shadow-sm hover:shadow-md"
                         title="Delete"
@@ -465,11 +622,26 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={fields.length + 2} className="px-4 py-12 text-center">
-                    <div className="flex flex-col items-center gap-2 opacity-40">
-                      <Database size={32} />
-                      <p className="text-[10px] font-black uppercase tracking-widest">No Records Found</p>
-                    </div>
+                  <td colSpan={fields.length + 3} className="px-4 py-20 text-center">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="flex flex-col items-center gap-4"
+                    >
+                      <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 shadow-inner">
+                        <Database size={40} className="text-slate-200" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-slate-800 uppercase tracking-widest">No {title} Found</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Get started by creating your first entry</p>
+                      </div>
+                      <button
+                        onClick={() => { setEditingItem(null); setFormData({}); setShowForm(true); }}
+                        className="mt-2 bg-blue-600 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 hover:translate-y-[-2px] transition-all"
+                      >
+                        Create Now
+                      </button>
+                    </motion.div>
                   </td>
                 </tr>
               )}
@@ -477,14 +649,16 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
           </table>
         </div>
 
-        <PaginationFooter 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
-        />
+        <div className="flex-shrink-0">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            setCurrentPage={setCurrentPage}
+            totalRecords={filteredData.length}
+          />
+        </div>
       </div>
 
 

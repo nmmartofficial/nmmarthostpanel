@@ -75,13 +75,13 @@ const SECONDARY_COLOR = "#111827"; // Dark Slate
 // --- Helper: Pagination Footer ---
 function PaginationFooter({ currentPage, totalPages, rowsPerPage, setRowsPerPage, setCurrentPage, totalRecords }) {
   if (totalRecords === 0) return null;
-  
+
   return (
     <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
-          <select 
+          <select
             value={rowsPerPage}
             onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
             className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
@@ -95,7 +95,7 @@ function PaginationFooter({ currentPage, totalPages, rowsPerPage, setRowsPerPage
       </div>
 
       <div className="flex items-center gap-2">
-        <button 
+        <button
           disabled={currentPage === 1}
           onClick={() => setCurrentPage(1)}
           className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
@@ -106,21 +106,21 @@ function PaginationFooter({ currentPage, totalPages, rowsPerPage, setRowsPerPage
             <ChevronDown size={14} className="rotate-90 -ml-2" />
           </div>
         </button>
-        <button 
+        <button
           disabled={currentPage === 1}
           onClick={() => setCurrentPage(prev => prev - 1)}
           className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
         >
           <ChevronDown size={14} className="rotate-90" />
         </button>
-        
+
         <div className="flex items-center gap-1">
           {(() => {
             const pages = [];
             const maxVisible = 5;
             let start = Math.max(1, currentPage - 2);
             let end = Math.min(totalPages, start + maxVisible - 1);
-            
+
             if (end - start < maxVisible - 1) {
               start = Math.max(1, end - maxVisible + 1);
             }
@@ -143,14 +143,14 @@ function PaginationFooter({ currentPage, totalPages, rowsPerPage, setRowsPerPage
           })()}
         </div>
 
-        <button 
+        <button
           disabled={currentPage === totalPages}
           onClick={() => setCurrentPage(prev => prev + 1)}
           className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
         >
           <ChevronDown size={14} className="-rotate-90" />
         </button>
-        <button 
+        <button
           disabled={currentPage === totalPages}
           onClick={() => setCurrentPage(totalPages)}
           className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
@@ -185,7 +185,7 @@ function NavDropdown({ label, icon, items, activeTab, setActiveTab }) {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter shadow-sm",
@@ -196,10 +196,10 @@ function NavDropdown({ label, icon, items, activeTab, setActiveTab }) {
         <span>{label}</span>
         <ChevronDown size={12} className={cn("transition-transform opacity-70", isOpen && "rotate-180")} />
       </button>
-      
+
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
@@ -248,7 +248,7 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
     if (e) e.preventDefault();
     if (!scanTerm) return;
     setVerifying(true);
-    
+
     try {
       // Find order by ID or Number
       const order = orders.find(o => o.id === scanTerm || o.order_number === scanTerm);
@@ -278,11 +278,11 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
     <div className="max-w-2xl mx-auto space-y-6 pt-10">
       <div className="bg-white p-10 rounded-[2.5rem] border-2 border-slate-100 shadow-2xl text-center space-y-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-2 bg-blue-600" />
-        
+
         <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner transform rotate-12">
           <ShieldCheck size={48} className="-rotate-12" />
         </div>
-        
+
         <div className="space-y-2">
           <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Guard Verification</h2>
           <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] leading-relaxed">
@@ -292,7 +292,7 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 
         <form onSubmit={handleVerify} className="relative group max-w-sm mx-auto">
           <div className="absolute inset-0 bg-blue-600/5 blur-2xl rounded-full scale-150 opacity-0 group-focus-within:opacity-100 transition-all duration-500" />
-          <input 
+          <input
             type="text"
             placeholder="Scan / Enter Order ID"
             className="relative w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-6 text-center text-xl font-black uppercase tracking-[0.1em] focus:bg-white focus:border-blue-500 focus:ring-0 transition-all outline-none shadow-inner"
@@ -313,9 +313,9 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 
       <AnimatePresence>
         {lastVerified && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9, y: 20 }} 
-            animate={{ opacity: 1, scale: 1, y: 0 }} 
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9 }}
             className="bg-emerald-600 text-white p-8 rounded-[2.5rem] shadow-2xl shadow-emerald-200 flex items-center justify-between relative overflow-hidden"
           >
@@ -343,29 +343,23 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 export default function App() {
   // Initialize login rate limiter
   const loginRateLimiter = useMemo(() => new LoginRateLimiter(5, 5), []);
-  
+
   // --- Initialize security on mount ---
   useEffect(() => {
     // Prevent clickjacking attacks
     preventClickjacking();
-    
+
     // Force HTTPS in production (except localhost)
     forceHTTPS();
-    
+
     // Warn if not on secure connection
     if (!isSecureConnection() && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       toast.warning('⚠️ For security, please use HTTPS!', { duration: 5000 });
     }
   }, []);
-  
+
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [currentUser, setCurrentUser] = useState(() => {
-    const saved = secureStorage.getItem('nm_user_data');
-    return saved || null;
-  });
-  const [email, setEmail] = useState('');
-  const [pin, setPin] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [activeTab, setActiveTab] = useState(localStorage.getItem('nm_active_tab') || 'Dashboard');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [customerMode, setCustomerMode] = useState(false);
@@ -375,6 +369,62 @@ export default function App() {
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const sessionTimeoutRef = useRef(null);
   const warningTimeoutRef = useRef(null);
+
+  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [loginStep, setLoginStep] = useState('credentials');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [tempUser, setTempUser] = useState(null);
+
+  // 1. Initial Session Check (Clean)
+  useEffect(() => {
+    const auth = secureStorage.getItem('nm_admin_auth');
+    const user = secureStorage.getItem('nm_user_data');
+    const remembered = secureStorage.getItem('nm_remembered');
+
+    if (remembered && !email) {
+      setEmail(remembered.email);
+      setPin(remembered.pin);
+      setRememberMe(true);
+    }
+
+    if (auth === 'true' && user && user.company_code) {
+      setIsAuthorized(true);
+      setCurrentUser(user);
+    }
+  }, []);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!email || !pin) return toast.error('कृपया Email और Password भरें');
+    setIsProcessing(true);
+    try {
+      const { data: userData, error } = await supabase.rpc('verify_admin_pin', { email_input: email, pin_input: pin }).single();
+      if (error || !userData) return toast.error('Invalid Credentials!');
+      if (!userData.company_code) return toast.error('Account not linked to any company.');
+
+      if (rememberMe) secureStorage.setItem('nm_remembered', { email, pin });
+      secureStorage.setItem('nm_user_data', userData);
+      secureStorage.setItem('nm_admin_auth', 'true');
+
+      toast.success('Authorized Access Granted');
+
+      // Force a full page reload to clear all state and restart with new company_code
+      window.location.reload();
+    } catch (err) {
+      toast.error('Login failed');
+    } finally { setIsProcessing(false); }
+  };
+
+  const handleLogout = useCallback(() => {
+    secureStorage.clear();
+    localStorage.removeItem('nm_active_tab');
+    // Force reload to clear all React state and subscriptions
+    window.location.href = '/nm-mart';
+  }, []);
 
   const resetSessionTimer = useCallback(() => {
     if (!isAuthorized) return;
@@ -390,22 +440,12 @@ export default function App() {
     sessionTimeoutRef.current = setTimeout(() => {
       handleLogout();
     }, timeoutMinutes * 60 * 1000);
-  }, [isAuthorized]);
+  }, [isAuthorized, handleLogout]);
 
   const extendSession = useCallback(() => {
     setShowTimeoutWarning(false);
     resetSessionTimer();
   }, [resetSessionTimer]);
-
-  const handleLogout = useCallback(() => {
-    setIsAuthorized(false);
-    setCurrentUser(null);
-    secureStorage.clear();
-    localStorage.removeItem('nm_active_tab');
-    if (sessionTimeoutRef.current) clearTimeout(sessionTimeoutRef.current);
-    if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
-    toast.info('Logged Out Successfully');
-  }, []);
 
   // --- Session Reset on User Activity ---
   useEffect(() => {
@@ -470,113 +510,113 @@ export default function App() {
     if (saved) return JSON.parse(saved);
     const currentYear = new Date().getFullYear();
     return [
-      { 
-        id: '1', 
-        name: 'Diwali 🪔', 
-        date: `${currentYear}-10-20`, 
-        primaryColor: '#FF6B35', 
-        secondaryColor: '#FFD93D', 
+      {
+        id: '1',
+        name: 'Diwali 🪔',
+        date: `${currentYear}-10-20`,
+        primaryColor: '#FF6B35',
+        secondaryColor: '#FFD93D',
         accentColor: '#FFF6E0',
-        isActive: true, 
+        isActive: true,
         description: 'Festival of Lights',
         autoApply: true
       },
-      { 
-        id: '2', 
-        name: 'Holi 🎨', 
-        date: `${currentYear}-03-24`, 
-        primaryColor: '#FF5E87', 
-        secondaryColor: '#9B59B6', 
+      {
+        id: '2',
+        name: 'Holi 🎨',
+        date: `${currentYear}-03-24`,
+        primaryColor: '#FF5E87',
+        secondaryColor: '#9B59B6',
         accentColor: '#FDE2E7',
-        isActive: true, 
+        isActive: true,
         description: 'Festival of Colors',
         autoApply: true
       },
-      { 
-        id: '3', 
-        name: 'Christmas 🎄', 
-        date: `${currentYear}-12-25`, 
-        primaryColor: '#2E7D32', 
-        secondaryColor: '#C62828', 
+      {
+        id: '3',
+        name: 'Christmas 🎄',
+        date: `${currentYear}-12-25`,
+        primaryColor: '#2E7D32',
+        secondaryColor: '#C62828',
         accentColor: '#FFFDE7',
-        isActive: true, 
+        isActive: true,
         description: 'Christmas Day',
         autoApply: true
       },
-      { 
-        id: '4', 
-        name: 'Eid al-Fitr 🌙', 
-        date: `${currentYear}-05-01`, 
-        primaryColor: '#1976D2', 
-        secondaryColor: '#FFD54F', 
+      {
+        id: '4',
+        name: 'Eid al-Fitr 🌙',
+        date: `${currentYear}-05-01`,
+        primaryColor: '#1976D2',
+        secondaryColor: '#FFD54F',
         accentColor: '#E3F2FD',
-        isActive: true, 
+        isActive: true,
         description: 'Festival of Breaking Fast',
         autoApply: true
       },
-      { 
-        id: '5', 
-        name: 'Ganesh Chaturthi 🐘', 
-        date: `${currentYear}-09-07`, 
-        primaryColor: '#FF8F00', 
-        secondaryColor: '#FFD54F', 
+      {
+        id: '5',
+        name: 'Ganesh Chaturthi 🐘',
+        date: `${currentYear}-09-07`,
+        primaryColor: '#FF8F00',
+        secondaryColor: '#FFD54F',
         accentColor: '#FFF3E0',
-        isActive: true, 
+        isActive: true,
         description: 'Birth of Lord Ganesha',
         autoApply: true
       },
-      { 
-        id: '6', 
-        name: 'Navratri & Durga Puja 🔺', 
-        date: `${currentYear}-10-03`, 
-        primaryColor: '#FF1744', 
-        secondaryColor: '#FF9100', 
+      {
+        id: '6',
+        name: 'Navratri & Durga Puja 🔺',
+        date: `${currentYear}-10-03`,
+        primaryColor: '#FF1744',
+        secondaryColor: '#FF9100',
         accentColor: '#FFEBEE',
-        isActive: true, 
+        isActive: true,
         description: 'Nine Nights of Goddess',
         autoApply: true
       },
-      { 
-        id: '7', 
-        name: 'New Year 🎊', 
-        date: `${currentYear}-01-01`, 
-        primaryColor: '#00B8D4', 
-        secondaryColor: '#651FFF', 
+      {
+        id: '7',
+        name: 'New Year 🎊',
+        date: `${currentYear}-01-01`,
+        primaryColor: '#00B8D4',
+        secondaryColor: '#651FFF',
         accentColor: '#E0F7FA',
-        isActive: true, 
+        isActive: true,
         description: 'New Year Celebration',
         autoApply: true
       },
-      { 
-        id: '8', 
-        name: 'Independence Day 🇮🇳', 
-        date: `${currentYear}-08-15`, 
-        primaryColor: '#1565C0', 
-        secondaryColor: '#FF9800', 
+      {
+        id: '8',
+        name: 'Independence Day 🇮🇳',
+        date: `${currentYear}-08-15`,
+        primaryColor: '#1565C0',
+        secondaryColor: '#FF9800',
         accentColor: '#E3F2FD',
-        isActive: true, 
+        isActive: true,
         description: 'Independence Day of India',
         autoApply: true
       },
-      { 
-        id: '9', 
-        name: 'Republic Day 🇮🇳', 
-        date: `${currentYear}-01-26`, 
-        primaryColor: '#1B5E20', 
-        secondaryColor: '#D32F2F', 
+      {
+        id: '9',
+        name: 'Republic Day 🇮🇳',
+        date: `${currentYear}-01-26`,
+        primaryColor: '#1B5E20',
+        secondaryColor: '#D32F2F',
         accentColor: '#E8F5E9',
-        isActive: true, 
+        isActive: true,
         description: 'Republic Day of India',
         autoApply: true
       },
-      { 
-        id: '10', 
-        name: 'Raksha Bandhan 🎀', 
-        date: `${currentYear}-08-19`, 
-        primaryColor: '#E91E63', 
-        secondaryColor: '#9C27B0', 
+      {
+        id: '10',
+        name: 'Raksha Bandhan 🎀',
+        date: `${currentYear}-08-19`,
+        primaryColor: '#E91E63',
+        secondaryColor: '#9C27B0',
         accentColor: '#FCE4EC',
-        isActive: true, 
+        isActive: true,
         description: 'Brother-Sister Bond',
         autoApply: true
       }
@@ -589,17 +629,17 @@ export default function App() {
   const isDateInRange = (festivalDate, daysBefore = 7, daysAfter = 3) => {
     const today = new Date();
     today.setHours(0,0,0,0);
-    
+
     const targetDate = new Date(festivalDate);
     targetDate.setHours(0,0,0,0);
     targetDate.setFullYear(today.getFullYear()); // Use current year
-    
+
     const startDate = new Date(targetDate);
     startDate.setDate(startDate.getDate() - daysBefore);
-    
+
     const endDate = new Date(targetDate);
     endDate.setDate(endDate.getDate() + daysAfter);
-    
+
     return today >= startDate && today <= endDate;
   };
 
@@ -609,11 +649,11 @@ export default function App() {
       const currentFestivals = festivals
         .filter(f => f.isActive && f.autoApply && isDateInRange(f.date))
         .sort((a,b) => Math.abs(new Date(a.date) - new Date()) - Math.abs(new Date(b.date) - new Date()));
-      
+
       if (currentFestivals.length > 0) {
         const festival = currentFestivals[0];
         setActiveFestival(festival);
-        
+
         // Only apply theme if not manually overridden
         const lastManualTheme = localStorage.getItem('nm_last_manual_theme');
         if (!lastManualTheme || Date.now() - parseInt(lastManualTheme) > 86400000) { // 24 hours
@@ -627,9 +667,9 @@ export default function App() {
         setActiveFestival(null);
       }
     };
-    
+
     checkAndApplyFestival();
-    
+
     // Check every hour
     const intervalId = setInterval(checkAndApplyFestival, 3600000);
     return () => clearInterval(intervalId);
@@ -653,7 +693,7 @@ export default function App() {
       document.body.classList.remove('bg-neutral-950', 'text-neutral-50');
     }
   }, [darkMode]);
-  
+
   // Save festivals to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('nm_festivals', JSON.stringify(festivals));
@@ -664,161 +704,18 @@ export default function App() {
   const mountRef = useRef(false);
   const subscriptionsRef = useRef([]);
 
-  // --- Auth Check ---
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    console.log('[Login] === START handleLogin ===');
-    console.log('[Login] Form submitted');
-    console.log('[Login] Email state:', email);
-    console.log('[Login] Pin state:', pin);
-    console.log('[Login] isProcessing before set:', isProcessing);
-
-    if (!email || !pin) {
-      console.log('[Login] Missing email or pin');
-      toast.error('Please enter both email and PIN');
-      return; // Prevent empty submit
-    }
-
-    // Validate PIN format first
-    console.log('[Login] Validating PIN...');
-    const isPinValid = validatePIN(pin);
-    console.log('[Login] PIN valid?', isPinValid);
-    if (!isPinValid) {
-      console.log('[Login] Invalid PIN format');
-      toast.error('PIN must be 4-20 alphanumeric');
-      return;
-    }
-
-    // Check if user is locked out
-    console.log('[Login] Checking lockout status...');
-    const lockoutStatus = loginRateLimiter.isLockedOut();
-    console.log('[Login] Lockout status:', lockoutStatus);
-    if (lockoutStatus.locked) {
-      toast.error(`Too many attempts! Try again in ${lockoutStatus.remainingSeconds} seconds`);
-      return;
-    }
-
-    console.log('[Login] Setting isProcessing to true');
-    setIsProcessing(true);
-    try {
-      console.log('[Login] Checking via verify_admin_pin RPC');
-      // Use secure server-side RPC function to verify PIN (uses hashed PINs!)
-      const { data: userData, error } = await supabase
-        .rpc('verify_admin_pin', { email_input: email, pin_input: pin })
-        .select('*')
-        .single();
-
-      console.log('[Login] RPC response:', { userData, error });
-
-      if (error || !userData) {
-        // If no user found or error
-        console.error('[Login] Auth failed:', error);
-        loginRateLimiter.recordAttempt(false);
-        const remaining = loginRateLimiter.getRemainingAttempts();
-        toast.error(`Invalid Email or PIN! ${remaining} attempts remaining`);
-        setPin('');
-        return;
-      }
-
-      // Success!
-      console.log('[Login] User authenticated, granting access');
-      loginRateLimiter.recordAttempt(true);
-      
-      setCurrentUser(userData);
-      secureStorage.setItem('nm_user_data', userData);
-
-      setIsAuthorized(true);
-      secureStorage.setItem('nm_admin_auth', 'true');
-      secureStorage.setItem('nm_auth_time', Date.now().toString());
-      toast.success('Access Granted');
-    } catch (error) {
-      console.error('[Login] === CATCH BLOCK ===');
-      console.error('[Login] Error:', error);
-      // Fallback only for DEVELOPMENT!
-      if (import.meta.env.DEV) {
-        const fallbackEmail = import.meta.env.VITE_ADMIN_EMAIL ?? 'nmmart07@gmail.com';
-        const fallbackPin = import.meta.env.VITE_ADMIN_SECURITY_PIN ?? 'nmmart2026';
-        
-        console.log('[Login] DEV fallback check');
-        if (email === fallbackEmail && pin === fallbackPin) {
-          console.log('[Login] DEV fallback credentials match');
-          loginRateLimiter.recordAttempt(true);
-          
-          const profile = { username: 'Offline Admin', role: 'super_admin', email: fallbackEmail };
-          setCurrentUser(profile);
-          secureStorage.setItem('nm_user_data', profile);
-
-          setIsAuthorized(true);
-          secureStorage.setItem('nm_admin_auth', 'true');
-          toast.success('Offline Access Granted');
-        } else {
-          loginRateLimiter.recordAttempt(false);
-          const remaining = loginRateLimiter.getRemainingAttempts();
-          toast.error(`Invalid Credentials! ${remaining} attempts remaining`);
-          setPin('');
-        }
-      } else {
-        loginRateLimiter.recordAttempt(false);
-        const remaining = loginRateLimiter.getRemainingAttempts();
-        toast.error(`Login failed! ${remaining} attempts remaining`);
-        setPin('');
-      }
-    } finally {
-      console.log('[Login] Finally block');
-      setIsProcessing(false);
-      console.log('[Login] === END handleLogin ===');
-    }
-  };
-
   // --- Targeted State Updates (Infinite Loop Prevention) ---
-  const handleRealtimeUpdate = useCallback((tableName, payload) => {
-    console.log(`[Realtime Audit] ${tableName} event: ${payload.eventType}`);
-    
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-
-    const updateState = (setter) => {
-      setter(prev => {
-        if (!Array.isArray(prev)) return prev;
-        
-        if (eventType === 'INSERT' && newRecord) {
-          if (prev.find(item => item.id === newRecord.id)) return prev;
-          return [newRecord, ...prev];
-        }
-        if (eventType === 'UPDATE' && newRecord) {
-          // Safety: If item was soft-deleted (is_active: false), remove it from state
-          if (newRecord.is_active === false) {
-            return prev.filter(item => item.id !== newRecord.id);
-          }
-          return prev.map(item => item.id === newRecord.id ? newRecord : item);
-        }
-        if (eventType === 'DELETE' && oldRecord) {
-          return prev.filter(item => item.id !== oldRecord.id);
-        }
-        return prev;
-      });
-    };
-
-    switch (tableName) {
-      case DB_SCHEMA.ORDERS.table: updateState(setOrders); break;
-      case DB_SCHEMA.PRODUCTS.table: updateState(setProducts); break;
-      case DB_SCHEMA.NOTIFICATIONS.table: updateState(setNotifications); break;
-      case DB_SCHEMA.BANNERS.table: updateState(setBanners); break;
-      case DB_SCHEMA.CATEGORIES.table: updateState(setCategories); break;
-      case DB_SCHEMA.SUBCATEGORIES.table: updateState(setSubcategories); break;
-      case DB_SCHEMA.BRANDS.table: updateState(setBrands); break;
-      case DB_SCHEMA.COUPONS.table: updateState(setCoupons); break;
-      default: break;
-    }
-  }, []);
+  // handleRealtimeUpdate removed from App.jsx as it is now managed by GlobalContext
+  // to avoid redundant Supabase Realtime subscriptions.
 
   const fetchInitialData = useCallback(async (force = false, silent = false) => {
     if (isFetchingRef.current) return;
     const now = Date.now();
     // Strict 5s debounce for global refetch to kill any lingering loops, unless forced
-    if (!force && mountRef.current && (now - mountRef.current < 5000)) return; 
-    
+    if (!force && mountRef.current && (now - mountRef.current < 5000)) return;
+
     isFetchingRef.current = true;
-    mountRef.current = now; 
+    mountRef.current = now;
 
     if (!silent) setLoading(true);
     console.log("[Audit] Initializing Data Orchestration...");
@@ -963,39 +860,18 @@ export default function App() {
     }
   }, [appConfig]);
 
+  // Real-time subscriptions are now handled by GlobalContext to prevent duplicate callback errors
+  // with Supabase Realtime. App.jsx will receive updates via fetchInitialData or shared state.
   useEffect(() => {
     if (secureStorage.getItem('nm_admin_auth') === 'true') {
       setIsAuthorized(true);
     }
-    
+
     // Initial fetch only once on true mount
     if (!mountRef.current) {
       fetchInitialData(false, false);
     }
-
-    const setupSubscriptions = () => {
-      subscriptionsRef.current.forEach(s => s.unsubscribe());
-      
-      const tablesToWatch = [
-        DB_SCHEMA.ORDERS.table,
-        DB_SCHEMA.PRODUCTS.table,
-        DB_SCHEMA.NOTIFICATIONS.table,
-        DB_SCHEMA.BANNERS.table,
-        DB_SCHEMA.BRANDS.table,
-        DB_SCHEMA.CATEGORIES.table,
-        DB_SCHEMA.SUBCATEGORIES.table,
-        DB_SCHEMA.COUPONS.table,
-        DB_SCHEMA.WALLET_MASTER.table
-      ];
-
-      subscriptionsRef.current = tablesToWatch.map(table => 
-        dbSync.subscribe(table, (payload) => handleRealtimeUpdate(table, payload))
-      );
-    };
-
-    setupSubscriptions(); // Real-time updates enabled
-    return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
-  }, [handleRealtimeUpdate, fetchInitialData]);
+  }, [fetchInitialData]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -1013,9 +889,9 @@ export default function App() {
   const uploadImage = async (file, bucket, processAsSquare = true) => {
     try {
       if (!file) throw new Error("No file selected");
-      
+
       let fileToUpload = file;
-      
+
       // Process image if it's an image file and processing is enabled
       if (processAsSquare && file.type.startsWith('image/')) {
         try {
@@ -1036,13 +912,13 @@ export default function App() {
           fileToUpload = file;
         }
       }
-      
+
       // Check if supabase.storage is available
       if (!supabase.storage) {
         console.warn('Supabase storage not available');
         return { url: null, error: null };
       }
-      
+
       const fileName = fileToUpload.name;
       const filePath = `${fileName}`;
 
@@ -1081,7 +957,7 @@ export default function App() {
   const roleData = useMemo(() => {
     return Object.values(USER_ROLES).find(r => r.id === userRole) || USER_ROLES.SUPER_ADMIN;
   }, [userRole]);
-  
+
   const isAllowed = useCallback((tabId) => {
     if (roleData.allowedTabs.includes('*')) return true;
     return roleData.allowedTabs.includes(tabId);
@@ -1091,7 +967,7 @@ export default function App() {
   if (!isAuthorized) {
     return (
       <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-md text-center border border-neutral-200"
@@ -1101,10 +977,10 @@ export default function App() {
           </div>
           <h1 className="text-3xl font-black text-neutral-900 mb-2 tracking-tighter uppercase">{BRAND_NAME} ADMIN</h1>
           <p className="text-neutral-500 font-bold mb-8">Secure Enterprise Login</p>
-          
+
           <form onSubmit={handleLogin} className="space-y-4">
-            <input 
-              type="email" 
+            <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter Admin Email"
@@ -1112,15 +988,15 @@ export default function App() {
               className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-6 py-4 text-center text-lg focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all font-bold text-neutral-900 placeholder-neutral-400 disabled:opacity-50 outline-none"
               autoFocus
             />
-            <input 
-              type="password" 
+            <input
+              type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="Enter Security PIN"
               disabled={isProcessing}
               className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-6 py-4 text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all font-black text-neutral-900 placeholder-neutral-400 disabled:opacity-50 outline-none"
             />
-            <button 
+            <button
               type="submit"
               disabled={isProcessing}
               className="w-full bg-primary-600 text-white font-black py-4 rounded-2xl hover:bg-primary-700 transition-all uppercase tracking-widest shadow-xl shadow-primary-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1230,21 +1106,21 @@ export default function App() {
           <Minimize2 size={14} />
           Exit Customer Mode
         </button>
-        
+
         {/* Self Checkout in Full Screen */}
-        <SelfCheckoutView 
-          orders={orders} 
-          products={products} 
-          fetchInitialData={fetchInitialData} 
-          appConfig={appConfig} 
+        <SelfCheckoutView
+          orders={orders}
+          products={products}
+          fetchInitialData={fetchInitialData}
+          appConfig={appConfig}
           customerMode={customerMode}
           setCustomerMode={setCustomerMode}
         />
       </div>
     ) : (
-      <div className={cn("min-h-screen flex flex-col font-sans antialiased transition-colors duration-200", darkMode ? "bg-neutral-950" : "bg-neutral-50")}>
+      <div className={cn("h-screen flex flex-col font-sans antialiased transition-colors duration-200 overflow-hidden", darkMode ? "bg-neutral-950" : "bg-neutral-50")}>
       {/* --- Top Navigation Bar --- */}
-      <header className={cn("border-b sticky top-0 z-[100] shadow-sm select-none", darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
+      <header className={cn("border-b z-[100] shadow-sm select-none flex-shrink-0", darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
         <div className="max-w-full mx-auto px-4 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Brand Name / Logo */}
@@ -1256,7 +1132,7 @@ export default function App() {
             </div>
 
             {/* Home Button */}
-            <button 
+            <button
               onClick={() => setActiveTab('Dashboard')}
               className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-tighter hover:bg-blue-700 transition-all shadow-md"
             >
@@ -1267,17 +1143,17 @@ export default function App() {
             {/* Desktop Navigation Menus (Hidden on Mobile) */}
             <nav className="hidden md:flex items-center gap-0.5 ml-1">
               {masterItems.length > 0 && (
-                <NavDropdown 
-                  label="Master" 
-                  icon={<Monitor size={14} className="mr-1.5" />} 
-                  items={masterItems} 
-                  activeTab={activeTab} 
-                  setActiveTab={setActiveTab} 
+                <NavDropdown
+                  label="Master"
+                  icon={<Monitor size={14} className="mr-1.5" />}
+                  items={masterItems}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
                 />
               )}
-              
+
               {isAllowed('POS') && (
-                <button 
+                <button
                   onClick={() => setActiveTab('POS')}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
@@ -1290,7 +1166,7 @@ export default function App() {
               )}
               {isAllowed('SelfCheckout') && (
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => setActiveTab('SelfCheckout')}
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
@@ -1314,17 +1190,17 @@ export default function App() {
               )}
 
               {inventoryItems.length > 0 && (
-                <NavDropdown 
-                  label="Inventory" 
-                  icon={<Package size={14} className="mr-1.5" />} 
-                  items={inventoryItems} 
-                  activeTab={activeTab} 
-                  setActiveTab={setActiveTab} 
+                <NavDropdown
+                  label="Inventory"
+                  icon={<Package size={14} className="mr-1.5" />}
+                  items={inventoryItems}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
                 />
               )}
 
               {isAllowed('Purchase') && (
-                <button 
+                <button
                   onClick={() => setActiveTab('Purchase')}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
@@ -1337,37 +1213,37 @@ export default function App() {
               )}
 
               {viewItems.length > 0 && (
-                <NavDropdown 
-                  label="View" 
-                  icon={<List size={14} className="mr-1.5" />} 
-                  items={viewItems} 
-                  activeTab={activeTab} 
-                  setActiveTab={setActiveTab} 
+                <NavDropdown
+                  label="View"
+                  icon={<List size={14} className="mr-1.5" />}
+                  items={viewItems}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
                 />
               )}
 
               {reportItemsNav.length > 0 && (
-                <NavDropdown 
-                  label="Report" 
-                  icon={<FileText size={14} className="mr-1.5" />} 
-                  items={reportItemsNav} 
-                  activeTab={activeTab} 
-                  setActiveTab={setActiveTab} 
+                <NavDropdown
+                  label="Report"
+                  icon={<FileText size={14} className="mr-1.5" />}
+                  items={reportItemsNav}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
                 />
               )}
 
               {storeItems.length > 0 && (
-                <NavDropdown 
-                  label="Store" 
-                  icon={<Building2 size={14} className="mr-1.5" />} 
-                  items={storeItems} 
-                  activeTab={activeTab} 
-                  setActiveTab={setActiveTab} 
+                <NavDropdown
+                  label="Store"
+                  icon={<Building2 size={14} className="mr-1.5" />}
+                  items={storeItems}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
                 />
               )}
 
               {isAllowed('Transaction') && (
-                <button 
+                <button
                   onClick={() => setActiveTab('Transaction')}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter",
@@ -1380,11 +1256,11 @@ export default function App() {
               )}
 
               {toolsItems.length > 0 && (
-                <NavDropdown 
-                  label="Tools" 
-                  icon={<Wrench size={14} className="mr-1.5" />} 
-                  items={[...toolsItems.filter(i => !i.hidden), { id: 'Logout', label: 'LOGOUT SYSTEM', icon: <LogOut size={14} /> }]} 
-                  activeTab={activeTab} 
+                <NavDropdown
+                  label="Tools"
+                  icon={<Wrench size={14} className="mr-1.5" />}
+                  items={[...toolsItems.filter(i => !i.hidden), { id: 'Logout', label: 'LOGOUT SYSTEM', icon: <LogOut size={14} /> }]}
+                  activeTab={activeTab}
                   setActiveTab={(tab) => {
                     if (tab === 'Logout') {
                       if (window.confirm("Are you sure you want to Logout?")) {
@@ -1401,7 +1277,7 @@ export default function App() {
                     } else {
                       setActiveTab(tab);
                     }
-                  }} 
+                  }}
                 />
               )}
             </nav>
@@ -1409,7 +1285,7 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             {/* Mobile Hamburger Button */}
-            <button 
+            <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
               className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-all"
             >
@@ -1417,21 +1293,21 @@ export default function App() {
             </button>
 
             <div className="flex items-center gap-1 border-r border-slate-200 pr-3 mr-1">
-              <button 
+              <button
                 onClick={() => setDarkMode(!darkMode)}
                 className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all"
                 title="Toggle Dark Mode"
               >
                 {darkMode ? <Sun size={16} /> : <Moon size={16} />}
               </button>
-              <button 
+              <button
                 onClick={toggleFullscreen}
                 className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all hidden md:flex"
                 title="Toggle Fullscreen"
               >
                 <Maximize2 size={16} />
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('Notifications')}
                 className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-all relative"
               >
@@ -1445,7 +1321,7 @@ export default function App() {
             </div>
 
             {/* Profile Section on Right */}
-            <div 
+            <div
               onClick={() => setShowProfileOverlay(true)}
               className="flex items-center gap-2 group cursor-pointer pl-2"
             >
@@ -1468,7 +1344,7 @@ export default function App() {
         {showMobileMenu && (
           <>
             {/* Backdrop to close menu on outside click */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1477,7 +1353,7 @@ export default function App() {
             />
 
             {/* Side Menu Drawer */}
-            <motion.div 
+            <motion.div
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
@@ -1495,7 +1371,7 @@ export default function App() {
                     <p className="text-blue-200 text-xs font-bold">Super Admin</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowMobileMenu(false)}
                   className="p-2 text-white hover:bg-white/20 rounded-md"
                 >
@@ -1509,19 +1385,19 @@ export default function App() {
                 <div>
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">QUICK ACTIONS</h3>
                   <div className="space-y-1">
-                    <button 
+                    <button
                       onClick={() => { setActiveTab('Dashboard'); setShowMobileMenu(false); }}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-sm transition-all"
                     >
                       <Home size={18} /> Dashboard
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setActiveTab('POS'); setShowMobileMenu(false); }}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-sm transition-all"
                     >
                       <ShoppingCart size={18} /> Sale Entry
                     </button>
-                    <button 
+                    <button
                       onClick={() => { setActiveTab('Purchase'); setShowMobileMenu(false); }}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-sm transition-all"
                     >
@@ -1535,7 +1411,7 @@ export default function App() {
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">MASTER</h3>
                   <div className="space-y-1">
                     {masterItems.map(item => (
-                      <button 
+                      <button
                         key={item.id}
                         onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
                         className={cn(
@@ -1554,7 +1430,7 @@ export default function App() {
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">INVENTORY</h3>
                   <div className="space-y-1">
                     {inventoryItems.map(item => (
-                      <button 
+                      <button
                         key={item.id}
                         onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
                         className={cn(
@@ -1573,7 +1449,7 @@ export default function App() {
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">VIEW</h3>
                   <div className="space-y-1">
                     {viewItems.map(item => (
-                      <button 
+                      <button
                         key={item.id}
                         onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
                         className={cn(
@@ -1592,7 +1468,7 @@ export default function App() {
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">REPORTS</h3>
                   <div className="space-y-1">
                     {reportItemsNav.map(item => (
-                      <button 
+                      <button
                         key={item.id}
                         onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
                         className={cn(
@@ -1611,7 +1487,7 @@ export default function App() {
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">STORE</h3>
                   <div className="space-y-1">
                     {storeItems.map(item => (
-                      <button 
+                      <button
                         key={item.id}
                         onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
                         className={cn(
@@ -1630,7 +1506,7 @@ export default function App() {
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">TOOLS</h3>
                   <div className="space-y-1">
                     {toolsItems.map(item => (
-                      <button 
+                      <button
                         key={item.id}
                         onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
                         className={cn(
@@ -1641,7 +1517,7 @@ export default function App() {
                         {item.icon} {item.label}
                       </button>
                     ))}
-                    <button 
+                    <button
                       onClick={() => {
                         handleLogout();
                         setShowMobileMenu(false);
@@ -1661,13 +1537,13 @@ export default function App() {
       {/* Session Timeout Warning */}
       <AnimatePresence>
         {showTimeoutWarning && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[2000] flex items-center justify-center bg-slate-900/70 backdrop-blur-md p-4"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
@@ -1682,13 +1558,13 @@ export default function App() {
               </div>
 
               <div className="flex gap-4 w-full">
-                <button 
+                <button
                   onClick={extendSession}
                   className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
                 >
                   <RefreshCw size={16} /> Extend Session
                 </button>
-                <button 
+                <button
                   onClick={handleLogout}
                   className="flex-1 bg-white border-2 border-slate-800 text-slate-800 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
                 >
@@ -1703,20 +1579,20 @@ export default function App() {
       {/* Profile/Logout Overlay matching User Screenshot */}
       <AnimatePresence>
         {showProfileOverlay && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               className="bg-white/90 rounded-[32px] p-10 flex flex-col items-center gap-8 shadow-2xl border border-white/20 w-full max-w-sm"
             >
               {/* Print QR Button */}
-              <button 
+              <button
                 onClick={() => window.print()}
                 className="flex items-center gap-2 px-4 py-1.5 border border-slate-400 rounded-lg text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all bg-white shadow-sm"
               >
@@ -1735,7 +1611,7 @@ export default function App() {
                   </div>
 
                   {/* Change Password Toggle Button */}
-                  <button 
+                  <button
                     onClick={() => setShowChangePassword(true)}
                     className="flex items-center gap-2 px-6 py-2 border border-slate-400 rounded-lg text-slate-700 text-sm font-bold hover:bg-slate-50 transition-all bg-white shadow-sm"
                   >
@@ -1744,7 +1620,7 @@ export default function App() {
 
                   {/* Action Buttons Row */}
                   <div className="flex gap-4 w-full">
-                    <button 
+                    <button
                       onClick={() => {
                         handleLogout();
                         setShowProfileOverlay(false);
@@ -1753,7 +1629,7 @@ export default function App() {
                     >
                       <Lock size={14} fill="currentColor" /> Logout
                     </button>
-                    <button 
+                    <button
                       onClick={() => setShowProfileOverlay(false)}
                       className="flex-1 bg-white border-2 border-slate-800 text-slate-800 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
                     >
@@ -1766,34 +1642,34 @@ export default function App() {
                 <div className="w-full space-y-4">
                   <h3 className="text-xl font-black text-slate-800 text-center uppercase tracking-widest">Change Password</h3>
                   <div className="space-y-3">
-                    <input 
-                      type="password" 
-                      placeholder="Old Password" 
+                    <input
+                      type="password"
+                      placeholder="Old Password"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
                       value={passwordForm.old}
                       onChange={e => setPasswordForm({...passwordForm, old: e.target.value})}
                     />
-                    <input 
-                      type="password" 
-                      placeholder="New Password" 
+                    <input
+                      type="password"
+                      placeholder="New Password"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
                       value={passwordForm.new}
                       onChange={e => setPasswordForm({...passwordForm, new: e.target.value})}
                     />
-                    <input 
-                      type="password" 
-                      placeholder="Confirm New Password" 
+                    <input
+                      type="password"
+                      placeholder="Confirm New Password"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
                       value={passwordForm.confirm}
                       onChange={e => setPasswordForm({...passwordForm, confirm: e.target.value})}
                     />
                   </div>
                   <div className="flex gap-3">
-                    <button 
+                    <button
                       onClick={async () => {
                         if (!passwordForm.old || !passwordForm.new) return alert("Fill all fields");
                         if (passwordForm.new !== passwordForm.confirm) return alert("Passwords don't match");
-                        
+
                         // Check if old password matches current security pin
                         const currentPin = appConfig?.security_pin || '1234';
                         if (passwordForm.old !== currentPin) return alert("Incorrect Old Password");
@@ -1814,7 +1690,7 @@ export default function App() {
                     >
                       Update
                     </button>
-                    <button 
+                    <button
                       onClick={() => setShowChangePassword(false)}
                       className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
                     >
@@ -1829,9 +1705,9 @@ export default function App() {
       </AnimatePresence>
 
       {/* --- Main Dashboard Area --- */}
-      <main className="flex-1 overflow-y-auto p-3 md:p-4 max-w-full mx-auto w-full">
+      <main className="flex-1 overflow-hidden p-3 md:p-4 max-w-full mx-auto w-full flex flex-col">
         {/* Breadcrumb / Page Title */}
-        <div className="mb-4 flex items-center justify-between bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <div className="mb-4 flex items-center justify-between bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm flex-shrink-0">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-black text-slate-800 uppercase tracking-tighter flex items-center gap-2">
               {activeTab}
@@ -1855,7 +1731,7 @@ export default function App() {
             exit={{ opacity: 0, y: -5 }}
             transition={{ duration: 0.1 }}
           >
-            {renderTabContent(activeTab, { 
+            {renderTabContent(activeTab, {
                 activeTab, setActiveTab,
                 stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons,
                 offers, pincodes, homeConfig, walletTx, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
@@ -1875,11 +1751,11 @@ export default function App() {
       <footer className="bg-slate-800 text-white px-4 py-1 flex justify-between items-center text-[9px] font-black uppercase tracking-widest shadow-inner">
         <div className="flex items-center gap-5">
           <span className="flex items-center gap-1.5">
-            <Circle size={6} fill={isSupabaseMock ? "#EF4444" : "#10B981"} className={isSupabaseMock ? "text-red-400" : "text-emerald-400"} /> 
+            <Circle size={6} fill={isSupabaseMock ? "#EF4444" : "#10B981"} className={isSupabaseMock ? "text-red-400" : "text-emerald-400"} />
             Server: {isSupabaseMock ? 'Disconnected (Using Mock DB)' : 'Online'}
           </span>
           <span className="flex items-center gap-1.5">
-            <Circle size={6} fill="#3B82F6" className="text-blue-400" /> 
+            <Circle size={6} fill="#3B82F6" className="text-blue-400" />
             DB: {isSupabaseMock ? '0 (MOCK)' : stats.products} Records
           </span>
           <span className="flex items-center gap-1.5 opacity-50"><Clock size={10} /> Sync: Just Now</span>
@@ -1909,8 +1785,8 @@ function TestBluetoothView() {
   return (
     <div className="bg-white p-10 rounded-xl border border-slate-100 shadow-sm min-h-[400px]">
       <h1 className="text-4xl font-normal text-slate-800 mb-8">Bluetooth Printer</h1>
-      
-      <button 
+
+      <button
         onClick={handleSearch}
         disabled={isSearching}
         className="px-6 py-3 bg-slate-100 border-2 border-slate-800 text-slate-800 text-base font-medium hover:bg-slate-200 transition-all flex items-center gap-3"
@@ -1946,20 +1822,20 @@ function StoreMainCatDisplayView({ categories, departments }) {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6 animate-in fade-in duration-300">
+      <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
         {/* Header matching Screenshot */}
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-8 flex-shrink-0 mb-6">
           <div className="space-y-2">
             <h2 className="text-blue-600 font-bold underline text-sm cursor-pointer">Store Main-Cat Display</h2>
             <h1 className="text-2xl font-bold text-slate-800">Select</h1>
             <div className="flex items-center gap-2 mt-4">
-              <input 
-                type="checkbox" 
-                id="selectAllMain" 
+              <input
+                type="checkbox"
+                id="selectAllMain"
                 checked={selectAll}
                 onChange={(e) => handleSelectAll(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="selectAllMain" className="text-sm font-medium text-slate-600">Select All</label>
             </div>
@@ -1968,7 +1844,7 @@ function StoreMainCatDisplayView({ categories, departments }) {
           <div className="flex flex-wrap items-center gap-12">
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium text-slate-700">Department</span>
-              <select 
+              <select
                 value={selectedDept}
                 onChange={e => setSelectedDept(e.target.value)}
                 className="w-40 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all bg-white"
@@ -1978,7 +1854,7 @@ function StoreMainCatDisplayView({ categories, departments }) {
               </select>
             </div>
 
-            <button 
+            <button
               onClick={handleLoadData}
               className="px-4 py-1.5 border border-slate-400 rounded-md text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
             >
@@ -1988,16 +1864,16 @@ function StoreMainCatDisplayView({ categories, departments }) {
         </div>
 
         {/* Item List Area */}
-        <div className="min-h-[300px] border-t border-slate-100 pt-6">
+        <div className="flex-1 border-t border-slate-100 pt-6 overflow-y-auto custom-scrollbar">
           {items.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
               {items.map(item => (
                 <div key={item.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={item.isSelected}
                     onChange={() => handleToggleSelect(item.id)}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600" 
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600"
                   />
                   <span className="text-sm font-medium text-slate-700">{item.name}</span>
                 </div>
@@ -2011,7 +1887,7 @@ function StoreMainCatDisplayView({ categories, departments }) {
         </div>
 
         {/* Footer Buttons matching Screenshot */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 flex-shrink-0">
           <button className="bg-blue-600 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-all shadow-md">
             Save
           </button>
@@ -2048,20 +1924,20 @@ function StoreSubCatDisplayView({ subcategories, departments }) {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6 animate-in fade-in duration-300">
+      <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
         {/* Header matching Screenshot */}
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-8 flex-shrink-0 mb-6">
           <div className="space-y-2">
             <h2 className="text-blue-600 font-bold underline text-sm cursor-pointer">Store Sub-Cat Display</h2>
             <h1 className="text-2xl font-bold text-slate-800">Select</h1>
             <div className="flex items-center gap-2 mt-4">
-              <input 
-                type="checkbox" 
-                id="selectAllSub" 
+              <input
+                type="checkbox"
+                id="selectAllSub"
                 checked={selectAll}
                 onChange={(e) => handleSelectAll(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="selectAllSub" className="text-sm font-medium text-slate-600">Select All</label>
             </div>
@@ -2070,7 +1946,7 @@ function StoreSubCatDisplayView({ subcategories, departments }) {
           <div className="flex flex-wrap items-center gap-12">
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium text-slate-700">Department</span>
-              <select 
+              <select
                 value={selectedDept}
                 onChange={e => setSelectedDept(e.target.value)}
                 className="w-40 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all bg-white"
@@ -2080,7 +1956,7 @@ function StoreSubCatDisplayView({ subcategories, departments }) {
               </select>
             </div>
 
-            <button 
+            <button
               onClick={handleLoadData}
               className="px-4 py-1.5 border border-slate-400 rounded-md text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
             >
@@ -2090,16 +1966,16 @@ function StoreSubCatDisplayView({ subcategories, departments }) {
         </div>
 
         {/* Item List Area */}
-        <div className="min-h-[300px] border-t border-slate-100 pt-6">
+        <div className="flex-1 border-t border-slate-100 pt-6 overflow-y-auto custom-scrollbar">
           {items.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
               {items.map(item => (
                 <div key={item.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={item.isSelected}
                     onChange={() => handleToggleSelect(item.id)}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600" 
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600"
                   />
                   <span className="text-sm font-medium text-slate-700">{item.name}</span>
                 </div>
@@ -2113,7 +1989,7 @@ function StoreSubCatDisplayView({ subcategories, departments }) {
         </div>
 
         {/* Footer Buttons matching Screenshot */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 flex-shrink-0">
           <button className="bg-blue-600 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-all shadow-md">
             Save
           </button>
@@ -2137,11 +2013,11 @@ function StoreItemDisplayView({ products, departments }) {
     setLoading(true);
     // Filter logic based on HSN and Department
     const filtered = products.filter(p => {
-      const matchesHsn = !findHsn || p.hsn_code?.includes(findHsn);
-      const matchesDept = selectedDept === 'Not Selected' || p.department === selectedDept;
+      const matchesHsn = !findHsn || (p.hsncode || p.hsn_code || '').includes(findHsn);
+      const matchesDept = selectedDept === 'Not Selected' || (p.dtcode || p.department_code) === selectedDept;
       return matchesHsn && matchesDept;
     }).map(p => ({ ...p, isSelected: false }));
-    
+
     setItems(filtered);
     setLoading(false);
   };
@@ -2156,20 +2032,20 @@ function StoreItemDisplayView({ products, departments }) {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-8">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6 animate-in fade-in duration-300">
+      <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
         {/* Header matching Screenshot */}
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-8 flex-shrink-0 mb-6">
           <div className="space-y-2">
             <h2 className="text-blue-600 font-bold underline text-sm cursor-pointer">Store Item Display</h2>
             <h1 className="text-2xl font-bold text-slate-800">Select Items</h1>
             <div className="flex items-center gap-2 mt-4">
-              <input 
-                type="checkbox" 
-                id="selectAll" 
+              <input
+                type="checkbox"
+                id="selectAll"
                 checked={selectAll}
                 onChange={(e) => handleSelectAll(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               <label htmlFor="selectAll" className="text-sm font-medium text-slate-600">Select All</label>
             </div>
@@ -2181,17 +2057,17 @@ function StoreItemDisplayView({ products, departments }) {
                 <p className="text-sm font-medium text-slate-700">Find</p>
                 <p className="text-sm font-medium text-slate-700">HSN</p>
               </div>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={findHsn}
                 onChange={e => setFindHsn(e.target.value)}
-                className="w-32 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" 
+                className="w-32 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
               />
             </div>
 
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium text-slate-700">Department</span>
-              <select 
+              <select
                 value={selectedDept}
                 onChange={e => setSelectedDept(e.target.value)}
                 className="w-40 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all bg-white"
@@ -2201,7 +2077,7 @@ function StoreItemDisplayView({ products, departments }) {
               </select>
             </div>
 
-            <button 
+            <button
               onClick={handleLoadData}
               className="px-4 py-1.5 border border-slate-400 rounded-md text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
             >
@@ -2211,18 +2087,18 @@ function StoreItemDisplayView({ products, departments }) {
         </div>
 
         {/* Item List Area */}
-        <div className="min-h-[300px] border-t border-slate-100 pt-6">
+        <div className="flex-1 border-t border-slate-100 pt-6 overflow-y-auto custom-scrollbar">
           {items.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
               {items.map(item => (
                 <div key={item.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     checked={item.isSelected}
                     onChange={() => handleToggleSelect(item.id)}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600" 
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600"
                   />
-                  <span className="text-sm font-medium text-slate-700">{item.name}</span>
+                  <span className="text-sm font-medium text-slate-700">{item.itname || item.name}</span>
                 </div>
               ))}
             </div>
@@ -2234,7 +2110,7 @@ function StoreItemDisplayView({ products, departments }) {
         </div>
 
         {/* Footer Buttons matching Screenshot */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 flex-shrink-0">
           <button className="bg-blue-600 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-all shadow-md">
             Save
           </button>
@@ -2257,10 +2133,10 @@ function TransactionView({ users, fetchInitialData }) {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   const filteredData = useMemo(() => {
-    return reportData.filter(row => 
+    return reportData.filter(row =>
       (row.ledgerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (row.vNo || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -2276,6 +2152,8 @@ function TransactionView({ users, fetchInitialData }) {
     account: 'Not Selected',
     items: []
   });
+0
+
   const [currentItem, setCurrentItem] = useState({ party_id: '', name: '', amount: '', remarks: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -2285,7 +2163,7 @@ function TransactionView({ users, fetchInitialData }) {
       const transactions = await dbSync.fetch(DB_SCHEMA.WALLET_TRANSACTIONS.table, {
         order: { column: 'created_at', ascending: false }
       });
-      
+
       const mapped = (transactions || []).map(tx => {
         const user = users.find(u => u.id === tx.user_id);
         return {
@@ -2348,9 +2226,9 @@ function TransactionView({ users, fetchInitialData }) {
 
   if (showForm) {
     return (
-      <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+      <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-300">
         {/* Form Header matching Screenshot 2 */}
-        <div className="bg-slate-600 p-3 rounded-t-xl flex justify-between items-center text-white shadow-lg">
+        <div className="bg-slate-600 p-3 rounded-t-xl flex justify-between items-center text-white shadow-lg flex-shrink-0">
           <div className="flex items-center gap-2">
             <RefreshCw size={18} />
             <h2 className="text-sm font-black uppercase tracking-widest">Transaction</h2>
@@ -2358,7 +2236,7 @@ function TransactionView({ users, fetchInitialData }) {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-bold uppercase tracking-widest">Transaction Type</span>
-              <select 
+              <select
                 value={formData.type}
                 onChange={e => setFormData({...formData, type: e.target.value})}
                 className="bg-white text-slate-800 rounded px-4 py-1.5 text-xs font-bold outline-none min-w-[200px]"
@@ -2372,13 +2250,13 @@ function TransactionView({ users, fetchInitialData }) {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-b-xl border border-slate-200 shadow-sm space-y-6">
+        <div className="flex-1 bg-white p-6 rounded-b-xl border border-slate-200 shadow-sm space-y-6 flex flex-col overflow-hidden">
           {/* Voucher Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 flex-shrink-0">
             <div className="flex items-center justify-end gap-6">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Voucher Date</label>
-              <input 
-                type="date" 
+              <input
+                type="date"
                 value={formData.date}
                 onChange={e => setFormData({...formData, date: e.target.value})}
                 className="border border-slate-300 rounded-lg px-4 py-1.5 text-xs font-bold outline-none w-48"
@@ -2386,7 +2264,7 @@ function TransactionView({ users, fetchInitialData }) {
             </div>
             <div className="flex items-center gap-6">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Account</label>
-              <select 
+              <select
                 value={formData.account}
                 onChange={e => setFormData({...formData, account: e.target.value})}
                 className="border border-slate-300 rounded-lg px-4 py-1.5 text-xs font-bold outline-none w-48 bg-white"
@@ -2399,10 +2277,10 @@ function TransactionView({ users, fetchInitialData }) {
           </div>
 
           {/* Item Input Row */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end pt-4 flex-shrink-0">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Party Name</label>
-              <select 
+              <select
                 value={currentItem.party_id}
                 onChange={e => {
                   const u = users.find(user => user.id === e.target.value);
@@ -2416,8 +2294,8 @@ function TransactionView({ users, fetchInitialData }) {
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount</label>
-              <input 
-                type="number" 
+              <input
+                type="number"
                 value={currentItem.amount}
                 onChange={e => setCurrentItem({...currentItem, amount: e.target.value})}
                 placeholder="0.00"
@@ -2426,14 +2304,14 @@ function TransactionView({ users, fetchInitialData }) {
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Remarks</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={currentItem.remarks}
                 onChange={e => setCurrentItem({...currentItem, remarks: e.target.value})}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none"
               />
             </div>
-            <button 
+            <button
               onClick={addItem}
               className="bg-red-300 text-black px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-red-400 transition-all flex items-center justify-center gap-2 mb-0.5"
             >
@@ -2442,67 +2320,72 @@ function TransactionView({ users, fetchInitialData }) {
           </div>
 
           {/* Items Table */}
-          <div className="overflow-hidden border border-slate-200 rounded-lg">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gradient-to-r from-cyan-400/60 via-red-300/60 to-cyan-400/60">
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Party Name</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Amount</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Remarks</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {formData.items.map((item, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-xs font-black text-right text-slate-900">{item.amount.toFixed(2)}</td>
-                    <td className="px-4 py-2 text-xs font-medium text-slate-500 italic">{item.remarks}</td>
-                    <td className="px-4 py-2 text-center">
-                      <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
+          <div className="flex-1 overflow-hidden border border-slate-200 rounded-lg flex flex-col">
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-gradient-to-r from-cyan-400/60 via-red-300/60 to-cyan-400/60 backdrop-blur-sm">
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Party Name</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Amount</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Remarks</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Action</th>
                   </tr>
-                ))}
-                <tr className="bg-slate-700 text-white font-black">
-                  <td className="px-4 py-2 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                  <td className="px-4 py-2 text-right text-xs">{totalAmount.toFixed(2)}</td>
-                  <td colSpan={2} />
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {formData.items.map((item, i) => (
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                      <td className="px-4 py-2 text-xs font-black text-right text-slate-900">{item.amount.toFixed(2)}</td>
+                      <td className="px-4 py-2 text-xs font-medium text-slate-500 italic">{item.remarks}</td>
+                      <td className="px-4 py-2 text-center">
+                        <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Total Row Fixed at bottom of table */}
+            <div className="bg-slate-700 text-white font-black flex justify-between px-4 py-2 items-center flex-shrink-0">
+               <span className="text-[10px] uppercase tracking-widest">Total Items: {formData.items.length}</span>
+               <div className="flex gap-10">
+                  <span className="text-[10px] uppercase tracking-widest">Total Amount:</span>
+                  <span className="text-xs">₹{totalAmount.toFixed(2)}</span>
+               </div>
+            </div>
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex justify-between items-center pt-6 border-t border-slate-100">
+          <div className="flex justify-between items-center pt-6 border-t border-slate-100 flex-shrink-0">
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => handleSave(true)}
                 disabled={isSubmitting}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-lg"
               >
                 Save & Print
               </button>
-              <button 
+              <button
                 onClick={() => handleSave(false)}
                 disabled={isSubmitting}
                 className="bg-blue-600 text-white px-8 py-2 rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-lg"
               >
                 Save
               </button>
-              <button 
+              <button
                 onClick={() => setShowForm(false)}
                 className="border-2 border-blue-600 text-blue-600 px-8 py-2 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all"
               >
                 Cancel
               </button>
             </div>
-            
+
             <div className="bg-black text-white p-3 rounded-lg min-w-[200px] text-right">
               <div className="flex justify-between items-center gap-8">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total :</span>
-                <span className="text-xl font-black tracking-tighter">{totalAmount.toFixed(2)}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Net Payable :</span>
+                <span className="text-xl font-black tracking-tighter">₹{totalAmount.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -2512,9 +2395,9 @@ function TransactionView({ users, fetchInitialData }) {
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in duration-300">
       {/* List View matching User Screenshot 1 */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-blue-50 rounded text-blue-600">
             <RefreshCw size={18} />
@@ -2525,36 +2408,36 @@ function TransactionView({ users, fetchInitialData }) {
         <div className="flex flex-1 min-w-[300px] items-center gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <input 
-              type="text" 
-              placeholder="Search" 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-              className="w-full bg-slate-100 border-none rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20" 
+            <input
+              type="text"
+              placeholder="Search"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full bg-slate-100 border-none rounded-lg pl-9 pr-4 py-1.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-          
+
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase">From :</span>
-            <input 
-              type="date" 
-              value={fromDate} 
-              onChange={e => setFromDate(e.target.value)} 
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none" 
+            <input
+              type="date"
+              value={fromDate}
+              onChange={e => setFromDate(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none"
             />
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase">To :</span>
-            <input 
-              type="date" 
-              value={toDate} 
-              onChange={e => setToDate(e.target.value)} 
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none" 
+            <input
+              type="date"
+              value={toDate}
+              onChange={e => setToDate(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold outline-none"
             />
           </div>
         </div>
 
-        <button 
+        <button
           onClick={handleCreateNew}
           className="flex items-center gap-2 px-4 py-1.5 border-2 border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all shadow-sm"
         >
@@ -2562,10 +2445,10 @@ function TransactionView({ users, fetchInitialData }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-white shadow-sm">
               <tr className="border-b border-slate-100 bg-white">
                 <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">Date</th>
                 <th className="px-6 py-4 text-xs font-black text-slate-800 uppercase tracking-tight text-center">V No</th>
@@ -2612,18 +2495,21 @@ function TransactionView({ users, fetchInitialData }) {
           </table>
         </div>
 
-        <PaginationFooter 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
-        />
+        <div className="flex-shrink-0">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            setCurrentPage={setCurrentPage}
+            totalRecords={filteredData.length}
+          />
+        </div>
       </div>
     </div>
   );
 }
+
 
 function WastageReportView({ products }) {
   const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]);
@@ -2633,7 +2519,7 @@ function WastageReportView({ products }) {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   const filteredData = reportData;
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
@@ -2664,7 +2550,7 @@ function WastageReportView({ products }) {
     const doc = new jsPDF();
     doc.text("Wastage Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    
+
     const tableColumn = ["Date", "Item Name", "Qty", "Rate", "Amount", "Unit", "Remarks"];
     const tableRows = reportData.map(row => [
       row.date,
@@ -2686,9 +2572,9 @@ function WastageReportView({ products }) {
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in duration-300">
       {/* Filter Header matching New Screenshot */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6 flex-shrink-0">
         <div className="flex flex-col md:flex-row justify-between items-start gap-4">
           <div className="flex items-center gap-2 text-blue-600 font-black uppercase text-sm">
             <Trash2 size={18} /> Wastage Report
@@ -2719,11 +2605,11 @@ function WastageReportView({ products }) {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Date</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Item Name</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Qty</th>
@@ -2734,7 +2620,7 @@ function WastageReportView({ products }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              <tr className="bg-cyan-50/50 font-black text-slate-900">
+              <tr className="bg-cyan-50/50 font-black text-slate-900 sticky top-[41px] z-[5]">
                 <td colSpan={2} className="px-4 py-2.5 text-right text-[10px] uppercase tracking-widest">Total QTY:</td>
                 <td className="px-4 py-2.5 text-xs text-center">0</td>
                 <td className="px-4 py-2.5 text-xs text-right">0</td>
@@ -2757,14 +2643,16 @@ function WastageReportView({ products }) {
           </table>
         </div>
 
-        <PaginationFooter 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
-        />
+        <div className="flex-shrink-0">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            setCurrentPage={setCurrentPage}
+            totalRecords={filteredData.length}
+          />
+        </div>
       </div>
     </div>
   );
@@ -2779,7 +2667,7 @@ function RequisitionReportROView({ products }) {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   const filteredData = reportData;
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
@@ -2828,12 +2716,12 @@ function RequisitionReportROView({ products }) {
 
         <div className="flex justify-between items-center gap-4">
           <div className="flex-1 max-w-md">
-            <input 
-              type="text" 
-              placeholder="Search for items..." 
+            <input
+              type="text"
+              placeholder="Search for items..."
               value={searchItem}
               onChange={e => setSearchItem(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none" 
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none"
             />
           </div>
           <div className="flex gap-2">
@@ -2910,7 +2798,7 @@ function PurchaseReportROView({ products }) {
     const doc = new jsPDF();
     doc.text("(RO) Purchase Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    
+
     const tableColumn = ["Date", "RO No", "Item Name", "Qty", "Rate", "Amount"];
     const tableRows = reportData.map(row => [
       row.date,
@@ -3046,9 +2934,9 @@ function PurchaseOrderView({ products, departments }) {
 
   if (showForm) {
     return (
-      <div className="space-y-4 animate-in fade-in duration-300">
+      <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in duration-300">
         {/* Form Header matching Screenshot 2 */}
-        <div className="bg-gradient-to-r from-cyan-400 to-blue-400 p-3 rounded-t-xl flex justify-between items-center text-white shadow-lg">
+        <div className="bg-gradient-to-r from-cyan-400 to-blue-400 p-3 rounded-t-xl flex justify-between items-center text-white shadow-lg flex-shrink-0">
           <div className="flex items-center gap-2">
             <FileText size={18} />
             <h2 className="text-sm font-black uppercase tracking-widest">Purchase order</h2>
@@ -3059,8 +2947,8 @@ function PurchaseOrderView({ products, departments }) {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-b-xl border border-slate-200 shadow-sm space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+        <div className="flex-1 bg-white p-6 rounded-b-xl border border-slate-200 shadow-sm space-y-6 flex flex-col overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end flex-shrink-0">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Department :</label>
               <select value={formData.department} onChange={e => setFormData({...formData, department: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none">
@@ -3071,10 +2959,10 @@ function PurchaseOrderView({ products, departments }) {
           </div>
 
           {/* Item Add Section */}
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-100 flex-shrink-0">
             <div className="md:col-span-2 space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Item Name</label>
-              <select 
+              <select
                 value={currentItem.product_id}
                 onChange={e => {
                   const p = products.find(prod => prod.id === e.target.value);
@@ -3110,46 +2998,55 @@ function PurchaseOrderView({ products, departments }) {
           </div>
 
           {/* Table */}
-          <div className="overflow-hidden border border-slate-200 rounded-xl">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gradient-to-r from-cyan-400/80 to-blue-400/80 text-white">
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Item Name</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Barcode</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Qty</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Unit</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Rate</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Amount</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {formData.items.map((item, i) => (
-                  <tr key={i} className="hover:bg-slate-50">
-                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
-                    <td className="px-4 py-2 text-xs font-bold text-center">{item.qty}</td>
-                    <td className="px-4 py-2 text-xs font-bold text-center uppercase">{item.unit}</td>
-                    <td className="px-4 py-2 text-xs font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-xs font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-center">
-                      <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"><Trash2 size={14} /></button>
-                    </td>
+          <div className="flex-1 overflow-hidden border border-slate-200 rounded-xl flex flex-col min-h-0">
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-gradient-to-r from-cyan-400/80 to-blue-400/80 text-white shadow-sm">
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Item Name</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Barcode</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Qty</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Unit</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Rate</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Amount</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Action</th>
                   </tr>
-                ))}
-                <tr className="bg-slate-800 text-white font-black">
-                  <td colSpan={2} className="px-4 py-2 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                  <td className="px-4 py-2 text-center text-xs">{totalQty.toFixed(2)}</td>
-                  <td colSpan={2} />
-                  <td className="px-4 py-2 text-right text-xs">{totalAmount.toFixed(2)}</td>
-                  <td />
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {formData.items.map((item, i) => (
+                    <tr key={i} className="hover:bg-slate-50">
+                      <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                      <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
+                      <td className="px-4 py-2 text-xs font-bold text-center">{item.qty}</td>
+                      <td className="px-4 py-2 text-xs font-bold text-center uppercase">{item.unit}</td>
+                      <td className="px-4 py-2 text-xs font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-xs font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-center">
+                        <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"><Trash2 size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Total Row Fixed */}
+            <div className="bg-slate-800 text-white font-black flex justify-between px-4 py-2 items-center flex-shrink-0">
+               <span className="text-[10px] uppercase tracking-widest">Total Items: {formData.items.length}</span>
+               <div className="flex gap-10">
+                  <div className="flex gap-2 items-center">
+                    <span className="text-[9px] uppercase tracking-widest opacity-60">Total Qty:</span>
+                    <span className="text-xs">{totalQty.toFixed(2)}</span>
+                  </div>
+                  <div className="flex gap-2 items-center border-l border-white/20 pl-6">
+                    <span className="text-[9px] uppercase tracking-widest opacity-60">Net Amount:</span>
+                    <span className="text-xs">₹{totalAmount.toFixed(2)}</span>
+                  </div>
+               </div>
+            </div>
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 flex-shrink-0">
             <button onClick={() => { alert("Purchase Order Saved!"); setShowForm(false); }} className="bg-blue-600 text-white px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">Save</button>
             <button onClick={() => setShowForm(false)} className="border border-blue-600 text-blue-600 px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">Cancel</button>
           </div>
@@ -3159,9 +3056,9 @@ function PurchaseOrderView({ products, departments }) {
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in duration-300">
       {/* List View matching Screenshot 1 */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-2 text-slate-800 font-black uppercase text-sm">
           <FileText size={18} /> Purchase order (PO)
         </div>
@@ -3182,39 +3079,41 @@ function PurchaseOrderView({ products, departments }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm min-h-[400px]">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Po No</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Date</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">From</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Total Qty</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">Total Amount</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {reportData.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">No records found</td>
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-0">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Po No</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Date</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">From</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Total Qty</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">Total Amount</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Action</th>
               </tr>
-            ) : (
-              reportData.map((po, index) => (
-                <tr key={po.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-3 text-xs font-black text-blue-700 uppercase">{po.poNo}</td>
-                  <td className="px-6 py-3 text-xs font-medium text-slate-600">{po.date}</td>
-                  <td className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">{po.department}</td>
-                  <td className="px-6 py-3 text-xs font-black text-slate-900">{po.totalQty.toFixed(2)}</td>
-                  <td className="px-6 py-3 text-xs font-black text-right text-emerald-600">{po.totalAmount.toFixed(2)}</td>
-                  <td className="px-6 py-3 text-center">
-                    <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
-                  </td>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {reportData.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">No records found</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                reportData.map((po, index) => (
+                  <tr key={po.id} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-3 text-xs font-black text-blue-700 uppercase">{po.poNo}</td>
+                    <td className="px-6 py-3 text-xs font-medium text-slate-600">{po.date}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">{po.department}</td>
+                    <td className="px-6 py-3 text-xs font-black text-slate-900">{po.totalQty.toFixed(2)}</td>
+                    <td className="px-6 py-3 text-xs font-black text-right text-emerald-600">{po.totalAmount.toFixed(2)}</td>
+                    <td className="px-6 py-3 text-center">
+                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -3276,7 +3175,7 @@ function WastageEntryView({ products }) {
           <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-100">
             <div className="md:col-span-2 space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Item Name</label>
-              <select 
+              <select
                 value={currentItem.product_id}
                 onChange={e => {
                   const p = products.find(prod => prod.id === e.target.value);
@@ -3475,12 +3374,12 @@ function StockTransferReportView({ products, departments }) {
         <div className="flex justify-between items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase">PO No</span>
-            <input 
-              type="text" 
-              placeholder="Search PO No.." 
+            <input
+              type="text"
+              placeholder="Search PO No.."
               value={poNo}
               onChange={e => setPoNo(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none w-48" 
+              className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold outline-none w-48"
             />
           </div>
           <div className="flex gap-2">
@@ -3631,7 +3530,7 @@ function StockTransferView({ products, departments }) {
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-100">
             <div className="md:col-span-2 space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Item Name</label>
-              <select 
+              <select
                 value={currentItem.product_id}
                 onChange={e => {
                   const p = products.find(prod => prod.id === e.target.value);
@@ -3815,7 +3714,7 @@ function CostingReportView({ products, departments }) {
     const doc = new jsPDF('landscape');
     doc.text("Costing Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    
+
     const tableColumn = ["Sr No", "Department", "Finished Item", "Fg. Qty", "Raw Material", "Qty", "Rate", "GST%", "Amount", "Total Cost"];
     const tableRows = reportData.map((row, index) => [
       index + 1,
@@ -3975,9 +3874,9 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
 
   if (showForm) {
     return (
-      <div className="space-y-4 animate-in fade-in duration-300">
+      <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in duration-300">
         {/* Form Header matching Screenshot 2 */}
-        <div className="bg-gradient-to-r from-cyan-400 to-blue-400 p-3 rounded-t-xl flex justify-between items-center text-white shadow-lg">
+        <div className="bg-gradient-to-r from-cyan-400 to-blue-400 p-3 rounded-t-xl flex justify-between items-center text-white shadow-lg flex-shrink-0">
           <div className="flex items-center gap-2">
             <GitBranch size={18} />
             <h2 className="text-sm font-black uppercase tracking-widest">Production</h2>
@@ -3997,11 +3896,11 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-b-xl border border-slate-200 shadow-sm space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+        <div className="flex-1 bg-white p-6 rounded-b-xl border border-slate-200 shadow-sm space-y-6 flex flex-col overflow-hidden min-h-0">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end flex-shrink-0">
             <div className="md:col-span-2 space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Finished Item</label>
-              <select 
+              <select
                 value={formData.finished_item_id}
                 onChange={e => setFormData({...formData, finished_item_id: e.target.value})}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-cyan-500/20"
@@ -4014,15 +3913,15 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
               <label className="text-[10px] font-bold text-slate-500 uppercase">Qty :</label>
               <input type="number" value={formData.qty} onChange={e => setFormData({...formData, qty: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none" />
             </div>
-            <button onClick={handleGenerate} className="border border-slate-300 text-slate-700 px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-slate-50 transition-all">
+            <button onClick={handleGenerate} className="border border-slate-300 text-slate-700 px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-slate-50 transition-all h-[34px] flex items-center justify-center">
               Generate
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-100 flex-shrink-0">
             <div className="md:col-span-2 space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Item Name</label>
-              <select 
+              <select
                 value={currentItem.product_id}
                 onChange={e => {
                   const p = products.find(prod => prod.id === e.target.value);
@@ -4057,64 +3956,72 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
             </div>
           </div>
 
-          <div className="overflow-hidden border border-slate-200 rounded-xl">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gradient-to-r from-cyan-400/80 to-blue-400/80 text-white">
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest">Item Name</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest">Barcode</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-center">Qty</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-right">Rate</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-center">Dis %</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-right">Dis Amt</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-center">Gst</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-right">Gst Amt</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-right">Amount</th>
-                  <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {formData.items.map((item, i) => (
-                  <tr key={i} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 text-[10px] font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-3 py-2 text-[10px] font-medium text-slate-500">{item.barcode}</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-center">{item.qty}</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-center">{item.dis_percent}%</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-right">{((item.qty * item.rate) * item.dis_percent / 100).toFixed(2)}</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-center">0%</td>
-                    <td className="px-3 py-2 text-[10px] font-bold text-right">0.00</td>
-                    <td className="px-3 py-2 text-[10px] font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
-                    <td className="px-3 py-2 text-center">
-                      <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"><Trash2 size={12} /></button>
-                    </td>
+          <div className="flex-1 overflow-hidden border border-slate-200 rounded-xl flex flex-col min-h-0">
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-gradient-to-r from-cyan-400/80 to-blue-400/80 text-white shadow-sm">
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest">Item Name</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest">Barcode</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-center">Qty</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-right">Rate</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-center">Dis %</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-right">Dis Amt</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-center">Gst</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-right">Gst Amt</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-right">Amount</th>
+                    <th className="px-3 py-2.5 text-[9px] font-black uppercase tracking-widest text-center">Action</th>
                   </tr>
-                ))}
-                <tr className="bg-slate-800 text-white font-black">
-                  <td colSpan={2} className="px-3 py-2 text-right text-[9px] uppercase tracking-widest">Total :</td>
-                  <td className="px-3 py-2 text-center text-[10px]">{formData.items.reduce((sum, i) => sum + Number(i.qty), 0).toFixed(2)}</td>
-                  <td colSpan={4} />
-                  <td className="px-3 py-2 text-right text-[10px]">{totalGstAmt.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right text-[10px]">{totalAmount.toFixed(2)}</td>
-                  <td />
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {formData.items.map((item, i) => (
+                    <tr key={i} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 text-[10px] font-black text-slate-800 uppercase">{item.name}</td>
+                      <td className="px-3 py-2 text-[10px] font-medium text-slate-500">{item.barcode}</td>
+                      <td className="px-3 py-2 text-[10px] font-bold text-center">{item.qty}</td>
+                      <td className="px-3 py-2 text-[10px] font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-[10px] font-bold text-center">{item.dis_percent}%</td>
+                      <td className="px-3 py-2 text-[10px] font-bold text-right">{((item.qty * item.rate) * item.dis_percent / 100).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-[10px] font-bold text-center">0%</td>
+                      <td className="px-3 py-2 text-[10px] font-bold text-right">0.00</td>
+                      <td className="px-3 py-2 text-[10px] font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <button onClick={() => removeItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all"><Trash2 size={12} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Total Row Fixed */}
+            <div className="bg-slate-800 text-white font-black flex justify-between px-4 py-2 items-center flex-shrink-0">
+               <span className="text-[10px] uppercase tracking-widest">Total Raw Items: {formData.items.length}</span>
+               <div className="flex gap-8">
+                  <div className="flex gap-2 items-center">
+                    <span className="text-[9px] uppercase tracking-widest opacity-60">Total Qty:</span>
+                    <span className="text-xs">{formData.items.reduce((sum, i) => sum + Number(i.qty), 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex gap-2 items-center border-l border-white/20 pl-6">
+                    <span className="text-[9px] uppercase tracking-widest opacity-60">Net Amount:</span>
+                    <span className="text-xs">₹{totalAmount.toFixed(2)}</span>
+                  </div>
+               </div>
+            </div>
           </div>
 
-          <div className="flex justify-between items-end pt-4 border-t border-slate-100">
+          <div className="flex justify-between items-end pt-4 border-t border-slate-100 flex-shrink-0">
             <div className="flex gap-3">
               <button onClick={() => { alert("Production Saved!"); setShowForm(false); }} className="bg-blue-600 text-white px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">Save</button>
               <button onClick={() => setShowForm(false)} className="border border-blue-600 text-blue-600 px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all">Cancel</button>
             </div>
-            <div className="bg-black text-white p-3 rounded-xl min-w-[200px] text-right space-y-1">
+            <div className="bg-black text-white p-3 rounded-xl min-w-[200px] text-right space-y-1 shadow-lg">
               <div className="flex justify-between text-[9px] font-bold uppercase text-blue-400">
                 <span>Round-off :</span>
                 <span>0.00</span>
               </div>
-              <div className="flex justify-between text-base font-black">
-                <span className="uppercase tracking-tighter">Total :</span>
-                <span>{Math.round(totalAmount)}</span>
+              <div className="flex justify-between text-base font-black border-t border-white/10 pt-1 mt-1">
+                <span className="uppercase tracking-tighter">Net Total :</span>
+                <span className="text-xl">₹{Math.round(totalAmount).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -4124,9 +4031,9 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in duration-300">
       {/* List View matching Screenshot 1 */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-2 text-slate-800 font-black uppercase text-sm">
           <GitBranch size={18} /> Production
         </div>
@@ -4151,39 +4058,41 @@ function ProductionEntryView({ products, departments, fetchInitialData }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm min-h-[400px]">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest w-24">Sr No</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Date</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Item Name</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Department</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">Prod Amt</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {reportData.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">No records found</td>
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-0">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest w-24">Sr No</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Date</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Item Name</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Department</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">Prod Amt</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Action</th>
               </tr>
-            ) : (
-              reportData.map((prod, index) => (
-                <tr key={prod.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-3 text-xs font-bold text-slate-500">{index + 1}</td>
-                  <td className="px-6 py-3 text-xs font-medium text-slate-600">{prod.date}</td>
-                  <td className="px-6 py-3 text-xs font-black text-slate-900 uppercase">{prod.itemName}</td>
-                  <td className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">{prod.department}</td>
-                  <td className="px-6 py-3 text-xs font-black text-right text-blue-700">{prod.amount.toFixed(2)}</td>
-                  <td className="px-6 py-3 text-center">
-                    <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
-                  </td>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {reportData.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">No records found</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                reportData.map((prod, index) => (
+                  <tr key={prod.id} className="hover:bg-slate-50/50">
+                    <td className="px-6 py-3 text-xs font-bold text-slate-500">{index + 1}</td>
+                    <td className="px-6 py-3 text-xs font-medium text-slate-600">{prod.date}</td>
+                    <td className="px-6 py-3 text-xs font-black text-slate-900 uppercase">{prod.itemName}</td>
+                    <td className="px-6 py-3 text-xs font-bold text-slate-500 uppercase">{prod.department}</td>
+                    <td className="px-6 py-3 text-xs font-black text-right text-blue-700">{prod.amount.toFixed(2)}</td>
+                    <td className="px-6 py-3 text-center">
+                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -4245,19 +4154,19 @@ function BOMView({ products, fetchInitialData }) {
 
   if (showForm) {
     return (
-      <div className="space-y-4 animate-in fade-in duration-300">
+      <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in duration-300">
         {/* Form Header matching Screenshot 2 */}
-        <div className="bg-gradient-to-r from-cyan-400 to-blue-400 p-3 rounded-t-xl flex items-center gap-2 text-white shadow-lg">
+        <div className="bg-gradient-to-r from-cyan-400 to-blue-400 p-3 rounded-t-xl flex items-center gap-2 text-white shadow-lg flex-shrink-0">
           <Settings size={18} />
           <h2 className="text-sm font-black uppercase tracking-widest">Bill of Materials (BOM)</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-b-xl border border-slate-200 shadow-sm space-y-6">
+        <div className="flex-1 bg-white p-6 rounded-b-xl border border-slate-200 shadow-sm space-y-6 flex flex-col overflow-hidden">
           {/* Finished Item Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end flex-shrink-0">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Finished Item</label>
-              <select 
+              <select
                 value={formData.finished_item_id}
                 onChange={e => {
                   const p = products.find(prod => prod.id === e.target.value);
@@ -4280,14 +4189,14 @@ function BOMView({ products, fetchInitialData }) {
           </div>
 
           {/* Raw Item Selection Header */}
-          <div className="bg-slate-800 text-white text-center py-1.5 rounded text-xs font-black uppercase tracking-widest">
+          <div className="bg-slate-800 text-white text-center py-1.5 rounded text-xs font-black uppercase tracking-widest flex-shrink-0">
             Select Raw Item
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end bg-slate-50 p-4 rounded-xl border border-slate-100 flex-shrink-0">
             <div className="md:col-span-2 space-y-1">
               <label className="text-[10px] font-bold text-slate-500 uppercase">Item Name</label>
-              <select 
+              <select
                 value={currentRaw.product_id}
                 onChange={e => {
                   const p = products.find(prod => prod.id === e.target.value);
@@ -4319,48 +4228,57 @@ function BOMView({ products, fetchInitialData }) {
           </div>
 
           {/* Items Table */}
-          <div className="overflow-hidden border border-slate-200 rounded-xl">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gradient-to-r from-cyan-400/80 to-blue-400/80 text-white">
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Item Name</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Barcode</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Qty</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Unit</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Rate</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Amount</th>
-                  <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {formData.raw_items.map((item, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
-                    <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
-                    <td className="px-4 py-2 text-xs font-bold text-center">{item.qty}</td>
-                    <td className="px-4 py-2 text-xs font-bold text-center uppercase">{item.unit}</td>
-                    <td className="px-4 py-2 text-xs font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-xs font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
-                    <td className="px-4 py-2 text-center">
-                      <button onClick={() => removeRawItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
+          <div className="flex-1 overflow-hidden border border-slate-200 rounded-xl flex flex-col min-h-0">
+            <div className="flex-1 overflow-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-gradient-to-r from-cyan-400/80 to-blue-400/80 text-white shadow-sm">
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Item Name</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest">Barcode</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Qty</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Unit</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Rate</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-right">Amount</th>
+                    <th className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-center">Action</th>
                   </tr>
-                ))}
-                <tr className="bg-slate-800 text-white font-black">
-                  <td colSpan={2} className="px-4 py-2 text-right text-[10px] uppercase tracking-widest">Total :</td>
-                  <td className="px-4 py-2 text-center text-xs">{totalRawQty.toFixed(2)}</td>
-                  <td colSpan={2} />
-                  <td className="px-4 py-2 text-right text-xs">{totalRawAmount.toFixed(2)}</td>
-                  <td />
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {formData.raw_items.map((item, i) => (
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-2 text-xs font-black text-slate-800 uppercase">{item.name}</td>
+                      <td className="px-4 py-2 text-xs font-medium text-slate-500">{item.barcode}</td>
+                      <td className="px-4 py-2 text-xs font-bold text-center">{item.qty}</td>
+                      <td className="px-4 py-2 text-xs font-bold text-center uppercase">{item.unit}</td>
+                      <td className="px-4 py-2 text-xs font-bold text-right">{parseFloat(item.rate).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-xs font-black text-right text-blue-700">{parseFloat(item.amount).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-center">
+                        <button onClick={() => removeRawItem(i)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Total Row Fixed */}
+            <div className="bg-slate-800 text-white font-black flex justify-between px-4 py-2 items-center flex-shrink-0">
+               <span className="text-[10px] uppercase tracking-widest">Total Raw Items: {formData.raw_items.length}</span>
+               <div className="flex gap-10">
+                  <div className="flex gap-2 items-center">
+                    <span className="text-[9px] uppercase tracking-widest opacity-60">Total Qty:</span>
+                    <span className="text-xs">{totalRawQty.toFixed(2)}</span>
+                  </div>
+                  <div className="flex gap-2 items-center border-l border-white/20 pl-6">
+                    <span className="text-[9px] uppercase tracking-widest opacity-60">Net Amount:</span>
+                    <span className="text-xs">₹{totalRawAmount.toFixed(2)}</span>
+                  </div>
+               </div>
+            </div>
           </div>
 
           {/* Form Footer */}
-          <div className="flex justify-between items-end pt-4 border-t border-slate-100">
+          <div className="flex justify-between items-end pt-4 border-t border-slate-100 flex-shrink-0">
             <div className="flex gap-3">
               <button onClick={handleSubmit} disabled={isSubmitting} className="bg-blue-600 text-white px-6 py-2 rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
                 {isSubmitting ? 'Saving...' : 'Save'}
@@ -4374,9 +4292,9 @@ function BOMView({ products, fetchInitialData }) {
                 <span>Round-off :</span>
                 <span>0.00</span>
               </div>
-              <div className="flex justify-between text-base font-black">
-                <span className="uppercase tracking-tighter">Total :</span>
-                <span>{Math.round(totalRawAmount)}</span>
+              <div className="flex justify-between text-base font-black border-t border-white/10 pt-1 mt-1">
+                <span className="uppercase tracking-tighter">Total Amount :</span>
+                <span className="text-xl">₹{Math.round(totalRawAmount).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -4386,25 +4304,25 @@ function BOMView({ products, fetchInitialData }) {
   }
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 animate-in fade-in duration-300">
       {/* List View matching Screenshot 1 */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-2 text-slate-800 font-black uppercase text-sm">
           <Settings size={18} /> BOM
         </div>
 
         <div className="flex-1 max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input 
-            type="text" 
-            placeholder="Search Room" 
+          <input
+            type="text"
+            placeholder="Search Room"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20" 
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
           />
         </div>
 
-        <button 
+        <button
           onClick={handleCreateNew}
           className="flex items-center gap-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-xs font-black uppercase hover:bg-blue-50 transition-all"
         >
@@ -4412,38 +4330,40 @@ function BOMView({ products, fetchInitialData }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm min-h-[400px]">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest w-24">S. No</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Item Name</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {reportData.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
-                  No BOM records found. Click 'Create New' to start.
-                </td>
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden min-h-0">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest w-24">S. No</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Item Name</th>
+                <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Action</th>
               </tr>
-            ) : (
-              reportData.map((bom, index) => (
-                <tr key={bom.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-3 text-xs font-bold text-slate-500">{index + 1}</td>
-                  <td className="px-6 py-3 text-xs font-black text-slate-900 uppercase">{bom.itemName}</td>
-                  <td className="px-6 py-3 text-center">
-                    <div className="flex justify-center gap-2">
-                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
-                      <button className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {reportData.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-6 py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest italic">
+                    No BOM records found. Click 'Create New' to start.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                reportData.map((bom, index) => (
+                  <tr key={bom.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-3 text-xs font-bold text-slate-500">{index + 1}</td>
+                    <td className="px-6 py-3 text-xs font-black text-slate-900 uppercase">{bom.itemName}</td>
+                    <td className="px-6 py-3 text-center">
+                      <div className="flex justify-center gap-2">
+                        <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit2 size={14} /></button>
+                        <button className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -4460,18 +4380,18 @@ function PaymentReminderView({ users, orders }) {
     setLoading(true);
     try {
       const walletTransactions = await dbSync.fetch(DB_SCHEMA.WALLET_TRANSACTIONS.table);
-      
+
       const pendingList = (users || []).map(user => {
         // Calculate total sales for this user before asOnDate
-        const userSales = (orders || []).filter(o => 
-          o.user_id === user.id && 
+        const userSales = (orders || []).filter(o =>
+          o.user_id === user.id &&
           new Date(o.created_at).toISOString().split('T')[0] <= asOnDate
         ).reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
 
         // Calculate total payments/credits for this user before asOnDate
-        const userPayments = (walletTransactions || []).filter(tx => 
-          tx.user_id === user.id && 
-          tx.type === 'credit' && 
+        const userPayments = (walletTransactions || []).filter(tx =>
+          tx.user_id === user.id &&
+          tx.type === 'credit' &&
           new Date(tx.created_at).toISOString().split('T')[0] <= asOnDate
         ).reduce((sum, tx) => sum + (parseFloat(tx.amount) || 0), 0);
 
@@ -4520,28 +4440,28 @@ function PaymentReminderView({ users, orders }) {
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <h2 className="text-lg font-black text-slate-800 tracking-tight">Payment Reminder</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase">As on date.</label>
-            <input 
-              type="date" 
-              value={asOnDate} 
-              onChange={e => setAsOnDate(e.target.value)} 
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none" 
+            <input
+              type="date"
+              value={asOnDate}
+              onChange={e => setAsOnDate(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none"
             />
           </div>
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase">Min Pending Amount</label>
-            <input 
-              type="number" 
-              value={minAmount} 
-              onChange={e => setMinAmount(e.target.value)} 
+            <input
+              type="number"
+              value={minAmount}
+              onChange={e => setMinAmount(e.target.value)}
               placeholder="e.g. 100"
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none" 
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none"
             />
           </div>
-          <button 
+          <button
             onClick={handleLoadData}
             className="bg-blue-600 text-white px-8 py-2.5 rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
           >
@@ -4567,11 +4487,11 @@ function PaymentReminderView({ users, orders }) {
               {reportData.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-3">
-                    <input 
-                      type="checkbox" 
-                      checked={selectedUsers.includes(user.id)} 
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(user.id)}
                       onChange={() => toggleSelectUser(user.id)}
-                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" 
+                      className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
                   </td>
                   <td className="px-4 py-3 text-xs font-black text-blue-700">{user.accountId}</td>
@@ -4579,7 +4499,7 @@ function PaymentReminderView({ users, orders }) {
                   <td className="px-4 py-3 text-xs font-bold text-slate-600">{user.mobile}</td>
                   <td className="px-4 py-3 text-xs font-black text-red-600">{user.pending.toFixed(2)}</td>
                   <td className="px-4 py-3">
-                    <button 
+                    <button
                       onClick={() => sendReminder(user)}
                       className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-md text-[9px] font-black uppercase hover:bg-emerald-100 transition-all border border-emerald-200 flex items-center gap-1.5"
                     >
@@ -4617,7 +4537,7 @@ function CreditReportView({ orders, credits, deliveryBoys, users }) {
     try {
       // Logic: Mix orders (Sales) and Wallet Transactions/Credits (Payments)
       const walletTransactions = await dbSync.fetch(DB_SCHEMA.WALLET_TRANSACTIONS.table);
-      
+
       const sales = (orders || []).filter(o => {
         const oDate = new Date(o.created_at).toISOString().split('T')[0];
         return oDate >= fromDate && oDate <= toDate;
@@ -4656,9 +4576,9 @@ function CreditReportView({ orders, credits, deliveryBoys, users }) {
       });
 
       const combined = [...sales, ...payments].sort((a, b) => b.timestamp - a.timestamp);
-      
+
       // Apply DB Filter if selected
-      const filtered = combined.filter(item => 
+      const filtered = combined.filter(item =>
         selectedDB === 'All' || item.deliveryBoy === deliveryBoys.find(db => db.id === selectedDB)?.name
       );
 
@@ -4683,7 +4603,7 @@ function CreditReportView({ orders, credits, deliveryBoys, users }) {
     const doc = new jsPDF('landscape');
     doc.text("Credit Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    
+
     const tableColumn = ["ID", "Date", "Bill No", "A/c Id", "Customer", "Mobile", "Delivery Boy", "Sale", "Payment", "Paid By"];
     const tableRows = reportData.map(row => [
       row.id,
@@ -4723,7 +4643,7 @@ function CreditReportView({ orders, credits, deliveryBoys, users }) {
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <h2 className="text-lg font-black text-slate-800 tracking-tight">Delivery Boy Payment Report</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase">From Date</label>
@@ -4852,7 +4772,7 @@ function DeliveryBoyPaymentReportView({ orders, deliveryBoys, accounts }) {
       const matchesDate = orderDate >= fromDate && orderDate <= toDate;
       const matchesDB = selectedDB === 'All' || order.delivery_boy_id === selectedDB;
       const matchesStatus = order.status === 'delivered'; // Usually payments are tracked for delivered orders
-      
+
       return matchesDate && matchesDB && matchesStatus;
     }).map(order => {
       const db = deliveryBoys.find(b => b.id === order.delivery_boy_id);
@@ -4885,7 +4805,7 @@ function DeliveryBoyPaymentReportView({ orders, deliveryBoys, accounts }) {
     const doc = new jsPDF('landscape');
     doc.text("Delivery Boy Payment Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    
+
     const tableColumn = ["ID", "Date", "A/c Id", "Customer", "Mobile No", "Delivery Boy", "Amount", "Paid By"];
     const tableRows = reportData.map(row => [
       row.id,
@@ -4919,7 +4839,7 @@ function DeliveryBoyPaymentReportView({ orders, deliveryBoys, accounts }) {
     <div className="space-y-6">
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
         <h2 className="text-lg font-black text-slate-800 tracking-tight">Delivery Boy Payment Report</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 uppercase">From Date</label>
@@ -5011,7 +4931,7 @@ function LedgerView({ users, accounts }) {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   const filteredData = reportData;
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
@@ -5029,11 +4949,11 @@ function LedgerView({ users, accounts }) {
       const filtered = (transactions || []).filter(tx => {
         const txDate = new Date(tx.created_at).toISOString().split('T')[0];
         const matchesDate = txDate >= fromDate && txDate <= toDate;
-        
+
         const user = users.find(u => u.id === tx.user_id);
         const partyName = user ? (user.name || user.mobile || '') : 'Unknown';
         const matchesParty = !searchParty || partyName.toLowerCase().includes(searchParty.toLowerCase());
-        
+
         // Ac Type logic (simplified: mapping tx type to account types if needed)
         const matchesType = acType === 'All' || tx.type === acType;
 
@@ -5078,7 +4998,7 @@ function LedgerView({ users, accounts }) {
     const doc = new jsPDF();
     doc.text(`Ledger Report: ${searchParty}`, 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    
+
     const tableColumn = ["Date", "Party Name", "Debit", "Credit", "Balance"];
     const tableRows = reportData.map(item => [
       item.date,
@@ -5105,9 +5025,9 @@ function LedgerView({ users, accounts }) {
   }, [reportData]);
 
   return (
-    <div className="space-y-4">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
       {/* Filter Header matching Screenshot */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6 relative">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6 relative flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-blue-600 font-black uppercase text-sm">
             <Book size={18} /> Ledger view
@@ -5134,33 +5054,33 @@ function LedgerView({ users, accounts }) {
 
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="flex-1 max-w-xl">
-            <input 
-              type="text" 
-              value={searchParty} 
-              onChange={e => setSearchParty(e.target.value)} 
-              placeholder="Search for Party..." 
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20" 
+            <input
+              type="text"
+              value={searchParty}
+              onChange={e => setSearchParty(e.target.value)}
+              placeholder="Search for Party..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
           <div className="flex justify-end gap-2">
             <button onClick={handleShow} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <Search size={14} /> Show
             </button>
-            <button className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button onClick={handleExcel} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <FileJson size={14} /> Excel
             </button>
-            <button className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button onClick={handlePDF} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black uppercase hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
               <Printer size={14} /> PDF
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
                 <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Date</th>
                 <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Party Name</th>
                 <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">Debit</th>
@@ -5169,12 +5089,11 @@ function LedgerView({ users, accounts }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              <tr className="bg-blue-50/50 font-black text-slate-900">
+              <tr className="bg-blue-50/50 font-black text-slate-900 sticky top-[37px] z-[5]">
                 <td colSpan={2} />
                 <td className="px-6 py-2.5 text-right text-xs uppercase tracking-widest">Total:</td>
-                <td className="px-6 py-2.5 text-xs text-right">{totals.debit}</td>
-                <td className="px-6 py-2.5 text-xs text-right">{totals.credit}</td>
-                <td className="px-6 py-2.5" />
+                <td className="px-6 py-2.5 text-xs text-right">{totals.debit.toFixed(2)}</td>
+                <td className="px-6 py-2.5 text-xs text-right">{totals.credit.toFixed(2)}</td>
               </tr>
               {paginatedData.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
@@ -5189,14 +5108,16 @@ function LedgerView({ users, accounts }) {
           </table>
         </div>
 
-        <PaginationFooter 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
-        />
+        <div className="flex-shrink-0">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            setCurrentPage={setCurrentPage}
+            totalRecords={filteredData.length}
+          />
+        </div>
       </div>
     </div>
   );
@@ -5218,7 +5139,7 @@ function LogbookView() {
       const data = await dbSync.fetch(DB_SCHEMA.SYSTEM_LOGS.table, {
         order: { column: 'created_at', ascending: false }
       });
-      
+
       // Filter by date range and parse the log_entry string
       const filtered = (data || []).filter(log => {
         const logDate = new Date(log.created_at || new Date()).toISOString().split('T')[0];
@@ -5256,7 +5177,7 @@ function LogbookView() {
     const doc = new jsPDF();
     doc.text("System Logbook", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    
+
     const tableColumn = ["Timestamp", "Module", "Action Performed"];
     const tableRows = logs.map(log => [
       new Date(log.timestamp).toLocaleString(),
@@ -5274,9 +5195,9 @@ function LogbookView() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
       {/* Filter Header matching Screenshot */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 flex-shrink-0">
         <div className="flex items-center gap-2 text-slate-800 font-black uppercase text-sm">
           <Flag size={18} /> Logbook
         </div>
@@ -5284,20 +5205,20 @@ function LogbookView() {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase">From :</span>
-            <input 
-              type="date" 
-              value={fromDate} 
-              onChange={e => setFromDate(e.target.value)} 
-              className="bg-white border border-slate-200 rounded-lg px-3 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20" 
+            <input
+              type="date"
+              value={fromDate}
+              onChange={e => setFromDate(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-3 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase">To :</span>
-            <input 
-              type="date" 
-              value={toDate} 
-              onChange={e => setToDate(e.target.value)} 
-              className="bg-white border border-slate-200 rounded-lg px-3 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20" 
+            <input
+              type="date"
+              value={toDate}
+              onChange={e => setToDate(e.target.value)}
+              className="bg-white border border-slate-200 rounded-lg px-3 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
           <div className="flex gap-2 ml-4">
@@ -5311,16 +5232,16 @@ function LogbookView() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm min-h-[400px] flex flex-col">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-0 overflow-hidden">
         {logs.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-20">
             <p className="text-sm font-bold uppercase tracking-widest">There are no records to display</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="flex-1 overflow-auto">
             <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
+              <thead className="sticky top-0 z-10 bg-slate-50">
+                <tr className="border-b border-slate-200">
                   <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest w-48">Timestamp</th>
                   <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest w-48">Module / Table</th>
                   <th className="px-6 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Action Performed</th>
@@ -5361,7 +5282,7 @@ function ItemStatementReportView({ products, departments }) {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
 
   const filteredData = reportData;
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
@@ -5371,7 +5292,7 @@ function ItemStatementReportView({ products, departments }) {
     if (!searchItem) return alert("Please search and select an item first");
     setIsGenerating(true);
     try {
-      const selectedProduct = products.find(p => 
+      const selectedProduct = products.find(p =>
         (p.name || '').toLowerCase().includes(searchItem.toLowerCase()) ||
         (p.barcode || '').toLowerCase() === searchItem.toLowerCase()
       );
@@ -5479,7 +5400,7 @@ function ItemStatementReportView({ products, departments }) {
     doc.text(`Item Statement: ${searchItem}`, 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
     doc.text(`Opening Stock: ${openingStock.toFixed(2)}`, 14, 29);
-    
+
     const tableColumn = ["V.Date", "Voucher", "Dept", "Item Name", "Barcode", "In Qty", "Out Qty", "Closing", "Unit"];
     const tableRows = reportData.map(item => [
       new Date(item.date).toLocaleDateString(),
@@ -5503,8 +5424,8 @@ function ItemStatementReportView({ products, departments }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 relative">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 relative flex-shrink-0">
         <div className="flex items-center gap-2 text-blue-600 font-black uppercase text-sm mb-4">
           <Zap size={16} /> Item Statement Report
         </div>
@@ -5532,22 +5453,22 @@ function ItemStatementReportView({ products, departments }) {
           </div>
 
           <div className="md:col-span-2 md:col-start-2">
-            <input 
-              type="text" 
-              value={searchItem} 
-              onChange={e => setSearchItem(e.target.value)} 
-              placeholder="Search for items..." 
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20" 
+            <input
+              type="text"
+              value={searchItem}
+              onChange={e => setSearchItem(e.target.value)}
+              placeholder="Search for items..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">V.Date</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Voucher</th>
                 <th className="px-4 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Department</th>
@@ -5561,7 +5482,7 @@ function ItemStatementReportView({ products, departments }) {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {/* Opening Row */}
-              <tr className="bg-red-50/50">
+              <tr className="bg-red-50/50 sticky top-[41px] z-[5]">
                 <td colSpan={3} />
                 <td className="px-4 py-2 text-xs font-black text-red-600 uppercase">Opening</td>
                 <td colSpan={3} />
@@ -5585,14 +5506,16 @@ function ItemStatementReportView({ products, departments }) {
           </table>
         </div>
 
-        <PaginationFooter 
-          currentPage={currentPage}
-          totalPages={totalPages}
-          rowsPerPage={rowsPerPage}
-          setRowsPerPage={setRowsPerPage}
-          setCurrentPage={setCurrentPage}
-          totalRecords={filteredData.length}
-        />
+        <div className="flex-shrink-0">
+          <PaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            rowsPerPage={rowsPerPage}
+            setRowsPerPage={setRowsPerPage}
+            setCurrentPage={setCurrentPage}
+            totalRecords={filteredData.length}
+          />
+        </div>
       </div>
     </div>
   );
@@ -5621,7 +5544,7 @@ function StockReportView({ products, purchases, orders, categories, departments 
         // Filter by group (category) - Support both ID and Name
         const productCategory = product.category_name || product.category || 'No Category';
         if (group !== 'All' && productCategory !== group) return null;
-        
+
         // Filter by search
         if (searchItem && !(product.name || '').toLowerCase().includes(searchItem.toLowerCase())) return null;
 
@@ -5646,7 +5569,7 @@ function StockReportView({ products, purchases, orders, categories, departments 
         // --- DIRECT STOCK DISPLAY (GROUND TRUTH) ---
         // For imported data, the 'stock' field in the product table is the current stock
         const closing = parseFloat(product.stock || 0);
-        const opening = closing - stockIn + stockOut; 
+        const opening = closing - stockIn + stockOut;
 
         return {
           srNo: 0,
@@ -5702,7 +5625,7 @@ function StockReportView({ products, purchases, orders, categories, departments 
     const doc = new jsPDF('landscape');
     doc.text("Stock Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
-    
+
     const tableColumn = ["Sr No", "Item Name", "HSN", "GST %", "CESS %", "Opening", "Stock In", "Stock Out", "Closing", "Unit", "Sale Rate", "Amount"];
     const tableRows = reportData.map((item, i) => [
       item.srNo,
@@ -5738,8 +5661,8 @@ function StockReportView({ products, purchases, orders, categories, departments 
   }, [reportData]);
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 relative">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 flex-shrink-0">
         <div className="flex items-center gap-2 text-blue-600 font-black uppercase text-sm mb-4">
           <Activity size={16} /> Stock Report
         </div>
@@ -5769,12 +5692,12 @@ function StockReportView({ products, purchases, orders, categories, departments 
             </select>
           </div>
           <div className="md:col-span-2">
-            <input 
-              type="text" 
-              value={searchItem} 
-              onChange={e => setSearchItem(e.target.value)} 
-              placeholder="Search for items..." 
-              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold outline-none" 
+            <input
+              type="text"
+              value={searchItem}
+              onChange={e => setSearchItem(e.target.value)}
+              placeholder="Search for items..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-xs font-bold outline-none"
             />
           </div>
           <div className="flex justify-end gap-2">
@@ -5791,11 +5714,11 @@ function StockReportView({ products, purchases, orders, categories, departments 
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse min-w-[1600px]">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest w-16">Sr No</th>
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">Item Name</th>
                 <th className="px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">HSN Code</th>
@@ -5827,14 +5750,25 @@ function StockReportView({ products, purchases, orders, categories, departments 
                   <td className="px-3 py-2 text-xs font-black text-center">{item.amount.toFixed(2)}</td>
                 </tr>
               ))}
-              <tr className="bg-blue-100/50 font-black text-slate-900 border-t-2 border-slate-200">
-                <td colSpan="8" className="px-3 py-2.5 text-right text-xs uppercase tracking-widest">Total QTY:</td>
-                <td className="px-3 py-2.5 text-xs text-center">{totals.qty.toFixed(2)}</td>
-                <td colSpan="2" />
-                <td className="px-3 py-2.5 text-xs text-center">{totals.amount.toFixed(2)}</td>
-              </tr>
             </tbody>
           </table>
+        </div>
+        <div className="bg-blue-800 text-white font-black flex justify-between px-6 py-2 items-center flex-shrink-0">
+            <span className="text-[10px] uppercase tracking-widest">Grand Total</span>
+            <div className="flex gap-12">
+               <div className="flex gap-3 items-center">
+                  <span className="text-[9px] uppercase tracking-widest opacity-60">Total Closing Stock:</span>
+                  <span className="text-sm">{totals.qty.toFixed(2)}</span>
+               </div>
+               <div className="flex gap-3 items-center border-l border-white/20 pl-12">
+                  <span className="text-[9px] uppercase tracking-widest opacity-60">Stock Value (Sale):</span>
+                  <span className="text-sm">₹{totals.amount.toLocaleString()}</span>
+               </div>
+               <div className="flex gap-3 items-center border-l border-white/20 pl-12">
+                  <span className="text-[9px] uppercase tracking-widest opacity-60">Stock Value (Purc):</span>
+                  <span className="text-sm">₹{totals.purcAmount.toLocaleString()}</span>
+               </div>
+            </div>
         </div>
       </div>
     </div>
@@ -5855,8 +5789,8 @@ function UnderDevelopmentView({ title }) {
 
 // --- Master Views using Generic MasterListView ---
 const CategoriesView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     bucket="category-images"
     customColumnMapping={{
       'dtname': 'name',
@@ -5867,13 +5801,13 @@ const CategoriesView = (props) => (
       { name: 'name', label: 'Category Name', type: 'text', required: true },
       { name: 'image_url', label: 'Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const SubcategoriesView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     bucket="subcategory-images"
     customColumnMapping={{
       'dtname': 'name',
@@ -5885,83 +5819,83 @@ const SubcategoriesView = (props) => (
       { name: 'name', label: 'Subcategory Name', type: 'text', required: true },
       { name: 'image_url', label: 'Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const BrandsView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     bucket="brand-images"
     fields={[
       { name: 'name', label: 'Brand Name', type: 'text', required: true },
       { name: 'image_url', label: 'Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const UnitsView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'name', label: 'Unit Name', type: 'text', required: true },
       { name: 'short_name', label: 'Short Name', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const DepartmentsView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'name', label: 'Department Name', type: 'text', required: true },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const AccountsView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'name', label: 'Account Name', type: 'text', required: true },
       { name: 'mobile', label: 'Mobile', type: 'text' },
       { name: 'account_type', label: 'Type', type: 'select', options: [{value: 'Customer', label: 'Customer'}, {value: 'Supplier', label: 'Supplier'}] },
       { name: 'current_balance', label: 'Balance', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const AdminUsersView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'username', label: 'Username', type: 'text', required: true },
       { name: 'password', label: 'Password', type: 'password', required: !props.editingItem },
       { name: 'full_name', label: 'Full Name', type: 'text' },
       { name: 'role', label: 'Role', type: 'select', options: [{value: 'admin', label: 'Admin'}, {value: 'manager', label: 'Manager'}] }
-    ]} 
+    ]}
   />
 );
 
 const UsersView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'name', label: 'Customer Name', type: 'text', required: true },
       { name: 'mobile', label: 'Mobile', type: 'text', required: true },
       { name: 'email', label: 'Email', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const BannersView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     bucket="banner-images"
     fields={[
       { name: 'title', label: 'Banner Title', type: 'text' },
@@ -5971,79 +5905,79 @@ const BannersView = (props) => (
         { value: 'product', label: 'Link to Product' },
         { value: 'category', label: 'Link to Category' }
       ]},
-      { 
-        name: 'linked_product_id', 
-        label: 'Linked Product', 
+      {
+        name: 'linked_product_id',
+        label: 'Linked Product',
         type: 'product-search',
-        condition: (formData) => formData.link_type === 'product' 
+        condition: (formData) => formData.link_type === 'product'
       },
-      { 
-        name: 'linked_category_id', 
-        label: 'Linked Category', 
+      {
+        name: 'linked_category_id',
+        label: 'Linked Category',
         type: 'category-search',
-        condition: (formData) => formData.link_type === 'category' 
+        condition: (formData) => formData.link_type === 'category'
       },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const CouponsView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'code', label: 'Coupon Code', type: 'text', required: true },
       { name: 'discount_type', label: 'Type', type: 'select', options: [{value: 'percentage', label: 'Percentage'}, {value: 'flat', label: 'Flat Amount'}] },
       { name: 'discount_value', label: 'Value', type: 'number', required: true },
       { name: 'min_order_value', label: 'Min Order', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const OffersView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'title', label: 'Offer Title', type: 'text', required: true },
       { name: 'description', label: 'Description', type: 'textarea' },
       { name: 'image_url', label: 'Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const PincodesView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'pincode', label: 'Pincode', type: 'text', required: true },
       { name: 'city', label: 'City', type: 'text' },
       { name: 'delivery_charge', label: 'Delivery Charge', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const AddressesView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'full_name', label: 'Name', type: 'text', required: true },
       { name: 'mobile', label: 'Mobile', type: 'text', required: true },
       { name: 'address_line1', label: 'Address Line 1', type: 'text', required: true },
       { name: 'pincode', label: 'Pincode', type: 'text', required: true }
-    ]} 
+    ]}
   />
 );
 
 const WalletView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'user_id', label: 'User ID', type: 'text', required: true },
       { name: 'balance', label: 'Balance', type: 'number', required: true }
-    ]} 
+    ]}
   />
 );
 
@@ -6051,50 +5985,50 @@ const WalletView = (props) => (
 
 
 const UserMasterView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'username', label: 'Username', type: 'text', required: true },
       { name: 'password', label: 'Password', type: 'password', required: true },
       { name: 'full_name', label: 'Full Name', type: 'text' },
       { name: 'role', label: 'Role', type: 'select', options: [{value: 'super_admin', label: 'Super Admin'}, {value: 'sales_manager', label: 'Sales Manager'}, {value: 'inventory_head', label: 'Inventory Head'}, {value: 'accountant', label: 'Accountant'}] }
-    ]} 
+    ]}
   />
 );
 
 const CreditsView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'user_id', label: 'User', type: 'select', options: props.users?.map(u => ({ value: u.id, label: u.name || u.mobile })), required: true },
       { name: 'amount', label: 'Credit Amount', type: 'number', required: true },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const DeliveryBoysView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'name', label: 'Delivery Boy Name', type: 'text', required: true },
       { name: 'mobile', label: 'Mobile', type: 'text', required: true },
       { name: 'vehicle_number', label: 'Vehicle Number', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
 const DeliveryCustomersView = (props) => (
-  <MasterListView 
-    {...props} 
+  <MasterListView
+    {...props}
     fields={[
       { name: 'name', label: 'Customer Name', type: 'text', required: true },
       { name: 'mobile', label: 'Mobile', type: 'text', required: true },
       { name: 'address', label: 'Address', type: 'text' },
       { name: 'pincode', label: 'Pincode', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]} 
+    ]}
   />
 );
 
@@ -6229,15 +6163,15 @@ const NMMartAppBuilderAI = ({ appConfig, setAppConfig, fetchInitialData }) => {
         </div>
 
         <form onSubmit={handleSubmit} className="flex gap-3">
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             disabled={isProcessing}
             placeholder="Type your command here... (e.g., 'Change theme to green')"
             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-400"
           />
-          <button 
+          <button
             type="submit"
             disabled={isProcessing || !prompt.trim()}
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wide shadow-lg disabled:opacity-50"
@@ -6263,7 +6197,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
     autoApply: true,
     description: ''
   });
-  
+
   const handleAdd = () => {
     if (!newFestival.name.trim()) return;
     const festival = {
@@ -6283,13 +6217,13 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
       description: ''
     });
   };
-  
+
   const handleDelete = (id) => {
     if (window.confirm('Are you sure you want to delete this festival?')) {
       setFestivals(festivals.filter(f => f.id !== id));
     }
   };
-  
+
   const handleApply = async (festival, propsAppConfig) => {
     // Save manual override timestamp
     localStorage.setItem('nm_last_manual_theme', Date.now().toString());
@@ -6311,18 +6245,18 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
     fetchInitialData();
     alert(`Successfully applied ${festival.name} theme!`);
   };
-  
+
   const getUpcomingFestivals = () => {
     const today = new Date();
     today.setHours(0,0,0,0);
-    
+
     return festivals
       .filter(f => f.isActive && new Date(f.date) >= today)
       .sort((a,b) => new Date(a.date) - new Date(b.date));
   };
-  
+
   const upcomingFestivals = getUpcomingFestivals();
-  
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center justify-between">
@@ -6335,14 +6269,14 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
             <p className="text-sm font-bold text-slate-500">Manage festival themes & upcoming notifications</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={() => setShowAddModal(true)}
           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest shadow-lg hover:translate-y-[-1px] transition-all flex items-center gap-2"
         >
           <Plus size={16} /> Add Festival
         </button>
       </div>
-      
+
       {/* Upcoming Festivals Section */}
       {upcomingFestivals.length > 0 && (
         <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl border border-yellow-200 p-4">
@@ -6358,7 +6292,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
               let label = 'In ' + diffDays + ' days';
               if (diffDays === 0) label = 'Today';
               if (diffDays === 1) label = 'Tomorrow';
-              
+
               return (
                 <div key={festival.id} className="bg-white rounded-lg border border-yellow-300 p-3 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
@@ -6371,13 +6305,13 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                   <p className="text-xs font-bold text-slate-600">{new Date(festival.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                   <p className="text-xs font-black text-yellow-700 mt-1">{label}</p>
                   <div className="flex gap-2 mt-3">
-                    <button 
+                    <button
                       onClick={() => setPreviewFestival(festival)}
                       className="flex-1 bg-yellow-100 text-yellow-800 text-xs font-black uppercase py-1 rounded hover:bg-yellow-200 transition-all"
                     >
                       Preview
                     </button>
-                    <button 
+                    <button
                       onClick={() => handleApply(festival, appConfig)}
                       className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black uppercase py-1 rounded hover:opacity-90 transition-all"
                     >
@@ -6390,7 +6324,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
           </div>
         </div>
       )}
-      
+
       {/* All Festivals List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {festivals.map(festival => (
@@ -6406,7 +6340,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                   <p className="text-xs font-bold text-white/90 mt-2">{new Date(festival.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 </div>
                 <div className="flex gap-1">
-                  <button 
+                  <button
                     onClick={() => {
                       setEditingFestival(festival);
                       setNewFestival(festival);
@@ -6416,7 +6350,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                   >
                     <Edit2 size={14} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(festival.id)}
                     className="p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded transition-all"
                   >
@@ -6425,7 +6359,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                 </div>
               </div>
             </div>
-            
+
             {/* Body */}
             <div className="p-4">
               {/* Color Palette */}
@@ -6439,13 +6373,13 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                   )}
                 </div>
               </div>
-              
+
               {/* Auto Apply Toggle */}
               <div className="flex items-center justify-between mb-3">
                 <label className="text-xs font-black text-slate-700 uppercase tracking-wide">Auto Apply</label>
-                <div 
+                <div
                   onClick={() => {
-                    setFestivals(festivals.map(f => 
+                    setFestivals(festivals.map(f =>
                       f.id === festival.id ? {...f, autoApply: !f.autoApply} : f
                     ));
                   }}
@@ -6454,16 +6388,16 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                   <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-all ${festival.autoApply ? 'translate-x-5' : 'translate-x-0.5'}`} />
                 </div>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={() => setPreviewFestival(festival)}
                   className="flex-1 bg-slate-100 text-slate-700 text-xs font-black uppercase py-2 rounded-lg hover:bg-slate-200 transition-all flex items-center justify-center gap-1"
                 >
                   <Eye size={12} /> Preview
                 </button>
-                <button 
+                <button
                   onClick={() => handleApply(festival, appConfig)}
                   className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black uppercase py-2 rounded-lg hover:opacity-90 transition-all"
                 >
@@ -6474,14 +6408,14 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
           </div>
         ))}
       </div>
-      
+
       {/* Preview Modal */}
       <AnimatePresence>
         {previewFestival && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div 
-              initial={{scale:0.9, opacity:0}} 
-              animate={{scale:1, opacity:1}} 
+            <motion.div
+              initial={{scale:0.9, opacity:0}}
+              animate={{scale:1, opacity:1}}
               exit={{scale:0.9, opacity:0}}
               className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden"
             >
@@ -6494,12 +6428,12 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className="p-6">
                 {/* Mini App Preview */}
                 <div className="bg-slate-100 p-4 rounded-2xl border border-slate-300">
                   <div className="bg-white h-8 w-40 mx-auto rounded-b-xl mb-4" />
-                  
+
                   <div className="rounded-xl overflow-hidden shadow-sm">
                     {/* Header */}
                     <div className="p-3 flex items-center justify-between" style={{backgroundColor: previewFestival.primaryColor}}>
@@ -6509,7 +6443,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                         <div className="w-5 h-5 rounded bg-white/20" />
                       </div>
                     </div>
-                    
+
                     {/* Body */}
                     <div className="p-4 bg-white space-y-3">
                       <div className="h-24 rounded-lg" style={{backgroundColor: previewFestival.secondaryColor + '30'}} />
@@ -6519,7 +6453,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Bottom Nav */}
                     <div className="flex items-center justify-around p-2 border-t border-slate-100" style={{backgroundColor: previewFestival.secondaryColor + '10'}}>
                       {[1,2,3,4].map(i => (
@@ -6528,15 +6462,15 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 flex gap-3 justify-end">
-                  <button 
+                  <button
                     onClick={() => setPreviewFestival(null)}
                     className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-xs font-black uppercase"
                   >
                     Close
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       handleApply(previewFestival, appConfig);
                       setPreviewFestival(null);
@@ -6551,14 +6485,14 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
           </div>
         )}
       </AnimatePresence>
-      
+
       {/* Add/Edit Modal */}
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div 
-              initial={{scale:0.9, opacity:0}} 
-              animate={{scale:1, opacity:1}} 
+            <motion.div
+              initial={{scale:0.9, opacity:0}}
+              animate={{scale:1, opacity:1}}
               exit={{scale:0.9, opacity:0}}
               className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
             >
@@ -6580,11 +6514,11 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                   <X size={18} />
                 </button>
               </div>
-              
+
               <div className="p-6 space-y-4">
                 <div className="space-y-1">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Festival Name</label>
-                  <input 
+                  <input
                     type="text"
                     value={newFestival.name}
                     onChange={(e) => setNewFestival({...newFestival, name: e.target.value})}
@@ -6592,10 +6526,10 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                     placeholder="e.g., Diwali 🪔"
                   />
                 </div>
-                
+
                 <div className="space-y-1">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Description</label>
-                  <input 
+                  <input
                     type="text"
                     value={newFestival.description}
                     onChange={(e) => setNewFestival({...newFestival, description: e.target.value})}
@@ -6603,26 +6537,26 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                     placeholder="e.g., Festival of Lights"
                   />
                 </div>
-                
+
                 <div className="space-y-1">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                     <Calendar size={12} /> Festival Date
                   </label>
-                  <input 
+                  <input
                     type="date"
                     value={newFestival.date}
                     onChange={(e) => setNewFestival({...newFestival, date: e.target.value})}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-400"
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <label className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1">
                       <Palette size={12} /> Primary
                     </label>
                     <div className="flex items-center gap-2">
-                      <input 
+                      <input
                         type="color"
                         value={newFestival.primaryColor}
                         onChange={(e) => setNewFestival({...newFestival, primaryColor: e.target.value})}
@@ -6635,7 +6569,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                       <Palette size={12} /> Secondary
                     </label>
                     <div className="flex items-center gap-2">
-                      <input 
+                      <input
                         type="color"
                         value={newFestival.secondaryColor}
                         onChange={(e) => setNewFestival({...newFestival, secondaryColor: e.target.value})}
@@ -6648,7 +6582,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                       <Palette size={12} /> Accent
                     </label>
                     <div className="flex items-center gap-2">
-                      <input 
+                      <input
                         type="color"
                         value={newFestival.accentColor}
                         onChange={(e) => setNewFestival({...newFestival, accentColor: e.target.value})}
@@ -6657,29 +6591,29 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Active</label>
-                  <div 
+                  <div
                     onClick={() => setNewFestival({...newFestival, isActive: !newFestival.isActive})}
                     className={`w-12 h-6 rounded-full flex items-center transition-all cursor-pointer ${newFestival.isActive ? 'bg-green-500' : 'bg-slate-300'}`}
                   >
                     <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-all ${newFestival.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Auto Apply Theme</label>
-                  <div 
+                  <div
                     onClick={() => setNewFestival({...newFestival, autoApply: !newFestival.autoApply})}
                     className={`w-12 h-6 rounded-full flex items-center transition-all cursor-pointer ${newFestival.autoApply ? 'bg-green-500' : 'bg-slate-300'}`}
                   >
                     <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-all ${newFestival.autoApply ? 'translate-x-6' : 'translate-x-0.5'}`} />
                   </div>
                 </div>
-                
+
                 <div className="flex gap-3 justify-end mt-4">
-                  <button 
+                  <button
                     onClick={() => {
                       setShowAddModal(false);
                       setEditingFestival(null);
@@ -6698,7 +6632,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       if (editingFestival) {
                         setFestivals(festivals.map(f => f.id === editingFestival.id ? newFestival : f));
@@ -6724,9 +6658,9 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
 
 // Loyalty Points Manager
 const LoyaltyPointsView = (props) => {
-  const { 
-    users, loyaltyTiers, setLoyaltyTiers, 
-    setActiveTab 
+  const {
+    users, loyaltyTiers, setLoyaltyTiers,
+    setActiveTab
   } = props;
 
   // Calculate loyalty tiers for users (demo)
@@ -6768,8 +6702,8 @@ const LoyaltyPointsView = (props) => {
           </h3>
           <div className="space-y-3">
             {loyaltyTiers.map((tier) => (
-              <div 
-                key={tier.id} 
+              <div
+                key={tier.id}
                 className="border border-slate-200 rounded-lg p-3"
                 style={{ borderLeftColor: tier.color, borderLeftWidth: '4px' }}
               >
@@ -6815,7 +6749,7 @@ const LoyaltyPointsView = (props) => {
                           <span className="text-[10px] font-black text-yellow-700">{item.points.toLocaleString()} Points</span>
                         </td>
                         <td className="px-3 py-2">
-                          <span 
+                          <span
                             className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full text-white"
                             style={{ backgroundColor: tier.color }}
                           >
@@ -6883,7 +6817,7 @@ const BarcodeLabelGenerator = (props) => {
             <p className="text-xs font-bold text-slate-500">Create and print product barcode labels</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={handlePrint}
           className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all flex items-center gap-2"
         >
@@ -6897,12 +6831,12 @@ const BarcodeLabelGenerator = (props) => {
           <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
             <Settings size={18} /> Label Settings
           </h3>
-          
+
           <div className="space-y-4">
             {/* Product Select */}
             <div className="space-y-1">
               <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Select Product</label>
-              <select 
+              <select
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-400"
                 value={selectedProduct?.id || ''}
                 onChange={(e) => {
@@ -6922,9 +6856,9 @@ const BarcodeLabelGenerator = (props) => {
             {/* Quantity */}
             <div className="space-y-1">
               <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Number of Labels</label>
-              <input 
-                type="number" 
-                min={1} 
+              <input
+                type="number"
+                min={1}
                 max={100}
                 value={quantity}
                 onChange={(e) => setQuantity(parseInt(e.target.value))}
@@ -6941,8 +6875,8 @@ const BarcodeLabelGenerator = (props) => {
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {Array.from({ length: quantity }).map((_, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className="border border-slate-200 rounded-lg p-3 bg-white shadow-sm flex flex-col items-center"
               >
                 {selectedProduct ? (
@@ -6953,7 +6887,7 @@ const BarcodeLabelGenerator = (props) => {
                     <div className="text-[10px] font-black text-blue-700 mb-1">
                       ₹{selectedProduct.sale_rate}
                     </div>
-                    <svg 
+                    <svg
                       ref={(el) => {
                         if (el && !barcodeRefs[idx]) {
                           setBarcodeRefs(prev => [...prev, el]);
@@ -6985,9 +6919,9 @@ const MultiStoreManager = (props) => {
     const saved = localStorage.getItem('nm_stores');
     if (saved) return JSON.parse(saved);
     return [
-      { 
-        id: '1', 
-        name: 'NM MART - Main Branch', 
+      {
+        id: '1',
+        name: 'NM MART - Main Branch',
         address: '123 Main Street, City Center',
         phone: '+91 9876543210',
         isActive: true
@@ -7034,7 +6968,7 @@ const MultiStoreManager = (props) => {
             <p className="text-xs font-bold text-slate-500">Manage all your store branches</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={() => setShowAddModal(true)}
           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase shadow-lg hover:opacity-90 transition-all flex items-center gap-2"
         >
@@ -7044,8 +6978,8 @@ const MultiStoreManager = (props) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {stores.map(store => (
-          <div 
-            key={store.id} 
+          <div
+            key={store.id}
             className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
           >
             <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-purple-50 to-pink-50">
@@ -7071,7 +7005,7 @@ const MultiStoreManager = (props) => {
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
-                <button 
+                <button
                   onClick={() => {
                     setEditingStore(store);
                     setNewStore(store);
@@ -7081,7 +7015,7 @@ const MultiStoreManager = (props) => {
                 >
                   Edit
                 </button>
-                <button 
+                <button
                   onClick={() => handleDelete(store.id)}
                   className="flex-1 bg-red-100 text-red-700 text-xs font-black uppercase py-2 rounded-lg hover:bg-red-200 transition-all"
                 >
@@ -7097,9 +7031,9 @@ const MultiStoreManager = (props) => {
       <AnimatePresence>
         {showAddModal && (
           <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
             >
@@ -7111,11 +7045,11 @@ const MultiStoreManager = (props) => {
                   <X size={18} />
                 </button>
               </div>
-              
+
               <div className="p-6 space-y-4">
                 <div className="space-y-1">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Store Name</label>
-                  <input 
+                  <input
                     type="text"
                     value={newStore.name}
                     onChange={(e) => setNewStore({ ...newStore, name: e.target.value })}
@@ -7125,7 +7059,7 @@ const MultiStoreManager = (props) => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Store Address</label>
-                  <textarea 
+                  <textarea
                     value={newStore.address}
                     onChange={(e) => setNewStore({ ...newStore, address: e.target.value })}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-purple-400"
@@ -7135,7 +7069,7 @@ const MultiStoreManager = (props) => {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Phone Number</label>
-                  <input 
+                  <input
                     type="text"
                     value={newStore.phone}
                     onChange={(e) => setNewStore({ ...newStore, phone: e.target.value })}
@@ -7145,7 +7079,7 @@ const MultiStoreManager = (props) => {
                 </div>
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-black text-slate-800 uppercase tracking-widest">Active Status</label>
-                  <div 
+                  <div
                     onClick={() => setNewStore({ ...newStore, isActive: !newStore.isActive })}
                     className={`w-12 h-6 rounded-full flex items-center transition-all cursor-pointer ${newStore.isActive ? "bg-green-500" : "bg-slate-300"}`}
                   >
@@ -7153,15 +7087,15 @@ const MultiStoreManager = (props) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="p-4 border-t border-slate-100 flex gap-3 justify-end">
-                <button 
+                <button
                   onClick={() => { setShowAddModal(false); setEditingStore(null); }}
                   className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg text-xs font-black uppercase"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={editingStore ? handleEdit : handleAdd}
                   className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg text-xs font-black uppercase shadow-lg"
                 >
@@ -7210,7 +7144,7 @@ function renderTabContent(activeTab, props) {
     case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} customerMode={props.customerMode} setCustomerMode={props.setCustomerMode} />;
     case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
     case 'HomeLayout': return <HomeLayoutManager {...props} />;
-    
+
     // Inventory Views
     case 'StockAlerts': return <StockAlertsView products={props.products} fetchInitialData={props.fetchInitialData} />;
     case 'Suppliers': return <EnhancedSuppliersView accounts={props.accounts} purchases={props.purchases} fetchInitialData={props.fetchInitialData} />;
@@ -7237,7 +7171,7 @@ function renderTabContent(activeTab, props) {
     case 'Departments': return <DepartmentsView title="Department Master" table={DB_SCHEMA.DEPARTMENTS.table} data={props.departments} {...props} />;
     case 'Units': return <UnitsView title="Unit Master" table={DB_SCHEMA.UNITS.table} data={props.units} {...props} />;
     case 'Accounts': return <AccountsView title="Account Master" table={DB_SCHEMA.ACCOUNTS.table} data={props.accounts} {...props} />;
-    
+
     // Store Dropdown Cases
     case 'StoreMainCat': return <StoreMainCatDisplayView categories={props.categories} departments={props.departments} />;
     case 'StoreMainCatDisplay': return <StoreMainCatDisplayView categories={props.categories} departments={props.departments} />;
@@ -7250,7 +7184,7 @@ function renderTabContent(activeTab, props) {
     case 'PurchaseReportRO': return <PurchaseReportROView {...props} />;
     case 'RequisitionReportRO': return <RequisitionReportROView {...props} />;
     case 'BOM': return <BOMView {...props} />;
-    
+
     // Process Cases
     case 'ProductionEntry': return <ProductionEntryView {...props} />;
     case 'CostingReport': return <CostingReportView {...props} />;

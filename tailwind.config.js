@@ -23,34 +23,34 @@ export default {
           950: "#030712",
         },
 
-        // Professional Enterprise Blue (Microsoft/IBM Carbon inspired)
+        // Professional Enterprise Teal (IBM Carbon/Salesforce inspired)
         primary: {
-          50: "#F0F7FF",
-          100: "#E0EFFF",
-          200: "#BBDDFF",
-          300: "#7BBFFF",
-          400: "#3B9DFF",
-          500: "#0062FF", // Deep Professional Blue
-          600: "#0052D9",
-          700: "#0040B0",
-          800: "#003080",
-          900: "#002050",
-          DEFAULT: "#0062FF",
+          50: "#ECFDF5",
+          100: "#D1FAE5",
+          200: "#A7F3D0",
+          300: "#6EE7B7",
+          400: "#34D399",
+          500: "#10B981", // Modern Teal
+          600: "#059669",
+          700: "#047857",
+          800: "#065F46",
+          900: "#064E3B",
+          DEFAULT: "#10B981",
         },
 
-        // Secondary Indigo (Linear inspired)
+        // Secondary Slate (Professional Dark Grey)
         secondary: {
-          50: "#F5F3FF",
-          100: "#EDE9FE",
-          200: "#DDD6FE",
-          300: "#C4B5FD",
-          400: "#A78BFA",
-          500: "#8B5CF6",
-          600: "#7C3AED",
-          700: "#6D28D9",
-          800: "#5B21B6",
-          900: "#4C1D95",
-          DEFAULT: "#8B5CF6",
+          50: "#F8FAFC",
+          100: "#F1F5F9",
+          200: "#E2E8F0",
+          300: "#CBD5E1",
+          400: "#94A3B8",
+          500: "#64748B",
+          600: "#475569",
+          700: "#334155",
+          800: "#1E293B",
+          900: "#0F172A",
+          DEFAULT: "#64748B",
         },
 
         // Semantic Colors

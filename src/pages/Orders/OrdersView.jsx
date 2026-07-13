@@ -129,9 +129,9 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
   };
 
   return (
-    <div className="space-y-4">
+    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
       {/* Stats Summary for Filtered Data */}
-      <div className="bg-blue-600 p-4 rounded-xl text-white shadow-lg flex justify-between items-center">
+      <div className="bg-blue-600 p-4 rounded-xl text-white shadow-lg flex justify-between items-center flex-shrink-0">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Report for {dateFilter}</p>
           <h3 className="text-xl font-black tracking-tighter">Total Sales: ₹{totalFilteredSales.toLocaleString()}</h3>
@@ -143,7 +143,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       </div>
 
       {/* Search & Filters */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input 
@@ -155,7 +155,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar">
           {['Today', '1 Month', '2 Months', '4 Months', 'Full Year', 'All'].map(f => (
             <button
               key={f}
@@ -187,11 +187,11 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col min-h-0">
+        <div className="flex-1 overflow-auto">
           <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
+            <thead className="sticky top-0 z-10 bg-slate-50">
+              <tr className="border-b border-slate-200">
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Bill #</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Customer / Mobile</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Amount</th>

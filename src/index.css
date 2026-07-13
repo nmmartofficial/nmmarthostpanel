@@ -37,9 +37,9 @@
   -moz-osx-font-smoothing: grayscale;
 
   /* Semantic Theme Variables */
-  --theme-primary: #0062FF;
-  --theme-secondary: #111827;
-  --theme-accent: #8B5CF6;
+  --theme-primary: #10B981;
+  --theme-secondary: #64748B;
+  --theme-accent: #059669;
 }
 
 /* Dark Mode Colors */
