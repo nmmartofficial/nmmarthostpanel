@@ -1,41 +1,29 @@
-const CACHE_NAME = 'nm-mart-cache-v1';
-const urlsToCache = [
-  '/',
-  '/manifest.json',
-  '/vite.svg'
-];
+const CACHE_NAME = 'nm-mart-v2';
 
+// Clean install
 self.addEventListener('install', event => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        return cache.addAll(urlsToCache);
-      })
-  );
 });
 
+// Clean old caches on activation
 self.addEventListener('activate', event => {
-  event.waitUntil(clients.claim());
-  // Clear old caches
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.filter(name => name !== CACHE_NAME)
-          .map(name => caches.delete(name))
-      );
-    })
+    caches.keys().then(keys => {
+      return Promise.all(keys.map(key => caches.delete(key)));
+    }).then(() => self.clients.claim())
   );
 });
 
+// Network First Strategy
 self.addEventListener('fetch', event => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
