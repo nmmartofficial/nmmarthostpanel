@@ -51,13 +51,19 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
       return;
     }
 
+    const rate = parseFloat(product.purcrate || product.purchase_rate || 0);
+    const gstPercent = parseFloat(product.gst || product.gst_percent || 0);
+    const gstAmt = (rate * gstPercent) / 100;
+
     setItems([...items, {
       product_id: product.id,
-      item_name: product.item_name,
+      item_name: product.itname || product.name,
       barcode: product.barcode,
       quantity: 1,
-      rate: product.purchase_rate || 0,
-      total: product.purchase_rate || 0
+      rate: rate,
+      gst_percent: gstPercent,
+      gst_amount: gstAmt,
+      total: rate + gstAmt
     }]);
     setSearchTerm('');
     setShowProductSearch(false);
@@ -66,9 +72,14 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
   const updateItem = (index, field, value) => {
     const newItems = [...items];
     newItems[index][field] = value;
-    if (field === 'quantity' || field === 'rate') {
-      newItems[index].total = (parseFloat(newItems[index].quantity) || 0) * (parseFloat(newItems[index].rate) || 0);
-    }
+
+    const qty = parseFloat(newItems[index].quantity) || 0;
+    const rate = parseFloat(newItems[index].rate) || 0;
+    const gstPercent = parseFloat(newItems[index].gst_percent) || 0;
+
+    newItems[index].gst_amount = (rate * gstPercent) / 100;
+    newItems[index].total = (rate + newItems[index].gst_amount) * qty;
+
     setItems(newItems);
   };
 
@@ -307,9 +318,11 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
                 <thead className="sticky top-0 z-10 bg-slate-50">
                   <tr className="border-b border-slate-200">
                     <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Product</th>
-                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-24">Qty</th>
-                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-32">Rate</th>
-                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-32">Total</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-20 text-center">Qty</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-24 text-right">Rate</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-16 text-center">GST %</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-24 text-right">GST Amt</th>
+                    <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest w-24 text-right">Total</th>
                     <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest text-right">Action</th>
                   </tr>
                 </thead>
@@ -317,30 +330,33 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
                   {items.length > 0 ? items.map((item, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3">
-                        <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{item.itname || item.name}</p>
+                        <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight">{item.item_name}</p>
                         <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{item.barcode}</p>
                       </td>
                       <td className="px-4 py-3">
                         <input 
                           type="number" 
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-black outline-none focus:ring-1 focus:ring-emerald-500"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-black outline-none focus:ring-1 focus:ring-emerald-500 text-center"
                           value={item.quantity}
                           onChange={e => updateItem(idx, 'quantity', e.target.value)}
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-[9px]">₹</span>
-                          <input
-                            type="number"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-4 pr-2 py-1.5 text-[10px] font-black outline-none focus:ring-1 focus:ring-emerald-500"
-                            value={item.rate}
-                            onChange={e => updateItem(idx, 'rate', e.target.value)}
-                          />
-                        </div>
+                        <input
+                          type="number"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-black outline-none focus:ring-1 focus:ring-emerald-500 text-right"
+                          value={item.rate}
+                          onChange={e => updateItem(idx, 'rate', e.target.value)}
+                        />
                       </td>
-                      <td className="px-4 py-3">
-                        <p className="text-[10px] font-black text-slate-800">₹{item.total.toLocaleString()}</p>
+                      <td className="px-4 py-3 text-center">
+                        <p className="text-[10px] font-black text-slate-600">{item.gst_percent}%</p>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <p className="text-[10px] font-black text-slate-600">₹{(parseFloat(item.gst_amount) * parseFloat(item.quantity || 0)).toFixed(2)}</p>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <p className="text-[10px] font-black text-slate-800">₹{parseFloat(item.total).toFixed(2)}</p>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button onClick={() => removeItem(idx)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md">
@@ -350,7 +366,7 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan="5" className="px-4 py-20 text-center">
+                      <td colSpan="7" className="px-4 py-20 text-center">
                         <div className="flex flex-col items-center gap-2 text-slate-200">
                           <Package size={64} strokeWidth={1} />
                           <p className="text-[10px] font-black uppercase tracking-widest">Add products to start purchase entry</p>

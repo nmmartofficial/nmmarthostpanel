@@ -6,7 +6,7 @@ import {
   Search, Plus, Edit2, Trash2, 
   Save, X, ChevronDown, Menu, ShieldCheck,
   LayoutDashboard, LogOut, Home, ShoppingCart, 
-  Wallet, Eye, FileText, Settings, 
+  Wallet, Eye, EyeOff, FileText, Settings, 
   Bell, User, Download, Zap, CheckCircle2,
   ArrowUp, ArrowDown, DollarSign, Clock,
   PlusCircle, RefreshCw, Database, Printer, 
@@ -14,9 +14,9 @@ import {
   Calculator, PieChart, BarChart3, Receipt,
   Box, MapPin, Truck, XCircle, MessageCircle, Book,
   Monitor, Maximize2, Minimize2, ChevronRight, Circle, FileJson,
-  Upload, ExternalLink, ShoppingBag, IndianRupee, Flag,
+  Upload, ExternalLink, ShoppingBag, IndianRupee, Flag, Mail,
   Repeat, Wrench, ArrowLeftRight, Key, QrCode,
-  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Smartphone
+  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Smartphone, AlertCircle, Loader2, CheckCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
@@ -372,22 +372,19 @@ export default function App() {
 
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [loginStep, setLoginStep] = useState('credentials');
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [otpInput, setOtpInput] = useState('');
-  const [tempUser, setTempUser] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   // 1. Initial Session Check (Clean)
   useEffect(() => {
     const auth = secureStorage.getItem('nm_admin_auth');
     const user = secureStorage.getItem('nm_user_data');
-    const remembered = secureStorage.getItem('nm_remembered');
+    const rememberedEmail = secureStorage.getItem('nm_remembered_email');
 
-    if (remembered && !email) {
-      setEmail(remembered.email);
-      setPin(remembered.pin);
+    if (rememberedEmail && !email) {
+      setEmail(rememberedEmail);
       setRememberMe(true);
     }
 
@@ -399,24 +396,43 @@ export default function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !pin) return toast.error('कृपया Email और Password भरें');
+    setLoginError('');
+
+    if (!email) return setLoginError('Email is required');
+    if (!validateEmail(email)) return setLoginError('Invalid email format');
+    if (!pin) return setLoginError('Password is required');
+
     setIsProcessing(true);
     try {
       const { data: userData, error } = await supabase.rpc('verify_admin_pin', { email_input: email, pin_input: pin }).single();
-      if (error || !userData) return toast.error('Invalid Credentials!');
-      if (!userData.company_code) return toast.error('Account not linked to any company.');
 
-      if (rememberMe) secureStorage.setItem('nm_remembered', { email, pin });
+      if (error || !userData) {
+        setLoginError('Invalid email or password');
+        setIsProcessing(false);
+        return;
+      }
+
+      if (!userData.company_code) {
+        setLoginError('Account not linked to any company.');
+        setIsProcessing(false);
+        return;
+      }
+
+      if (rememberMe) {
+        secureStorage.setItem('nm_remembered_email', email);
+      } else {
+        secureStorage.removeItem('nm_remembered_email');
+      }
+
       secureStorage.setItem('nm_user_data', userData);
       secureStorage.setItem('nm_admin_auth', 'true');
 
       toast.success('Authorized Access Granted');
-
-      // Force a full page reload to clear all state and restart with new company_code
       window.location.reload();
     } catch (err) {
-      toast.error('Login failed');
-    } finally { setIsProcessing(false); }
+      setLoginError('Login failed. Please try again.');
+      setIsProcessing(false);
+    }
   };
 
   const handleLogout = useCallback(() => {
@@ -966,44 +982,162 @@ export default function App() {
   // --- UI Components ---
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6 font-sans antialiased">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white p-8 rounded-[32px] shadow-2xl w-full max-w-md text-center border border-neutral-200"
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-[420px]"
         >
-          <div className="bg-primary-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary-600/20">
-            <ShieldCheck size={40} className="text-white" />
-          </div>
-          <h1 className="text-3xl font-black text-neutral-900 mb-2 tracking-tighter uppercase">{BRAND_NAME} ADMIN</h1>
-          <p className="text-neutral-500 font-bold mb-8">Secure Enterprise Login</p>
+          <div className="bg-white rounded-[20px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] border border-[#F1F5F9] p-10 flex flex-col items-center">
+            {/* Logo & Header */}
+            <div className="mb-10 text-center">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200 mx-auto mb-6">
+                <ShoppingBag size={28} className="text-white" />
+              </div>
+              <h1 className="text-2xl font-black text-[#0F172A] tracking-tight mb-1">{BRAND_NAME}</h1>
+              <p className="text-sm font-bold text-[#334155] mb-2">Retail ERP Management System</p>
+              <p className="text-xs font-medium text-[#94A3B8]">Secure access to your business dashboard</p>
+            </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter Admin Email"
-              disabled={isProcessing}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-6 py-4 text-center text-lg focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all font-bold text-neutral-900 placeholder-neutral-400 disabled:opacity-50 outline-none"
-              autoFocus
-            />
-            <input
-              type="password"
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="Enter Security PIN"
-              disabled={isProcessing}
-              className="w-full bg-neutral-50 border border-neutral-200 rounded-2xl px-6 py-4 text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all font-black text-neutral-900 placeholder-neutral-400 disabled:opacity-50 outline-none"
-            />
-            <button
-              type="submit"
-              disabled={isProcessing}
-              className="w-full bg-primary-600 text-white font-black py-4 rounded-2xl hover:bg-primary-700 transition-all uppercase tracking-widest shadow-xl shadow-primary-600/10 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isProcessing ? 'Verifying...' : 'Authorize Access'}
-            </button>
-          </form>
+            {/* Error Message */}
+            <AnimatePresence>
+              {loginError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="w-full bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-3 mb-6"
+                >
+                  <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs font-bold text-red-600 leading-relaxed">{loginError}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Login Form */}
+            <form onSubmit={handleLogin} className="w-full space-y-6">
+              {/* Email Input */}
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-xs font-black text-[#64748B] uppercase tracking-wider ml-1">Email Address</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] group-focus-within:text-blue-600 transition-colors">
+                    <Mail size={18} />
+                  </div>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    placeholder="Enter your email"
+                    disabled={isProcessing}
+                    className="w-full h-[50px] bg-white border border-[#E2E8F0] rounded-xl pl-11 pr-4 text-sm font-bold text-[#0F172A] outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all placeholder:text-[#94A3B8] disabled:opacity-50"
+                    autoFocus
+                    autoComplete="email"
+                    spellCheck="false"
+                  />
+                </div>
+              </div>
+
+              {/* Password Input */}
+              <div className="space-y-2">
+                <label htmlFor="pin" className="text-xs font-black text-[#64748B] uppercase tracking-wider ml-1">Password</label>
+                <div className="relative group">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8] group-focus-within:text-blue-600 transition-colors">
+                    <Lock size={18} />
+                  </div>
+                  <input
+                    id="pin"
+                    type={showPassword ? "text" : "password"}
+                    value={pin}
+                    onChange={(e) => {
+                      setPin(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    placeholder="Enter your password"
+                    disabled={isProcessing}
+                    className="w-full h-[50px] bg-white border border-[#E2E8F0] rounded-xl pl-11 pr-12 text-sm font-bold text-[#0F172A] outline-none focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all placeholder:text-[#94A3B8] disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B] transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Remember Me & Forgot Password */}
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setRememberMe(!rememberMe)}>
+                  <div className={cn(
+                    "w-4 h-4 rounded border flex items-center justify-center transition-all",
+                    rememberMe ? "bg-blue-600 border-blue-600" : "bg-white border-[#CBD5E1]"
+                  )}>
+                    {rememberMe && <CheckCircle2 size={12} className="text-white" />}
+                  </div>
+                  <span className="text-xs font-bold text-[#64748B]">Remember Me</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toast.info('Please contact your administrator to reset your password.')}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+
+              {/* Login Button */}
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="w-full h-[52px] bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black text-sm uppercase tracking-widest rounded-xl shadow-lg shadow-blue-200/50 hover:shadow-xl hover:shadow-blue-300/50 hover:-translate-y-[1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all flex items-center justify-center gap-3 overflow-hidden relative"
+              >
+                <AnimatePresence mode="wait">
+                  {isProcessing ? (
+                    <motion.div
+                      key="loading"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex items-center gap-3"
+                    >
+                      <Loader2 size={20} className="animate-spin" />
+                      <span>Verifying...</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="idle"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className="flex items-center gap-3"
+                    >
+                      <span>Sign In</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
+            </form>
+
+            {/* Footer */}
+            <div className="mt-12 text-center space-y-4">
+              <p className="text-[10px] font-black text-[#94A3B8] uppercase tracking-[0.2em]">
+                © {new Date().getFullYear()} {BRAND_NAME} Retail ERP
+              </p>
+              <div className="flex items-center justify-center gap-4 text-[10px] font-bold text-[#64748B] uppercase tracking-widest">
+                <button className="hover:text-blue-600 transition-colors">Privacy Policy</button>
+                <span className="w-1 h-1 bg-[#CBD5E1] rounded-full" />
+                <button className="hover:text-blue-600 transition-colors">Terms</button>
+                <span className="w-1 h-1 bg-[#CBD5E1] rounded-full" />
+                <button className="hover:text-blue-600 transition-colors">Support</button>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     );
@@ -2153,7 +2287,6 @@ function TransactionView({ users, fetchInitialData }) {
     account: 'Not Selected',
     items: []
   });
-0
 
   const [currentItem, setCurrentItem] = useState({ party_id: '', name: '', amount: '', remarks: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);

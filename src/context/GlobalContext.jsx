@@ -1,9 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, isSupabaseMock } from '../supabase';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { supabase } from '../supabase';
 import { DB_SCHEMA } from '../dbSchema';
 import { dbSync } from '../dbSync';
-import { toast } from 'sonner';
-import { generateUUID } from '../utils/helpers';
 import { secureStorage } from '../utils/security';
 
 const GlobalContext = createContext();
@@ -20,6 +18,11 @@ const DEFAULT_APP_CONFIG = {
   id: 'default',
   store_name: 'NM MART'
 };
+
+const FETCH_THROTTLE_MS = 5000;
+const ONE_DAY_MS = 86400000;
+const FESTIVAL_LOOKBACK_DAYS = 7;
+const FESTIVAL_LOOKAHEAD_DAYS = 3;
 
 const INITIAL_FESTIVALS = [
   {
@@ -63,7 +66,6 @@ export const GlobalProvider = ({ children }) => {
     const saved = secureStorage.getItem('nm_user_data');
     return saved || null;
   });
-  const shopId = currentUser?.shop_id;
 
   // --- Data States ---
   const [stats, setStats] = useState({ products: 0, categories: 0, orders: 0, users: 0 });
@@ -103,8 +105,8 @@ export const GlobalProvider = ({ children }) => {
     { id: '3', name: 'Gold', minPoints: 5000, maxPoints: 99999, discount: 10, color: '#FFD700' }
   ]);
   const [festivals, setFestivals] = useState(() => {
-    const saved = localStorage.getItem('nm_festivals');
-    return saved ? JSON.parse(saved) : INITIAL_FESTIVALS;
+    const saved = secureStorage.getItem('nm_festivals');
+    return saved ? saved : INITIAL_FESTIVALS;
   });
   const [activeFestival, setActiveFestival] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -130,7 +132,7 @@ export const GlobalProvider = ({ children }) => {
     }
 
     const now = Date.now();
-    if (!force && mountRef.current && (now - mountRef.current < 5000)) return;
+    if (!force && mountRef.current && (now - mountRef.current < FETCH_THROTTLE_MS)) return;
 
     isFetchingRef.current = true;
     mountRef.current = now;
@@ -285,7 +287,7 @@ export const GlobalProvider = ({ children }) => {
 
   // --- Theme / Festival Logic ---
   useEffect(() => {
-    const isDateInRange = (festivalDate, daysBefore = 7, daysAfter = 3) => {
+    const isDateInRange = (festivalDate, daysBefore = FESTIVAL_LOOKBACK_DAYS, daysAfter = FESTIVAL_LOOKAHEAD_DAYS) => {
       const today = new Date(); today.setHours(0,0,0,0);
       const targetDate = new Date(festivalDate);
       targetDate.setHours(0,0,0,0);
@@ -302,8 +304,8 @@ export const GlobalProvider = ({ children }) => {
     if (currentFestivals.length > 0) {
       const festival = currentFestivals[0];
       setActiveFestival(festival);
-      const lastManualTheme = localStorage.getItem('nm_last_manual_theme');
-      if (!lastManualTheme || Date.now() - parseInt(lastManualTheme) > 86400000) {
+      const lastManualTheme = secureStorage.getItem('nm_last_manual_theme');
+      if (!lastManualTheme || Date.now() - parseInt(lastManualTheme) > ONE_DAY_MS) {
         setAppConfig(prev => ({ ...prev, primary_color: festival.primaryColor, secondary_color: festival.secondaryColor }));
       }
     } else {
@@ -319,7 +321,7 @@ export const GlobalProvider = ({ children }) => {
     }
   }, [appConfig]);
 
-  const value = {
+  const value = useMemo(() => ({
     stats, appConfig, banners, categories, subcategories, brands, adminUsers, credits,
     deliveryBoys, deliveryCustomers, purchases, departments, units, accounts, products,
     orders, orderItems, users, coupons, offers, pincodes, homeConfig, walletTx, addresses,
@@ -330,7 +332,14 @@ export const GlobalProvider = ({ children }) => {
     setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
     setFestivals, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
     fetchInitialData, setLoading
-  };
+  }), [
+    stats, appConfig, banners, categories, subcategories, brands, adminUsers, credits,
+    deliveryBoys, deliveryCustomers, purchases, departments, units, accounts, products,
+    orders, orderItems, users, coupons, offers, pincodes, homeConfig, walletTx, addresses,
+    cart, wishlist, notifications, inventoryLogs, expenses, loyaltyPoints, loyaltyTransactions,
+    loyaltyTiers, festivals, activeFestival, loading,
+    fetchInitialData
+  ]);
 
   return <GlobalContext.Provider value={value}>{children}</GlobalContext.Provider>;
 };

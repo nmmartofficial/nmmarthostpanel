@@ -1,9 +1,10 @@
 import React from 'react';
+import { formatReceiptHeader, formatInvoiceNo, formatDate, formatTime } from '../utils/pos';
 
 export default function ThermalReceipt({ orderData, cart, subTotal, discountAmount, deliveryChargeAmount, finalTotal, roundOff, appConfig }) {
   const dateObj = new Date();
-  const date = dateObj.toLocaleDateString('en-GB'); // DD/MM/YYYY
-  const time = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  const date = formatDate(dateObj);
+  const time = formatTime(dateObj);
   
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   
@@ -17,7 +18,7 @@ export default function ThermalReceipt({ orderData, cart, subTotal, discountAmou
     <div className="bg-white p-2 w-[76mm] mx-auto text-black font-mono text-[10px] print-receipt">
       {/* Header */}
       <div className="text-center mb-1">
-        <h2 className="text-[16px] font-black uppercase leading-none mb-1">{appConfig?.shop_name || 'NM MART'}</h2>
+        <h2 className="text-[16px] font-black uppercase leading-none mb-1">{formatReceiptHeader(appConfig?.shop_name || 'NM MART')}</h2>
         <div className="text-[9px] font-bold leading-tight">
           <p>{appConfig?.address || 'Manjhanpur Kaushambi, UP'}</p>
           <p>Mob: {appConfig?.mobile || '7081154604'}</p>
@@ -30,7 +31,7 @@ export default function ThermalReceipt({ orderData, cart, subTotal, discountAmou
       {/* Bill Info */}
       <div className="space-y-0.5 text-[10px] font-black uppercase">
         <div className="flex justify-between">
-          <span>BILL No: #{orderData?.order_number}</span>
+          <span>BILL No: #{formatInvoiceNo(orderData?.order_number || 0)}</span>
           <span>{date}</span>
         </div>
         <div className="flex justify-between">

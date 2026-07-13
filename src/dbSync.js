@@ -9,45 +9,68 @@ import { processImageForUpload } from './utils/imageHandler';
  * Unified CRUD logic for all 18 tables with Audit Logging.
  */
 
-// Strict whitelist of allowed product columns - EXACTLY MATCHES YOUR DB SCHEMA!
+// --- 1. CONFIGURATION & CONSTANTS ---
+
+// Strict whitelist of allowed product columns - EXACTLY MATCHES DB SCHEMA!
 const PRODUCT_WHITELIST = [
-  'itname',
-  'itnameprint',
-  'barcode',
-  'imagename',
-  'itemdescription',
-  'hsncode',
-  'picture',
-  'takerate',
-  'restrate',
-  'dlvrate',
-  'onlinerate',
-  'purcrate',
-  'mrp',
-  'opstock',
-  'discperc',
-  'isfav',
-  'unitcode',
-  'itg',
-  'itc',
-  'dtcode',
-  'kcode',
-  'brandcode',
-  'isdiscountable',
-  'gst',
-  'cess',
-  'company_code',
-  'ispackage',
-  'narration',
-  'narration2',
-  'itemstatus'
+  'itname', 'itnameprint', 'barcode', 'imagename', 'itemdescription',
+  'hsncode', 'picture', 'takerate', 'restrate', 'dlvrate',
+  'onlinerate', 'purcrate', 'mrp', 'opstock', 'discperc',
+  'isfav', 'unitcode', 'itg', 'itc', 'dtcode', 'kcode',
+  'brandcode', 'isdiscountable', 'gst', 'cess', 'company_code',
+  'ispackage', 'narration', 'narration2', 'itemstatus'
 ];
+
+// Table Configuration for CRUD Operations
+const TABLES_WITH_IS_ACTIVE = [
+  'categories', 'subcategories', 'brands', 'suppliers',
+  'orders', 'users', 'admin_users', 'delivery_boy_master',
+  'delivery_customer_master', 'wallet_master', 'expenses',
+  'banners', 'coupons', 'offers'
+];
+
+const HARD_DELETE_TABLES = [
+  'app_config', 'system_logs', 'notifications', 'cart',
+  'wishlist', 'banners', 'coupons', 'offers_master'
+];
+
+const CONFLICT_KEYS = {
+  'brands': 'name',
+  'categories': 'name',
+  'unit_master': 'name',
+  'department_master': 'name',
+  'expense_categories': 'name',
+  'products': 'itname'
+};
+
+// Payload Normalization Configuration
+const NUMERIC_FIELDS = [
+  'sale_rate', 'mrp', 'stock', 'price', 'quantity', 'qty',
+  'total_amount', 'subtotal', 'discount', 'delivery_charge',
+  'wallet_balance', 'amount', 'cgst', 'sgst', 'igst', 'gst_amount'
+];
+
+const BOOLEAN_FIELDS = ['is_active', 'is_available', 'is_featured', 'is_deleted'];
+
+// System Constants
+const FETCH_BATCH_SIZE = 1000;
+const UPSERT_BATCH_SIZE = 500;
+const DEFAULT_LOW_STOCK_BUFFER = 5;
+const DEFAULT_GST_RATE = 18;
+
+// Image Optimization Constants
+const IMAGE_OPTIMIZATION = {
+  MAX_WIDTH: 1200,
+  QUALITY: 0.7
+};
+
+// --- 2. HELPER FUNCTIONS ---
 
 /**
  * HELPER: Compress Image using Canvas
  * "Image Optimization: Badi photos ko upload karne se pehle compress kar de."
  */
-const compressImage = async (file, maxWidth = 1200, quality = 0.7) => {
+const compressImage = async (file, maxWidth = IMAGE_OPTIMIZATION.MAX_WIDTH, quality = IMAGE_OPTIMIZATION.QUALITY) => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -85,7 +108,7 @@ const compressImage = async (file, maxWidth = 1200, quality = 0.7) => {
  * HELPER: Check Low Stock and Create Notification
  * "Agar stock Buffer Limit (e.g., 5 units) se niche gaya, toh use notifications table mein push kar dein."
  */
-const checkLowStockAndNotify = async (productId, bufferLimit = 5) => {
+const checkLowStockAndNotify = async (productId, bufferLimit = DEFAULT_LOW_STOCK_BUFFER) => {
   try {
     const userData = secureStorage.getItem('nm_user_data');
     const companyCode = userData?.company_code;
@@ -185,19 +208,9 @@ const validatePayload = (tableName, payload) => {
       console.warn(`[validatePayload] Removing ${fileFields.length} temporary _file fields from payload:`, fileFields);
       fileFields.forEach(key => delete record[key]);
     }
-    
-    // Numeric fields to normalize
-    const numericFields = [
-      'sale_rate', 'mrp', 'stock', 'price', 'quantity', 'qty', 
-      'total_amount', 'subtotal', 'discount', 'delivery_charge',
-      'wallet_balance', 'amount', 'cgst', 'sgst', 'igst', 'gst_amount'
-    ];
-    
-    // Boolean fields to normalize
-    const booleanFields = ['is_active', 'is_available', 'is_featured', 'is_deleted'];
-    
+
     // Normalize numeric fields
-    for (const field of numericFields) {
+    for (const field of NUMERIC_FIELDS) {
       if (record[field] !== undefined && record[field] !== null) {
         const originalValue = record[field];
         let parsedValue = parseFloat(originalValue);
@@ -217,7 +230,7 @@ const validatePayload = (tableName, payload) => {
     }
     
     // Normalize boolean fields
-    for (const field of booleanFields) {
+    for (const field of BOOLEAN_FIELDS) {
       if (record[field] !== undefined && record[field] !== null) {
         const originalValue = record[field];
         if (typeof originalValue === 'string') {
@@ -329,21 +342,12 @@ export const dbSync = {
         created_at: new Date().toISOString()
       }));
 
-      // For tables with unique name constraints, use upsert
-      const conflictKeys = {
-        'brands': 'name',
-        'categories': 'name',
-        'unit_master': 'name',
-        'department_master': 'name',
-        'expense_categories': 'name',
-        'products': 'itname'
-      };
-      
       let request = supabase.from(tableName);
       
-      if (conflictKeys[tableName]) {
+      const conflictKey = CONFLICT_KEYS[tableName];
+      if (conflictKey) {
         request = request.upsert(tenantRecords, {
-          onConflict: conflictKeys[tableName]
+          onConflict: conflictKey
         });
       } else {
         request = request.insert(tenantRecords);
@@ -374,21 +378,12 @@ export const dbSync = {
   // Read
   fetch: async (tableName, query = {}) => {
     try {
-      const BATCH_SIZE = 1000;
       let allData = [];
       let from = 0;
       let hasMore = true;
       const limit = query.limit || Infinity;
 
       console.log(`[dbSync] Fetching ${tableName}...`, { query });
-
-      // List of tables that definitely have is_active column (update this based on your actual schema)
-      const TABLES_WITH_IS_ACTIVE = [
-        'categories', 'subcategories', 'brands', 'suppliers',
-        'orders', 'users', 'admin_users', 'delivery_boy_master',
-        'delivery_customer_master', 'wallet_master', 'expenses',
-        'banners', 'coupons', 'offers'
-      ];
 
       // --- Multi-Tenant Logic: Get current User's Company Code ---
       const userData = secureStorage.getItem('nm_user_data');
@@ -430,7 +425,7 @@ export const dbSync = {
           request = request.order('created_at', { ascending: false });
         }
         
-        const currentBatchLimit = Math.min(BATCH_SIZE, limit - allData.length);
+        const currentBatchLimit = Math.min(FETCH_BATCH_SIZE, limit - allData.length);
         const to = from + currentBatchLimit - 1;
         
         request = request.range(from, to);
@@ -477,7 +472,7 @@ export const dbSync = {
         allData = [...allData, ...data];
         from += data.length;
         
-        if (data.length < currentBatchLimit || data.length < BATCH_SIZE) {
+        if (data.length < currentBatchLimit || data.length < FETCH_BATCH_SIZE) {
           hasMore = false;
         }
       }
@@ -581,8 +576,7 @@ export const dbSync = {
         .single();
       console.log('[dbSync.delete] oldData:', oldData, 'fetchError:', fetchError);
 
-      const hardDeleteTables = ['app_config', 'system_logs', 'notifications', 'cart', 'wishlist', 'banners', 'coupons', 'offers_master'];
-      const shouldHardDelete = permanent || hardDeleteTables.includes(tableName);
+      const shouldHardDelete = permanent || HARD_DELETE_TABLES.includes(tableName);
       console.log('[dbSync.delete] shouldHardDelete:', shouldHardDelete);
 
       if (shouldHardDelete) {
@@ -831,7 +825,7 @@ export const dbSync = {
     
     generateGSTInvoice: (order, items, appConfig = {}) => {
       // Generate GST-compliant invoice as PDF/Printable HTML
-      const gstRate = 18; // Default GST rate (can be made dynamic per product)
+      const gstRate = appConfig.gst_rate || DEFAULT_GST_RATE;
       
       // Calculate GST breakdown
       const subtotal = parseFloat(order.subtotal) || parseFloat(order.total_amount);
@@ -1028,8 +1022,6 @@ export const dbSync = {
    */
   upsert: async (tableName, dataset) => {
     try {
-      const BATCH_SIZE = 500; // Smaller batch size for writes to avoid timeouts/limits
-      
       // Always use id as conflict key
       const upsertOptions = { onConflict: 'id' };
 
@@ -1037,8 +1029,8 @@ export const dbSync = {
       const dataArray = Array.isArray(dataset) ? dataset : [dataset];
 
       // Process in batches
-      for (let i = 0; i < dataArray.length; i += BATCH_SIZE) {
-        const batch = dataArray.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < dataArray.length; i += UPSERT_BATCH_SIZE) {
+        const batch = dataArray.slice(i, i + UPSERT_BATCH_SIZE);
         const { data, error } = await supabase
           .from(tableName)
           .upsert(batch, upsertOptions)
