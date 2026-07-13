@@ -300,7 +300,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   };
 
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
+    <div className="flex flex-col space-y-4">
       {/* Header Section matching Item Master style */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-neutral-200 shadow-enterprise flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -440,7 +440,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
           )}
         </AnimatePresence>
 
-        <div className="flex-1 overflow-auto">
+        <div className="w-full overflow-x-auto">
           <table className="w-full text-left border-collapse sticky-header">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="bg-neutral-50 border-b border-neutral-200">
