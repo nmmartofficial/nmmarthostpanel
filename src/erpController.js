@@ -1,3 +1,4 @@
+import { toast } from 'sonner';
 import { dbSync } from './dbSync';
 import { DB_SCHEMA } from './dbSchema';
 import * as XLSX from 'xlsx';
@@ -99,11 +100,10 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
         break;
 
       case ACTION_TYPES.INSERT:
-        // Bariki: Automatic UUID and Timestamping
+        // Bariki: Automatic Timestamping (ID is handled by DB auto-increment)
         const insertPayload = Array.isArray(payload) ? payload : [payload];
         const sanitizedInsert = insertPayload.map(item => ({
           ...item,
-          id: item.id || generateUUID(),
           created_at: item.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString()
         }));

@@ -8,6 +8,7 @@ import { cn, generateUUID } from '../utils/helpers';
 import { secureStorage } from '../utils/security';
 import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
+import { toast } from 'sonner';
 import PaginationFooter from './PaginationFooter';
 
 export default function MasterListView({ title, table, bucket, fields, data, uploadImage, fetchInitialData, loading, customColumnMapping, ...relatedData }) {
@@ -274,13 +275,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
       if (editingItem) {
         res = await handleERPAction(table, ACTION_TYPES.UPDATE, { id: editingItem.id, ...finalData });
       } else {
-        finalData.id = finalData.id || generateUUID();
-        // Ensure all boolean fields have defaults for new items
-        for (const field of fields) {
-          if (field.type === 'boolean' && !(field.name in finalData)) {
-            finalData[field.name] = true;
-          }
-        }
+        // ID removed to let Database handle auto-incrementing numbers (1, 2, 3...)
         res = await handleERPAction(table, ACTION_TYPES.INSERT, finalData);
       }
 
