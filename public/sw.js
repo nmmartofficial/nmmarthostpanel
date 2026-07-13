@@ -1,11 +1,10 @@
-const CACHE_NAME = 'nm-mart-v2';
+// NM MART - Cache Reset Service Worker
+const CACHE_NAME = 'nm-mart-v3';
 
-// Clean install
 self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Clean old caches on activation
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => {
@@ -14,16 +13,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Network First Strategy
+// Bypass caching for all requests to prevent MIME type errors
 self.addEventListener('fetch', event => {
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
+  event.respondWith(fetch(event.request));
 });
