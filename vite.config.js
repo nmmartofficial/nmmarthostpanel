@@ -8,6 +8,11 @@ export default defineConfig({
   server: {
     port: 5200, // Use a completely different port to avoid conflicts
   },
+  preview: {
+    port: 4173,
+    // Enable SPA fallback for preview server to test Vercel-like routing locally
+    historyApiFallback: true,
+  },
   build: {
     chunkSizeWarningLimit: 3000, // Increase limit to 3MB to avoid Vercel warnings
     minify: 'terser', // Use Terser for better minification
