@@ -19,12 +19,15 @@ if (useMock) {
 } else if (hasValidUrl && hasValidKey) {
   try {
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true
-      }
-    })
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true
+        },
+        realtime: {
+          enabled: false
+        }
+      });
     
     if (import.meta.env.DEV) console.log('✅ [Supabase Init] Client created successfully')
   } catch (error) {
