@@ -3,35 +3,21 @@ import { createClient } from '@supabase/supabase-js'
 // Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (import.meta.env.DEV) {
-  console.log('🔍 [Supabase Init] ========== Starting Supabase Init ==========')
-  console.log('🔍 [Supabase Init] Full URL:', supabaseUrl)
-  console.log('🔍 [Supabase Init] Key length:', supabaseAnonKey ? supabaseAnonKey.length : 0)
-  console.log('🔍 [Supabase Init] Key masked prefix:', supabaseAnonKey ? supabaseAnonKey.substring(0, 6) + '***' : '(undefined)')
-} else {
-  console.log('🔍 [Supabase Init] Starting (production mode)')
-}
+const useMock = import.meta.env.VITE_USE_MOCK === 'true'
 
 // Graceful handling instead of throwing errors that crash the app
 let supabaseInstance = null
-let isMockClient = true
+let isMockClient = false
 
 // Validate credentials
 const hasValidUrl = supabaseUrl && supabaseUrl.length > 10 && !supabaseUrl.includes('your-project-url')
 const hasValidKey = supabaseAnonKey && supabaseAnonKey.length > 30 && !supabaseAnonKey.includes('your-anon-key')
 
-if (import.meta.env.DEV) {
-  console.log('🔍 [Supabase Init] URL valid:', hasValidUrl)
-  console.log('🔍 [Supabase Init] Key valid:', hasValidKey)
-} else {
-  console.log('🔍 [Supabase Init] Credentials check complete')
-}
-
-if (hasValidUrl && hasValidKey) {
+if (useMock) {
+  isMockClient = true
+  if (import.meta.env.DEV) console.warn('⚠️ [Supabase Init] Using MOCK client (VITE_USE_MOCK=true)')
+} else if (hasValidUrl && hasValidKey) {
   try {
-    if (import.meta.env.DEV) console.log('🚀 [Supabase Init] Creating real Supabase client')
-
     supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
@@ -40,49 +26,68 @@ if (hasValidUrl && hasValidKey) {
       }
     })
     
-    isMockClient = false
-    if (import.meta.env.DEV) {
-      console.log('✅ [Supabase] Client initialized successfully!')
-      console.log('✅ [Supabase] Mock mode:', isMockClient)
-    }
+    if (import.meta.env.DEV) console.log('✅ [Supabase Init] Client created successfully')
   } catch (error) {
     console.error('❌ [Supabase Init] Failed to create client:', error.message)
     if (import.meta.env.DEV) console.error('❌ [Supabase Init] Full error:', error)
   }
 } else {
-  console.warn('⚠️ [Supabase Init] Using MOCK client because credentials are missing or invalid!')
+  isMockClient = true
   if (import.meta.env.DEV) {
-    console.warn('⚠️ [Supabase Init] - URL valid?', hasValidUrl)
-    console.warn('⚠️ [Supabase Init] - Key valid?', hasValidKey)
-    console.warn('⚠️ [Supabase Init] Please get your REAL anon key from Supabase Dashboard!')
-  } else {
-    console.warn('⚠️ [Supabase Init] Missing/invalid Supabase credentials (production)')
+    console.warn('⚠️ [Supabase Init] Using MOCK client (missing/invalid credentials)')
+    console.warn('⚠️ [Supabase Init] Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env to use real Supabase')
   }
 }
 
 // Helper to create a chainable mock query builder
-const createMockQueryBuilder = () => {
+const createMockQueryBuilder = (tableName) => {
   const builder = {
-    eq: () => builder,
+    eq: (column, value) => {
+      builder._eq = { column, value };
+      return builder;
+    },
     or: () => builder,
     order: () => builder,
     range: () => builder,
     select: () => builder,
-    single: () => ({ data: null, error: null }),
+    single: () => {
+      if (tableName === 'admin_users' && builder._eq?.column === 'email') {
+        return {
+          data: {
+            id: 'mock-user-id',
+            email: builder._eq.value,
+            name: 'Demo User',
+            role: 'super_admin',
+            status: 'active',
+            company_code: 'DEMO001'
+          },
+          error: null
+        };
+      }
+      if (tableName === 'companies' && builder._eq?.column === 'company_code') {
+        return {
+          data: {
+            id: 'mock-company-id',
+            company_code: builder._eq.value,
+            company_slug: 'demo-company',
+            name: 'Demo Company',
+            status: 'active'
+          },
+          error: null
+        };
+      }
+      return { data: null, error: null };
+    },
     then: (resolve) => resolve({ data: [], error: null })
   };
   
-  // Make it thenable so it can be awaited
   return new Proxy(builder, {
     get(target, prop) {
       if (prop === 'then') {
         return (resolve) => resolve({ data: [], error: null });
       }
       if (typeof target[prop] === 'function') {
-        return (...args) => {
-          console.log(`[Mock Supabase] Called ${prop} with args:`, args);
-          return target[prop](...args);
-        };
+        return (...args) => target[prop](...args);
       }
       return target[prop];
     }
@@ -91,8 +96,8 @@ const createMockQueryBuilder = () => {
 
 // Create a mock client if real one isn't available
 const mockSupabase = {
-  from: () => ({
-    select: () => createMockQueryBuilder(),
+  from: (tableName) => ({
+    select: () => createMockQueryBuilder(tableName),
     insert: () => ({ select: () => ({ data: [], error: null }) }),
     update: () => ({ eq: () => ({ select: () => ({ data: [], error: null }) }) }),
     delete: () => ({ eq: () => ({ error: null }) }),
@@ -113,8 +118,61 @@ const mockSupabase = {
   }),
   rpc: () => {
     return { data: null, error: null }
+  },
+  auth: {
+    getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+    signOut: () => Promise.resolve({ error: null }),
+    onAuthStateChange: (callback) => { 
+      setTimeout(() => callback('SIGNED_OUT', null), 0);
+      return { 
+        data: { 
+          subscription: { 
+            unsubscribe: () => {} 
+          } 
+        } 
+      }; 
+    },
+    signInWithPassword: (credentials) => Promise.resolve({ 
+      data: { 
+        user: { 
+          id: 'mock-user-uuid',
+          email: credentials.email,
+          app_metadata: {},
+          user_metadata: {},
+          aud: 'authenticated',
+          created_at: new Date().toISOString()
+        }, 
+        session: { 
+          access_token: 'mock-access-token',
+          token_type: 'bearer',
+          expires_in: 3600,
+          expires_at: Math.floor((Date.now() + 3600000) / 1000),
+          refresh_token: 'mock-refresh-token',
+          user: { 
+            id: 'mock-user-uuid',
+            email: credentials.email,
+            app_metadata: {},
+            user_metadata: {},
+            aud: 'authenticated',
+            created_at: new Date().toISOString()
+          }
+        } 
+      }, 
+      error: null 
+    }),
+    resetPasswordForEmail: () => Promise.resolve({ data: {}, error: null }),
+    refreshSession: () => Promise.resolve({ 
+      data: { 
+        session: { 
+          access_token: 'mock-new-token',
+          expires_at: Math.floor((Date.now() + 3600000) / 1000)
+        } 
+      }, 
+      error: null 
+    })
   }
 }
 
+if (import.meta.env.DEV) console.log('🔍 [Supabase] isMockClient:', isMockClient)
 export const supabase = supabaseInstance || mockSupabase
 export const isSupabaseMock = isMockClient

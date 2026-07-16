@@ -135,10 +135,10 @@ const checkLowStockAndNotify = async (productId, bufferLimit = DEFAULT_LOW_STOCK
         }]);
       }
 
-      console.warn(`[Inventory Alert] ${message}`);
+      if (import.meta.env.DEV) console.warn(`[Inventory Alert] ${message}`);
     }
   } catch (err) {
-    console.error("Low Stock Alert System Failed", err);
+    if (import.meta.env.DEV) console.error("Low Stock Alert System Failed", err);
   }
 };
 
@@ -155,7 +155,7 @@ const logTableAction = async (tableName, action, { oldData = null, newData = nul
       user = userData;
     }
   } catch (e) {
-    console.warn('Failed to get user data for audit log');
+    if (import.meta.env.DEV) console.warn('Failed to get user data for audit log');
   }
   
   try {
@@ -172,9 +172,9 @@ const logTableAction = async (tableName, action, { oldData = null, newData = nul
         created_at: timestamp
       }]);
     }
-    console.log(`[Audit Log] [${user.username}] ${action} on ${tableName} at ${timestamp}`, { oldData, newData, metadata });
+    if (import.meta.env.DEV) console.log(`[Audit Log] [${user.username}] ${action} on ${tableName} at ${timestamp}`, { oldData, newData, metadata });
   } catch (err) {
-    console.error("Audit Log Failed", err);
+    if (import.meta.env.DEV) console.error("Audit Log Failed", err);
   }
 };
 
@@ -191,13 +191,11 @@ const validatePayload = (tableName, payload) => {
   const records = Array.isArray(payload) ? payload : [payload];
   
   for (const record of records) {
-    console.log(`[validatePayload] Checking record for ${tableName}:`, record);
 
     // 🔥 STRICT WHITELIST FOR PRODUCTS TABLE ONLY
     if (tableName === DB_SCHEMA.PRODUCTS.table) {
       const keysToDelete = Object.keys(record).filter(key => !PRODUCT_WHITELIST.includes(key));
       if (keysToDelete.length > 0) {
-        console.warn(`[validatePayload] Removing ${keysToDelete.length} non-whitelisted fields from product:`, keysToDelete);
         keysToDelete.forEach(key => delete record[key]);
       }
     }
@@ -205,7 +203,6 @@ const validatePayload = (tableName, payload) => {
     // 🔥 100% SAFETY: REMOVE ANY FIELD THAT ENDS WITH "_file" (e.g., image_url_file)
     const fileFields = Object.keys(record).filter(key => key.endsWith('_file'));
     if (fileFields.length > 0) {
-      console.warn(`[validatePayload] Removing ${fileFields.length} temporary _file fields from payload:`, fileFields);
       fileFields.forEach(key => delete record[key]);
     }
 
@@ -222,7 +219,6 @@ const validatePayload = (tableName, payload) => {
           }
           
           if (String(originalValue) !== String(parsedValue)) {
-            console.log(`[validatePayload] Normalizing ${field}: "${originalValue}" -> ${parsedValue}`);
           }
           record[field] = parsedValue;
         }
@@ -235,7 +231,6 @@ const validatePayload = (tableName, payload) => {
         const originalValue = record[field];
         if (typeof originalValue === 'string') {
           record[field] = originalValue.toLowerCase() === 'true' || originalValue === '1';
-          console.log(`[validatePayload] Normalizing boolean ${field}: "${originalValue}" -> ${record[field]}`);
         } else if (typeof originalValue === 'number') {
           record[field] = originalValue === 1;
         }
@@ -253,7 +248,6 @@ const validatePayload = (tableName, payload) => {
     }
   }
   
-  console.log(`[validatePayload] Final payload for ${tableName}:`, payload);
   return true;
 };
 
@@ -270,7 +264,7 @@ export const dbSync = {
       const { error } = await supabase.from(tableName).select('count', { count: 'exact', head: true });
       if (error) {
         if (error.code === 'PGRST116') return false;
-        console.warn(`[dbSync] Connection check for ${tableName} failed:`, error.message);
+        if (import.meta.env.DEV) console.warn(`[dbSync] Connection check for ${tableName} failed:`, error.message);
         return false;
       }
       return true;
@@ -284,8 +278,10 @@ export const dbSync = {
    * Enables live updates for a specific table.
    */
   subscribe: (tableName, callback) => {
+    // Generate a unique channel name to avoid "already subscribed" errors
+    const channelId = `realtime-${tableName}-${Math.random().toString(36).substring(7)}`;
     return supabase
-      .channel(`public:${tableName}`)
+      .channel(channelId)
       .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, (payload) => {
         callback(payload);
       })
@@ -318,7 +314,7 @@ export const dbSync = {
 
       return data;
     } catch (error) {
-      console.error(`[Atomic Error] ${rpcName}:`, error.message);
+      if (import.meta.env.DEV) console.error(`[Atomic Error] ${rpcName}:`, error.message);
       throw error;
     }
   },
@@ -332,15 +328,30 @@ export const dbSync = {
     try {
       validatePayload(tableName, payload);
       const userData = secureStorage.getItem('nm_user_data');
+      const tenantId = userData?.tenant_id;
       const companyCode = userData?.company_code;
 
       const records = Array.isArray(payload) ? payload : [payload];
-      // Injection of company_code for multi-tenancy
-      const tenantRecords = records.map(r => ({
-        ...r,
-        company_code: r.company_code || companyCode,
-        created_at: new Date().toISOString()
-      }));
+      
+      // Find schema entry for this table
+      const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
+      
+      // Injection of tenant_id/company_code for multi-tenancy
+      const tenantRecords = records.map(r => {
+        const record = { ...r, created_at: new Date().toISOString() };
+        
+        // Add tenant_id if table has tenantColumn
+        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
+          record.tenant_id = r.tenant_id || tenantId;
+        }
+        
+        // Add company_code for backward compatibility (if needed)
+        if (companyCode) {
+          record.company_code = r.company_code || companyCode;
+        }
+        
+        return record;
+      });
 
       let request = supabase.from(tableName);
       
@@ -359,7 +370,7 @@ export const dbSync = {
         if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this insert.");
         // If it's a unique constraint violation, handle it gracefully
         if (error.code === '23505') { // 23505 is unique violation in Postgres
-          console.warn(`[dbSync.insert] Duplicate entry, skipping or updating:`, error.message);
+          if (import.meta.env.DEV) console.warn(`[dbSync.insert] Duplicate entry, skipping or updating:`, error.message);
           // Try to fetch existing data if available
           const existing = await dbSync.fetch(tableName, { includeDeleted: true });
           return existing;
@@ -370,7 +381,7 @@ export const dbSync = {
       await logTableAction(tableName, 'INSERT', { newData: data });
       return data;
     } catch (error) {
-      console.error(`[Insert Error] ${tableName}:`, error.message);
+      if (import.meta.env.DEV) console.error(`[Insert Error] ${tableName}:`, error.message);
       throw error;
     }
   },
@@ -383,11 +394,13 @@ export const dbSync = {
       let hasMore = true;
       const limit = query.limit || Infinity;
 
-      console.log(`[dbSync] Fetching ${tableName}...`, { query });
-
-      // --- Multi-Tenant Logic: Get current User's Company Code ---
+      // --- Multi-Tenant Logic: Get current User's Tenant ID and Company Code ---
       const userData = secureStorage.getItem('nm_user_data');
+      const tenantId = userData?.tenant_id;
       const companyCode = userData?.company_code;
+
+      // Find schema entry for this table
+      const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
 
       while (hasMore) {
         if (allData.length >= limit) {
@@ -397,11 +410,14 @@ export const dbSync = {
 
         let request = supabase.from(tableName).select(query.select || '*');
         
-        // --- AUTO-FILTER BY COMPANY_CODE ---
+        // --- AUTO-FILTER BY TENANT ID (if applicable) ---
         // Apply filter to all tables except global system tables
-        if (companyCode) {
-          const systemTables = ['companies', 'system_logs'];
-          if (!systemTables.includes(tableName)) {
+        const systemTables = ['companies', 'system_logs'];
+        if (!systemTables.includes(tableName)) {
+          if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
+            request = request.eq('tenant_id', tenantId);
+          } else if (companyCode) {
+            // Fallback to company_code for backward compatibility
             request = request.eq('company_code', companyCode);
           }
         }
@@ -414,7 +430,6 @@ export const dbSync = {
         if (query.eq) {
           const eqFilters = Array.isArray(query.eq) ? query.eq : [query.eq];
           eqFilters.forEach(filter => {
-            console.log(`[dbSync] Adding eq filter: ${filter.column} = ${filter.value}`);
             request = request.eq(filter.column, filter.value);
           });
         }
@@ -430,21 +445,10 @@ export const dbSync = {
         
         request = request.range(from, to);
 
-        // Debug: Log the request details
-        console.log(`[dbSync] Executing request on ${tableName}:`, {
-          select: query.select || '*',
-          filters: {
-            eq: query.eq,
-            isActiveFilter: TABLES_WITH_IS_ACTIVE.includes(tableName) && !query.includeDeleted
-          },
-          order: query.order || 'created_at DESC',
-          range: `${from}-${to}`
-        });
-
         const { data, error } = await request;
         
         if (error) {
-          console.error(`[Supabase Fetch Error] ${tableName}:`, {
+          if (import.meta.env.DEV) console.error(`[Supabase Fetch Error] ${tableName}:`, {
             message: error.message,
             code: error.code,
             details: error.details,
@@ -453,11 +457,11 @@ export const dbSync = {
           });
           
           if (error.code === '42501') {
-            console.error(`[Security Error] RLS Policy denied access to ${tableName}. Check Supabase policies!`);
+            if (import.meta.env.DEV) console.error(`[Security Error] RLS Policy denied access to ${tableName}. Check Supabase policies!`);
             return [];
           }
           if (error.code === 'PGRST116' || error.message.includes('cache') || error.message.includes('not found')) {
-            console.warn(`[dbSync.fetch] Table not yet available: ${tableName}`);
+            if (import.meta.env.DEV) console.warn(`[dbSync.fetch] Table not yet available: ${tableName}`);
             return [];
           }
           
@@ -477,11 +481,10 @@ export const dbSync = {
         }
       }
 
-      console.log(`[dbSync] ${tableName} fetch complete. Total: ${allData.length}`);
       return allData;
     } catch (error) {
       if (!error.message.includes('cache') && !error.message.includes('not found')) {
-        console.error(`[dbSync.fetch Failed] ${tableName}:`, error.message);
+        if (import.meta.env.DEV) console.error(`[dbSync.fetch Failed] ${tableName}:`, error.message);
       }
       return []; // Return empty array instead of throwing
     }
@@ -492,19 +495,36 @@ export const dbSync = {
     try {
       validatePayload(tableName, payload);
       const pkColumn = dbSync.getPkColumn(tableName);
+      
+      const userData = secureStorage.getItem('nm_user_data');
+      const tenantId = userData?.tenant_id;
+      const companyCode = userData?.company_code;
+      
+      // Find schema entry for this table
+      const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
 
-      // Fetch old data first
-      const { data: oldData } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq(pkColumn, id)
-        .single();
+      // Fetch old data first with tenant filter
+      let fetchRequest = supabase.from(tableName).select('*').eq(pkColumn, id);
+      const systemTables = ['companies', 'system_logs'];
+      if (!systemTables.includes(tableName)) {
+        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
+          fetchRequest = fetchRequest.eq('tenant_id', tenantId);
+        } else if (companyCode) {
+          fetchRequest = fetchRequest.eq('company_code', companyCode);
+        }
+      }
+      const { data: oldData } = await fetchRequest.single();
 
-      const { data, error } = await supabase
-        .from(tableName)
-        .update(payload)
-        .eq(pkColumn, id)
-        .select();
+      // Update with tenant filter
+      let updateRequest = supabase.from(tableName).update(payload).eq(pkColumn, id);
+      if (!systemTables.includes(tableName)) {
+        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
+          updateRequest = updateRequest.eq('tenant_id', tenantId);
+        } else if (companyCode) {
+          updateRequest = updateRequest.eq('company_code', companyCode);
+        }
+      }
+      const { data, error } = await updateRequest.select();
 
       if (error) {
         if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this update.");
@@ -514,7 +534,7 @@ export const dbSync = {
       await logTableAction(tableName, 'UPDATE', { oldData, newData: data });
       return data;
     } catch (error) {
-      console.error(`[Update Error] ${tableName}:`, error.message);
+      if (import.meta.env.DEV) console.error(`[Update Error] ${tableName}:`, error.message);
       throw error;
     }
   },
@@ -528,35 +548,77 @@ export const dbSync = {
 
   // Delete (Enhanced with Soft Delete Support + Child Check)
   delete: async (tableName, id, permanent = false) => {
-    console.log('[dbSync.delete] Called with:', { tableName, id, permanent });
     try {
       const pkColumn = dbSync.getPkColumn(tableName);
-      console.log('[dbSync.delete] pkColumn:', pkColumn);
+      
+      const userData = secureStorage.getItem('nm_user_data');
+      const tenantId = userData?.tenant_id;
+      const companyCode = userData?.company_code;
+      
+      // Find schema entry for this table
+      const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
+      const systemTables = ['companies', 'system_logs'];
 
       // --- 1. Check for related child records BEFORE deletion ---
       let relatedRecords = [];
       let relatedRecordsMessage = null;
 
       if (tableName === DB_SCHEMA.CATEGORIES.table) {
-        // Check for related products and subcategories
-        const [productsCheck, subcategoriesCheck] = await Promise.all([
-          supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('category_id', id),
-          supabase.from(DB_SCHEMA.SUBCATEGORIES.table).select('id').eq('category_id', id),
-        ]);
+        // Check for related products and subcategories with tenant filter
+        let productsRequest = supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('category_id', id);
+        let subcategoriesRequest = supabase.from(DB_SCHEMA.SUBCATEGORIES.table).select('id').eq('category_id', id);
+        
+        if (!systemTables.includes(DB_SCHEMA.PRODUCTS.table)) {
+          if (DB_SCHEMA.PRODUCTS.tenantColumn === 'tenant_id' && tenantId) {
+            productsRequest = productsRequest.eq('tenant_id', tenantId);
+          } else if (companyCode) {
+            productsRequest = productsRequest.eq('company_code', companyCode);
+          }
+        }
+        
+        if (!systemTables.includes(DB_SCHEMA.SUBCATEGORIES.table)) {
+          if (DB_SCHEMA.SUBCATEGORIES.tenantColumn === 'tenant_id' && tenantId) {
+            subcategoriesRequest = subcategoriesRequest.eq('tenant_id', tenantId);
+          } else if (companyCode) {
+            subcategoriesRequest = subcategoriesRequest.eq('company_code', companyCode);
+          }
+        }
+        
+        const [productsCheck, subcategoriesCheck] = await Promise.all([productsRequest, subcategoriesRequest]);
         relatedRecords = [...(productsCheck.data || []), ...(subcategoriesCheck.data || [])];
         if (relatedRecords.length > 0) {
           relatedRecordsMessage = `यह Category ${productsCheck.data?.length || 0} Products और ${subcategoriesCheck.data?.length || 0} Subcategories से जुड़ी हुई है!`;
         }
       } else if (tableName === DB_SCHEMA.SUBCATEGORIES.table) {
-        // Check for related products
-        const productsCheck = await supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('subcategory_id', id);
+        // Check for related products with tenant filter
+        let productsRequest = supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('subcategory_id', id);
+        
+        if (!systemTables.includes(DB_SCHEMA.PRODUCTS.table)) {
+          if (DB_SCHEMA.PRODUCTS.tenantColumn === 'tenant_id' && tenantId) {
+            productsRequest = productsRequest.eq('tenant_id', tenantId);
+          } else if (companyCode) {
+            productsRequest = productsRequest.eq('company_code', companyCode);
+          }
+        }
+        
+        const productsCheck = await productsRequest;
         relatedRecords = productsCheck.data || [];
         if (relatedRecords.length > 0) {
           relatedRecordsMessage = `यह Subcategory ${relatedRecords.length} Products से जुड़ी हुई है!`;
         }
       } else if (tableName === DB_SCHEMA.BRANDS.table) {
-        // Check for related products
-        const productsCheck = await supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('brand_id', id);
+        // Check for related products with tenant filter
+        let productsRequest = supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('brand_id', id);
+        
+        if (!systemTables.includes(DB_SCHEMA.PRODUCTS.table)) {
+          if (DB_SCHEMA.PRODUCTS.tenantColumn === 'tenant_id' && tenantId) {
+            productsRequest = productsRequest.eq('tenant_id', tenantId);
+          } else if (companyCode) {
+            productsRequest = productsRequest.eq('company_code', companyCode);
+          }
+        }
+        
+        const productsCheck = await productsRequest;
         relatedRecords = productsCheck.data || [];
         if (relatedRecords.length > 0) {
           relatedRecordsMessage = `यह Brand ${relatedRecords.length} Products से जुड़ा हुआ है!`;
@@ -568,28 +630,39 @@ export const dbSync = {
       }
 
       let error;
-      // Fetch old data first
-      const { data: oldData, error: fetchError } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq(pkColumn, id)
-        .single();
-      console.log('[dbSync.delete] oldData:', oldData, 'fetchError:', fetchError);
+      // Fetch old data first with tenant filter
+      let fetchRequest = supabase.from(tableName).select('*').eq(pkColumn, id);
+      if (!systemTables.includes(tableName)) {
+        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
+          fetchRequest = fetchRequest.eq('tenant_id', tenantId);
+        } else if (companyCode) {
+          fetchRequest = fetchRequest.eq('company_code', companyCode);
+        }
+      }
+      const { data: oldData } = await fetchRequest.single();
 
       const shouldHardDelete = permanent || HARD_DELETE_TABLES.includes(tableName);
-      console.log('[dbSync.delete] shouldHardDelete:', shouldHardDelete);
 
+      let request;
       if (shouldHardDelete) {
         // Hard Delete for specific tables or if requested
-        const res = await supabase.from(tableName).delete().eq(pkColumn, id);
-        error = res.error;
-        console.log('[dbSync.delete] Hard delete res.error:', error);
+        request = supabase.from(tableName).delete().eq(pkColumn, id);
       } else {
         // Soft Delete (Security Feature: Data is hidden but not lost - for categories/subcategories/brands now!)
-        const res = await supabase.from(tableName).update({ is_active: false }).eq(pkColumn, id);
-        error = res.error;
-        console.log('[dbSync.delete] Soft delete res.error:', error);
+        request = supabase.from(tableName).update({ is_active: false }).eq(pkColumn, id);
       }
+      
+      // Add tenant filter to delete/update request
+      if (!systemTables.includes(tableName)) {
+        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
+          request = request.eq('tenant_id', tenantId);
+        } else if (companyCode) {
+          request = request.eq('company_code', companyCode);
+        }
+      }
+      
+      const res = await request;
+      error = res.error;
 
       if (error) {
         if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this deletion.");
@@ -603,7 +676,7 @@ export const dbSync = {
       await logTableAction(tableName, shouldHardDelete ? 'HARD_DELETE' : 'SOFT_DELETE', { oldData });
       return true;
     } catch (error) {
-      console.error(`[Delete Error] ${tableName}:`, error.message);
+      if (import.meta.env.DEV) console.error(`[Delete Error] ${tableName}:`, error.message);
       throw error;
     }
   },
@@ -647,7 +720,7 @@ export const dbSync = {
       await logTableAction(`STORAGE:${bucket}`, 'UPLOAD');
       return data.publicUrl;
     } catch (error) {
-      console.error(`[Upload Error] ${bucket}:`, error.message);
+      if (import.meta.env.DEV) console.error(`[Upload Error] ${bucket}:`, error.message);
       throw error;
     }
   },
@@ -730,7 +803,7 @@ export const dbSync = {
       
       return { success: true, data: dbData[0], url: publicUrl };
     } catch (error) {
-      console.error(`[Banner Sync Error]:`, error.message);
+      if (import.meta.env.DEV) console.error(`[Banner Sync Error]:`, error.message);
       return { success: false, error: error.message };
     }
   },
@@ -756,7 +829,7 @@ export const dbSync = {
       await logTableAction(DB_SCHEMA.WALLET_TRANSACTIONS.table, `WALLET_${type.toUpperCase()}`);
       return { success: true, data };
     } catch (error) {
-      console.error(`[Wallet Sync Error]:`, error.message);
+      if (import.meta.env.DEV) console.error(`[Wallet Sync Error]:`, error.message);
       return { success: false, error: error.message };
     }
   },
@@ -779,7 +852,7 @@ export const dbSync = {
         await logTableAction(tableName, 'MAINTENANCE_EXPORT');
         return { success: true };
       } catch (error) {
-        console.error("Export Failed", error);
+        if (import.meta.env.DEV) console.error("Export Failed", error);
         return { success: false, error: error.message };
       }
     },

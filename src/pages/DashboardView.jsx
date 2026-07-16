@@ -254,8 +254,8 @@ export default function DashboardView(props) {
               </div>
               <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">+12% Growth</span>
             </div>
-            <div className="h-[180px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="h-[180px] w-full min-h-[180px] min-w-[200px]">
+              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={180}>
                 <AreaChart data={salesTrendData}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
@@ -280,8 +280,8 @@ export default function DashboardView(props) {
             {/* Payment Distribution Chart */}
             <div className="bg-white rounded-xl border border-neutral-200 p-4 shadow-enterprise">
               <h3 className="text-[10px] font-black text-neutral-800 uppercase tracking-tighter mb-4 text-center">Payment Methods</h3>
-              <div className="h-[150px] w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[150px] w-full relative min-h-[150px] min-w-[150px]">
+                <ResponsiveContainer width="100%" height="100%" minWidth={150} minHeight={150}>
                   <PieChart>
                     <Pie
                       data={paymentChartData}
@@ -312,8 +312,8 @@ export default function DashboardView(props) {
             {/* Category Performance */}
             <div className="bg-white rounded-xl border border-neutral-200 p-4 shadow-enterprise">
               <h3 className="text-[10px] font-black text-neutral-800 uppercase tracking-tighter mb-4">Top Categories</h3>
-              <div className="h-[150px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-[150px] w-full min-h-[150px] min-w-[150px]">
+                <ResponsiveContainer width="100%" height="100%" minWidth={150} minHeight={150}>
                   <BarChart data={categoryChartData} layout="vertical" margin={{ left: -20 }}>
                     <XAxis type="number" hide />
                     <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 800, fill: '#64748B'}} width={80} />

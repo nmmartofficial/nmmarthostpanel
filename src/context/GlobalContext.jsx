@@ -126,7 +126,6 @@ export const GlobalProvider = ({ children }) => {
 
     // Security Guard: No data fetch if not logged in
     if (!companyCode) {
-      console.warn("[GlobalContext] Fetch blocked: User not logged in.");
       setLoading(false);
       return;
     }
@@ -138,7 +137,6 @@ export const GlobalProvider = ({ children }) => {
     mountRef.current = now;
 
     if (!silent) setLoading(true);
-    console.log("[GlobalContext] Orchestrating Data...");
 
     try {
       const thirtyDaysAgo = new Date();
@@ -265,6 +263,7 @@ export const GlobalProvider = ({ children }) => {
       case DB_SCHEMA.SUBCATEGORIES.table: updateState(setSubcategories); break;
       case DB_SCHEMA.BRANDS.table: updateState(setBrands); break;
       case DB_SCHEMA.COUPONS.table: updateState(setCoupons); break;
+      case DB_SCHEMA.WALLET_MASTER.table: updateState(setUsers); break;
       default: break;
     }
   }, []);

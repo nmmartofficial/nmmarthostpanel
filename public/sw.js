@@ -13,7 +13,13 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Bypass caching for all requests to prevent MIME type errors
+// Bypass caching for all requests to prevent MIME type errors, with error handling
 self.addEventListener('fetch', event => {
-  event.respondWith(fetch(event.request));
+  event.respondWith(
+    fetch(event.request).catch(error => {
+      console.error('SW Fetch failed:', error);
+      // Optionally return a fallback response here if needed
+      throw error;
+    })
+  );
 });

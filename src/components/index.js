@@ -11,6 +11,7 @@ export { default as CartItem } from './CartItem';
 export { default as ThermalReceipt } from './ThermalReceipt';
 export { default as NumericKeypad } from './NumericKeypad';
 export { default as POSErrorBoundary } from './POSErrorBoundary';
+export { default as ProtectedRoute } from './ProtectedRoute';
 
 // Lazy-loaded Dialogs & Dashboards
 export const HoldQueueDialog = lazy(() => import('./HoldQueueDialog'));

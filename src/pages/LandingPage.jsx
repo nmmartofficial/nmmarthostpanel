@@ -4,6 +4,7 @@ import {
   Zap, Layers, MessageCircle, BarChart3, Box, CheckCircle2, Lock
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { cn } from '../utils/helpers';
 
 export default function LandingPage() {
@@ -88,9 +89,10 @@ export default function LandingPage() {
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
             © 2026 NM MART <span className="text-blue-600">ULTRA</span> • SOLUTIONS
           </p>
-          <a href="/nm-mart" className="text-[10px] font-black text-slate-300 hover:text-slate-900 transition-colors uppercase tracking-[0.2em]">
+          <Link to="/nm-mart" className="flex items-center gap-2 px-6 py-2 bg-slate-50 border border-slate-200 text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all">
+            <Lock size={12} className="text-blue-600" />
             Staff Portal
-          </a>
+          </Link>
         </div>
       </footer>
 

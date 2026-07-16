@@ -100,17 +100,37 @@ export const generateSecurePIN = () => {
  */
 export const secureStorage = {
   setItem: (key, value) => {
-    const encoded = btoa(JSON.stringify(value));
-    localStorage.setItem(key, encoded);
+    try {
+      // Unicode-safe encoding: encode as UTF-8, then base64
+      const jsonString = JSON.stringify(value);
+      const uint8Array = new TextEncoder().encode(jsonString);
+      const binaryString = String.fromCharCode(...uint8Array);
+      const encoded = btoa(binaryString);
+      localStorage.setItem(key, encoded);
+    } catch (e) {
+      if (import.meta.env.DEV) console.error('Secure storage encode error:', e);
+    }
   },
   
   getItem: (key) => {
-    const encoded = localStorage.getItem(key);
-    if (!encoded) return null;
     try {
-      return JSON.parse(atob(encoded));
+      const encoded = localStorage.getItem(key);
+      if (!encoded) return null;
+
+      // First, try old format (non-unicode safe) for backward compatibility
+      try {
+        return JSON.parse(atob(encoded));
+      } catch (oldFormatErr) {
+        // If old format fails, try new unicode-safe format
+        const binaryString = atob(encoded);
+        const uint8Array = new Uint8Array([...binaryString].map(char => char.charCodeAt(0)));
+        const jsonString = new TextDecoder().decode(uint8Array);
+        return JSON.parse(jsonString);
+      }
     } catch (e) {
-      console.error('Secure storage decode error:', e);
+      if (import.meta.env.DEV) console.error('Secure storage decode error:', e);
+      // If decode fails, clear the invalid item to prevent repeated errors
+      try { localStorage.removeItem(key); } catch {}
       return null;
     }
   },

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { 
   Package, Layers, Grid, List, Tag, Building2, 
   Users, Image as ImageIcon, CreditCard, 
@@ -47,7 +46,6 @@ const DEFAULT_APP_CONFIG = {
 
 // Import New Pages
 import DashboardView from './pages/DashboardView';
-import LoginView from './pages/LoginView';
 import ProductsView from './pages/Inventory/ProductsView';
 import OrdersView from './pages/Orders/OrdersView';
 import NotificationsView from './pages/NotificationsView';
@@ -56,7 +54,6 @@ import AppConfigView from './pages/AppConfigView';
 import AnalyticsView from './pages/AnalyticsView';
 import POSView from './pages/POSView';
 import ProfitLossView from './pages/ProfitLossView';
-import HomeLayoutManager from './pages/HomeLayoutManager';
 import SuppliersView from './pages/Inventory/SuppliersView';
 import EnhancedSuppliersView from './pages/Inventory/EnhancedSuppliersView';
 import PurchaseEntryView from './pages/Inventory/PurchaseEntryView';
@@ -67,6 +64,8 @@ import ExpensesView from './pages/ExpensesView';
 import PurchaseView from './pages/Inventory/PurchaseView';
 import SelfCheckoutView from './pages/SelfCheckoutView';
 import LoyaltyManagementView from './pages/LoyaltyManagementView';
+import CompanyManagement from './pages/SuperAdmin/CompanyManagement';
+import { useAuthContext } from './context';
 
 // --- Global Constants ---
 const BRAND_NAME = "NM MART";
@@ -341,7 +340,8 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 }
 
 // --- App Component ---
-export default function App() {
+export default function App({ company, isTenantMode, companySlug }) {
+  const { currentUser: authUser, isAuthenticated, logout } = useAuthContext();
   // Initialize login rate limiter
   const loginRateLimiter = useMemo(() => new LoginRateLimiter(5, 5), []);
 
@@ -359,8 +359,8 @@ export default function App() {
     }
   }, []);
 
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const isAuthorized = isAuthenticated;
+  const [currentUser, setCurrentUser] = useState(() => authUser || secureStorage.getItem('nm_user_data'));
   const [activeTab, setActiveTab] = useState(localStorage.getItem('nm_active_tab') || 'Dashboard');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [customerMode, setCustomerMode] = useState(false);
@@ -371,23 +371,17 @@ export default function App() {
   const sessionTimeoutRef = useRef(null);
   const warningTimeoutRef = useRef(null);
 
-  // 1. Initial Session Check (Clean)
   useEffect(() => {
-    const auth = secureStorage.getItem('nm_admin_auth');
-    const user = secureStorage.getItem('nm_user_data');
-
-    if (auth === 'true' && user && user.company_code) {
-      setIsAuthorized(true);
-      setCurrentUser(user);
+    if (authUser) {
+      setCurrentUser(authUser);
     }
-  }, []);
+  }, [authUser]);
 
   const handleLogout = useCallback(() => {
     secureStorage.clear();
     localStorage.removeItem('nm_active_tab');
-    // Force reload to clear all React state and subscriptions
-    window.location.href = '/nm-mart';
-  }, []);
+    logout(isTenantMode && companySlug ? companySlug : null);
+  }, [logout, isTenantMode, companySlug]);
 
   const resetSessionTimer = useCallback(() => {
     if (!isAuthorized) return;
@@ -681,7 +675,6 @@ export default function App() {
     mountRef.current = now;
 
     if (!silent) setLoading(true);
-    console.log("[Audit] Initializing Data Orchestration...");
     try {
       // Calculate date 30 days ago for order items
       const thirtyDaysAgo = new Date();
@@ -765,7 +758,6 @@ export default function App() {
 
       // Use DEFAULT_APP_CONFIG if no app config is found, otherwise only use loaded fields
       const loadedAppConfig = Array.isArray(appConfigData) ? appConfigData[0] : appConfigData;
-      console.log("Loaded appConfig from DB:", loadedAppConfig);
       if (loadedAppConfig && Object.keys(loadedAppConfig).length > 0) {
         setAppConfig(loadedAppConfig);
       } else {
@@ -806,7 +798,7 @@ export default function App() {
         users: usersData.length
       });
     } catch (error) {
-      console.error("[Audit] Fetching Failed:", error);
+      // Error: Fetching failed
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
@@ -826,10 +818,6 @@ export default function App() {
   // Real-time subscriptions are now handled by GlobalContext to prevent duplicate callback errors
   // with Supabase Realtime. App.jsx will receive updates via fetchInitialData or shared state.
   useEffect(() => {
-    if (secureStorage.getItem('nm_admin_auth') === 'true') {
-      setIsAuthorized(true);
-    }
-
     // Initial fetch only once on true mount
     if (!mountRef.current) {
       fetchInitialData(false, false);
@@ -871,14 +859,14 @@ export default function App() {
             }
           );
         } catch (processError) {
-          console.warn('Image processing failed, using original file:', processError);
+          if (import.meta.env.DEV) console.warn('Image processing failed, using original file:', processError);
           fileToUpload = file;
         }
       }
 
       // Check if supabase.storage is available
       if (!supabase.storage) {
-        console.warn('Supabase storage not available');
+        if (import.meta.env.DEV) console.warn('Supabase storage not available');
         return { url: null, error: null };
       }
 
@@ -893,7 +881,7 @@ export default function App() {
         });
 
       if (uploadError) {
-        console.error(`Supabase Upload Error [Bucket: ${bucket}]:`, uploadError);
+        if (import.meta.env.DEV) console.error(`Supabase Upload Error [Bucket: ${bucket}]:`, uploadError);
         return { url: null, error: null };
       }
 
@@ -902,13 +890,13 @@ export default function App() {
         .getPublicUrl(filePath);
 
       if (!publicUrl) {
-        console.warn('Failed to generate public URL');
+        if (import.meta.env.DEV) console.warn('Failed to generate public URL');
         return { url: null, error: null };
       }
 
       return { url: publicUrl, error: null };
     } catch (error) {
-      console.error("Critical Upload error:", error);
+      if (import.meta.env.DEV) console.error("Critical Upload error:", error);
       return { url: null, error: null };
     }
   };
@@ -928,11 +916,7 @@ export default function App() {
 
   // --- UI Components ---
   if (!isAuthorized) {
-    return <LoginView onLoginSuccess={(userData) => {
-      setIsAuthorized(true);
-      setCurrentUser(userData);
-      fetchInitialData(true, false);
-    }} />;
+    return null;
   }
 
   const masterItems = [
@@ -1012,14 +996,14 @@ export default function App() {
     { id: 'LoyaltyPoints', label: 'LOYALTY POINTS', icon: <Trophy size={14} /> },
     { id: 'BarcodeLabels', label: 'BARCODE LABELS', icon: <Package size={14} /> },
     { id: 'MultiStore', label: 'MULTI STORE', icon: <Building2 size={14} /> },
-    { id: 'HomeLayout', label: 'NM APP CONTROLLER', icon: <Layout size={14} /> },
     { id: 'AppConfig', label: 'CONFIGURATION', icon: <Settings size={14} /> },
     { id: 'GuardVerification', label: 'GUARD VERIFICATION', icon: <ShieldCheck size={14} />, hidden: !appConfig?.enable_guard_verification },
     { id: 'StoreItemDisplay', label: 'STORE ITEM DISPLAY', icon: <ArrowLeftRight size={14} /> },
     { id: 'StoreSubCatDisplay', label: 'STORE SUB-CAT DISPLAY', icon: <ArrowLeftRight size={14} /> },
     { id: 'StoreMainCatDisplay', label: 'STORE MAIN-CAT DISPLAY', icon: <ArrowLeftRight size={14} /> },
     { id: 'TestBluetooth', label: 'TEST BLUETOOTH', icon: <ArrowLeftRight size={14} /> },
-  ].filter(item => isAllowed(item.id));
+    ...(!isTenantMode ? [{ id: 'CompanyManagement', label: 'COMPANY MANAGEMENT', icon: <Building2 size={14} /> }] : []),
+  ].filter(item => isAllowed(item.id) && !item.hidden);
 
   return (
     customerMode ? (
@@ -1190,10 +1174,7 @@ export default function App() {
                   setActiveTab={(tab) => {
                     if (tab === 'Logout') {
                       if (window.confirm("Are you sure you want to Logout?")) {
-                        localStorage.removeItem('nm_admin_auth');
-                        localStorage.removeItem('nm_auth_time');
-                        setIsAuthorized(false);
-                        toast.info('Logged out successfully');
+                        handleLogout();
                       }
                     } else if (tab === 'DatabaseBackup') {
                       handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.MAINTENANCE_EXPORT, { fileName: 'Full_System_Backup' });
@@ -7058,6 +7039,7 @@ function renderTabContent(activeTab, props) {
     case 'LoyaltyPoints': return <LoyaltyManagementView orders={props.orders} fetchInitialData={props.fetchInitialData} />;
     case 'BarcodeLabels': return <BarcodeLabelGenerator {...props} />;
     case 'MultiStore': return <MultiStoreManager {...props} />;
+    case 'CompanyManagement': return <CompanyManagement />;
     case 'Dashboard': return <DashboardView orderItems={props.orderItems || []} {...props} />;
     case 'Products': return <ProductsView {...props} />;
     case 'Orders': return <OrdersView {...props} />;
@@ -7069,7 +7051,6 @@ function renderTabContent(activeTab, props) {
     case 'POS': return <POSView orders={props.orders} {...props} />;
     case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} customerMode={props.customerMode} setCustomerMode={props.setCustomerMode} />;
     case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
-    case 'HomeLayout': return <HomeLayoutManager {...props} />;
 
     // Inventory Views
     case 'StockAlerts': return <StockAlertsView products={props.products} fetchInitialData={props.fetchInitialData} />;
