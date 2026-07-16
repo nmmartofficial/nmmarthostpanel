@@ -109,7 +109,7 @@ export const GlobalProvider = ({ children }) => {
     return saved ? saved : INITIAL_FESTIVALS;
   });
   const [activeFestival, setActiveFestival] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // --- Refs ---
   const isFetchingRef = useRef(false);
@@ -269,8 +269,9 @@ export const GlobalProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    fetchInitialData();
-
+    // REMOVED: No longer fetch all data on mount!
+    // Let individual components fetch only what they need when needed.
+    
     const tablesToWatch = [
       DB_SCHEMA.ORDERS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.NOTIFICATIONS.table,
       DB_SCHEMA.BANNERS.table, DB_SCHEMA.BRANDS.table, DB_SCHEMA.CATEGORIES.table,

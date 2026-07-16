@@ -10,7 +10,7 @@ import ErrorBoundary from './ErrorBoundary.jsx'
 import { GlobalProvider } from './context/GlobalContext'
 import { AuthProvider, useAuthContext } from './context'
 import { ProtectedRoute } from './components'
-import { supabase } from './supabase'
+import { supabase, isSupabaseMock } from './supabase'
 import { DB_SCHEMA } from './dbSchema'
 import { secureStorage } from './utils/security'
 import './index.css'
@@ -43,9 +43,12 @@ function AuthChecker({ isTenantMode = false }) {
   const { companySlug } = useParams();
   const navigate = useNavigate();
 
+  // If using mock client, authLoading is never true, so we can skip checks early
+  const effectiveAuthLoading = isSupabaseMock ? false : authLoading;
+
   React.useEffect(() => {
     // Don't redirect while loading - show loading screen
-    if (authLoading) return;
+    if (effectiveAuthLoading) return;
 
     if (isAuthenticated && currentUser) {
       // User is authenticated, redirect to appropriate dashboard
@@ -60,17 +63,11 @@ function AuthChecker({ isTenantMode = false }) {
         ? `/${companySlug}/dashboard`
         : `/${SECRET_CLIENT_PATH}/dashboard`;
       navigate(dashboardPath, { replace: true });
-    } else {
-      // User not authenticated - redirect to login
-      const loginPath = isTenantMode
-        ? `/${companySlug}/login`
-        : `/${SECRET_CLIENT_PATH}`; // Now login page is directly at /nm-mart
-      navigate(loginPath, { replace: true });
     }
-  }, [isAuthenticated, authLoading, isTenantMode, companySlug, currentCompany, currentUser, navigate]);
+  }, [isAuthenticated, effectiveAuthLoading, isTenantMode, companySlug, currentCompany, currentUser, navigate]);
 
-  // Show clean loading screen while checking auth
-  if (authLoading) {
+  // Show clean loading screen while checking auth (only if not using mock)
+  if (effectiveAuthLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-white">
         <div className="text-center">
@@ -95,17 +92,20 @@ function LoginPageWrapper({ isTenantMode = false }) {
   const { companySlug } = useParams();
   const navigate = useNavigate();
 
+  // If using mock client, authLoading is never true
+  const effectiveAuthLoading = isSupabaseMock ? false : authLoading;
+
   React.useEffect(() => {
-    if (authLoading) return;
+    if (effectiveAuthLoading) return;
     if (isAuthenticated) {
       const dashboardPath = isTenantMode
         ? `/${companySlug}/dashboard`
         : `/${SECRET_CLIENT_PATH}/dashboard`;
       navigate(dashboardPath, { replace: true });
     }
-  }, [isAuthenticated, authLoading, isTenantMode, companySlug, navigate]);
+  }, [isAuthenticated, effectiveAuthLoading, isTenantMode, companySlug, navigate]);
 
-  if (authLoading) {
+  if (effectiveAuthLoading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-white">
         <div className="text-center">
@@ -165,11 +165,18 @@ function TenantERPLayout() {
 function TenantWrapper() {
   const { companySlug } = useParams();
   const { setCompany, currentCompany } = useAuthContext();
-  const [loading, setLoading] = React.useState(true);
+  // If using mock client, skip loading entirely!
+  const [loading, setLoading] = React.useState(isSupabaseMock ? false : true);
   const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
     const fetchCompany = async () => {
+      // If using mock client, skip everything!
+      if (isSupabaseMock) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         // First check if companySlug is the secret path

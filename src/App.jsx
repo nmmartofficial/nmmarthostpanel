@@ -459,7 +459,7 @@ export default function App({ company, isTenantMode, companySlug }) {
       { id: '3', name: 'Gold', minPoints: 5000, maxPoints: 99999, discount: 10, color: '#FFD700' }
     ];
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [darkMode, setDarkMode] = useState(localStorage.getItem('nm_dark_mode') === 'true');
   const [festivals, setFestivals] = useState(() => {
@@ -817,12 +817,8 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   // Real-time subscriptions are now handled by GlobalContext to prevent duplicate callback errors
   // with Supabase Realtime. App.jsx will receive updates via fetchInitialData or shared state.
-  useEffect(() => {
-    // Initial fetch only once on true mount
-    if (!mountRef.current) {
-      fetchInitialData(false, false);
-    }
-  }, [fetchInitialData]);
+  // REMOVED: No longer fetch all data on mount to improve initial load performance!
+  // Components should fetch data only when required for their specific use case.
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {

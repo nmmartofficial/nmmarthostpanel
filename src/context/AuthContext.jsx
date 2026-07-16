@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '../supabase';
+import { supabase, isSupabaseMock } from '../supabase';
 import { DB_SCHEMA } from '../dbSchema';
 import { secureStorage } from '../utils/security';
 import { 
@@ -44,10 +44,16 @@ export const AuthProvider = ({ children }) => {
   // Check for existing session on mount
   useEffect(() => {
     const initAuth = async () => {
+      // If using mock client, resolve immediately without any delays
+      if (isSupabaseMock) {
+        setAuthLoading(false);
+        return;
+      }
+
       try {
-        // Timeout to ensure authLoading doesn't get stuck
+        // Timeout to ensure authLoading doesn't get stuck - reduced to 1.5s
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth init timeout')), 5000)
+          setTimeout(() => reject(new Error('Auth init timeout')), 1500)
         );
 
         // Log login attempt (with try/catch to prevent blocking auth)

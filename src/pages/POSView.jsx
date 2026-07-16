@@ -456,6 +456,10 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
 
   const handleCompletePayment = useCallback(() => handleCheckout(getPaymentMethod(paymentAmounts)), [handleCheckout, paymentAmounts]);
 
+  // --- Additional UI Logic (MOVE UP EARLIER TO AVOID REFERENCE ERROR) ---
+  const searchResults = useMemo(() => filterProductsBySearch(products, searchTerm), [searchTerm, products]);
+  const filteredProducts = useMemo(() => filterProducts(products, { searchTerm, activeCategory, posFilter }), [products, searchTerm, activeCategory, posFilter]);
+
   const handleProductSelect = useCallback((product) => {
     addToCart(product);
     setSearchTerm('');
@@ -498,10 +502,6 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
     removeFromCart, updateQty, searchInputRef, custSearchRef, barcodeInputRef
   });
   const { handleGlobalKey } = keyboardWorkflow;
-
-  // --- Additional UI Logic ---
-  const searchResults = useMemo(() => filterProductsBySearch(products, searchTerm), [searchTerm, products]);
-  const filteredProducts = useMemo(() => filterProducts(products, { searchTerm, activeCategory, posFilter }), [products, searchTerm, activeCategory, posFilter]);
 
   useEffect(() => { setSelectedIndex(searchResults.length > 0 ? 0 : -1); }, [searchResults]);
   useEffect(() => { if (showPaymentModal) setTimeout(() => cashInputRef.current?.focus(), 100); else if (!showHoldQueue && !showReceiptDialog) barcodeInputRef.current?.focus(); }, [showPaymentModal, showHoldQueue, showReceiptDialog, barcodeInputRef]);
