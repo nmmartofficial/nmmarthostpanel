@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { PAYMENT_METHODS, PAYMENT_STATUS } from '../constants/payment.constants';
 import { initialPaymentState } from '../store/payment.state';
+import { PaymentService } from '../services/payment.service';
 
 const PaymentContext = createContext();
 
@@ -52,6 +53,9 @@ export const PaymentProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // --- Cash Payment State (Phase 4 Step 3) ---
+  const [cashAmount, setCashAmount] = useState(0);
+
   // --- Legacy State (Preserved for compatibility) ---
   const [paymentAmounts, setPaymentAmounts] = useState({
     [PAYMENT_METHODS.CASH]: 0,
@@ -93,6 +97,46 @@ export const PaymentProvider = ({ children }) => {
     }, [])
   }), []);
 
+  // --- Cash Payment Actions (Phase 4 Step 3) ---
+  const setCashAmountAction = useCallback((amount) => {
+    setCashAmount(amount);
+  }, []);
+
+  const processCashPaymentAction = useCallback(() => {
+    setLoading(true);
+    setError('');
+
+    const result = PaymentService.processCashPayment({
+      payableAmount,
+      cashAmount
+    });
+
+    if (result.success) {
+      setPaidAmount(result.paidAmount);
+      setRemainingAmount(result.remainingAmount);
+      setChangeAmount(result.changeAmount);
+      setPaymentStatus(PAYMENT_STATUS.COMPLETED);
+    } else {
+      setPaidAmount(result.paidAmount);
+      setRemainingAmount(result.remainingAmount);
+      setChangeAmount(result.changeAmount);
+      setPaymentStatus(PAYMENT_STATUS.FAILED);
+      setError(result.error || 'Payment failed');
+    }
+
+    setLoading(false);
+    return result;
+  }, [payableAmount, cashAmount]);
+
+  const clearCashPaymentAction = useCallback(() => {
+    setCashAmount(0);
+    setPaidAmount(0);
+    setRemainingAmount(0);
+    setChangeAmount(0);
+    setPaymentStatus(PAYMENT_STATUS.PENDING);
+    setError('');
+  }, []);
+
   // --- Payment State (Phase 4 Step 2) ---
   const paymentState = useMemo(() => ({
     selectedMethod,
@@ -124,6 +168,16 @@ export const PaymentProvider = ({ children }) => {
     paymentState,
     actions,
 
+    // Cash Payment State (Phase 4 Step 3)
+    cashAmount,
+    remainingAmount,
+    changeAmount,
+
+    // Cash Payment Actions (Phase 4 Step 3)
+    setCashAmount: setCashAmountAction,
+    processCashPayment: processCashPaymentAction,
+    clearCashPayment: clearCashPaymentAction,
+
     // Legacy State (Preserved for compatibility)
     paymentAmounts,
     setPaymentAmounts,
@@ -148,6 +202,12 @@ export const PaymentProvider = ({ children }) => {
   }), [
     paymentState,
     actions,
+    cashAmount,
+    remainingAmount,
+    changeAmount,
+    setCashAmountAction,
+    processCashPaymentAction,
+    clearCashPaymentAction,
     paymentAmounts,
     paymentStatus,
     paymentError,

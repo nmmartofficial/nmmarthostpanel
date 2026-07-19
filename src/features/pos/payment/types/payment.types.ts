@@ -1,6 +1,6 @@
 /**
  * Payment Module Types
- * Phase 4 - Step 2
+ * Phase 4 - Step 3
  */
 
 import { PAYMENT_METHODS, PAYMENT_STATUS } from '../constants/payment.constants';
@@ -65,4 +65,26 @@ export interface PaymentActions {
   setError: (error: string) => void;
   resetPayment: () => void;
 }
+
+/**
+ * Cash Payment Result Interface
+ * Phase 4 - Step 3
+ */
+export interface CashPaymentResult {
+  success: boolean;
+  paidAmount: number;
+  remainingAmount: number;
+  changeAmount: number;
+  error?: string;
+}
+
+/**
+ * Cash Payment Input Interface
+ * Phase 4 - Step 3
+ */
+export interface CashPaymentInput {
+  payableAmount: number;
+  cashAmount: number;
+}
+
 

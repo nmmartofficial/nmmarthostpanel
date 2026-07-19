@@ -1,6 +1,6 @@
 /**
  * Payment Module Hook
- * Phase 4 - Step 2
+ * Phase 4 - Step 3
  */
 
 import { usePayment as usePaymentContext } from '../context/PaymentContext';
@@ -12,6 +12,14 @@ export const usePayment = () => {
   return {
     paymentState: context.paymentState,
     actions: context.actions,
+    // Cash Payment State (Phase 4 Step 3)
+    cashAmount: context.cashAmount,
+    remainingAmount: context.remainingAmount,
+    changeAmount: context.changeAmount,
+    // Cash Payment Actions (Phase 4 Step 3)
+    setCashAmount: context.setCashAmount,
+    processCashPayment: context.processCashPayment,
+    clearCashPayment: context.clearCashPayment,
     // Legacy exports preserved for compatibility
     paymentAmounts: context.paymentAmounts,
     setPaymentAmounts: context.setPaymentAmounts,
