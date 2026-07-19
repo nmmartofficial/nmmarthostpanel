@@ -1,0 +1,3 @@
+export const usePOS = () => {
+  return {};
+};

@@ -19,6 +19,7 @@ import {
 import usePosActions from '../features/pos/hooks/usePosActions';
 
 import { POSProvider } from '../context';
+import { PaymentProvider, usePayment } from '../features/pos/payment';
 
 function POSViewContent({ products, categories, fetchInitialData, appConfig, setActiveTab, orders }) {
   // --- Performance Diagnostics ---
@@ -487,9 +488,11 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
   ]);
 
   return (
-    <POSProvider value={contextValue}>
-      <POSLayout />
-    </POSProvider>
+    <PaymentProvider>
+      <POSProvider value={contextValue}>
+        <POSLayout />
+      </POSProvider>
+    </PaymentProvider>
   );
 }
 
