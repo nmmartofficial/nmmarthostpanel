@@ -1,6 +1,6 @@
 /**
  * Payment Module Types
- * Phase 4 - Step 3
+ * Phase 4 - Step 4
  */
 
 import { PAYMENT_METHODS, PAYMENT_STATUS } from '../constants/payment.constants';
@@ -12,10 +12,10 @@ export interface PaymentInterface {
 }
 
 export interface PaymentAmounts {
-  Cash: number;
+  CASH: number;
   UPI: number;
-  Card: number;
-  Credit: number;
+  CARD: number;
+  CREDIT: number;
 }
 
 export interface PaymentHistory {
@@ -49,6 +49,10 @@ export interface PaymentState {
   changeAmount: number;
   loading: boolean;
   error: string;
+  // UPI State (Phase 4 Step 4)
+  upiId: string;
+  upiStatus: string;
+  upiTransactionId: string;
 }
 
 /**
@@ -85,6 +89,28 @@ export interface CashPaymentResult {
 export interface CashPaymentInput {
   payableAmount: number;
   cashAmount: number;
+}
+
+/**
+ * UPI Payment Result Interface
+ * Phase 4 - Step 4
+ */
+export interface UPaymentResult {
+  success: boolean;
+  paidAmount: number;
+  remainingAmount: number;
+  changeAmount: number;
+  transactionId: string;
+  error?: string;
+}
+
+/**
+ * UPI Payment Input Interface
+ * Phase 4 - Step 4
+ */
+export interface UPaymentInput {
+  payableAmount: number;
+  upiId: string;
 }
 
 

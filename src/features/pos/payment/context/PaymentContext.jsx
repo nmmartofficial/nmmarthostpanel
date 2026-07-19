@@ -56,6 +56,11 @@ export const PaymentProvider = ({ children }) => {
   // --- Cash Payment State (Phase 4 Step 3) ---
   const [cashAmount, setCashAmount] = useState(0);
 
+  // --- UPI Payment State (Phase 4 Step 4) ---
+  const [upiId, setUPIId] = useState('');
+  const [upiStatus, setUPIStatus] = useState('');
+  const [upiTransactionId, setUPITransactionId] = useState('');
+
   // --- Legacy State (Preserved for compatibility) ---
   const [paymentAmounts, setPaymentAmounts] = useState({
     [PAYMENT_METHODS.CASH]: 0,
@@ -137,6 +142,45 @@ export const PaymentProvider = ({ children }) => {
     setError('');
   }, []);
 
+  // --- UPI Payment Actions (Phase 4 Step 4) ---
+  // State wiring only - business logic in PaymentService
+  const setUPIIdAction = useCallback((id) => {
+    setUPIId(id);
+  }, []);
+
+  const processUPIPaymentAction = useCallback(() => {
+    setLoading(true);
+    setError('');
+
+    const result = PaymentService.processUPIPayment({
+      payableAmount,
+      upiId
+    });
+
+    // Update state based on service result
+    setPaidAmount(result.paidAmount);
+    setRemainingAmount(result.remainingAmount);
+    setChangeAmount(result.changeAmount);
+    setUPITransactionId(result.transactionId);
+    setUPIStatus(result.success ? 'COMPLETED' : 'FAILED');
+    setPaymentStatus(result.success ? PAYMENT_STATUS.COMPLETED : PAYMENT_STATUS.FAILED);
+    setError(result.error || '');
+
+    setLoading(false);
+    return result;
+  }, [payableAmount, upiId]);
+
+  const clearUPIPaymentAction = useCallback(() => {
+    setUPIId('');
+    setUPIStatus('');
+    setUPITransactionId('');
+    setPaidAmount(0);
+    setRemainingAmount(0);
+    setChangeAmount(0);
+    setPaymentStatus(PAYMENT_STATUS.PENDING);
+    setError('');
+  }, []);
+
   // --- Payment State (Phase 4 Step 2) ---
   const paymentState = useMemo(() => ({
     selectedMethod,
@@ -146,7 +190,11 @@ export const PaymentProvider = ({ children }) => {
     remainingAmount,
     changeAmount,
     loading,
-    error
+    error,
+    // UPI State (Phase 4 Step 4)
+    upiId,
+    upiStatus,
+    upiTransactionId
   }), [
     selectedMethod,
     paymentStatus,
@@ -155,7 +203,10 @@ export const PaymentProvider = ({ children }) => {
     remainingAmount,
     changeAmount,
     loading,
-    error
+    error,
+    upiId,
+    upiStatus,
+    upiTransactionId
   ]);
 
   // Calculate total paid (Legacy)
@@ -177,6 +228,16 @@ export const PaymentProvider = ({ children }) => {
     setCashAmount: setCashAmountAction,
     processCashPayment: processCashPaymentAction,
     clearCashPayment: clearCashPaymentAction,
+
+    // UPI Payment State (Phase 4 Step 4)
+    upiId,
+    upiTransactionId,
+    upiStatus,
+
+    // UPI Payment Actions (Phase 4 Step 4)
+    setUPIId: setUPIIdAction,
+    processUPIPayment: processUPIPaymentAction,
+    clearUPIPayment: clearUPIPaymentAction,
 
     // Legacy State (Preserved for compatibility)
     paymentAmounts,
@@ -208,6 +269,12 @@ export const PaymentProvider = ({ children }) => {
     setCashAmountAction,
     processCashPaymentAction,
     clearCashPaymentAction,
+    upiId,
+    upiTransactionId,
+    upiStatus,
+    setUPIIdAction,
+    processUPIPaymentAction,
+    clearUPIPaymentAction,
     paymentAmounts,
     paymentStatus,
     paymentError,

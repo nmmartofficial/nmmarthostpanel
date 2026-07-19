@@ -1,6 +1,6 @@
 /**
  * Payment Module Hook
- * Phase 4 - Step 3
+ * Phase 4 - Step 4
  */
 
 import { usePayment as usePaymentContext } from '../context/PaymentContext';
@@ -20,6 +20,14 @@ export const usePayment = () => {
     setCashAmount: context.setCashAmount,
     processCashPayment: context.processCashPayment,
     clearCashPayment: context.clearCashPayment,
+    // UPI Payment State (Phase 4 Step 4)
+    upiId: context.upiId,
+    upiTransactionId: context.upiTransactionId,
+    upiStatus: context.upiStatus,
+    // UPI Payment Actions (Phase 4 Step 4)
+    setUPIId: context.setUPIId,
+    processUPIPayment: context.processUPIPayment,
+    clearUPIPayment: context.clearUPIPayment,
     // Legacy exports preserved for compatibility
     paymentAmounts: context.paymentAmounts,
     setPaymentAmounts: context.setPaymentAmounts,

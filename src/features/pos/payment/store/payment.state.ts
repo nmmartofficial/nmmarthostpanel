@@ -1,6 +1,6 @@
 /**
  * Payment Module Initial State
- * Phase 4 - Step 2
+ * Phase 4 - Step 4
  */
 
 import { PAYMENT_METHODS, PAYMENT_STATUS } from '../constants/payment.constants';
@@ -33,7 +33,7 @@ export const initialCreditDetails: CreditDetails = {
 
 /**
  * Payment State Initial State
- * Phase 4 - Step 2
+ * Phase 4 - Step 4
  * Pure state structure - no calculations, no business logic
  */
 export const initialPaymentState: PaymentState = {
@@ -44,5 +44,9 @@ export const initialPaymentState: PaymentState = {
   remainingAmount: 0,
   changeAmount: 0,
   loading: false,
-  error: ''
+  error: '',
+  // UPI State (Phase 4 Step 4)
+  upiId: '',
+  upiStatus: '',
+  upiTransactionId: ''
 };

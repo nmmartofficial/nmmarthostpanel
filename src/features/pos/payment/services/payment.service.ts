@@ -1,11 +1,17 @@
 /**
  * Payment Module Service
- * Phase 4 - Step 3
- * Cash Payment Engine Implementation
+ * Phase 4 - Step 4
+ * Cash and UPI Payment Engine Implementation
  */
 
-import { calculateRemainingAmount, calculateChangeAmount } from '../utils/payment.utils';
-import type { CashPaymentInput, CashPaymentResult } from '../types/payment.types';
+import { 
+  calculateRemainingAmount, 
+  calculateChangeAmount,
+  normalizeUPIId,
+  generateMockUPITransactionId,
+  isValidUPIFormat
+} from '../utils/payment.utils';
+import type { CashPaymentInput, CashPaymentResult, UPaymentInput, UPaymentResult } from '../types/payment.types';
 
 export class PaymentService {
   /**
@@ -73,6 +79,88 @@ export class PaymentService {
       remainingAmount,
       changeAmount,
       error: !isFullyPaid ? 'Insufficient payment' : undefined
+    };
+  }
+
+  /**
+   * Process UPI Payment
+   * Phase 4 - Step 4
+   * 
+   * Responsibilities:
+   * - Normalize UPI ID
+   * - Validate format
+   * - Generate mock transaction ID
+   * - Update payment status
+   * - Update paid amount
+   * - Update remaining amount
+   * - Reuse existing calculation utilities
+   * - No duplicate calculations
+   * 
+   * @param input - UPI payment input with payable amount and UPI ID
+   * @returns UPI payment result with calculated amounts and transaction ID
+   */
+  static processUPIPayment(input: UPaymentInput): UPaymentResult {
+    const { payableAmount, upiId } = input;
+
+    // Guard validation: Check for valid payable amount
+    if (isNaN(payableAmount) || !isFinite(payableAmount) || payableAmount < 0) {
+      return {
+        success: false,
+        paidAmount: 0,
+        remainingAmount: payableAmount || 0,
+        changeAmount: 0,
+        transactionId: '',
+        error: 'Invalid payable amount'
+      };
+    }
+
+    // Guard validation: Check UPI ID is not empty
+    if (!upiId || upiId.trim().length === 0) {
+      return {
+        success: false,
+        paidAmount: 0,
+        remainingAmount: payableAmount,
+        changeAmount: 0,
+        transactionId: '',
+        error: 'UPI ID is required'
+      };
+    }
+
+    // Normalize UPI ID
+    const normalizedUPIId = normalizeUPIId(upiId);
+
+    // Validate UPI format
+    if (!isValidUPIFormat(normalizedUPIId)) {
+      return {
+        success: false,
+        paidAmount: 0,
+        remainingAmount: payableAmount,
+        changeAmount: 0,
+        transactionId: '',
+        error: 'Invalid UPI ID format'
+      };
+    }
+
+    // Generate mock transaction ID
+    const transactionId = generateMockUPITransactionId();
+
+    // For UPI, paid amount equals payable amount (full payment)
+    const paidAmount = payableAmount;
+
+    // Calculate using existing utility functions
+    const remainingAmount = calculateRemainingAmount(payableAmount, paidAmount);
+    const changeAmount = calculateChangeAmount(payableAmount, paidAmount);
+
+    // Determine payment status
+    const isFullyPaid = remainingAmount === 0;
+
+    return {
+      success: isFullyPaid,
+      paidAmount,
+      remainingAmount,
+      changeAmount,
+      transactionId,
+      error: !isFullyPaid ? 'Payment failed' : undefined
     };
   }
 
