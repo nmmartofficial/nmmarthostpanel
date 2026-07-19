@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { PAYMENT_METHODS, PAYMENT_STATUS } from '../constants/payment.constants';
+import { initialPaymentState } from '../store/payment.state';
 
 const PaymentContext = createContext();
 
@@ -41,7 +42,17 @@ export const PAYMENT_INTERFACES = {
 };
 
 export const PaymentProvider = ({ children }) => {
-  // --- Core Payment State ---
+  // --- Payment State (Phase 4 Step 2) ---
+  const [selectedMethod, setSelectedMethod] = useState(PAYMENT_METHODS.CASH);
+  const [paymentStatus, setPaymentStatus] = useState(PAYMENT_STATUS.PENDING);
+  const [payableAmount, setPayableAmount] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [remainingAmount, setRemainingAmount] = useState(0);
+  const [changeAmount, setChangeAmount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // --- Legacy State (Preserved for compatibility) ---
   const [paymentAmounts, setPaymentAmounts] = useState({
     [PAYMENT_METHODS.CASH]: 0,
     [PAYMENT_METHODS.UPI]: 0,
@@ -49,7 +60,6 @@ export const PaymentProvider = ({ children }) => {
     [PAYMENT_METHODS.CREDIT]: 0
   });
   
-  const [paymentStatus, setPaymentStatus] = useState(PAYMENT_STATUS.PENDING);
   const [paymentError, setPaymentError] = useState('');
   const [isSplitPayment, setIsSplitPayment] = useState(false);
   const [activePaymentMethod, setActivePaymentMethod] = useState(PAYMENT_METHODS.CASH);
@@ -62,13 +72,59 @@ export const PaymentProvider = ({ children }) => {
     dueDate: null
   });
 
-  // Calculate total paid
+  // --- Payment Actions (Phase 4 Step 2) ---
+  // Placeholder actions - no calculations, no validation
+  const actions = useMemo(() => ({
+    setSelectedMethod,
+    setPaymentStatus,
+    setPayableAmount,
+    setPaidAmount,
+    setLoading,
+    setError,
+    resetPayment: useCallback(() => {
+      setSelectedMethod(PAYMENT_METHODS.CASH);
+      setPaymentStatus(PAYMENT_STATUS.PENDING);
+      setPayableAmount(0);
+      setPaidAmount(0);
+      setRemainingAmount(0);
+      setChangeAmount(0);
+      setLoading(false);
+      setError('');
+    }, [])
+  }), []);
+
+  // --- Payment State (Phase 4 Step 2) ---
+  const paymentState = useMemo(() => ({
+    selectedMethod,
+    paymentStatus,
+    payableAmount,
+    paidAmount,
+    remainingAmount,
+    changeAmount,
+    loading,
+    error
+  }), [
+    selectedMethod,
+    paymentStatus,
+    payableAmount,
+    paidAmount,
+    remainingAmount,
+    changeAmount,
+    loading,
+    error
+  ]);
+
+  // Calculate total paid (Legacy)
   const totalPaid = useMemo(() => {
     return Object.values(paymentAmounts).reduce((sum, amount) => sum + (parseFloat(amount) || 0), 0);
   }, [paymentAmounts]);
 
   const value = useMemo(() => ({
-    // State
+    // Payment State (Phase 4 Step 2)
+    paymentState,
+    actions,
+
+    // Legacy State (Preserved for compatibility)
     paymentAmounts,
     setPaymentAmounts,
     paymentStatus,
@@ -90,6 +146,8 @@ export const PaymentProvider = ({ children }) => {
     PAYMENT_STATUS,
     PAYMENT_INTERFACES
   }), [
+    paymentState,
+    actions,
     paymentAmounts,
     paymentStatus,
     paymentError,

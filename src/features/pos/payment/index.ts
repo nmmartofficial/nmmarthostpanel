@@ -1,6 +1,6 @@
 /**
  * Payment Module Barrel Exports
- * Phase 4 - Step 1.1
+ * Phase 4 - Step 2
  */
 
 // Context
@@ -17,7 +17,9 @@ export type {
   PaymentInterface,
   PaymentAmounts,
   PaymentHistory,
-  CreditDetails
+  CreditDetails,
+  PaymentState,
+  PaymentActions
 } from './types/payment.types';
 
 // State
@@ -28,7 +30,8 @@ export {
   initialIsSplitPayment,
   initialActivePaymentMethod,
   initialPaymentHistory,
-  initialCreditDetails
+  initialCreditDetails,
+  initialPaymentState
 } from './store/payment.state';
 
 // Service

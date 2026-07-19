@@ -1,20 +1,20 @@
 /**
  * Payment Module Constants
- * Phase 4 - Step 1.1
+ * Phase 4 - Step 2
  */
 
 export const PAYMENT_METHODS = {
-  CASH: 'Cash',
+  CASH: 'CASH',
   UPI: 'UPI',
-  CARD: 'Card',
-  CREDIT: 'Credit',
-  SPLIT: 'Split'
+  CARD: 'CARD',
+  CREDIT: 'CREDIT',
+  SPLIT: 'SPLIT'
 } as const;
 
 export const PAYMENT_STATUS = {
-  PENDING: 'pending',
-  PROCESSING: 'processing',
-  COMPLETED: 'completed',
-  FAILED: 'failed',
-  REFUNDED: 'refunded'
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  REFUNDED: 'REFUNDED'
 } as const;

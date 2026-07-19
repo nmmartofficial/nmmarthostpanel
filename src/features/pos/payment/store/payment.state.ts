@@ -1,10 +1,10 @@
 /**
  * Payment Module Initial State
- * Phase 4 - Step 1.1
+ * Phase 4 - Step 2
  */
 
 import { PAYMENT_METHODS, PAYMENT_STATUS } from '../constants/payment.constants';
-import type { PaymentAmounts, PaymentHistory, CreditDetails } from '../types/payment.types';
+import type { PaymentAmounts, PaymentHistory, CreditDetails, PaymentState } from '../types/payment.types';
 
 export const initialPaymentAmounts: PaymentAmounts = {
   [PAYMENT_METHODS.CASH]: 0,
@@ -29,4 +29,20 @@ export const initialCreditDetails: CreditDetails = {
   creditLimit: 0,
   currentCredit: 0,
   dueDate: null
+};
+
+/**
+ * Payment State Initial State
+ * Phase 4 - Step 2
+ * Pure state structure - no calculations, no business logic
+ */
+export const initialPaymentState: PaymentState = {
+  selectedMethod: PAYMENT_METHODS.CASH,
+  paymentStatus: PAYMENT_STATUS.PENDING,
+  payableAmount: 0,
+  paidAmount: 0,
+  remainingAmount: 0,
+  changeAmount: 0,
+  loading: false,
+  error: ''
 };
