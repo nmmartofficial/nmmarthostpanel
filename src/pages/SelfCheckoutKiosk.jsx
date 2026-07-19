@@ -2,15 +2,14 @@ import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { 
   ShoppingCart, X, Plus, Minus, CheckCircle2, IndianRupee, QrCode, ShoppingBag, ShieldCheck, CreditCard, Camera, Scan
 } from 'lucide-react';
-import { Scanner } from '@yudiel/react-qr-scanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import QRCodeLib from 'qrcode';
 import { supabase } from '../supabase';
 
 export default function SelfCheckoutKiosk() {
   const [cart, setCart] = useState([]);
   const [showScanner, setShowScanner] = useState(false);
+  const [ScannerComponent, setScannerComponent] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -205,6 +204,7 @@ export default function SelfCheckoutKiosk() {
   const generateUPIQR = useCallback(async () => {
     const upiUrl = `upi://pay?pa=${upiId}&pn=NM%20MART&am=${finalTotal.toFixed(2)}&cu=INR`;
     try {
+      const QRCodeLib = (await import('qrcode')).default;
       const qrDataUrl = await QRCodeLib.toDataURL(upiUrl, { width: 300, margin: 2 });
       setQrImageUrl(qrDataUrl);
     } catch (error) {
@@ -222,6 +222,15 @@ export default function SelfCheckoutKiosk() {
       }
     }
   }, [currentStep, finalTotal, upiId, cart.length, generateUPIQR]);
+
+  // Load Scanner component dynamically when needed
+  useEffect(() => {
+    if (showScanner && !ScannerComponent) {
+      import('@yudiel/react-qr-scanner').then(module => {
+        setScannerComponent(() => module.Scanner);
+      });
+    }
+  }, [showScanner, ScannerComponent]);
 
   // --- Complete Order ---
   const completeOrder = async () => {
@@ -584,11 +593,13 @@ export default function SelfCheckoutKiosk() {
                 </button>
               </div>
               <div className="relative aspect-video bg-slate-100">
-                <Scanner
-                  onScan={handleCameraScan}
-                  onError={(err) => console.error(err)}
-                  constraints={{ facingMode: 'environment' }}
-                />
+                {ScannerComponent && (
+                  <ScannerComponent
+                    onScan={handleCameraScan}
+                    onError={(err) => console.error(err)}
+                    constraints={{ facingMode: 'environment' }}
+                  />
+                )}
               </div>
             </motion.div>
           </div>

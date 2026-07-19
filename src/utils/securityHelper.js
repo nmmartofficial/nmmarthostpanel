@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import { secureStorage } from './security';
+import { secureStorage, safeJsonParse } from './security';
 
 /**
  * NM MART - Enterprise Security Helper
@@ -29,6 +29,7 @@ export function logSecurityEvent(eventType, details = {}) {
       user_email: currentUser?.email,
       user_role: currentUser?.role,
       ...details,
+      severity: details.severity || (eventType.includes('failed') || eventType.includes('denied') || eventType.includes('suspicious') ? 'warning' : 'info'),
       user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       url: typeof window !== 'undefined' ? window.location.href : ''
     };
@@ -36,7 +37,7 @@ export function logSecurityEvent(eventType, details = {}) {
     let existingLogs = [];
     try {
       const rawLogs = localStorage.getItem('nm_security_logs');
-      existingLogs = rawLogs ? JSON.parse(rawLogs) : [];
+      existingLogs = safeJsonParse(rawLogs, []);
       if (!Array.isArray(existingLogs)) existingLogs = [];
     } catch (parseErr) {
       console.warn('Failed to parse security logs, resetting:', parseErr);
@@ -261,7 +262,7 @@ export async function performSecurityCheck() {
 export function getSecurityLogs() {
   try {
     const rawLogs = localStorage.getItem('nm_security_logs');
-    const logs = rawLogs ? JSON.parse(rawLogs) : [];
+    const logs = safeJsonParse(rawLogs, []);
     return Array.isArray(logs) ? logs : [];
   } catch (err) {
     console.error('Failed to get security logs:', err);

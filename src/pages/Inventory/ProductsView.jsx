@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
-  GitBranch, Search, Trash2, FileJson, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle
+  GitBranch, Search, Trash2, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, generateUUID } from '../../utils/helpers';
-import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../../erpController';
+import { handleERPAction, ACTION_TYPES } from '../../erpController';
 import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
 import PaginationFooter from '../../components/PaginationFooter';
-import JsBarcode from 'jsbarcode';
+import { ExcelUpload } from '../../components/common';
 
 // --- Validation Helpers
 const validatePercent = (value) => {
@@ -25,6 +25,79 @@ const sanitizeMasterCode = (value, fallback = 'master') => {
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
   return cleaned.slice(0, 40) || fallback;
+};
+
+// --- Product Import Processing ---
+const processProductImportData = async (parsedData) => {
+  // --- CHECK FOR DUPLICATES IN EXCEL (User Requirement) ---
+  const nameSet = new Set();
+  for (const item of parsedData) {
+    const name = String(item.itname || item.name || "").trim();
+    if (!name) continue;
+    if (nameSet.has(name)) {
+      throw new Error(`Duplicate product name found in Excel: "${name}", please fix and re-upload`);
+    }
+    nameSet.add(name);
+  }
+
+  // --- VALIDATE AND PREPARE PRODUCTS ---
+  return parsedData.map((item) => {
+    // Sanitize stock: ensure it's never negative
+    let stock = Math.max(0, parseFloat(item.opstock || item.stock) || 0);
+    
+    // Map both old and new column names for backward compatibility
+    return {
+      itname: String(item.itname || item.name || "").trim(),
+      name: String(item.itname || item.name || "").trim(),
+      itnameprint: String(item.itnameprint || item.print_name || "").trim() || null,
+      print_name: String(item.itnameprint || item.print_name || "").trim() || null,
+      barcode: String(item.barcode || "").trim() || null,
+      imagename: String(item.imagename || "").trim() || null,
+      itemdescription: String(item.itemdescription || item.description || "").trim() || null,
+      description: String(item.itemdescription || item.description || "").trim() || null,
+      hsncode: String(item.hsncode || item.hsn_code || "").trim() || null,
+      hsn_code: String(item.hsncode || item.hsn_code || "").trim() || null,
+      picture: String(item.picture || item.image_url || "").trim() || null,
+      image_url: String(item.picture || item.image_url || "").trim() || null,
+      takerate: parseFloat(item.takerate || item.take_rate) || 0,
+      take_rate: parseFloat(item.takerate || item.take_rate) || 0,
+      restrate: parseFloat(item.restrate || item.retail_rate) || 0,
+      retail_rate: parseFloat(item.restrate || item.retail_rate) || 0,
+      dlvrate: parseFloat(item.dlvrate || item.delivery_rate) || 0,
+      delivery_rate: parseFloat(item.dlvrate || item.delivery_rate) || 0,
+      onlinerate: parseFloat(item.onlinerate || item.sale_rate) || 0,
+      sale_rate: parseFloat(item.onlinerate || item.sale_rate) || 0,
+      purcrate: parseFloat(item.purcrate || item.purchase_rate) || 0,
+      purchase_rate: parseFloat(item.purcrate || item.purchase_rate) || 0,
+      mrp: parseFloat(item.mrp) || 0,
+      opstock: stock,
+      stock: stock,
+      discperc: parseFloat(item.discperc || item.discount_percent) || 0,
+      discount_percent: parseFloat(item.discperc || item.discount_percent) || 0,
+      isfav: String(item.isfav || item.is_favourite || "No").trim() === 'true' || String(item.isfav || item.is_favourite || "No").trim().toLowerCase() === 'yes' || String(item.isfav || item.is_favourite || "No").trim() === '1' ? 'Yes' : 'No',
+      is_favourite: String(item.isfav || item.is_favourite || "No").trim() === 'true' || String(item.isfav || item.is_favourite || "No").trim().toLowerCase() === 'yes' || String(item.isfav || item.is_favourite || "No").trim() === '1' ? 'Yes' : 'No',
+      unitcode: String(item.unitcode || item.unit_name || "Nos").trim(),
+      unit_name: String(item.unitcode || item.unit_name || "Nos").trim(),
+      itg: String(item.itg || "").trim() || null,
+      itc: String(item.itc || "").trim() || null,
+      dtcode: String(item.dtcode || "").trim() || null,
+      kcode: String(item.kcode || "").trim() || null,
+      brandcode: String(item.brandcode || item.brand_name || "").trim() || null,
+      brand_name: String(item.brandcode || item.brand_name || "").trim() || null,
+      isdiscountable: String(item.isdiscountable || item.is_discountable || "Yes").trim() !== 'false' && String(item.isdiscountable || item.is_discountable || "Yes").trim().toLowerCase() !== 'no' && String(item.isdiscountable || item.is_discountable || "Yes").trim() !== '0' ? 'Yes' : 'No',
+      is_discountable: String(item.isdiscountable || item.is_discountable || "Yes").trim() !== 'false' && String(item.isdiscountable || item.is_discountable || "Yes").trim().toLowerCase() !== 'no' && String(item.isdiscountable || item.is_discountable || "Yes").trim() !== '0' ? 'Yes' : 'No',
+      gst: parseFloat(item.gst || item.gst_percent) || 0,
+      gst_percent: parseFloat(item.gst || item.gst_percent) || 0,
+      cess: parseFloat(item.cess || item.cess_percent) || 0,
+      cess_percent: parseFloat(item.cess || item.cess_percent) || 0,
+      shopid: String(item.shopid || "").trim() || null,
+      ispackage: String(item.ispackage || item.is_package || "No").trim() === 'true' || String(item.ispackage || item.is_package || "No").trim().toLowerCase() === 'yes' || String(item.ispackage || item.is_package || "No").trim() === '1' ? 'Yes' : 'No',
+      narration: String(item.narration || "").trim() || null,
+      narration2: String(item.narration2 || "").trim() || null,
+      itemstatus: String(item.itemstatus || "Active").trim(),
+      is_active: String(item.itemstatus || "Active").trim() === 'Active'
+    };
+  });
 };
 
 export default function ProductsView({ products, categories, brands, subcategories, filter, uploadImage, fetchInitialData, setLoading }) {
@@ -96,27 +169,31 @@ export default function ProductsView({ products, categories, brands, subcategori
 
   // Generate barcodes when label or quantity changes
   useEffect(() => {
-    if (barcodeToPrint && barcodeToPrint.barcode) {
-      setTimeout(() => {
-        for (let i = 0; i < labelQuantity; i++) {
-          const svgElement = document.getElementById(`barcode-${i}`);
-          if (svgElement) {
-            try {
-              JsBarcode(svgElement, barcodeToPrint.barcode, {
-                format: 'CODE128',
-                width: 2,
-                height: 30,
-                margin: 0,
-                fontSize: 10,
-                displayValue: false
-              });
-            } catch (err) {
-              console.error("Barcode generation error:", err);
+    const generateBarcodes = async () => {
+      if (barcodeToPrint && barcodeToPrint.barcode) {
+        const JsBarcode = (await import('jsbarcode')).default;
+        setTimeout(() => {
+          for (let i = 0; i < labelQuantity; i++) {
+            const svgElement = document.getElementById(`barcode-${i}`);
+            if (svgElement) {
+              try {
+                JsBarcode(svgElement, barcodeToPrint.barcode, {
+                  format: 'CODE128',
+                  width: 2,
+                  height: 30,
+                  margin: 0,
+                  fontSize: 10,
+                  displayValue: false
+                });
+              } catch (err) {
+                console.error("Barcode generation error:", err);
+              }
             }
           }
-        }
-      }, 100);
-    }
+        }, 100);
+      }
+    };
+    generateBarcodes();
   }, [barcodeToPrint, labelQuantity]);
 
   // Add print styles
@@ -140,156 +217,7 @@ export default function ProductsView({ products, categories, brands, subcategori
     return () => style.remove();
   }, []);
 
-  const handleImportCSV = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.csv,.xlsx,.xls';
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            try {
-                setLoading(true);
-                // EXACT mapping of your Excel headers to Database fields
-                const columnMapping = {
-                    'id': 'id',
-                    'itname': 'itname',
-                    'itnameprint': 'itnameprint',
-                    'barcode': 'barcode',
-                    'imagename': 'imagename',
-                    'itemdescription': 'itemdescription',
-                    'hsncode': 'hsncode',
-                    'picture': 'picture',
-                    'takerate': 'takerate',
-                    'restrate': 'restrate',
-                    'dlvrate': 'dlvrate',
-                    'onlinerate': 'onlinerate',
-                    'purcrate': 'purcrate',
-                    'mrp': 'mrp',
-                    'opstock': 'opstock',
-                    'discperc': 'discperc',
-                    'isfav': 'isfav',
-                    'unitcode': 'unitcode',
-                    'itg': 'itg',
-                    'itc': 'itc',
-                    'dtcode': 'dtcode',
-                    'kcode': 'kcode',
-                    'brandcode': 'brandcode',
-                    'isdiscountable': 'isdiscountable',
-                    'gst': 'gst',
-                    'cess': 'cess',
-                    'shopid': 'shopid',
-                    'ispackage': 'ispackage',
-                    'narration': 'narration',
-                    'narration2': 'narration2',
-                    'itemstatus': 'itemstatus'
-                };
-        
-        const parsedData = await parseERPCSV(file, columnMapping);
-        if (!parsedData || parsedData.length === 0) throw new Error("No data found in file");
 
-        // --- STEP 2.5: CHECK FOR DUPLICATES IN EXCEL (User Requirement) ---
-        const nameSet = new Set();
-        for (const item of parsedData) {
-          const name = String(item.itname || "").trim();
-          if (!name) continue;
-          if (nameSet.has(name)) {
-            throw new Error(`Duplicate product name found in Excel: "${name}", please fix and re-upload`);
-          }
-          nameSet.add(name);
-        }
-
-        // --- STEP 3: VALIDATE AND PREPARE PRODUCTS ---
-        const productsToUpload = [];
-        const skippedRows = [];
-
-        parsedData.forEach((item, index) => {
-                // Sanitize stock: ensure it's never negative
-                let stock = Math.max(0, parseFloat(item.opstock) || 0);
-                
-                // Strict whitelist - only include allowed product columns!
-                // DON'T set id - Supabase will auto-generate it (bigint identity)
-                const productToAdd = {
-                  itname: String(item.itname || "").trim(),
-                  name: String(item.itname || "").trim(), // Map to both
-                  itnameprint: String(item.itnameprint || "").trim() || null,
-                  print_name: String(item.itnameprint || "").trim() || null,
-                  barcode: String(item.barcode || "").trim() || null,
-                  imagename: String(item.imagename || "").trim() || null,
-                  itemdescription: String(item.itemdescription || "").trim() || null,
-                  description: String(item.itemdescription || "").trim() || null,
-                  hsncode: String(item.hsncode || "").trim() || null,
-                  hsn_code: String(item.hsncode || "").trim() || null,
-                  picture: String(item.picture || "").trim() || null,
-                  image_url: String(item.picture || "").trim() || null,
-                  takerate: parseFloat(item.takerate) || 0,
-                  take_rate: parseFloat(item.takerate) || 0,
-                  restrate: parseFloat(item.restrate) || 0,
-                  retail_rate: parseFloat(item.restrate) || 0,
-                  dlvrate: parseFloat(item.dlvrate) || 0,
-                  delivery_rate: parseFloat(item.dlvrate) || 0,
-                  onlinerate: parseFloat(item.onlinerate) || 0,
-                  sale_rate: parseFloat(item.onlinerate) || 0,
-                  purcrate: parseFloat(item.purcrate) || 0,
-                  purchase_rate: parseFloat(item.purcrate) || 0,
-                  mrp: parseFloat(item.mrp) || 0,
-                  opstock: stock,
-                  stock: stock,
-                  discperc: parseFloat(item.discperc) || 0,
-                  discount_percent: parseFloat(item.discperc) || 0,
-                  isfav: String(item.isfav || "No").trim() === 'true' || String(item.isfav || "No").trim() === 'yes' || String(item.isfav || "No").trim() === '1' ? 'Yes' : 'No',
-                  is_favourite: String(item.isfav || "No").trim() === 'true' || String(item.isfav || "No").trim() === 'yes' || String(item.isfav || "No").trim() === '1' ? 'Yes' : 'No',
-                  unitcode: String(item.unitcode || "Nos").trim(),
-                  unit_name: String(item.unitcode || "Nos").trim(),
-                  itg: String(item.itg || "").trim() || null,
-                  itc: String(item.itc || "").trim() || null,
-                  dtcode: String(item.dtcode || "").trim() || null,
-                  kcode: String(item.kcode || "").trim() || null,
-                  brandcode: String(item.brandcode || "").trim() || null,
-                  brand_name: String(item.brandcode || "").trim() || null,
-                  isdiscountable: String(item.isdiscountable || "Yes").trim() !== 'false' && String(item.isdiscountable || "Yes").trim() !== 'no' && String(item.isdiscountable || "Yes").trim() !== '0' ? 'Yes' : 'No',
-                  is_discountable: String(item.isdiscountable || "Yes").trim() !== 'false' && String(item.isdiscountable || "Yes").trim() !== 'no' && String(item.isdiscountable || "Yes").trim() !== '0' ? 'Yes' : 'No',
-                  gst: parseFloat(item.gst) || 0,
-                  gst_percent: parseFloat(item.gst) || 0,
-                  cess: parseFloat(item.cess) || 0,
-                  cess_percent: parseFloat(item.cess) || 0,
-                  shopid: String(item.shopid || "").trim() || null,
-                  ispackage: String(item.ispackage || "No").trim() === 'true' || String(item.ispackage || "No").trim() === 'yes' || String(item.ispackage || "No").trim() === '1' ? 'Yes' : 'No',
-                  narration: String(item.narration || "").trim() || null,
-                  narration2: String(item.narration2 || "").trim() || null,
-                  itemstatus: String(item.itemstatus || "Active").trim(),
-                  is_active: String(item.itemstatus || "Active").trim() === 'Active'
-                };
-          productsToUpload.push(productToAdd);
-        });
-
-        // --- STEP 4: BULK UPLOAD PRODUCTS ---
-        await dbSync.insert(DB_SCHEMA.PRODUCTS.table, productsToUpload);
-        
-        // Prepare success/info message
-        let message = `SUCCESS! ${productsToUpload.length} items imported.`;
-        if (skippedRows.length > 0) {
-          message += `\n\n⚠️ Skipped ${skippedRows.length} duplicate rows:\n`;
-          skippedRows.slice(0, 5).forEach(row => { // Show first 5 skipped rows
-            message += `Row ${row.row}: ${row.reason}\n`;
-          });
-          if (skippedRows.length > 5) {
-            message += `... and ${skippedRows.length - 5} more`;
-          }
-        }
-        
-        alert(message);
-        
-        window.location.reload(); 
-      } catch (error) {
-        console.error("Import Error:", error);
-        alert(`Import Failed: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-    input.click();
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -604,12 +532,15 @@ export default function ProductsView({ products, categories, brands, subcategori
           >
             <Trash2 size={14} /> DELETE ALL
           </button>
-          <button 
-            onClick={handleImportCSV}
-            className="flex-1 md:flex-none bg-white text-blue-600 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-blue-50 transition-all border border-blue-600 shadow-sm"
-          >
-            <FileJson size={14} /> IMPORT ITEM
-          </button>
+          <ExcelUpload 
+            tableKey="PRODUCTS" 
+            buttonText="IMPORT ITEM"
+            uniqueField="barcode"
+            processData={processProductImportData}
+            onSuccess={() => {
+              window.location.reload();
+            }}
+          />
           <button 
             onClick={() => { 
               setEditingProduct(null); 
@@ -1113,7 +1044,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                   <div key={index} className="border-2 border-black p-3 bg-white inline-block text-black font-mono" id="barcode-label">
                     <p className="text-[11px] font-black uppercase mb-1">NM MART</p>
                     <p className="text-[9px] font-bold truncate max-w-[140px] mb-2">{barcodeToPrint.name}</p>
-                    <svg ref={(el) => { if (el && barcodeToPrint?.barcode && index === 0) { JsBarcode(el, barcodeToPrint.barcode, { format: 'CODE128', width: 2, height: 30, margin: 0, fontSize: 10 }); } }} id={`barcode-${index}`}></svg>
+                    <svg ref={async (el) => { if (el && barcodeToPrint?.barcode && index === 0) { const JsBarcode = (await import('jsbarcode')).default; JsBarcode(el, barcodeToPrint.barcode, { format: 'CODE128', width: 2, height: 30, margin: 0, fontSize: 10 }); } }} id={`barcode-${index}`}></svg>
                     <p className="text-[12px] font-black tracking-[2px] mt-1">{barcodeToPrint.barcode}</p>
                     <p className="text-[13px] font-black">MRP: ₹{barcodeToPrint.sale_rate}</p>
                   </div>

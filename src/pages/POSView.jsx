@@ -1,10 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
-import { 
-  Zap, CheckCircle2, Camera, MousePointer, Touchpad, AlertOctagon, RotateCcw
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { AlertOctagon, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '../utils/helpers';
 import {
   toFloat, getPaymentMethod, isValidPin, formatTime,
   filterProductsBySearch, filterProducts
@@ -12,118 +8,17 @@ import {
 import { handleERPAction, ACTION_TYPES, ERP_MODULES } from '../erpController';
 
 import {
-  ProductGrid, ProductSearch, BarcodeInput, CartPanel, CustomerPanel,
-  HoldQueueDialog, PaymentDialog, ReceiptDialog, ManagerOverrideDialog,
-  DiscountDialog, VoidDialog, ShiftDashboard, AuditTimeline, HardwareDashboard,
-  NumericKeypad, POSErrorBoundary
+  POSErrorBoundary
 } from '../components';
+import POSLayout from '../features/pos/components/POSLayout';
 
 import {
   useBarcodeEngine, useCustomerEngine, useHoldEngine,
   useKeyboardWorkflow, useSessionActivity, useBillingCalculations
 } from '../hooks';
+import usePosActions from '../features/pos/hooks/usePosActions';
 
-import { POSProvider, usePOS } from '../context';
-
-// --- POS View Modules ---
-function POSViewInner() {
-  const {
-    isTouchMode, setIsTouchMode, appConfig, activeCategory, setActiveCategory,
-    categories, posFilter, setPosFilter, setShowScanner
-  } = usePOS();
-
-  return (
-    <div className={cn(
-      "flex h-[calc(100vh-60px)] bg-neutral-100 overflow-hidden -m-4 transition-all duration-300 portrait:flex-col landscape:flex-row",
-      isTouchMode ? "text-lg" : "text-base"
-    )}>
-      {/* SIDEBAR - Categories */}
-      <div className={cn(
-        "bg-white flex flex-col border-r border-neutral-200 transition-all duration-300 portrait:w-full portrait:h-48 portrait:border-r-0 portrait:border-b",
-        isTouchMode ? "w-64" : "w-48"
-      )}>
-        <div className="p-2 flex-1 overflow-y-auto custom-scrollbar">
-          <div className={cn(
-            "bg-primary-900 text-white p-2 rounded font-black mb-2 uppercase text-center truncate shadow-sm",
-            isTouchMode ? "text-xs py-3" : "text-[10px]"
-          )}>
-            {appConfig?.shop_name || 'NM MART'}
-          </div>
-          <div className="space-y-1">
-            <button
-              onClick={() => setActiveCategory('All')}
-              className={cn(
-                "w-full text-left px-3 rounded font-black uppercase shadow-sm transition-all",
-                activeCategory === 'All' ? "bg-primary-600 text-white shadow-primary-600/20" : "bg-white text-neutral-700 hover:bg-neutral-50",
-                isTouchMode ? "py-4 text-xs" : "py-2.5 text-[11px]"
-              )}
-            >
-              All Items
-            </button>
-            {(categories || []).map((cat, idx) => (
-              <button
-                key={`cat-${cat.id}-${idx}`}
-                onClick={() => setActiveCategory(cat.id)}
-                className={cn(
-                  "w-full text-left px-3 rounded font-black uppercase shadow-sm transition-all",
-                  activeCategory === cat.id ? "bg-primary-600 text-white shadow-primary-600/20" : "bg-white text-neutral-700 hover:bg-neutral-50",
-                  isTouchMode ? "py-4 text-xs" : "py-2.5 text-[11px]"
-                )}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-2 border-t border-neutral-100 bg-slate-50 space-y-1">
-          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-1">Terminal Mode</p>
-          <div className="flex bg-white rounded-lg p-1 shadow-inner border border-slate-200">
-            <button onClick={() => setIsTouchMode(false)} className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[9px] font-black uppercase transition-all", !isTouchMode ? "bg-primary-600 text-white shadow-md" : "text-slate-400 hover:bg-slate-50")}><MousePointer size={12} /> Desktop</button>
-            <button onClick={() => setIsTouchMode(true)} className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[9px] font-black uppercase transition-all", isTouchMode ? "bg-primary-600 text-white shadow-md" : "text-slate-400 hover:bg-slate-50")}><Touchpad size={12} /> Touch</button>
-          </div>
-        </div>
-
-        <div className="p-2 space-y-2 border-t border-neutral-200 bg-neutral-50">
-          <button onClick={() => { setPosFilter(posFilter === 'TopSale' ? 'All' : 'TopSale'); setActiveCategory('All'); }} className={cn("w-full rounded font-black uppercase flex items-center justify-center gap-2 shadow-md transition-all border", posFilter === 'TopSale' ? "bg-primary-600 text-white border-primary-700" : "bg-white text-neutral-700 border-neutral-200", isTouchMode ? "p-4 text-xs" : "p-2 text-[10px]")}><Zap size={isTouchMode ? 16 : 14} /> Top Sale</button>
-          <button onClick={() => { setPosFilter(posFilter === 'Favourite' ? 'All' : 'Favourite'); setActiveCategory('All'); }} className={cn("w-full rounded font-black uppercase flex items-center justify-center gap-2 shadow-md transition-all border", posFilter === 'Favourite' ? "bg-primary-600 text-white border-primary-700" : "bg-white text-neutral-700 border-neutral-200", isTouchMode ? "p-4 text-xs" : "p-2 text-[10px]")}><CheckCircle2 size={isTouchMode ? 16 : 14} /> Favourite</button>
-        </div>
-      </div>
-
-      {/* CENTER - Product Grid Section */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className={cn("p-2 flex gap-2 bg-neutral-100 relative border-b border-neutral-200 shadow-sm", isTouchMode ? "py-4" : "")}>
-          <ProductSearch />
-          <BarcodeInput />
-          <button onClick={() => setShowScanner(true)} className={cn("bg-success-600 text-white rounded font-black shadow-md whitespace-nowrap flex items-center justify-center", isTouchMode ? "px-6" : "px-3 py-1.5 text-xs")}><Camera size={isTouchMode ? 18 : 14} /></button>
-        </div>
-        <ProductGrid />
-      </div>
-
-      {/* RIGHT SIDEBAR - Billing */}
-      <div className={cn("bg-white flex flex-col border-l border-neutral-200 shadow-2xl overflow-hidden transition-all duration-300", isTouchMode ? "w-[480px]" : "w-[420px]")}>
-        <CustomerPanel />
-        <CartPanel />
-      </div>
-
-      {/* Modals & Dialogs */}
-      <Suspense fallback={<div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[5000] flex items-center justify-center"><div className="w-10 h-10 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div></div>}>
-        <HoldQueueDialog />
-        <VoidDialog />
-        <ManagerOverrideDialog />
-        <HardwareDashboard />
-        <AuditTimeline />
-        <DiscountDialog />
-        <ShiftDashboard />
-        <ReceiptDialog />
-        <PaymentDialog />
-      </Suspense>
-      <AnimatePresence>
-        <NumericKeypad />
-      </AnimatePresence>
-    </div>
-  );
-}
+import { POSProvider } from '../context';
 
 function POSViewContent({ products, categories, fetchInitialData, appConfig, setActiveTab, orders }) {
   // --- Performance Diagnostics ---
@@ -187,19 +82,10 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
     setFlatDiscount(0);
   }, []);
 
-  const addToCart = useCallback((product) => {
-    if (!product) return;
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
-    setLastAddedId(product.id);
-    setSelectedCartId(product.id);
-    toast.success(`${product.itname || product.name} added`);
-  }, []);
+  const { addToCart } = usePosActions();
+  const handleAddToCart = useCallback((product) => {
+    addToCart(product, setCart, setLastAddedId, setSelectedCartId);
+  }, [addToCart]);
 
   // --- Engine Hooks ---
   const sessionActivity = useSessionActivity({ orders });
@@ -222,7 +108,7 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
       });
       return map;
     }, [products]),
-    addToCart: (product) => addToCart(product),
+    addToCart: (product) => handleAddToCart(product),
     addSessionActivity,
     addHardwareLog
   });
@@ -461,12 +347,12 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
   const filteredProducts = useMemo(() => filterProducts(products, { searchTerm, activeCategory, posFilter }), [products, searchTerm, activeCategory, posFilter]);
 
   const handleProductSelect = useCallback((product) => {
-    addToCart(product);
+    handleAddToCart(product);
     setSearchTerm('');
     setShowSearchDropdown(false);
     setSelectedIndex(-1);
     setTimeout(() => searchInputRef.current?.focus(), 50);
-  }, [addToCart]);
+  }, [handleAddToCart]);
 
   const handleSearchKeyDown = useCallback((e) => {
     if (e.key === 'ArrowDown') {
@@ -551,7 +437,7 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
     holdSuccessMsg, filteredHeldBills, shiftStats, filteredTimeline, timelineStats,
 
     // Handlers
-    clearCart, addToCart, removeFromCart, updateQty,
+    clearCart, addToCart: handleAddToCart, removeFromCart, updateQty,
     handleHoldBill, resumeHoldBill: handleResumeHoldBill, deleteHeldBill,
     handleOverrideApprove, handlePriceChangeAttempt, handleDiscountChangeAttempt,
     handleClearCartAttempt, confirmVoidSale: handleConfirmVoidSale, handlePrintAgain, closeReceiptDialog,
@@ -587,7 +473,7 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
     selectedUser, customerHistory, customerLoyalty, redeemPoints, filteredUsers,
     customerStats, heldBills, showHoldQueue, holdSearch, holdSort, selectedHoldIdx,
     holdSuccessMsg, filteredHeldBills, shiftStats, filteredTimeline, timelineStats,
-    clearCart, addToCart, removeFromCart, updateQty,
+    clearCart, handleAddToCart, removeFromCart, updateQty,
     handleHoldBill, handleResumeHoldBill, deleteHeldBill,
     handleOverrideApprove, handlePriceChangeAttempt, handleDiscountChangeAttempt,
     handleClearCartAttempt, handleConfirmVoidSale, handlePrintAgain, closeReceiptDialog,
@@ -602,7 +488,7 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
 
   return (
     <POSProvider value={contextValue}>
-      <POSViewInner />
+      <POSLayout />
     </POSProvider>
   );
 }

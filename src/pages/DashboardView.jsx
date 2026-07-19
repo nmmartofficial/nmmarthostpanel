@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { toast } from 'sonner';
+import LoadingState from '../components/LoadingState';
 import {
   Package, ShoppingCart, Users, Zap, DollarSign,
   PlusCircle, Download, Bot, Sparkles, PartyPopper, UserCheck, TrendingUp, Globe
@@ -26,18 +27,7 @@ export default function DashboardView(props) {
   };
 
   if (loading) {
-    return (
-      <div className="h-[calc(100vh-12rem)] space-y-6 animate-pulse">
-        <div className="h-16 bg-slate-200 rounded-2xl w-full" />
-        <div className="grid grid-cols-5 gap-4">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-24 bg-slate-100 rounded-2xl" />)}
-        </div>
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2 h-[300px] bg-slate-50 rounded-3xl" />
-          <div className="h-[300px] bg-slate-50 rounded-3xl" />
-        </div>
-      </div>
-    );
+    return <LoadingState title="Loading dashboard" subtitle="Preparing your insights and latest activity." />;
   }
 
   // --- Chart Data Preparation ---

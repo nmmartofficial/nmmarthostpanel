@@ -5,20 +5,22 @@ import { logSecurityEvent } from '../utils/securityHelper';
 
 // Role-based route permissions
 const ROLE_PERMISSIONS = {
-  // Super Admin can access everything
   'super_admin': ['*'],
-  
-  // Admin can access most things except company management
   'admin': ['dashboard', 'inventory', 'purchase', 'reports', 'settings', 'pos', 'finance', 'customers', 'analytics', 'orders', 'suppliers', 'categories', 'brands', 'subcategories'],
-  
-  // Manager can access operational modules
   'manager': ['dashboard', 'inventory', 'purchase', 'pos', 'customers', 'orders', 'suppliers'],
-  
-  // Cashier can only access POS
   'cashier': ['pos'],
-  
-  // Viewer can only view reports
   'viewer': ['dashboard', 'reports', 'analytics']
+};
+
+const normalizeRole = (role) => {
+  if (!role) return 'viewer';
+  return String(role).toLowerCase();
+};
+
+const hasRequiredPermission = (role, requiredPermission) => {
+  const normalizedRole = normalizeRole(role);
+  const permissions = ROLE_PERMISSIONS[normalizedRole] || ROLE_PERMISSIONS.viewer;
+  return permissions.includes('*') || permissions.includes(requiredPermission);
 };
 
 export default function ProtectedRoute({ children, requiredPermission = null }) {
@@ -78,12 +80,8 @@ export default function ProtectedRoute({ children, requiredPermission = null }) 
 
   // Role-based route validation
   if (currentUser && requiredPermission) {
-    const userRole = currentUser.role || 'viewer';
-    const permissions = ROLE_PERMISSIONS[userRole] || ROLE_PERMISSIONS['viewer'];
-    
-    // Check if user has permission (wildcard or specific)
-    if (!permissions.includes('*') && !permissions.includes(requiredPermission)) {
-      // Log permission denied
+    const userRole = normalizeRole(currentUser.role);
+    if (!hasRequiredPermission(userRole, requiredPermission)) {
       try {
         logSecurityEvent('permission_denied', {
           user_id: currentUser?.id,

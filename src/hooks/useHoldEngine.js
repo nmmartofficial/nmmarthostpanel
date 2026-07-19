@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
+import { safeJsonParse } from '../utils/security';
 import { getShortHoldId, sortHeldBills, formatTime, normalizeSearch } from '../utils/pos';
 
 export const useHoldEngine = ({
@@ -13,7 +14,7 @@ export const useHoldEngine = ({
 }) => {
   const [heldBills, setHeldBills] = useState(() => {
     const saved = localStorage.getItem('pos_held_bills');
-    return saved ? JSON.parse(saved) : [];
+    return safeJsonParse(saved, []);
   });
   const [showHoldQueue, setShowHoldQueue] = useState(false);
   const [holdSearch, setHoldSearch] = useState('');

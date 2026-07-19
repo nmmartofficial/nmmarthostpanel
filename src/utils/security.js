@@ -98,14 +98,94 @@ export const generateSecurePIN = () => {
  * Session storage with encryption (simple encoding for demo)
  * Note: For production, use proper encryption libraries
  */
+const isValidBase64 = (value) => {
+  if (typeof value !== 'string' || value.length === 0) return false;
+
+  const trimmed = value.trim();
+  if (trimmed.length % 4 !== 0) return false;
+  if (!/^[A-Za-z0-9+/=]+$/.test(trimmed)) return false;
+
+  const padding = trimmed.match(/=*$/)[0].length;
+  if (padding > 2) return false;
+
+  return true;
+};
+
+const encodeValue = (value) => {
+  const jsonString = JSON.stringify(value);
+  const uint8Array = new TextEncoder().encode(jsonString);
+  let binaryString = '';
+
+  uint8Array.forEach((byte) => {
+    binaryString += String.fromCharCode(byte);
+  });
+
+  return btoa(binaryString);
+};
+
+const decodeValue = (value) => {
+  if (typeof value !== 'string' || value.trim() === '') return null;
+
+  if (!isValidBase64(value)) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  try {
+    const binaryString = atob(value);
+    const uint8Array = new Uint8Array(binaryString.length);
+
+    for (let index = 0; index < binaryString.length; index += 1) {
+      uint8Array[index] = binaryString.charCodeAt(index);
+    }
+
+    const decodedText = new TextDecoder().decode(uint8Array);
+    return JSON.parse(decodedText);
+  } catch {
+    return null;
+  }
+};
+
+export const safeJsonParse = (value, fallback = null) => {
+  if (value === null || value === undefined) return fallback;
+
+  if (typeof value !== 'string') return value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+
+  try {
+    const parsedValue = decodeValue(trimmed);
+
+    if (parsedValue === null || parsedValue === undefined) {
+      return fallback;
+    }
+
+    if (typeof parsedValue === 'string') {
+      if (parsedValue === trimmed) {
+        return fallback;
+      }
+
+      try {
+        return JSON.parse(parsedValue);
+      } catch {
+        return fallback;
+      }
+    }
+
+    return parsedValue;
+  } catch {
+    return fallback;
+  }
+};
+
 export const secureStorage = {
   setItem: (key, value) => {
     try {
-      // Unicode-safe encoding: encode as UTF-8, then base64
-      const jsonString = JSON.stringify(value);
-      const uint8Array = new TextEncoder().encode(jsonString);
-      const binaryString = String.fromCharCode(...uint8Array);
-      const encoded = btoa(binaryString);
+      const encoded = encodeValue(value);
       localStorage.setItem(key, encoded);
     } catch (e) {
       if (import.meta.env.DEV) console.error('Secure storage encode error:', e);
@@ -114,22 +194,25 @@ export const secureStorage = {
   
   getItem: (key) => {
     try {
-      const encoded = localStorage.getItem(key);
-      if (!encoded) return null;
+      const storedValue = localStorage.getItem(key);
+      if (!storedValue) return null;
 
-      // First, try old format (non-unicode safe) for backward compatibility
-      try {
-        return JSON.parse(atob(encoded));
-      } catch (oldFormatErr) {
-        // If old format fails, try new unicode-safe format
-        const binaryString = atob(encoded);
-        const uint8Array = new Uint8Array([...binaryString].map(char => char.charCodeAt(0)));
-        const jsonString = new TextDecoder().decode(uint8Array);
-        return JSON.parse(jsonString);
+      const parsedValue = decodeValue(storedValue);
+
+      if (parsedValue === null || parsedValue === undefined) {
+        localStorage.removeItem(key);
+        return null;
       }
+
+      if (typeof storedValue === 'string' && !isValidBase64(storedValue)) {
+        try {
+          localStorage.setItem(key, encodeValue(parsedValue));
+        } catch {}
+      }
+
+      return parsedValue;
     } catch (e) {
       if (import.meta.env.DEV) console.error('Secure storage decode error:', e);
-      // If decode fails, clear the invalid item to prevent repeated errors
       try { localStorage.removeItem(key); } catch {}
       return null;
     }
@@ -140,7 +223,7 @@ export const secureStorage = {
   },
   
   clear: () => {
-    const secureKeys = ['nm_admin_auth', 'nm_user_data', 'nm_auth_time', 'nm_login_attempts'];
+    const secureKeys = ['nm_admin_auth', 'nm_auth_session', 'nm_user_data', 'nm_auth_time', 'nm_login_attempts'];
     secureKeys.forEach(key => localStorage.removeItem(key));
   }
 };

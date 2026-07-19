@@ -7,9 +7,6 @@ import { cn, generateUUID } from '../utils/helpers';
 import { handleERPAction, ACTION_TYPES, exportToExcel } from '../erpController';
 import { dbSync } from '../dbSync';
 import { DB_SCHEMA } from '../dbSchema';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import PaginationFooter from '../components/PaginationFooter';
 
 export default function ExpensesView({ expenses, fetchInitialData }) {
@@ -103,8 +100,9 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
     return Object.entries(summary).map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount);
   }, [filteredExpenses]);
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (filteredExpenses.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(filteredExpenses.map((item, i) => ({
       "Sr No": i + 1,
       "Date": new Date(item.date).toLocaleDateString(),
@@ -118,8 +116,10 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
     XLSX.writeFile(wb, `Expenses_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (filteredExpenses.length === 0) return alert("No data to print");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF('p');
     doc.text("Expenses Report", 14, 15);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);

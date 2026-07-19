@@ -23,7 +23,9 @@ if (useMock) {
         auth: {
           autoRefreshToken: true,
           persistSession: true,
-          detectSessionInUrl: true
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          storage: typeof window !== 'undefined' ? window.localStorage : undefined
         },
         realtime: {
           enabled: realtimeEnabled
@@ -55,11 +57,12 @@ const createMockQueryBuilder = (tableName) => {
     range: () => builder,
     select: () => builder,
     single: () => {
-      if (tableName === 'admin_users' && builder._eq?.column === 'email') {
+      if (tableName === 'admin_users' && (builder._eq?.column === 'email' || builder._eq?.column === 'username')) {
         return {
           data: {
             id: 'mock-user-id',
-            email: builder._eq.value,
+            username: builder._eq.value,
+            email: builder._eq.value.includes('@') ? builder._eq.value : `${builder._eq.value}@example.com`,
             name: 'Demo User',
             role: 'super_admin',
             status: 'active',

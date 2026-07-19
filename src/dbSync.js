@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
 import { DB_SCHEMA } from './dbSchema';
-import * as XLSX from 'xlsx';
 import { secureStorage } from './utils/security';
 import { processImageForUpload } from './utils/imageHandler';
 
@@ -841,6 +840,9 @@ export const dbSync = {
   maintenance: {
     exportTableToExcel: async (tableName, fileName = 'NM_MART_Backup') => {
       try {
+        // Dynamic import of XLSX library
+        const XLSX = await import('xlsx');
+        
         const { data, error } = await supabase.from(tableName).select('*');
         if (error) throw error;
 

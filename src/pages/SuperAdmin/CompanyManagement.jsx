@@ -6,6 +6,8 @@ import { DB_SCHEMA } from '../../dbSchema';
 import { dbSync } from '../../dbSync';
 import { toast } from 'sonner';
 import { cn } from '../../utils/helpers';
+import LoadingState from '../../components/LoadingState';
+import EmptyState from '../../components/EmptyState';
 
 export default function CompanyManagement() {
   const [companies, setCompanies] = useState([]);
@@ -152,14 +154,7 @@ export default function CompanyManagement() {
   };
 
   if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState title="Loading companies" subtitle="Fetching tenant organizations and account details." />;
   }
 
   return (
@@ -271,22 +266,11 @@ export default function CompanyManagement() {
           ))}
 
           {companies.length === 0 && (
-            <div className="col-span-full text-center py-20">
-              <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Building2 className="text-slate-400" size={40} />
-              </div>
-              <h3 className="text-xl font-black text-slate-900 mb-2">No Companies Yet</h3>
-              <p className="text-slate-500 mb-6">Get started by adding your first company</p>
-              <button
-                onClick={() => {
-                  resetForm();
-                  setShowModal(true);
-                }}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
-              >
-                <Plus size={18} />
-                Add First Company
-              </button>
+            <div className="col-span-full">
+              <EmptyState
+                title="No companies yet"
+                description="Create your first tenant company to get started."
+              />
             </div>
           )}
         </div>

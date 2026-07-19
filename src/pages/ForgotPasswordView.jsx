@@ -38,9 +38,8 @@ export default function ForgotPasswordView({ isTenantMode = false }) {
         if (company) {
           const { data: user } = await supabase
             .from('admin_users')
-            .select('email')
-            .eq('email', email)
-            .eq('company_code', company.company_code)
+            .select('username')
+            .eq('username', email)
             .single();
 
           if (!user) {

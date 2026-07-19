@@ -1,7 +1,6 @@
 import { toast } from 'sonner';
 import { dbSync } from './dbSync';
-import { DB_SCHEMA } from './dbSchema';
-import * as XLSX from 'xlsx';
+import { DB_SCHEMA, TABLE_COLUMN_MAPPINGS } from './dbSchema';
 
 /**
  * Generic Export to Excel function
@@ -9,11 +8,14 @@ import * as XLSX from 'xlsx';
  * @param {string} fileName - Name of the Excel file (without .xlsx)
  * @param {string} sheetName - Name of the sheet (default: 'Sheet1')
  */
-export const exportToExcel = (data, fileName, sheetName = 'Sheet1') => {
+export const exportToExcel = async (data, fileName, sheetName = 'Sheet1') => {
   if (!data || data.length === 0) {
     alert("No data to export!");
     return;
   }
+  
+  // Dynamic import of XLSX library
+  const XLSX = await import('xlsx');
   
   // Convert data to worksheet
   const worksheet = XLSX.utils.json_to_sheet(data);
@@ -75,7 +77,9 @@ export const ACTION_TYPES = {
  */
 export const handleERPAction = async (moduleName, actionType, payload) => {
   // --- Smart Logic Audit ---
-  console.log(`[ERP Dispatch] ${actionType} -> ${moduleName}`, payload);
+  if (import.meta.env.DEV) {
+    console.log(`[ERP Dispatch] ${actionType} -> ${moduleName}`, payload);
+  }
 
   // Guard: Prevention of duplicate submissions
   if (window._isERPProcessing) {
@@ -167,7 +171,10 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
  * @param {object} columnMapping - Maps display labels to database columns
  * @returns {Array} - Parsed data
  */
-export const parseERPCSV = async (file, columnMapping) => {
+export const parseERPCSV = async (file, columnMapping, uniqueField = null) => {
+  // Dynamic import of XLSX library
+  const XLSX = await import('xlsx');
+  
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -192,8 +199,10 @@ export const parseERPCSV = async (file, columnMapping) => {
         
         // Get headers from first row
         const headers = cleanRows[0].map(h => String(h || "").trim());
-        console.log("Excel file headers found:", headers);
-        console.log("Expected column mapping keys:", Object.keys(columnMapping));
+        if (import.meta.env.DEV) {
+          console.log("Excel file headers found:", headers);
+          console.log("Expected column mapping keys:", Object.keys(columnMapping));
+        }
         
         // Create case-insensitive header map
         const headerMap = {};
@@ -209,7 +218,9 @@ export const parseERPCSV = async (file, columnMapping) => {
         
         // Find which of our expected headers are present
         const matchedHeaders = Object.keys(normalizedColumnMapping).filter(key => headerMap[key] !== undefined);
-        console.log("Matched headers:", matchedHeaders);
+        if (import.meta.env.DEV) {
+          console.log("Matched headers:", matchedHeaders);
+        }
         
         // Parse data rows (starting from row index 1)
         const parsedData = cleanRows.slice(1).map(row => {
@@ -247,26 +258,31 @@ export const parseERPCSV = async (file, columnMapping) => {
           return;
         }
         
-        // Remove duplicates based on barcode - keep the last occurrence
-        const uniqueProducts = [];
-        const seenBarcodes = new Set();
-        
-        // Iterate in reverse to keep last occurrence of each barcode
-        for (let i = parsedData.length - 1; i >= 0; i--) {
-          const item = parsedData[i];
-          const barcode = item.barcode ? String(item.barcode).trim() : null;
+        // Remove duplicates based on unique field if specified
+        let uniqueData = parsedData;
+        if (uniqueField) {
+          uniqueData = [];
+          const seenValues = new Set();
           
-          if (barcode && !seenBarcodes.has(barcode)) {
-            seenBarcodes.add(barcode);
-            uniqueProducts.unshift(item);
-          } else if (!barcode) {
-            // If no barcode, add it (but we'll let DB handle)
-            uniqueProducts.unshift(item);
+          // Iterate in reverse to keep last occurrence of each unique value
+          for (let i = parsedData.length - 1; i >= 0; i--) {
+            const item = parsedData[i];
+            const fieldValue = item[uniqueField] ? String(item[uniqueField]).trim() : null;
+            
+            if (fieldValue && !seenValues.has(fieldValue)) {
+              seenValues.add(fieldValue);
+              uniqueData.unshift(item);
+            } else if (!fieldValue) {
+              // If no unique field value, add it (but we'll let DB handle)
+              uniqueData.unshift(item);
+            }
           }
         }
         
-        console.log("Parsed unique product data:", uniqueProducts); // Show parsed data in console
-        resolve(uniqueProducts);
+        if (import.meta.env.DEV) {
+          console.log("Parsed unique data:", uniqueData);
+        }
+        resolve(uniqueData);
       } catch (error) {
         console.error("[Parse Error]", error);
         reject(new Error("Failed to parse file. Please use a valid Excel or CSV file."));
@@ -276,6 +292,126 @@ export const parseERPCSV = async (file, columnMapping) => {
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsArrayBuffer(file);
   });
+};
+
+/**
+ * Generic function to upload Excel/CSV data for any table
+ * @param {File} file - The Excel/CSV file
+ * @param {string} tableKey - The table key from DB_SCHEMA (e.g., 'PRODUCTS', 'CATEGORIES')
+ * @param {function} setLoading - Loading state setter
+ * @param {function} onSuccess - Success callback (receives processed data and message)
+ * @param {function} onError - Error callback
+ * @param {string} uniqueField - Optional unique field for deduplication
+ * @param {function} processData - Optional custom function to process parsed data before upload
+ */
+export const uploadExcelForTable = async (
+  file, 
+  tableKey, 
+  setLoading = null, 
+  onSuccess = null, 
+  onError = null, 
+  uniqueField = null,
+  processData = null
+) => {
+  if (!file) {
+    if (onError) onError(new Error("No file selected"));
+    return;
+  }
+  
+  try {
+    if (setLoading) setLoading(true);
+    
+    // Get table info from DB_SCHEMA
+    const tableInfo = DB_SCHEMA[tableKey];
+    if (!tableInfo) {
+      throw new Error(`Invalid table: ${tableKey}`);
+    }
+    
+    // Get column mappings for this table
+    const columnMapping = TABLE_COLUMN_MAPPINGS[tableKey] || {};
+    
+    // Parse the Excel file
+    const parsedData = await parseERPCSV(file, columnMapping, uniqueField);
+    if (!parsedData || parsedData.length === 0) {
+      throw new Error("No data found in file");
+    }
+    
+    if (import.meta.env.DEV) {
+      console.log(`Uploading ${parsedData.length} records to ${tableInfo.table}`);
+      console.log("Parsed data sample:", parsedData[0]);
+    }
+    
+    // Process data with custom function if provided
+    let processedData = parsedData;
+    if (processData) {
+      processedData = await processData(parsedData);
+    }
+    
+    // Upload to database
+    await dbSync.insert(tableInfo.table, processedData);
+    
+    const successMessage = `SUCCESS! ${processedData.length} records imported to ${tableKey}`;
+    if (import.meta.env.DEV) console.log(successMessage);
+    if (onSuccess) onSuccess(processedData, successMessage);
+    alert(successMessage);
+    
+  } catch (error) {
+    console.error(`[${tableKey} Upload Error]`, error);
+    if (onError) onError(error);
+    alert(`Upload Failed: ${error.message}`);
+  } finally {
+    if (setLoading) setLoading(false);
+  }
+};
+
+/**
+ * Download a sample Excel template for any table
+ * @param {string} tableKey - The table key from DB_SCHEMA
+ */
+export const downloadExcelTemplate = async (tableKey) => {
+  try {
+    // Dynamic import of XLSX library
+    const XLSX = await import('xlsx');
+    
+    // Get column mappings for this table
+    const columnMapping = TABLE_COLUMN_MAPPINGS[tableKey];
+    if (!columnMapping) {
+      throw new Error(`No column mapping found for table: ${tableKey}`);
+    }
+    
+    // Create sample data row
+    const headers = Object.keys(columnMapping);
+    const sampleRow = {};
+    headers.forEach(header => {
+      const dbColumn = columnMapping[header];
+      // Add sample values based on column name
+      if (dbColumn.includes('name') || dbColumn.includes('title')) {
+        sampleRow[header] = 'Sample ' + dbColumn;
+      } else if (dbColumn.includes('id')) {
+        sampleRow[header] = ''; // Leave empty for auto-generated IDs
+      } else if (dbColumn.includes('price') || dbColumn.includes('rate') || dbColumn.includes('amount') || dbColumn.includes('total') || dbColumn.includes('discount') || dbColumn.includes('gst') || dbColumn.includes('cess') || dbColumn.includes('stock') || dbColumn.includes('quantity')) {
+        sampleRow[header] = 100;
+      } else if (dbColumn.includes('is_') || dbColumn.includes('active')) {
+        sampleRow[header] = 'Yes';
+      } else if (dbColumn.includes('date')) {
+        sampleRow[header] = new Date().toISOString().split('T')[0];
+      } else {
+        sampleRow[header] = 'Sample ' + dbColumn;
+      }
+    });
+    
+    // Create worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet([sampleRow]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, `${tableKey} Template`);
+    
+    // Download file
+    XLSX.writeFile(workbook, `${tableKey}_Template.xlsx`);
+    
+  } catch (error) {
+    console.error("[Template Download Error]", error);
+    alert(`Failed to download template: ${error.message}`);
+  }
 };
 
 /**

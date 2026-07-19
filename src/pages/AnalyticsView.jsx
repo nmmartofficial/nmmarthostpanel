@@ -8,84 +8,22 @@ import {
   ArrowUpRight, ArrowDownRight, Activity, Package 
 } from 'lucide-react';
 import { cn } from '../utils/helpers';
+import {
+  buildSalesTrendData,
+  buildStatusData,
+  buildCategoryData,
+  buildAnalyticsMetrics,
+  buildTopSellingProducts
+} from '../utils/analyticsHelpers';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 export default function AnalyticsView({ orders, products, users }) {
-  
-  // 1. Sales Trend Data (Last 7 Days)
-  const salesTrendData = useMemo(() => {
-    const last7Days = [...Array(7)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toDateString();
-    }).reverse();
-
-    return last7Days.map(date => {
-      const dayOrders = orders.filter(o => new Date(o.created_at).toDateString() === date);
-      const revenue = dayOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-      return {
-        name: date.split(' ').slice(0, 3).join(' '),
-        revenue: Math.round(revenue),
-        orders: dayOrders.length
-      };
-    });
-  }, [orders]);
-
-  // 2. Order Status Distribution
-  const statusData = useMemo(() => {
-    const counts = {};
-    orders.forEach(o => {
-      const status = o.status || 'pending';
-      counts[status] = (counts[status] || 0) + 1;
-    });
-    return Object.entries(counts).map(([name, value]) => ({ 
-      name: name.toUpperCase(), 
-      value 
-    }));
-  }, [orders]);
-
-  // 3. Category Performance (Revenue per Category)
-  const categoryData = useMemo(() => {
-    const catRevenue = {};
-    orders.forEach(o => {
-      // In a real app, we'd join with order_items to get category info.
-      // For now, we'll mock this logic based on product distribution if items aren't directly available
-      const cat = o.category_name || 'General';
-      catRevenue[cat] = (catRevenue[cat] || 0) + (parseFloat(o.total_amount) || 0);
-    });
-    return Object.entries(catRevenue)
-      .map(([name, revenue]) => ({ name, revenue: Math.round(revenue) }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-  }, [orders]);
-
-  // 4. Key Metrics
-  const metrics = useMemo(() => {
-    const totalRevenue = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-    const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
-    const today = new Date().toDateString();
-    const todaysOrders = orders.filter(o => new Date(o.created_at).toDateString() === today);
-    const todaysRevenue = todaysOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-
-    return [
-      { label: 'Total Revenue', value: `₹${Math.round(totalRevenue).toLocaleString()}`, icon: <IndianRupee size={20} />, trend: '+12%', color: 'text-blue-600', bg: 'bg-blue-50' },
-      { label: 'Total Orders', value: orders.length, icon: <ShoppingBag size={20} />, trend: '+5%', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-      { label: "Today's Sales", value: `₹${Math.round(todaysRevenue).toLocaleString()}`, icon: <TrendingUp size={20} />, trend: '+18%', color: 'text-amber-600', bg: 'bg-amber-50' },
-      { label: 'Avg Order Value', value: `₹${Math.round(avgOrderValue).toLocaleString()}`, icon: <Activity size={20} />, trend: '-2%', color: 'text-purple-600', bg: 'bg-purple-50' },
-    ];
-  }, [orders]);
-
-  // 5. Top Selling Products
-  const topSellingProducts = useMemo(() => {
-    const productSales = {};
-    orders.forEach(order => {
-      // We'll need to access order items - let's assume order has items or we'll aggregate by product mentions
-      // For now, let's mock with sample logic using product data
-    });
-    // Fallback - just use first 5 products
-    return products.slice(0, 5);
-  }, [orders, products]);
+  const salesTrendData = useMemo(() => buildSalesTrendData(orders), [orders]);
+  const statusData = useMemo(() => buildStatusData(orders), [orders]);
+  const categoryData = useMemo(() => buildCategoryData(orders), [orders]);
+  const metrics = useMemo(() => buildAnalyticsMetrics(orders), [orders]);
+  const topSellingProducts = useMemo(() => buildTopSellingProducts(orders, products), [orders, products]);
 
   return (
     <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">

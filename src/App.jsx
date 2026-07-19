@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, memo, lazy, Suspense } from 'react';
 import { 
   Package, Layers, Grid, List, Tag, Building2, 
   Users, Image as ImageIcon, CreditCard, 
@@ -22,222 +22,52 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { dbSync } from './dbSync';
 import { DB_SCHEMA, USER_ROLES } from './dbSchema';
-import JsBarcode from 'jsbarcode';
 import { handleERPAction, ERP_MODULES, ACTION_TYPES, parseERPCSV, exportToExcel } from './erpController';
 import { supabase, isSupabaseMock } from './supabase';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { toast } from 'sonner';
 import {
   sanitizeHTML, sanitizeText, validatePIN, validateEmail,
   validatePhone, validatePositiveNumber, sanitizeFormData,
   secureStorage, isSecureConnection, forceHTTPS,
-  LoginRateLimiter, validateProduct, preventClickjacking
+  LoginRateLimiter, validateProduct, preventClickjacking,
+  safeJsonParse
 } from './utils/security';
 import { processImageForUpload } from './utils/imageHandler';
 
 import MasterListView from './components/MasterListView';
+import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
 import { cn, generateUUID } from './utils/helpers';
 
 const DEFAULT_APP_CONFIG = {
   id: 'default'
 };
 
-// Import New Pages
-import DashboardView from './pages/DashboardView';
-import ProductsView from './pages/Inventory/ProductsView';
-import OrdersView from './pages/Orders/OrdersView';
-import NotificationsView from './pages/NotificationsView';
-import SupportTicketsView from './pages/SupportTicketsView';
-import AppConfigView from './pages/AppConfigView';
-import AnalyticsView from './pages/AnalyticsView';
-import POSView from './pages/POSView';
-import ProfitLossView from './pages/ProfitLossView';
-import SuppliersView from './pages/Inventory/SuppliersView';
-import EnhancedSuppliersView from './pages/Inventory/EnhancedSuppliersView';
-import PurchaseEntryView from './pages/Inventory/PurchaseEntryView';
-import StockLogsView from './pages/Inventory/StockLogsView';
-import StockAlertsView from './pages/Inventory/StockAlertsView';
-import CustomerAnalyticsView from './pages/CustomerAnalyticsView';
-import ExpensesView from './pages/ExpensesView';
-import PurchaseView from './pages/Inventory/PurchaseView';
-import SelfCheckoutView from './pages/SelfCheckoutView';
-import LoyaltyManagementView from './pages/LoyaltyManagementView';
-import CompanyManagement from './pages/SuperAdmin/CompanyManagement';
+const ProductsView = lazy(() => import('./features/inventory/ProductsView'));
+const OrdersView = lazy(() => import('./features/orders/OrdersView'));
+const NotificationsView = lazy(() => import('./features/admin/NotificationsView'));
+const SupportTicketsView = lazy(() => import('./features/admin/SupportTicketsView'));
+const AppConfigView = lazy(() => import('./features/admin/AppConfigView'));
+const AnalyticsView = lazy(() => import('./features/analytics/AnalyticsView'));
+const POSView = lazy(() => import('./features/pos/POSView'));
+const ProfitLossView = lazy(() => import('./features/analytics/ProfitLossView'));
+const EnhancedSuppliersView = lazy(() => import('./features/inventory/EnhancedSuppliersView'));
+const PurchaseEntryView = lazy(() => import('./features/inventory/PurchaseEntryView'));
+const StockLogsView = lazy(() => import('./pages/Inventory/StockLogsView'));
+const StockAlertsView = lazy(() => import('./pages/Inventory/StockAlertsView'));
+const CustomerAnalyticsView = lazy(() => import('./pages/CustomerAnalyticsView'));
+const ExpensesView = lazy(() => import('./features/analytics/ExpensesView'));
+const PurchaseView = lazy(() => import('./features/inventory/PurchaseView'));
+const SelfCheckoutView = lazy(() => import('./pages/SelfCheckoutView'));
+const LoyaltyManagementView = lazy(() => import('./pages/LoyaltyManagementView'));
+const CompanyManagement = lazy(() => import('./pages/SuperAdmin/CompanyManagement'));
+
+import DashboardView from './features/dashboard/DashboardView';
 import { useAuthContext } from './context';
 
 // --- Global Constants ---
 const BRAND_NAME = "NM MART";
 const PRIMARY_COLOR = "#0062FF"; // Enterprise Blue
 const SECONDARY_COLOR = "#111827"; // Dark Slate
-
-// --- Helper: Pagination Footer ---
-function PaginationFooter({ currentPage, totalPages, rowsPerPage, setRowsPerPage, setCurrentPage, totalRecords }) {
-  if (totalRecords === 0) return null;
-
-  return (
-    <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rows per page:</span>
-          <select
-            value={rowsPerPage}
-            onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-            className="bg-white border border-slate-200 rounded-md px-2 py-1 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all"
-          >
-            {[10, 20, 50, 100, 500].map(val => <option key={val} value={val}>{val}</option>)}
-          </select>
-        </div>
-        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-          Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, totalRecords)} of {totalRecords}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(1)}
-          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
-          title="First Page"
-        >
-          <div className="flex items-center">
-            <ChevronDown size={14} className="rotate-90" />
-            <ChevronDown size={14} className="rotate-90 -ml-2" />
-          </div>
-        </button>
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(prev => prev - 1)}
-          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
-        >
-          <ChevronDown size={14} className="rotate-90" />
-        </button>
-
-        <div className="flex items-center gap-1">
-          {(() => {
-            const pages = [];
-            const maxVisible = 5;
-            let start = Math.max(1, currentPage - 2);
-            let end = Math.min(totalPages, start + maxVisible - 1);
-
-            if (end - start < maxVisible - 1) {
-              start = Math.max(1, end - maxVisible + 1);
-            }
-
-            for (let i = start; i <= end; i++) {
-              pages.push(
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i)}
-                  className={cn(
-                    "w-8 h-8 rounded-lg text-[10px] font-black transition-all",
-                    currentPage === i ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                  )}
-                >
-                  {i}
-                </button>
-              );
-            }
-            return pages;
-          })()}
-        </div>
-
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(prev => prev + 1)}
-          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
-        >
-          <ChevronDown size={14} className="-rotate-90" />
-        </button>
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(totalPages)}
-          className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-all"
-          title="Last Page"
-        >
-          <div className="flex items-center">
-            <ChevronDown size={14} className="-rotate-90" />
-            <ChevronDown size={14} className="-rotate-90 -ml-2" />
-          </div>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// --- Dropdown Component ---
-function NavDropdown({ label, icon, items, activeTab, setActiveTab }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const isActive = items.some(item => item.id === activeTab);
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-black transition-all whitespace-nowrap uppercase tracking-tighter shadow-sm",
-          isActive ? "text-white bg-blue-600 shadow-blue-200" : "text-slate-900 bg-white border border-slate-200 hover:bg-slate-50"
-        )}
-      >
-        <span className={cn(isActive ? "text-white" : "text-slate-800")}>{icon}</span>
-        <span>{label}</span>
-        <ChevronDown size={12} className={cn("transition-transform opacity-70", isOpen && "rotate-180")} />
-      </button>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className={cn(
-              "absolute left-0 mt-2 bg-white rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.2)] border border-slate-200 py-2 z-[200] overflow-hidden w-64"
-            )}
-          >
-            <div className={cn(
-              "grid divide-slate-100 max-h-[85vh] overflow-y-auto grid-cols-1 divide-y"
-            )}>
-              {items.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setIsOpen(false);
-                  }}
-                  className={cn(
-                    "w-full flex items-center justify-between px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-colors group",
-                    activeTab === item.id ? "bg-blue-50 text-blue-700" : "text-slate-800 hover:bg-slate-50"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={cn("transition-transform group-hover:scale-110", activeTab === item.id ? "text-blue-700" : "text-slate-900")}>
-                      {item.icon}
-                    </span>
-                    {item.label}
-                  </div>
-                  {item.shortcut && <span className="text-[8px] text-slate-400 font-bold">{item.shortcut}</span>}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
   const [scanTerm, setScanTerm] = useState('');
@@ -464,7 +294,8 @@ export default function App({ company, isTenantMode, companySlug }) {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('nm_dark_mode') === 'true');
   const [festivals, setFestivals] = useState(() => {
     const saved = localStorage.getItem('nm_festivals');
-    if (saved) return JSON.parse(saved);
+    const parsed = safeJsonParse(saved, null);
+    if (parsed) return parsed;
     const currentYear = new Date().getFullYear();
     return [
       {
@@ -1014,14 +845,16 @@ export default function App({ company, isTenantMode, companySlug }) {
         </button>
 
         {/* Self Checkout in Full Screen */}
-        <SelfCheckoutView
-          orders={orders}
-          products={products}
-          fetchInitialData={fetchInitialData}
-          appConfig={appConfig}
-          customerMode={customerMode}
-          setCustomerMode={setCustomerMode}
-        />
+        <Suspense fallback={<ModuleLoadingFallback title="Loading Self Checkout..." />}>
+          <SelfCheckoutView
+            orders={orders}
+            products={products}
+            fetchInitialData={fetchInitialData}
+            appConfig={appConfig}
+            customerMode={customerMode}
+            setCustomerMode={setCustomerMode}
+          />
+        </Suspense>
       </div>
     ) : (
       <div className={cn("h-screen flex flex-col font-sans antialiased transition-colors duration-200 overflow-hidden", darkMode ? "bg-neutral-950" : "bg-neutral-50")}>
@@ -1635,18 +1468,20 @@ export default function App({ company, isTenantMode, companySlug }) {
             transition={{ duration: 0.1 }}
             className="flex-1 flex flex-col min-h-0"
           >
-            {renderTabContent(activeTab, {
-                activeTab, setActiveTab,
-                stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons,
-                offers, pincodes, homeConfig, walletTx, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
-                purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
-                loyaltyPoints, loyaltyTransactions, loyaltyTiers,
-                setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems: setOrderItems || (() => {}), setUsers, setCoupons,
-                setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
-                setFestivals, setPreviewFestival, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
-                uploadImage, fetchInitialData, setLoading,
-                customerMode, setCustomerMode
-              })}
+            <Suspense fallback={<ModuleLoadingFallback title={`Loading ${activeTab}...`} />}>
+              {renderTabContent(activeTab, {
+                  activeTab, setActiveTab,
+                  stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons,
+                  offers, pincodes, homeConfig, walletTx, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
+                  purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
+                  loyaltyPoints, loyaltyTransactions, loyaltyTiers,
+                  setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems: setOrderItems || (() => {}), setUsers, setCoupons,
+                  setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
+                  setFestivals, setPreviewFestival, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
+                  uploadImage, fetchInitialData, setLoading,
+                  customerMode, setCustomerMode
+                })}
+            </Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
@@ -2440,16 +2275,19 @@ function WastageReportView({ products }) {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Wastage Report");
     XLSX.writeFile(wb, `Wastage_Report_${fromDate}_to_${toDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF();
     doc.text("Wastage Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -2588,8 +2426,9 @@ function RequisitionReportROView({ products }) {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Requisition Report");
@@ -2688,16 +2527,19 @@ function PurchaseReportROView({ products }) {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Purchase Report");
     XLSX.writeFile(wb, `Purchase_Report_${fromDate}_to_${toDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF();
     doc.text("(RO) Purchase Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -3238,8 +3080,9 @@ function StockTransferReportView({ products, departments }) {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Stock Transfer Report");
@@ -3604,16 +3447,19 @@ function CostingReportView({ products, departments }) {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Costing Report");
     XLSX.writeFile(wb, `Costing_Report_${fromDate}_to_${toDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF('landscape');
     doc.text("Costing Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -4493,16 +4339,19 @@ function CreditReportView({ orders, credits, deliveryBoys, users }) {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Credit Report");
     XLSX.writeFile(wb, `Credit_Report_${fromDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (reportData.length === 0) return alert("No data to print");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF('landscape');
     doc.text("Credit Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -4695,16 +4544,19 @@ function DeliveryBoyPaymentReportView({ orders, deliveryBoys, accounts }) {
     setIsGenerating(false);
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "DB Payment Report");
     XLSX.writeFile(wb, `DB_Payment_Report_${fromDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (reportData.length === 0) return alert("No data to print");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF('landscape');
     doc.text("Delivery Boy Payment Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -4888,16 +4740,19 @@ function LedgerView({ users, accounts }) {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Ledger Report");
     XLSX.writeFile(wb, `Ledger_Report_${searchParty}_${fromDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (reportData.length === 0) return alert("No data to print");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF();
     doc.text(`Ledger Report: ${searchParty}`, 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -5067,16 +4922,19 @@ function LogbookView() {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (logs.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(logs);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Logbook");
     XLSX.writeFile(wb, `Logbook_${fromDate}_to_${toDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (logs.length === 0) return alert("No data to print");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF();
     doc.text("System Logbook", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -5289,16 +5147,19 @@ function ItemStatementReportView({ products, departments }) {
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Item Statement");
     XLSX.writeFile(wb, `Item_Statement_${searchItem}_${fromDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (reportData.length === 0) return alert("No data to print");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF('landscape');
     doc.text(`Item Statement: ${searchItem}`, 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -5500,8 +5361,9 @@ function StockReportView({ products, purchases, orders, categories, departments 
     }
   };
 
-  const handleExcel = () => {
+  const handleExcel = async () => {
     if (reportData.length === 0) return alert("No data to export");
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(reportData.map(item => ({
       "Sr No": item.srNo,
       "Item Name": item.itemName,
@@ -5523,8 +5385,10 @@ function StockReportView({ products, purchases, orders, categories, departments 
     XLSX.writeFile(wb, `Stock_Report_${fromDate}_to_${toDate}.xlsx`);
   };
 
-  const handlePDF = () => {
+  const handlePDF = async () => {
     if (reportData.length === 0) return alert("No data to print");
+    const { jsPDF } = await import('jspdf');
+    await import('jspdf-autotable');
     const doc = new jsPDF('landscape');
     doc.text("Stock Report", 14, 15);
     doc.text(`Period: ${fromDate} to ${toDate}`, 14, 22);
@@ -6688,19 +6552,23 @@ const BarcodeLabelGenerator = (props) => {
 
   // Generate barcodes on render
   useEffect(() => {
-    barcodeRefs.forEach((ref, idx) => {
-      if (ref && selectedProduct) {
-        JsBarcode(ref, selectedProduct.barcode || selectedProduct.id, {
-          format: "CODE128",
-          lineColor: "#000000",
-          width: 2,
-          height: 50,
-          displayValue: true,
-          fontSize: 12,
-          textMargin: 5
-        });
-      }
-    });
+    const generateBarcodes = async () => {
+      const JsBarcode = (await import('jsbarcode')).default;
+      barcodeRefs.forEach((ref, idx) => {
+        if (ref && selectedProduct) {
+          JsBarcode(ref, selectedProduct.barcode || selectedProduct.id, {
+            format: "CODE128",
+            lineColor: "#000000",
+            width: 2,
+            height: 50,
+            displayValue: true,
+            fontSize: 12,
+            textMargin: 5
+          });
+        }
+      });
+    };
+    generateBarcodes();
   }, [selectedProduct, barcodeRefs]);
 
   // Print labels
@@ -6820,8 +6688,7 @@ const BarcodeLabelGenerator = (props) => {
 const MultiStoreManager = (props) => {
   const [stores, setStores] = useState(() => {
     const saved = localStorage.getItem('nm_stores');
-    if (saved) return JSON.parse(saved);
-    return [
+    const parsed = safeJsonParse(saved, [
       {
         id: '1',
         name: 'NM MART - Main Branch',
@@ -6829,7 +6696,8 @@ const MultiStoreManager = (props) => {
         phone: '+91 9876543210',
         isActive: true
       }
-    ];
+    ]);
+    return parsed;
   });
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStore, setEditingStore] = useState(null);

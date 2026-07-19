@@ -49,7 +49,7 @@ export default function StoreSetup({ fetchInitialData, currentUser }) {
       const { error: userError } = await supabase
         .from('admin_users')
         .update({ company_code: nextCode })
-        .eq('email', currentUser.email);
+        .eq('username', currentUser.email);
 
       if (userError) throw userError;
 

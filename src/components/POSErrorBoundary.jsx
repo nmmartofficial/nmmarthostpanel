@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { motion } from 'framer-motion';
 import { AlertOctagon, RotateCcw } from 'lucide-react';
+import { debugError } from '../utils/debugLogger';
 
 class POSErrorBoundary extends Component {
   constructor(props) {
@@ -13,7 +14,7 @@ class POSErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("[POS CRITICAL ERROR]", error, errorInfo);
+    debugError('POSErrorBoundary', 'POS runtime error captured', { error, errorInfo });
   }
 
   handleReset = () => {

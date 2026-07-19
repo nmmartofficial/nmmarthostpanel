@@ -1,17 +1,19 @@
-import React from 'react'
+import React from 'react';
+import { debugError } from './utils/debugLogger';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
-    super(props)
-    this.state = { hasError: false, error: null }
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo)
+    this.setState({ errorInfo });
+    debugError('ErrorBoundary', 'UI error captured', { error, errorInfo });
   }
 
   render() {
@@ -34,7 +36,7 @@ class ErrorBoundary extends React.Component {
                 Reload Page
               </button>
               <button
-                onClick={() => this.setState({ hasError: false })}
+                onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
                 className="w-full px-6 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl transition-all"
               >
                 Try Again
@@ -45,6 +47,7 @@ class ErrorBoundary extends React.Component {
                 <summary className="text-sm font-bold text-slate-500 cursor-pointer">Show Error Details</summary>
                 <pre className="mt-3 p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs overflow-auto text-slate-700 dark:text-slate-300">
                   {this.state.error.message}
+                  {this.state.errorInfo?.componentStack && `\n\n${this.state.errorInfo.componentStack}`}
                 </pre>
               </details>
             )}

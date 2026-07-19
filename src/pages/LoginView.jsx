@@ -86,6 +86,7 @@ export default function LoginView({ isTenantMode = false }) {
       navigate(dashboardPath, { replace: true });
     } catch (err) {
       setLoginError(err.message || 'Login failed. Please try again.');
+    } finally {
       setIsProcessing(false);
     }
   };
