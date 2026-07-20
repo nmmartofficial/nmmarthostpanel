@@ -36,4 +36,14 @@ export { customerSelectors } from './store/customer.selectors';
 export { CustomerService } from './services/customer.service';
 
 // Utils
-export { validateCustomer, formatCustomerName, formatPhoneNumber } from './utils/customer.utils';
+export {
+  normalizeCustomerSearch,
+  normalizeMobile,
+  safeCustomerCompare,
+  validateCustomerCode,
+  validateCustomerMobile,
+  validateCustomerEmail,
+  validateCustomer,
+  normalizeCustomerCode,
+  normalizeCustomerName,
+} from './utils/customer.utils';

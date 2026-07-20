@@ -6,6 +6,18 @@ import { cloneCart, createCartItem, calculateSubtotal, calculateTotalQuantity, c
 const ensureMinQty = (qty: number): number => Math.max(1, qty);
 
 export const CartService = {
+  attachCustomer: (cart: Cart, customerId: string | number): Cart => {
+    const newCart = cloneCart(cart);
+    newCart.customerId = customerId;
+    return newCart;
+  },
+
+  clearCustomer: (cart: Cart): Cart => {
+    const newCart = cloneCart(cart);
+    newCart.customerId = null;
+    return newCart;
+  },
+
   updateCartSummary: (cart: Cart): Cart => {
     let newCart = cloneCart(cart);
     newCart.subtotal = calculateSubtotal(cart);

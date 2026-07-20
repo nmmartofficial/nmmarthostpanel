@@ -54,7 +54,12 @@ export const useCart = () => {
   const clearCart = useCallback(() => {
     setCart(prev => CartService.clear(prev));
   }, []);
-  const setCustomer = () => { throw new Error("Not Implemented"); };
+  const attachCustomer = useCallback((customerId: string | number) => {
+    setCart(prev => CartService.attachCustomer(prev, customerId));
+  }, []);
+  const clearCustomer = useCallback(() => {
+    setCart(prev => CartService.clearCustomer(prev));
+  }, []);
   const setDiscount = useCallback((discountType: 'percentage' | 'fixed', discountValue: number) => {
     setCart(prev => CartService.setDiscount(prev, discountType, discountValue));
   }, []);
@@ -93,7 +98,8 @@ export const useCart = () => {
     selectItem,
     clearSelection,
     clearCart,
-    setCustomer,
+    attachCustomer,
+    clearCustomer,
     setDiscount,
     clearDiscount,
     setGSTRate,

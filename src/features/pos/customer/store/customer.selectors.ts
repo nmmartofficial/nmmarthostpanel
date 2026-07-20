@@ -15,6 +15,18 @@ export const customerSelectors = {
   getCustomers: (state: CustomerState): Customer[] => {
     throw new Error('Not Implemented');
   },
+  getWalletBalance: (state: CustomerState): number => {
+    throw new Error('Not Implemented');
+  },
+  getCreditBalance: (state: CustomerState): number => {
+    throw new Error('Not Implemented');
+  },
+  getLoyaltyPoints: (state: CustomerState): number => {
+    throw new Error('Not Implemented');
+  },
+  getSearchQuery: (state: CustomerState): string => {
+    throw new Error('Not Implemented');
+  },
   isLoading: (state: CustomerState): boolean => {
     throw new Error('Not Implemented');
   },

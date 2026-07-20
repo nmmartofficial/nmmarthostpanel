@@ -24,4 +24,31 @@ export const customerActions = {
   clear: (): void => {
     throw new Error('Not Implemented');
   },
+  setCustomers: (customers: Customer[]): void => {
+    throw new Error('Not Implemented');
+  },
+  setSelectedCustomer: (customer: Customer | null): void => {
+    throw new Error('Not Implemented');
+  },
+  setSearchQuery: (query: string): void => {
+    throw new Error('Not Implemented');
+  },
+  setWalletBalance: (balance: number): void => {
+    throw new Error('Not Implemented');
+  },
+  setCreditBalance: (balance: number): void => {
+    throw new Error('Not Implemented');
+  },
+  setLoyaltyPoints: (points: number): void => {
+    throw new Error('Not Implemented');
+  },
+  setLoading: (loading: boolean): void => {
+    throw new Error('Not Implemented');
+  },
+  setError: (error: string): void => {
+    throw new Error('Not Implemented');
+  },
+  resetCustomer: (): void => {
+    throw new Error('Not Implemented');
+  },
 };

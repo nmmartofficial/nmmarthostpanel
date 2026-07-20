@@ -43,11 +43,16 @@ export interface CustomerLoyalty {
 
 export interface Customer {
   id: string;
+  customerCode: string;
   type: keyof typeof CUSTOMER_TYPES;
   status: keyof typeof CUSTOMER_STATUS;
   name: string;
   email?: string;
   phone?: string;
+  mobile?: string;
+  walletBalance: number;
+  creditBalance: number;
+  loyaltyPoints: number;
   addresses: CustomerAddress[];
   wallet?: CustomerWallet;
   credit?: CustomerCredit;
@@ -61,6 +66,10 @@ export interface CustomerState {
   customers: Customer[];
   loading: boolean;
   error: string;
+  searchQuery: string;
+  walletBalance: number;
+  creditBalance: number;
+  loyaltyPoints: number;
 }
 
 export interface CustomerActions {
@@ -70,4 +79,13 @@ export interface CustomerActions {
   remove: (id: string) => void;
   select: (customer: Customer) => void;
   clear: () => void;
+  setCustomers: (customers: Customer[]) => void;
+  setSelectedCustomer: (customer: Customer | null) => void;
+  setSearchQuery: (query: string) => void;
+  setWalletBalance: (balance: number) => void;
+  setCreditBalance: (balance: number) => void;
+  setLoyaltyPoints: (points: number) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string) => void;
+  resetCustomer: () => void;
 }

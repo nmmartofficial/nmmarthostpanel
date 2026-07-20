@@ -1,11 +1,12 @@
 /**
  * Customer Module Context
- * Phase 5 - Step 1
+ * Phase 5 - Step 1 & Step 7
  */
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialCustomerState } from '../store/customer.state';
 import type { CustomerState, Customer, CustomerActions } from '../types/customer.types';
+import { CustomerService } from '../services/customer.service';
 
 // Create CustomerContext
 const CustomerContext = createContext<{
@@ -15,16 +16,31 @@ const CustomerContext = createContext<{
   customers: Customer[];
   loading: boolean;
   error: string;
+  searchQuery: string;
+  walletBalance: number;
+  creditBalance: number;
+  loyaltyPoints: number;
   setSelectedCustomer: (customer: Customer | null) => void;
   setCustomers: (customers: Customer[]) => void;
+  setSearchQuery: (query: string) => void;
+  setWalletBalance: (balance: number) => void;
+  setCreditBalance: (balance: number) => void;
+  setLoyaltyPoints: (points: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string) => void;
+  resetCustomer: () => void;
   search: (query: string) => void;
   create: (customer: Partial<Customer>) => void;
   update: (id: string, customer: Partial<Customer>) => void;
   remove: (id: string) => void;
-  select: (customer: Customer) => void;
-  clear: () => void;
+  selectCustomer: (customer: Customer) => void;
+  clearSelectedCustomer: () => void;
+  validateCustomer: (customer: {
+    customerCode: string;
+    name: string;
+    mobile: string;
+    email?: string;
+  }) => { isValid: boolean; errors: Record<string, string> };
 } | null>(null);
 
 // CustomerProvider Component
@@ -40,6 +56,22 @@ export const CustomerProvider = ({ children }) => {
     setCustomerState(prev => ({ ...prev, customers }));
   };
 
+  const setSearchQuery = (query: string) => {
+    setCustomerState(prev => ({ ...prev, searchQuery: query }));
+  };
+
+  const setWalletBalance = (balance: number) => {
+    setCustomerState(prev => ({ ...prev, walletBalance: balance }));
+  };
+
+  const setCreditBalance = (balance: number) => {
+    setCustomerState(prev => ({ ...prev, creditBalance: balance }));
+  };
+
+  const setLoyaltyPoints = (points: number) => {
+    setCustomerState(prev => ({ ...prev, loyaltyPoints: points }));
+  };
+
   const setLoading = (loading: boolean) => {
     setCustomerState(prev => ({ ...prev, loading }));
   };
@@ -48,9 +80,15 @@ export const CustomerProvider = ({ children }) => {
     setCustomerState(prev => ({ ...prev, error }));
   };
 
+  const resetCustomer = () => {
+    setCustomerState(initialCustomerState);
+  };
+
   // Placeholder actions
   const search = (query: string) => {
-    throw new Error('Not Implemented');
+    setSearchQuery(query);
+    const results = CustomerService.search(query);
+    setCustomers(results);
   };
 
   const create = (customer: Partial<Customer>) => {
@@ -65,12 +103,23 @@ export const CustomerProvider = ({ children }) => {
     throw new Error('Not Implemented');
   };
 
-  const select = (customer: Customer) => {
-    setSelectedCustomer(customer);
+  const selectCustomer = (customer: Customer) => {
+    const selected = CustomerService.selectCustomer(customer);
+    setSelectedCustomer(selected);
   };
 
-  const clear = () => {
-    setCustomerState(initialCustomerState);
+  const clearSelectedCustomer = () => {
+    const cleared = CustomerService.clearSelectedCustomer();
+    setSelectedCustomer(cleared);
+  };
+
+  const validateCustomer = (customer: {
+    customerCode: string;
+    name: string;
+    mobile: string;
+    email?: string;
+  }) => {
+    return CustomerService.validate(customer);
   };
 
   const actions = useMemo(() => ({
@@ -78,8 +127,17 @@ export const CustomerProvider = ({ children }) => {
     create,
     update,
     remove,
-    select,
-    clear
+    selectCustomer,
+    clearSelectedCustomer,
+    setCustomers,
+    setSelectedCustomer,
+    setSearchQuery,
+    setWalletBalance,
+    setCreditBalance,
+    setLoyaltyPoints,
+    setLoading,
+    setError,
+    resetCustomer
   }), []);
 
   const value = useMemo(() => ({
@@ -89,16 +147,26 @@ export const CustomerProvider = ({ children }) => {
     customers: customerState.customers,
     loading: customerState.loading,
     error: customerState.error,
+    searchQuery: customerState.searchQuery,
+    walletBalance: customerState.walletBalance,
+    creditBalance: customerState.creditBalance,
+    loyaltyPoints: customerState.loyaltyPoints,
     setSelectedCustomer,
     setCustomers,
+    setSearchQuery,
+    setWalletBalance,
+    setCreditBalance,
+    setLoyaltyPoints,
     setLoading,
     setError,
+    resetCustomer,
     search,
     create,
     update,
     remove,
-    select,
-    clear
+    selectCustomer,
+    clearSelectedCustomer,
+    validateCustomer
   }), [customerState]);
 
   return (
