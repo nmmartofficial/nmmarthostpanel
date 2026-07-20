@@ -28,6 +28,50 @@ export const usePayment = () => {
     setUPIId: context.setUPIId,
     processUPIPayment: context.processUPIPayment,
     clearUPIPayment: context.clearUPIPayment,
+    // Card Payment State (Phase 4 Step 5)
+    cardNumber: context.cardNumber,
+    cardHolderName: context.cardHolderName,
+    expiryDate: context.expiryDate,
+    cvv: context.cvv,
+    cardType: context.cardType,
+    cardTransactionId: context.cardTransactionId,
+    cardStatus: context.cardStatus,
+    // Card Payment Actions (Phase 4 Step 5)
+    setCardDetails: context.setCardDetails,
+    processCardPayment: context.processCardPayment,
+    clearCardPayment: context.clearCardPayment,
+    // Split Payment State (Phase 4 Step 6)
+    splitPayments: context.splitPayments,
+    splitStatus: context.splitStatus,
+    splitTransactionIds: context.splitTransactionIds,
+    // Split Payment Actions (Phase 4 Step 6)
+    setSplitPayments: context.setSplitPayments,
+    processSplitPayment: context.processSplitPayment,
+    clearSplitPayment: context.clearSplitPayment,
+    // Credit Payment State (Phase 4 Step 7)
+    creditCustomerId: context.creditCustomerId,
+    creditCustomerName: context.creditCustomerName,
+    creditReference: context.creditReference,
+    creditStatus: context.creditStatus,
+    // Credit Payment Actions (Phase 4 Step 7)
+    setCreditCustomer: context.setCreditCustomer,
+    processCreditPayment: context.processCreditPayment,
+    clearCreditPayment: context.clearCreditPayment,
+    // Change Return State (Phase 4 Step 8)
+    changeBreakdown: context.changeBreakdown,
+    shortageAmount: context.shortageAmount,
+    // Change Return Actions (Phase 4 Step 8)
+    updateChangeSummary: context.updateChangeSummary,
+    clearChangeSummary: context.clearChangeSummary,
+    // Validation State (Phase 4 Step 9)
+    validationErrors: context.validationErrors,
+    validationStatus: context.validationStatus,
+    // Validation Actions (Phase 4 Step 9)
+    runPaymentValidation: context.runPaymentValidation,
+    clearPaymentValidation: context.clearPaymentValidation,
+    // Payment Finalization (Phase 4 Step 10)
+    processPayment: context.processPayment,
+    resetPayment: context.resetPayment,
     // Legacy exports preserved for compatibility
     paymentAmounts: context.paymentAmounts,
     setPaymentAmounts: context.setPaymentAmounts,

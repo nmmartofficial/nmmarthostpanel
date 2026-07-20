@@ -61,6 +61,34 @@ export const PaymentProvider = ({ children }) => {
   const [upiStatus, setUPIStatus] = useState('');
   const [upiTransactionId, setUPITransactionId] = useState('');
 
+  // --- Card Payment State (Phase 4 Step 5) ---
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolderName, setCardHolderName] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [cardType, setCardType] = useState('');
+  const [cardTransactionId, setCardTransactionId] = useState('');
+  const [cardStatus, setCardStatus] = useState('');
+
+  // --- Split Payment State (Phase 4 Step 6) ---
+  const [splitPayments, setSplitPayments] = useState([]);
+  const [splitStatus, setSplitStatus] = useState('');
+  const [splitTransactionIds, setSplitTransactionIds] = useState([]);
+
+  // --- Credit Payment State (Phase 4 Step 7) ---
+  const [creditCustomerId, setCreditCustomerId] = useState('');
+  const [creditCustomerName, setCreditCustomerName] = useState('');
+  const [creditReference, setCreditReference] = useState('');
+  const [creditStatus, setCreditStatus] = useState('');
+
+  // --- Change Return State (Phase 4 Step 8) ---
+  const [changeBreakdown, setChangeBreakdown] = useState([]);
+  const [shortageAmount, setShortageAmount] = useState(0);
+
+  // --- Validation State (Phase 4 Step 9) ---
+  const [validationErrors, setValidationErrors] = useState([]);
+  const [validationStatus, setValidationStatus] = useState('');
+
   // --- Legacy State (Preserved for compatibility) ---
   const [paymentAmounts, setPaymentAmounts] = useState({
     [PAYMENT_METHODS.CASH]: 0,
@@ -90,17 +118,8 @@ export const PaymentProvider = ({ children }) => {
     setPaidAmount,
     setLoading,
     setError,
-    resetPayment: useCallback(() => {
-      setSelectedMethod(PAYMENT_METHODS.CASH);
-      setPaymentStatus(PAYMENT_STATUS.PENDING);
-      setPayableAmount(0);
-      setPaidAmount(0);
-      setRemainingAmount(0);
-      setChangeAmount(0);
-      setLoading(false);
-      setError('');
-    }, [])
-  }), []);
+    resetPayment: resetPaymentAction
+  }), [resetPaymentAction]);
 
   // --- Cash Payment Actions (Phase 4 Step 3) ---
   const setCashAmountAction = useCallback((amount) => {
@@ -181,6 +200,321 @@ export const PaymentProvider = ({ children }) => {
     setError('');
   }, []);
 
+  // --- Card Payment Actions (Phase 4 Step 5) ---
+  // State wiring only - business logic in PaymentService
+  const setCardDetailsAction = useCallback((details) => {
+    setCardNumber(details.cardNumber || '');
+    setCardHolderName(details.cardHolderName || '');
+    setExpiryDate(details.expiryDate || '');
+    setCvv(details.cvv || '');
+  }, []);
+
+  const processCardPaymentAction = useCallback(() => {
+    setLoading(true);
+    setError('');
+
+    const result = PaymentService.processCardPayment({
+      payableAmount,
+      cardNumber,
+      cardHolderName,
+      expiryDate,
+      cvv
+    });
+
+    // Update state based on service result
+    setPaidAmount(result.paidAmount);
+    setRemainingAmount(result.remainingAmount);
+    setChangeAmount(result.changeAmount);
+    setCardType(result.cardType);
+    setCardTransactionId(result.transactionId);
+    setCardStatus(result.success ? 'COMPLETED' : 'FAILED');
+    setPaymentStatus(result.success ? PAYMENT_STATUS.COMPLETED : PAYMENT_STATUS.FAILED);
+    setError(result.error || '');
+
+    setLoading(false);
+    return result;
+  }, [payableAmount, cardNumber, cardHolderName, expiryDate, cvv]);
+
+  const clearCardPaymentAction = useCallback(() => {
+    setCardNumber('');
+    setCardHolderName('');
+    setExpiryDate('');
+    setCvv('');
+    setCardType('');
+    setCardTransactionId('');
+    setCardStatus('');
+    setPaidAmount(0);
+    setRemainingAmount(0);
+    setChangeAmount(0);
+    setPaymentStatus(PAYMENT_STATUS.PENDING);
+    setError('');
+  }, []);
+
+  // --- Split Payment Actions (Phase 4 Step 6) ---
+  const setSplitPaymentsAction = useCallback((payments) => {
+    setSplitPayments(payments);
+  }, []);
+
+  const processSplitPaymentAction = useCallback(() => {
+    setLoading(true);
+    setError('');
+
+    const result = PaymentService.processSplitPayment({
+      payableAmount,
+      splitPayments,
+      cashAmount,
+      upiId,
+      cardNumber,
+      cardHolderName,
+      expiryDate,
+      cvv
+    });
+
+    // Update state with results
+    setPaidAmount(result.paidAmount);
+    setRemainingAmount(result.remainingAmount);
+    setChangeAmount(result.changeAmount);
+    setSplitPayments(result.processedPayments);
+    setSplitTransactionIds(result.transactionIds);
+    setSplitStatus(result.success ? 'COMPLETED' : 'FAILED');
+    setPaymentStatus(result.success ? PAYMENT_STATUS.COMPLETED : PAYMENT_STATUS.FAILED);
+    setError(result.error || '');
+
+    setLoading(false);
+    return result;
+  }, [
+    payableAmount,
+    splitPayments,
+    cashAmount,
+    upiId,
+    cardNumber,
+    cardHolderName,
+    expiryDate,
+    cvv
+  ]);
+
+  const clearSplitPaymentAction = useCallback(() => {
+    setSplitPayments([]);
+    setSplitStatus('');
+    setSplitTransactionIds([]);
+    setPaidAmount(0);
+    setRemainingAmount(0);
+    setChangeAmount(0);
+    setPaymentStatus(PAYMENT_STATUS.PENDING);
+    setError('');
+  }, []);
+
+  // --- Credit Payment Actions (Phase 4 Step 7) ---
+  const setCreditCustomerAction = useCallback((customer) => {
+    setCreditCustomerId(customer.customerId || '');
+    setCreditCustomerName(customer.customerName || '');
+    setCreditReference(customer.reference || '');
+  }, []);
+
+  const processCreditPaymentAction = useCallback(() => {
+    setLoading(true);
+    setError('');
+
+    const result = PaymentService.processCreditPayment({
+      payableAmount,
+      creditCustomerId,
+      creditCustomerName,
+      creditReference
+    });
+
+    setPaidAmount(result.paidAmount);
+    setRemainingAmount(result.remainingAmount);
+    setChangeAmount(result.changeAmount);
+    setCreditReference(result.transactionId);
+    setCreditStatus(result.success ? 'COMPLETED' : 'FAILED');
+    setPaymentStatus(result.success ? PAYMENT_STATUS.COMPLETED : PAYMENT_STATUS.FAILED);
+    setError(result.error || '');
+
+    setLoading(false);
+    return result;
+  }, [payableAmount, creditCustomerId, creditCustomerName, creditReference]);
+
+  const clearCreditPaymentAction = useCallback(() => {
+    setCreditCustomerId('');
+    setCreditCustomerName('');
+    setCreditReference('');
+    setCreditStatus('');
+    setPaidAmount(0);
+    setRemainingAmount(0);
+    setChangeAmount(0);
+    setPaymentStatus(PAYMENT_STATUS.PENDING);
+    setError('');
+  }, []);
+
+  // --- Change Return Actions (Phase 4 Step 8) ---
+  const updateChangeSummaryAction = useCallback(() => {
+    const result = PaymentService.updateChangeSummary({
+      payableAmount,
+      paidAmount
+    });
+
+    setChangeAmount(result.changeAmount);
+    setChangeBreakdown(result.changeBreakdown);
+    setShortageAmount(result.shortageAmount);
+  }, [payableAmount, paidAmount]);
+
+  const clearChangeSummaryAction = useCallback(() => {
+    setChangeBreakdown([]);
+    setShortageAmount(0);
+  }, []);
+
+  // --- Validation Actions (Phase 4 Step 9) ---
+  const runPaymentValidationAction = useCallback(() => {
+    const result = PaymentService.validatePayment({
+      method: selectedMethod,
+      payableAmount,
+      cashAmount,
+      upiId,
+      cardNumber,
+      expiryDate,
+      cvv,
+      splitPayments,
+      creditCustomerId,
+      creditCustomerName
+    });
+    
+    setValidationErrors(result.errors);
+    setValidationStatus(result.isValid ? 'VALID' : 'INVALID');
+    return result;
+  }, [
+    selectedMethod,
+    payableAmount,
+    cashAmount,
+    upiId,
+    cardNumber,
+    expiryDate,
+    cvv,
+    splitPayments,
+    creditCustomerId,
+    creditCustomerName
+  ]);
+
+  const clearPaymentValidationAction = useCallback(() => {
+    setValidationErrors([]);
+    setValidationStatus('');
+  }, []);
+
+  // --- Payment Finalization (Phase 4 Step 10) ---
+  const processPaymentAction = useCallback(() => {
+    setLoading(true);
+    setError('');
+
+    const result = PaymentService.processPayment({
+      method: selectedMethod,
+      payableAmount,
+      cashAmount,
+      upiId,
+      cardNumber,
+      cardHolderName,
+      expiryDate,
+      cvv,
+      splitPayments,
+      creditCustomerId,
+      creditCustomerName,
+      creditReference
+    });
+
+    // Update all relevant state
+    setPaidAmount(result.paidAmount);
+    setRemainingAmount(result.remainingAmount);
+    setChangeAmount(result.changeAmount);
+    setValidationErrors(result.errors);
+    setValidationStatus(result.success ? 'VALID' : 'INVALID');
+    setPaymentStatus(result.success ? PAYMENT_STATUS.COMPLETED : PAYMENT_STATUS.FAILED);
+
+    // Update method-specific state
+    if (result.method === 'UPI') {
+      setUPITransactionId(result.transactionId);
+      setUPIStatus(result.status);
+    } else if (result.method === 'CARD') {
+      setCardTransactionId(result.transactionId);
+      setCardStatus(result.status);
+    } else if (result.method === 'SPLIT') {
+      setSplitTransactionIds(result.transactionId.split(','));
+      setSplitStatus(result.status);
+    } else if (result.method === 'CREDIT') {
+      setCreditReference(result.transactionId);
+      setCreditStatus(result.status);
+    }
+
+    // Also update change summary
+    const changeSummary = PaymentService.updateChangeSummary({
+      payableAmount,
+      paidAmount: result.paidAmount
+    });
+    setChangeBreakdown(changeSummary.changeBreakdown);
+    setShortageAmount(changeSummary.shortageAmount);
+
+    setLoading(false);
+    return result;
+  }, [
+    selectedMethod,
+    payableAmount,
+    cashAmount,
+    upiId,
+    cardNumber,
+    cardHolderName,
+    expiryDate,
+    cvv,
+    splitPayments,
+    creditCustomerId,
+    creditCustomerName,
+    creditReference
+  ]);
+
+  const resetPaymentAction = useCallback(() => {
+    // Reset base payment state
+    setSelectedMethod(PAYMENT_METHODS.CASH);
+    setPaymentStatus(PAYMENT_STATUS.PENDING);
+    setPayableAmount(0);
+    setPaidAmount(0);
+    setRemainingAmount(0);
+    setChangeAmount(0);
+    setLoading(false);
+    setError('');
+    
+    // Reset cash state
+    setCashAmount(0);
+    
+    // Reset UPI state
+    setUPIId('');
+    setUPIStatus('');
+    setUPITransactionId('');
+    
+    // Reset card state
+    setCardNumber('');
+    setCardHolderName('');
+    setExpiryDate('');
+    setCvv('');
+    setCardType('');
+    setCardTransactionId('');
+    setCardStatus('');
+    
+    // Reset split state
+    setSplitPayments([]);
+    setSplitStatus('');
+    setSplitTransactionIds([]);
+    
+    // Reset credit state
+    setCreditCustomerId('');
+    setCreditCustomerName('');
+    setCreditReference('');
+    setCreditStatus('');
+    
+    // Reset change state
+    setChangeBreakdown([]);
+    setShortageAmount(0);
+    
+    // Reset validation state
+    setValidationErrors([]);
+    setValidationStatus('');
+  }, []);
+
   // --- Payment State (Phase 4 Step 2) ---
   const paymentState = useMemo(() => ({
     selectedMethod,
@@ -194,7 +528,30 @@ export const PaymentProvider = ({ children }) => {
     // UPI State (Phase 4 Step 4)
     upiId,
     upiStatus,
-    upiTransactionId
+    upiTransactionId,
+    // Card State (Phase 4 Step 5)
+    cardNumber,
+    cardHolderName,
+    expiryDate,
+    cvv,
+    cardType,
+    cardTransactionId,
+    cardStatus,
+    // Split Payment State (Phase 4 Step 6)
+    splitPayments,
+    splitStatus,
+    splitTransactionIds,
+    // Credit Payment State (Phase 4 Step 7)
+    creditCustomerId,
+    creditCustomerName,
+    creditReference,
+    creditStatus,
+    // Change Return State (Phase 4 Step 8)
+    changeBreakdown,
+    shortageAmount,
+    // Validation State (Phase 4 Step 9)
+    validationErrors,
+    validationStatus
   }), [
     selectedMethod,
     paymentStatus,
@@ -206,7 +563,25 @@ export const PaymentProvider = ({ children }) => {
     error,
     upiId,
     upiStatus,
-    upiTransactionId
+    upiTransactionId,
+    cardNumber,
+    cardHolderName,
+    expiryDate,
+    cvv,
+    cardType,
+    cardTransactionId,
+    cardStatus,
+    splitPayments,
+    splitStatus,
+    splitTransactionIds,
+    creditCustomerId,
+    creditCustomerName,
+    creditReference,
+    creditStatus,
+    changeBreakdown,
+    shortageAmount,
+    validationErrors,
+    validationStatus
   ]);
 
   // Calculate total paid (Legacy)
@@ -238,6 +613,61 @@ export const PaymentProvider = ({ children }) => {
     setUPIId: setUPIIdAction,
     processUPIPayment: processUPIPaymentAction,
     clearUPIPayment: clearUPIPaymentAction,
+
+    // Card Payment State (Phase 4 Step 5)
+    cardNumber,
+    cardHolderName,
+    expiryDate,
+    cvv,
+    cardType,
+    cardTransactionId,
+    cardStatus,
+
+    // Card Payment Actions (Phase 4 Step 5)
+    setCardDetails: setCardDetailsAction,
+    processCardPayment: processCardPaymentAction,
+    clearCardPayment: clearCardPaymentAction,
+
+    // Split Payment State (Phase 4 Step 6)
+    splitPayments,
+    splitStatus,
+    splitTransactionIds,
+
+    // Split Payment Actions (Phase 4 Step 6)
+    setSplitPayments: setSplitPaymentsAction,
+    processSplitPayment: processSplitPaymentAction,
+    clearSplitPayment: clearSplitPaymentAction,
+
+    // Credit Payment State (Phase 4 Step 7)
+    creditCustomerId,
+    creditCustomerName,
+    creditReference,
+    creditStatus,
+
+    // Credit Payment Actions (Phase 4 Step 7)
+    setCreditCustomer: setCreditCustomerAction,
+    processCreditPayment: processCreditPaymentAction,
+    clearCreditPayment: clearCreditPaymentAction,
+
+    // Change Return State (Phase 4 Step 8)
+    changeBreakdown,
+    shortageAmount,
+
+    // Change Return Actions (Phase 4 Step 8)
+    updateChangeSummary: updateChangeSummaryAction,
+    clearChangeSummary: clearChangeSummaryAction,
+
+    // Validation State (Phase 4 Step 9)
+    validationErrors,
+    validationStatus,
+
+    // Validation Actions (Phase 4 Step 9)
+    runPaymentValidation: runPaymentValidationAction,
+    clearPaymentValidation: clearPaymentValidationAction,
+
+    // Payment Finalization (Phase 4 Step 10)
+    processPayment: processPaymentAction,
+    resetPayment: resetPaymentAction,
 
     // Legacy State (Preserved for compatibility)
     paymentAmounts,
@@ -275,6 +705,39 @@ export const PaymentProvider = ({ children }) => {
     setUPIIdAction,
     processUPIPaymentAction,
     clearUPIPaymentAction,
+    cardNumber,
+    cardHolderName,
+    expiryDate,
+    cvv,
+    cardType,
+    cardTransactionId,
+    cardStatus,
+    setCardDetailsAction,
+    processCardPaymentAction,
+    clearCardPaymentAction,
+    splitPayments,
+    splitStatus,
+    splitTransactionIds,
+    setSplitPaymentsAction,
+    processSplitPaymentAction,
+    clearSplitPaymentAction,
+    creditCustomerId,
+    creditCustomerName,
+    creditReference,
+    creditStatus,
+    setCreditCustomerAction,
+    processCreditPaymentAction,
+    clearCreditPaymentAction,
+    changeBreakdown,
+    shortageAmount,
+    updateChangeSummaryAction,
+    clearChangeSummaryAction,
+    validationErrors,
+    validationStatus,
+    runPaymentValidationAction,
+    clearPaymentValidationAction,
+    processPaymentAction,
+    resetPaymentAction,
     paymentAmounts,
     paymentStatus,
     paymentError,

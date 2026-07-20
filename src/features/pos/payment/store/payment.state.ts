@@ -48,5 +48,28 @@ export const initialPaymentState: PaymentState = {
   // UPI State (Phase 4 Step 4)
   upiId: '',
   upiStatus: '',
-  upiTransactionId: ''
+  upiTransactionId: '',
+  // Card State (Phase 4 Step 5)
+  cardNumber: '',
+  cardHolderName: '',
+  expiryDate: '',
+  cvv: '',
+  cardType: '',
+  cardTransactionId: '',
+  cardStatus: '',
+  // Split Payment State (Phase 4 Step 6)
+  splitPayments: [],
+  splitStatus: '',
+  splitTransactionIds: [],
+  // Credit Payment State (Phase 4 Step 7)
+  creditCustomerId: '',
+  creditCustomerName: '',
+  creditReference: '',
+  creditStatus: '',
+  // Change Return State (Phase 4 Step 8)
+  changeBreakdown: [],
+  shortageAmount: 0,
+  // Validation State (Phase 4 Step 9)
+  validationErrors: [],
+  validationStatus: ''
 };
