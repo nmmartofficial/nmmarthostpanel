@@ -5,8 +5,9 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialCheckoutState } from '../store/checkout.state';
-import type { CheckoutState, CheckoutActions } from '../types/checkout.types';
+import type { CheckoutState, CheckoutActions, CheckoutSnapshot } from '../types/checkout.types';
 import { CHECKOUT_STATUS } from '../constants/checkout.constants';
+import { CheckoutService } from '../services/checkout.service';
 
 const CheckoutContext = createContext<{
   checkoutState: CheckoutState;
@@ -42,7 +43,19 @@ export const CheckoutProvider = ({ children }) => {
       checkoutCancelled: new Date(),
     })),
     resetCheckout: () => setCheckoutState(initialCheckoutState),
-  }), []);
+    createSnapshot: (data?: Partial<CheckoutSnapshot>) => {
+      const snapshotData: Partial<CheckoutSnapshot> = {
+        cartId: data?.cartId ?? checkoutState.cartId,
+        customerId: data?.customerId ?? checkoutState.customerId,
+        paymentId: data?.paymentId ?? checkoutState.paymentId,
+        status: data?.status ?? checkoutState.status,
+        ...data,
+      };
+      const newSnapshot = CheckoutService.createSnapshot(snapshotData);
+      setCheckoutState(prev => ({ ...prev, currentSnapshot: newSnapshot }));
+    },
+    clearSnapshot: () => setCheckoutState(prev => ({ ...prev, currentSnapshot: null })),
+  }), [checkoutState.cartId, checkoutState.customerId, checkoutState.paymentId, checkoutState.status]);
 
   const value = useMemo(() => ({
     checkoutState,

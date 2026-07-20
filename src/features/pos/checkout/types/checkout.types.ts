@@ -15,6 +15,20 @@ export interface CheckoutResult {
   // Placeholder
 }
 
+export interface CheckoutSnapshot {
+  snapshotId: string;
+  cartId: string | number | null;
+  customerId: string | number | null;
+  paymentId: string | number | null;
+  subtotal: number;
+  discount: number;
+  gst: number;
+  grandTotal: number;
+  payableAmount: number;
+  createdAt: Date;
+  status: CheckoutStatus;
+}
+
 export interface CheckoutState {
   status: CheckoutStatus;
   loading: boolean;
@@ -28,6 +42,7 @@ export interface CheckoutState {
   checkoutCancelled: Date | null;
   createdAt: Date | null;
   completedAt: Date | null;
+  currentSnapshot: CheckoutSnapshot | null;
 }
 
 export interface CheckoutActions {
@@ -42,4 +57,6 @@ export interface CheckoutActions {
   completeCheckout: () => void;
   cancelCheckout: () => void;
   resetCheckout: () => void;
+  createSnapshot: (data?: Partial<CheckoutSnapshot>) => void;
+  clearSnapshot: () => void;
 }

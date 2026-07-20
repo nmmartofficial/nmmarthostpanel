@@ -19,4 +19,5 @@ export const initialCheckoutState: CheckoutState = {
   checkoutCancelled: null,
   createdAt: null,
   completedAt: null,
+  currentSnapshot: null,
 };
