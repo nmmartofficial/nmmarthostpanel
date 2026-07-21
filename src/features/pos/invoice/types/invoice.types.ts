@@ -1,6 +1,6 @@
 /**
  * Invoice Module Types
- * Phase 8 - Step 2
+ * Phase 8 - Step 3
  */
 
 import { INVOICE_STATUS } from '../constants/invoice.constants';
@@ -27,18 +27,45 @@ export interface InvoiceSnapshot {
   status: InvoiceStatus;
 }
 
+export interface InvoiceItem {
+  itemId: string;
+  productId: string | number | null;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
 export interface Invoice {
   invoiceId: string;
-  invoiceNumber: string;
+  invoiceNumber: string | null;
   orderId: string | null;
+  customerId: string | number | null;
+  paymentId: string | number | null;
+  items: InvoiceItem[];
+  subtotal: number | null;
+  discount: number | null;
+  tax: number | null;
+  grandTotal: number | null;
   status: InvoiceStatus;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface InvoiceCreationInput {
-  orderId: string | null;
+  invoiceId?: string;
+  invoiceNumber?: string | null;
+  orderId?: string | null;
+  customerId?: string | number | null;
+  paymentId?: string | number | null;
+  items?: InvoiceItem[];
+  subtotal?: number | null;
+  discount?: number | null;
+  tax?: number | null;
+  grandTotal?: number | null;
   status: InvoiceStatus;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface InvoiceCreationResult {
@@ -111,4 +138,5 @@ export interface InvoiceActions {
   setLoading: (loading: boolean) => void;
   setError: (error: string) => void;
   resetInvoice: () => void;
+  createInvoice: (input: InvoiceCreationInput) => InvoiceCreationResult;
 }

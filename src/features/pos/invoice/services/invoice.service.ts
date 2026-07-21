@@ -1,10 +1,19 @@
 /**
  * Invoice Module Service
- * Phase 8 - Step 1
+ * Phase 8 - Step 3
  */
 
-import type { InvoiceNumberResult, InvoiceCreationInput, InvoiceCreationResult, Invoice, InvoiceStatus, InvoiceStatusResult, InvoiceRepositoryResult } from '../types/invoice.types';
+import type {
+  InvoiceNumberResult,
+  InvoiceCreationInput,
+  InvoiceCreationResult,
+  Invoice,
+  InvoiceStatus,
+  InvoiceStatusResult,
+  InvoiceRepositoryResult,
+} from '../types/invoice.types';
 import { INVOICE_STATUS } from '../constants/invoice.constants';
+import { createInvoice as createInvoiceUtil } from '../utils/invoice.utils';
 
 export const InvoiceService = {
   startInvoice: () => {
@@ -32,7 +41,20 @@ export const InvoiceService = {
     throw new Error('Not Implemented');
   },
   createInvoice: (input: InvoiceCreationInput): InvoiceCreationResult => {
-    throw new Error('Not Implemented');
+    try {
+      const invoice = createInvoiceUtil(input);
+      return {
+        success: true,
+        invoice,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        invoice: null,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   },
   updateStatus: (invoice: Invoice, newStatus: InvoiceStatus): InvoiceStatusResult => {
     throw new Error('Not Implemented');

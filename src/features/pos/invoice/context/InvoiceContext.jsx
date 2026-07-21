@@ -1,11 +1,12 @@
 /**
  * Invoice Module Context
- * Phase 8 - Step 2
+ * Phase 8 - Step 3
  */
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialInvoiceState } from '../store/invoice.state';
 import type { InvoiceState, InvoiceActions } from '../types/invoice.types';
+import { InvoiceService } from '../services/invoice.service';
 
 const InvoiceContext = createContext<{
   invoiceState: InvoiceState;
@@ -30,6 +31,7 @@ export const InvoiceProvider = ({ children }) => {
     setLoading: (loading) => setInvoiceState(prev => ({ ...prev, loading })),
     setError: (error) => setInvoiceState(prev => ({ ...prev, error })),
     resetInvoice: () => setInvoiceState(initialInvoiceState),
+    createInvoice: (input) => InvoiceService.createInvoice(input),
   }), []);
 
   const value = useMemo(() => ({
