@@ -1,6 +1,6 @@
 /**
  * Receipt Module Types
- * Phase 9 - Step 1
+ * Phase 9 - Step 2
  */
 
 import { RECEIPT_STATUS } from '../constants/receipt.constants';
@@ -63,10 +63,12 @@ export interface ReceiptCreationResult {
 export interface ReceiptState {
   receiptId: string | null;
   receiptNumber: string | null;
+  invoiceId: string | null;
   orderId: string | number | null;
   customerId: string | number | null;
   paymentId: string | number | null;
   receiptStatus: ReceiptStatus;
+  receiptDate: string | null;
   loading: boolean;
   error: string;
   validationErrors: ReceiptValidationError[];
@@ -116,10 +118,12 @@ export interface ReceiptProcessResult {
 export interface ReceiptActions {
   setReceiptId: (receiptId: string | null) => void;
   setReceiptNumber: (receiptNumber: string | null) => void;
+  setInvoiceId: (invoiceId: string | null) => void;
   setOrderId: (orderId: string | number | null) => void;
   setCustomerId: (customerId: string | number | null) => void;
   setPaymentId: (paymentId: string | number | null) => void;
   setReceiptStatus: (status: ReceiptStatus) => void;
+  setReceiptDate: (receiptDate: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string) => void;
   resetReceipt: () => void;

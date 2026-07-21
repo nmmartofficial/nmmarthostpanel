@@ -1,7 +1,7 @@
 /**
  * Receipt Module Hook
- * Phase 9 - Step 1
- * Placeholder - Not Implemented
+ * Phase 9 - Step 2
+ * Exposes receipt state and actions
  */
 
 import { useReceipt as useReceiptContext } from '../context/ReceiptContext';
