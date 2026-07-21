@@ -20,4 +20,5 @@ export const initialCheckoutState: CheckoutState = {
   createdAt: null,
   completedAt: null,
   currentSnapshot: null,
+  lastValidationResult: null,
 };

@@ -43,6 +43,17 @@ export interface CheckoutState {
   createdAt: Date | null;
   completedAt: Date | null;
   currentSnapshot: CheckoutSnapshot | null;
+  lastValidationResult: CheckoutValidationResult | null;
+}
+
+export interface CheckoutValidationError {
+  field: string;
+  message: string;
+}
+
+export interface CheckoutValidationResult {
+  isValid: boolean;
+  errors: CheckoutValidationError[];
 }
 
 export interface CheckoutActions {
@@ -59,4 +70,6 @@ export interface CheckoutActions {
   resetCheckout: () => void;
   createSnapshot: (data?: Partial<CheckoutSnapshot>) => void;
   clearSnapshot: () => void;
+  validateCheckout: () => void;
+  clearValidation: () => void;
 }

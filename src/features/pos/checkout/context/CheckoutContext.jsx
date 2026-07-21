@@ -55,7 +55,12 @@ export const CheckoutProvider = ({ children }) => {
       setCheckoutState(prev => ({ ...prev, currentSnapshot: newSnapshot }));
     },
     clearSnapshot: () => setCheckoutState(prev => ({ ...prev, currentSnapshot: null })),
-  }), [checkoutState.cartId, checkoutState.customerId, checkoutState.paymentId, checkoutState.status]);
+    validateCheckout: () => {
+      const validationResult = CheckoutService.validate(checkoutState.currentSnapshot);
+      setCheckoutState(prev => ({ ...prev, lastValidationResult: validationResult }));
+    },
+    clearValidation: () => setCheckoutState(prev => ({ ...prev, lastValidationResult: null })),
+  }), [checkoutState.cartId, checkoutState.customerId, checkoutState.paymentId, checkoutState.status, checkoutState.currentSnapshot]);
 
   const value = useMemo(() => ({
     checkoutState,
