@@ -1,6 +1,6 @@
 /**
  * Invoice Module Types
- * Phase 8 - Step 1
+ * Phase 8 - Step 2
  */
 
 import { INVOICE_STATUS } from '../constants/invoice.constants';
@@ -20,7 +20,7 @@ export interface InvoiceSnapshot {
   orderId: string | null;
   subtotal: number;
   discount: number;
-  gst: number;
+  tax: number;
   grandTotal: number;
   payableAmount: number;
   createdAt: Date;
@@ -48,14 +48,19 @@ export interface InvoiceCreationResult {
 }
 
 export interface InvoiceState {
-  invoices: Invoice[];
-  selectedInvoice: Invoice | null;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+  orderId: string | number | null;
+  customerId: string | number | null;
+  paymentId: string | number | null;
+  invoiceStatus: InvoiceStatus;
+  invoiceDate: Date | null;
+  subtotal: number | null;
+  discount: number | null;
+  tax: number | null;
+  grandTotal: number | null;
   loading: boolean;
   error: string;
-  invoiceStatus: InvoiceStatus;
-  searchQuery: string;
-  createdAt: Date | null;
-  updatedAt: Date | null;
 }
 
 export interface InvoiceValidationError {
@@ -92,23 +97,18 @@ export interface InvoiceRepositoryResult {
 }
 
 export interface InvoiceActions {
-  setInvoices: (invoices: Invoice[]) => void;
-  setSelectedInvoice: (invoice: Invoice | null) => void;
+  setInvoiceId: (invoiceId: string | null) => void;
+  setInvoiceNumber: (invoiceNumber: string | null) => void;
+  setOrderId: (orderId: string | number | null) => void;
+  setCustomerId: (customerId: string | number | null) => void;
+  setPaymentId: (paymentId: string | number | null) => void;
   setInvoiceStatus: (status: InvoiceStatus) => void;
-  setSearchQuery: (query: string) => void;
+  setInvoiceDate: (invoiceDate: Date | null) => void;
+  setSubtotal: (subtotal: number | null) => void;
+  setDiscount: (discount: number | null) => void;
+  setTax: (tax: number | null) => void;
+  setGrandTotal: (grandTotal: number | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string) => void;
   resetInvoice: () => void;
-  generateInvoiceNumber: () => InvoiceNumberResult;
-  createInvoice: (input: InvoiceCreationInput) => InvoiceCreationResult;
-  updateInvoiceStatus: (invoice: Invoice, newStatus: InvoiceStatus) => InvoiceStatusResult;
-  markCompleted: (invoice: Invoice) => InvoiceStatusResult;
-  markCancelled: (invoice: Invoice) => InvoiceStatusResult;
-  markPending: (invoice: Invoice) => InvoiceStatusResult;
-  addInvoice: (invoice: Invoice) => InvoiceRepositoryResult;
-  removeInvoice: (invoiceId: string) => InvoiceRepositoryResult;
-  updateInvoice: (invoice: Invoice) => InvoiceRepositoryResult;
-  findInvoice: (invoiceId: string) => InvoiceRepositoryResult;
-  getInvoices: () => InvoiceRepositoryResult;
-  clearInvoices: () => InvoiceRepositoryResult;
 }

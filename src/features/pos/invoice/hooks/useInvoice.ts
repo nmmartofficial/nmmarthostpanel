@@ -1,6 +1,6 @@
 /**
  * Invoice Module Hook
- * Phase 8 - Step 1
+ * Phase 8 - Step 2
  */
 
 import { useInvoiceContext } from '../context/InvoiceContext';
