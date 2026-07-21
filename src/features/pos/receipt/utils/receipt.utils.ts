@@ -8,7 +8,8 @@ import type {
   Receipt,
   ReceiptCreationInput,
   ReceiptValidationError,
-  ReceiptValidationResult
+  ReceiptValidationResult,
+  ReceiptNumberResult
 } from '../types/receipt.types';
 
 /**
@@ -67,6 +68,29 @@ export function cloneReceipt(receipt: Receipt): Receipt {
  */
 export function freezeReceipt(receipt: Receipt): Receipt {
   return Object.freeze(receipt);
+}
+
+export function generateReceiptPrefix(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `RCT-${year}${month}${day}`;
+}
+
+export function generateReceiptSequence(): number {
+  return Math.floor(Math.random() * 900000) + 100000;
+}
+
+export function generateReceiptNumber(date: Date = new Date()): ReceiptNumberResult {
+  const generatedAt = new Date(date);
+  const prefix = generateReceiptPrefix(generatedAt);
+  const sequence = generateReceiptSequence();
+  return {
+    receiptNumber: `${prefix}-${sequence}`,
+    prefix,
+    sequence,
+    generatedAt
+  };
 }
 
 export function validateReceiptId(receiptId?: string | null): ReceiptValidationError | null {

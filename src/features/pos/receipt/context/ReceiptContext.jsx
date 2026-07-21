@@ -138,7 +138,9 @@ export const ReceiptProvider = ({ children }) => {
       setValidationErrors([]);
     }, []),
     generateReceiptNumber: useCallback(() => {
-      throw new Error('receipt.actions.generateReceiptNumber - Not Implemented');
+      const receiptNumberResult = ReceiptService.generateReceiptNumber();
+      setReceiptNumber(receiptNumberResult.receiptNumber);
+      return receiptNumberResult;
     }, []),
     processReceipt: useCallback((input) => {
       throw new Error('receipt.actions.processReceipt - Not Implemented');
