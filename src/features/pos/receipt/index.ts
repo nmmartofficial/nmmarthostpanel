@@ -46,6 +46,23 @@ export {
   selectValidationErrors
 } from './store/receipt.selectors';
 
+// Utilities
+export {
+  createReceipt,
+  cloneReceipt,
+  freezeReceipt,
+  generateReceiptPrefix,
+  generateReceiptSequence,
+  generateReceiptNumber,
+  validateReceipt,
+  validateReceiptId,
+  validateInvoiceReference,
+  validateOrderReference,
+  validateCustomerReference,
+  validatePaymentReference,
+  cloneValidationErrors
+} from './utils/receipt.utils';
+
 // Service
 export { ReceiptService } from './services/receipt.service';
 
