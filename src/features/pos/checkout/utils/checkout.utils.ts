@@ -3,11 +3,41 @@
  * Phase 6 - Step 3
  */
 
-import type { CheckoutSnapshot, CheckoutStatus, CheckoutValidationError, CheckoutValidationResult } from '../types/checkout.types';
+import type { CheckoutSnapshot, CheckoutStatus, CheckoutValidationError, CheckoutValidationResult, OrderSnapshot } from '../types/checkout.types';
 import { CHECKOUT_STATUS } from '../constants/checkout.constants';
 
 export const generateSnapshotId = (): string => {
   return `snap-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+export const generateOrderSnapshotId = (): string => {
+  return `order-snap-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+export const createOrderSnapshot = (checkoutSnapshot: CheckoutSnapshot): OrderSnapshot => {
+  const orderSnapshot: OrderSnapshot = {
+    orderSnapshotId: generateOrderSnapshotId(),
+    checkoutSnapshotId: checkoutSnapshot.snapshotId,
+    cartId: checkoutSnapshot.cartId,
+    customerId: checkoutSnapshot.customerId,
+    paymentId: checkoutSnapshot.paymentId,
+    subtotal: checkoutSnapshot.subtotal,
+    discount: checkoutSnapshot.discount,
+    gst: checkoutSnapshot.gst,
+    grandTotal: checkoutSnapshot.grandTotal,
+    payableAmount: checkoutSnapshot.payableAmount,
+    createdAt: new Date(),
+    status: checkoutSnapshot.status,
+  };
+  return Object.freeze({ ...orderSnapshot });
+};
+
+export const cloneOrderSnapshot = (snapshot: OrderSnapshot): OrderSnapshot => {
+  return Object.freeze({ ...snapshot });
+};
+
+export const freezeOrderSnapshot = (snapshot: OrderSnapshot): OrderSnapshot => {
+  return Object.freeze({ ...snapshot });
 };
 
 export const createCheckoutSnapshot = (data?: Partial<CheckoutSnapshot>): CheckoutSnapshot => {

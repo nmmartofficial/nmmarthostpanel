@@ -3,8 +3,8 @@
  * Phase 6 - Step 3
  */
 
-import { createCheckoutSnapshot, validateCheckout } from '../utils/checkout.utils';
-import type { CheckoutSnapshot, CheckoutValidationResult, CheckoutProcessResult } from '../types/checkout.types';
+import { createCheckoutSnapshot, validateCheckout, createOrderSnapshot } from '../utils/checkout.utils';
+import type { CheckoutSnapshot, CheckoutValidationResult, CheckoutProcessResult, OrderSnapshot } from '../types/checkout.types';
 
 export const CheckoutService = {
   startCheckout: () => {
@@ -49,5 +49,11 @@ export const CheckoutService = {
       validation: validation,
       error: validation.isValid ? null : 'Checkout validation failed',
     };
+  },
+  createOrderSnapshot: (checkoutSnapshot: CheckoutSnapshot | null): OrderSnapshot | null => {
+    if (!checkoutSnapshot) {
+      return null;
+    }
+    return createOrderSnapshot(checkoutSnapshot);
   },
 };

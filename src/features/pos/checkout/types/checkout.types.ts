@@ -56,6 +56,21 @@ export interface CheckoutValidationResult {
   errors: CheckoutValidationError[];
 }
 
+export interface OrderSnapshot {
+  orderSnapshotId: string;
+  checkoutSnapshotId: string;
+  cartId: string | number | null;
+  customerId: string | number | null;
+  paymentId: string | number | null;
+  subtotal: number;
+  discount: number;
+  gst: number;
+  grandTotal: number;
+  payableAmount: number;
+  createdAt: Date;
+  status: CheckoutStatus;
+}
+
 export interface CheckoutProcessResult {
   success: boolean;
   snapshot: CheckoutSnapshot | null;
@@ -80,4 +95,5 @@ export interface CheckoutActions {
   validateCheckout: () => void;
   clearValidation: () => void;
   processCheckout: () => CheckoutProcessResult;
+  createOrderSnapshot: () => OrderSnapshot | null;
 }
