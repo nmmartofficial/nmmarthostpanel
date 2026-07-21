@@ -143,9 +143,9 @@ export interface ReceiptActions {
   setLoading: (loading: boolean) => void;
   setError: (error: string) => void;
   resetReceipt: () => void;
-  createReceipt: (input: ReceiptCreationInput) => ReceiptCreationResult;
-  validateReceipt: () => ReceiptValidationResult;
+  createReceipt: (input: ReceiptCreationInput) => Promise<ReceiptCreationResult>;
+  validateReceipt: () => Promise<ReceiptValidationResult>;
   clearValidation: () => void;
   generateReceiptNumber: () => ReceiptNumberResult;
-  processReceipt: (input: ReceiptCreationInput) => ReceiptProcessResult;
+  processReceipt: (input: ReceiptCreationInput) => Promise<ReceiptProcessResult>;
 }

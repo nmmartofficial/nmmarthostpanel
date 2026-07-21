@@ -64,7 +64,34 @@ export class ReceiptService {
   }
 
   static async processReceipt(input: ReceiptCreationInput): Promise<ReceiptProcessResult> {
-    throw new Error('ReceiptService.processReceipt - Not Implemented');
+    const receiptNumber = this.generateReceiptNumber();
+    const validation = await this.validate({
+      ...input,
+      receiptNumber: receiptNumber.receiptNumber
+    });
+
+    if (!validation.valid) {
+      return {
+        success: false,
+        receipt: null,
+        validation,
+        receiptNumber,
+        error: 'Receipt validation failed'
+      };
+    }
+
+    const creationResult = await this.createReceipt({
+      ...input,
+      receiptNumber: receiptNumber.receiptNumber
+    });
+
+    return {
+      success: creationResult.success,
+      receipt: creationResult.receipt,
+      validation,
+      receiptNumber,
+      error: creationResult.error
+    };
   }
 
   static async printReceipt(receiptId: string): Promise<any> {

@@ -142,8 +142,31 @@ export const ReceiptProvider = ({ children }) => {
       setReceiptNumber(receiptNumberResult.receiptNumber);
       return receiptNumberResult;
     }, []),
-    processReceipt: useCallback((input) => {
-      throw new Error('receipt.actions.processReceipt - Not Implemented');
+    processReceipt: useCallback(async (input) => {
+      setLoading(true);
+      setError('');
+      setValidationErrors([]);
+
+      const result = await ReceiptService.processReceipt(input);
+
+      if (result.success && result.receipt) {
+        setReceiptId(result.receipt.receiptId);
+        setReceiptNumber(result.receipt.receiptNumber);
+        setInvoiceId(result.receipt.invoiceId);
+        setOrderId(result.receipt.orderId);
+        setCustomerId(result.receipt.customerId);
+        setPaymentId(result.receipt.paymentId);
+        setReceiptStatus(result.receipt.receiptStatus);
+        setReceiptDate(result.receipt.receiptDate.toISOString());
+        setValidationErrors(result.validation?.errors || []);
+      } else {
+        setReceiptNumber(result.receiptNumber?.receiptNumber || null);
+        setValidationErrors(result.validation?.errors || []);
+        setError(result.error || 'Failed to process receipt');
+      }
+
+      setLoading(false);
+      return result;
     }, [])
   }), []);
 
