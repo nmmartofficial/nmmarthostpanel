@@ -1,12 +1,13 @@
 /**
  * Receipt Module Context
- * Phase 9 - Step 2
+ * Phase 9 - Step 3
  * State wiring only - no business logic
  */
 
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { initialReceiptState } from '../store/receipt.state';
 import { RECEIPT_STATUS } from '../constants/receipt.constants';
+import { ReceiptService } from '../services/receipt.service';
 
 const ReceiptContext = createContext();
 
@@ -82,8 +83,36 @@ export const ReceiptProvider = ({ children }) => {
       setError(initialReceiptState.error);
       setValidationErrors(initialReceiptState.validationErrors);
     }, []),
-    createReceipt: useCallback((input) => {
-      throw new Error('receipt.actions.createReceipt - Not Implemented');
+    createReceipt: useCallback(async (input) => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const result = await ReceiptService.createReceipt(input);
+        
+        if (result.success && result.receipt) {
+          setReceiptId(result.receipt.receiptId);
+          setReceiptNumber(result.receipt.receiptNumber);
+          setOrderId(result.receipt.orderId);
+          setCustomerId(result.receipt.customerId);
+          setPaymentId(result.receipt.paymentId);
+          setReceiptStatus(result.receipt.status);
+          setReceiptDate(result.receipt.createdAt.toISOString());
+        } else {
+          setError(result.error || 'Failed to create receipt');
+        }
+        
+        setLoading(false);
+        return result;
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Failed to create receipt');
+        setLoading(false);
+        return {
+          success: false,
+          receipt: null,
+          error: error instanceof Error ? error.message : 'Failed to create receipt'
+        };
+      }
     }, []),
     validateReceipt: useCallback(() => {
       throw new Error('receipt.actions.validateReceipt - Not Implemented');

@@ -1,9 +1,14 @@
 /**
  * Receipt Module Service
- * Phase 9 - Step 1
- * Placeholder - Not Implemented
+ * Phase 9 - Step 3
+ * Receipt creation implementation
  */
 
+import {
+  createReceipt as createReceiptUtil,
+  cloneReceipt,
+  freezeReceipt
+} from '../utils/receipt.utils';
 import type {
   Receipt,
   ReceiptCreationInput,
@@ -17,7 +22,20 @@ import type {
 
 export class ReceiptService {
   static async createReceipt(input: ReceiptCreationInput): Promise<ReceiptCreationResult> {
-    throw new Error('ReceiptService.createReceipt - Not Implemented');
+    try {
+      const receipt = createReceiptUtil(input);
+      return {
+        success: true,
+        receipt,
+        error: null
+      };
+    } catch (error) {
+      return {
+        success: false,
+        receipt: null,
+        error: error instanceof Error ? error.message : 'Failed to create receipt'
+      };
+    }
   }
 
   static async validateReceipt(input: ReceiptCreationInput): Promise<ReceiptValidationResult> {
