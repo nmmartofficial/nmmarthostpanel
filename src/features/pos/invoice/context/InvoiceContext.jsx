@@ -1,11 +1,11 @@
 /**
  * Invoice Module Context
- * Phase 8 - Step 3
+ * Phase 8 - Step 4
  */
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialInvoiceState } from '../store/invoice.state';
-import type { InvoiceState, InvoiceActions } from '../types/invoice.types';
+import type { InvoiceState, InvoiceActions, Invoice } from '../types/invoice.types';
 import { InvoiceService } from '../services/invoice.service';
 
 const InvoiceContext = createContext<{
@@ -32,7 +32,37 @@ export const InvoiceProvider = ({ children }) => {
     setError: (error) => setInvoiceState(prev => ({ ...prev, error })),
     resetInvoice: () => setInvoiceState(initialInvoiceState),
     createInvoice: (input) => InvoiceService.createInvoice(input),
-  }), []);
+    validateInvoice: () => {
+      // Create invoice object from current state
+      const invoice: Invoice = {
+        invoiceId: invoiceState.invoiceId || `inv-temp-${Date.now()}`,
+        invoiceNumber: invoiceState.invoiceNumber,
+        orderId: invoiceState.orderId,
+        customerId: invoiceState.customerId,
+        paymentId: invoiceState.paymentId,
+        items: [],
+        subtotal: invoiceState.subtotal,
+        discount: invoiceState.discount,
+        tax: invoiceState.tax,
+        grandTotal: invoiceState.grandTotal,
+        status: invoiceState.invoiceStatus,
+        createdAt: invoiceState.invoiceDate || new Date(),
+        updatedAt: invoiceState.invoiceDate || new Date(),
+      };
+      const validationResult = InvoiceService.validate(invoice);
+      setInvoiceState(prev => ({
+        ...prev,
+        validationErrors: validationResult.errors,
+      }));
+      return validationResult;
+    },
+    clearValidation: () => {
+      setInvoiceState(prev => ({
+        ...prev,
+        validationErrors: [],
+      }));
+    },
+  }), [invoiceState]);
 
   const value = useMemo(() => ({
     invoiceState,

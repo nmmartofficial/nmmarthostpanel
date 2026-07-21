@@ -1,12 +1,14 @@
 /**
  * Invoice Module Utilities
- * Phase 8 - Step 3
+ * Phase 8 - Step 4
  */
 
 import type {
   Invoice,
   InvoiceItem,
   InvoiceCreationInput,
+  InvoiceValidationError,
+  InvoiceValidationResult,
 } from '../types/invoice.types';
 
 // Invoice Item utilities
@@ -65,6 +67,149 @@ export const freezeInvoice = (invoice: Invoice): Invoice => {
   });
 };
 
+// Validation Utilities - Pure Functions
+export const validateInvoiceId = (invoiceId: string | null): InvoiceValidationError[] => {
+  const errors: InvoiceValidationError[] = [];
+  if (!invoiceId) {
+    errors.push({
+      field: 'invoiceId',
+      message: 'Invoice ID is required',
+    });
+  } else if (typeof invoiceId !== 'string' || invoiceId.trim().length === 0) {
+    errors.push({
+      field: 'invoiceId',
+      message: 'Invoice ID must be a non-empty string',
+    });
+  }
+  return errors;
+};
+
+export const validateOrderReference = (orderId: string | number | null): InvoiceValidationError[] => {
+  const errors: InvoiceValidationError[] = [];
+  // Order reference can be null or a valid non-empty value
+  if (orderId !== null && orderId !== undefined) {
+    if (typeof orderId === 'string' && orderId.trim().length === 0) {
+      errors.push({
+        field: 'orderId',
+        message: 'Order ID cannot be an empty string',
+      });
+    }
+    if (typeof orderId === 'number' && !Number.isFinite(orderId)) {
+      errors.push({
+        field: 'orderId',
+        message: 'Order ID must be a finite number',
+      });
+    }
+  }
+  return errors;
+};
+
+export const validateCustomerReference = (customerId: string | number | null): InvoiceValidationError[] => {
+  const errors: InvoiceValidationError[] = [];
+  // Customer reference can be null or a valid non-empty value
+  if (customerId !== null && customerId !== undefined) {
+    if (typeof customerId === 'string' && customerId.trim().length === 0) {
+      errors.push({
+        field: 'customerId',
+        message: 'Customer ID cannot be an empty string',
+      });
+    }
+    if (typeof customerId === 'number' && !Number.isFinite(customerId)) {
+      errors.push({
+        field: 'customerId',
+        message: 'Customer ID must be a finite number',
+      });
+    }
+  }
+  return errors;
+};
+
+export const validatePaymentReference = (paymentId: string | number | null): InvoiceValidationError[] => {
+  const errors: InvoiceValidationError[] = [];
+  // Payment reference can be null or a valid non-empty value
+  if (paymentId !== null && paymentId !== undefined) {
+    if (typeof paymentId === 'string' && paymentId.trim().length === 0) {
+      errors.push({
+        field: 'paymentId',
+        message: 'Payment ID cannot be an empty string',
+      });
+    }
+    if (typeof paymentId === 'number' && !Number.isFinite(paymentId)) {
+      errors.push({
+        field: 'paymentId',
+        message: 'Payment ID must be a finite number',
+      });
+    }
+  }
+  return errors;
+};
+
+export const validateInvoiceItems = (items: InvoiceItem[]): InvoiceValidationError[] => {
+  const errors: InvoiceValidationError[] = [];
+  if (!items || !Array.isArray(items)) {
+    errors.push({
+      field: 'items',
+      message: 'Invoice items must be an array',
+    });
+    return errors;
+  }
+  if (items.length === 0) {
+    errors.push({
+      field: 'items',
+      message: 'Invoice must have at least one item',
+    });
+    return errors;
+  }
+  items.forEach((item, index) => {
+    const prefix = `items[${index}]`;
+    if (!item.itemId || typeof item.itemId !== 'string' || item.itemId.trim().length === 0) {
+      errors.push({
+        field: `${prefix}.itemId`,
+        message: 'Item ID is required',
+      });
+    }
+    if (!item.productName || typeof item.productName !== 'string' || item.productName.trim().length === 0) {
+      errors.push({
+        field: `${prefix}.productName`,
+        message: 'Product name is required',
+      });
+    }
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
+      errors.push({
+        field: `${prefix}.quantity`,
+        message: 'Quantity must be a positive finite number',
+      });
+    }
+    if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) {
+      errors.push({
+        field: `${prefix}.unitPrice`,
+        message: 'Unit price must be a non-negative finite number',
+      });
+    }
+    if (!Number.isFinite(item.totalPrice) || item.totalPrice < 0) {
+      errors.push({
+        field: `${prefix}.totalPrice`,
+        message: 'Total price must be a non-negative finite number',
+      });
+    }
+  });
+  return errors;
+};
+
+export const validateInvoice = (invoice: Invoice): InvoiceValidationResult => {
+  const errors: InvoiceValidationError[] = [
+    ...validateInvoiceId(invoice.invoiceId),
+    ...validateOrderReference(invoice.orderId),
+    ...validateCustomerReference(invoice.customerId),
+    ...validatePaymentReference(invoice.paymentId),
+    ...validateInvoiceItems(invoice.items),
+  ];
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+};
+
 // Keep other utilities as "Not Implemented" for now
 export const generateInvoicePrefix = (date?: Date): string => {
   throw new Error('Not Implemented');
@@ -118,14 +263,6 @@ export const freezeInvoiceSnapshot = (snapshot: any) => {
   throw new Error('Not Implemented');
 };
 
-export const validateOrderReference = (orderId: any) => {
-  throw new Error('Not Implemented');
-};
-
 export const validateSnapshot = (snapshot: any) => {
-  throw new Error('Not Implemented');
-};
-
-export const validateInvoice = (snapshot: any) => {
   throw new Error('Not Implemented');
 };

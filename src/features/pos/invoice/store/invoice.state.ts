@@ -1,6 +1,6 @@
 /**
  * Invoice Module Initial State
- * Phase 8 - Step 2
+ * Phase 8 - Step 4
  */
 
 import { InvoiceState } from '../types/invoice.types';
@@ -20,4 +20,5 @@ export const initialInvoiceState: InvoiceState = {
   grandTotal: null,
   loading: false,
   error: '',
+  validationErrors: [],
 };

@@ -1,6 +1,6 @@
 /**
  * Invoice Module Service
- * Phase 8 - Step 3
+ * Phase 8 - Step 4
  */
 
 import type {
@@ -11,9 +11,10 @@ import type {
   InvoiceStatus,
   InvoiceStatusResult,
   InvoiceRepositoryResult,
+  InvoiceValidationResult,
 } from '../types/invoice.types';
 import { INVOICE_STATUS } from '../constants/invoice.constants';
-import { createInvoice as createInvoiceUtil } from '../utils/invoice.utils';
+import { createInvoice as createInvoiceUtil, validateInvoice } from '../utils/invoice.utils';
 
 export const InvoiceService = {
   startInvoice: () => {
@@ -34,8 +35,8 @@ export const InvoiceService = {
   clearSnapshot: () => {
     throw new Error('Not Implemented');
   },
-  validate: (snapshot: any) => {
-    throw new Error('Not Implemented');
+  validate: (invoice: Invoice): InvoiceValidationResult => {
+    return validateInvoice(invoice);
   },
   generateInvoiceNumber: (): InvoiceNumberResult => {
     throw new Error('Not Implemented');

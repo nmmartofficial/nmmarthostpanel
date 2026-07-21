@@ -1,6 +1,6 @@
 /**
  * Invoice Module Types
- * Phase 8 - Step 3
+ * Phase 8 - Step 4
  */
 
 import { INVOICE_STATUS } from '../constants/invoice.constants';
@@ -88,6 +88,7 @@ export interface InvoiceState {
   grandTotal: number | null;
   loading: boolean;
   error: string;
+  validationErrors: InvoiceValidationError[];
 }
 
 export interface InvoiceValidationError {
@@ -139,4 +140,6 @@ export interface InvoiceActions {
   setError: (error: string) => void;
   resetInvoice: () => void;
   createInvoice: (input: InvoiceCreationInput) => InvoiceCreationResult;
+  validateInvoice: () => InvoiceValidationResult;
+  clearValidation: () => void;
 }
