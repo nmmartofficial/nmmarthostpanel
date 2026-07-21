@@ -6,7 +6,8 @@
 
 import {
   createReceipt as createReceiptUtil,
-  freezeReceipt
+  freezeReceipt,
+  validateReceipt as validateReceiptUtil
 } from '../utils/receipt.utils';
 import type {
   Receipt,
@@ -37,8 +38,12 @@ export class ReceiptService {
     }
   }
 
+  static async validate(input: ReceiptCreationInput): Promise<ReceiptValidationResult> {
+    return validateReceiptUtil(input);
+  }
+
   static async validateReceipt(input: ReceiptCreationInput): Promise<ReceiptValidationResult> {
-    throw new Error('ReceiptService.validateReceipt - Not Implemented');
+    return this.validate(input);
   }
 
   static async generateReceiptNumber(): Promise<ReceiptNumberResult> {

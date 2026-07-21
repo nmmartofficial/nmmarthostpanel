@@ -114,11 +114,28 @@ export const ReceiptProvider = ({ children }) => {
         };
       }
     }, []),
-    validateReceipt: useCallback(() => {
-      throw new Error('receipt.actions.validateReceipt - Not Implemented');
-    }, []),
+    validateReceipt: useCallback(async () => {
+      const validationResult = await ReceiptService.validate({
+        receiptId,
+        receiptNumber,
+        invoiceId,
+        orderId,
+        customerId,
+        paymentId,
+        receiptDate: receiptDate ? new Date(receiptDate) : undefined,
+        receiptStatus,
+        subtotal: 0,
+        discount: 0,
+        tax: 0,
+        grandTotal: 0,
+        status: receiptStatus
+      });
+
+      setValidationErrors(validationResult.errors);
+      return validationResult;
+    }, [receiptId, receiptNumber, invoiceId, orderId, customerId, paymentId, receiptDate, receiptStatus]),
     clearValidation: useCallback(() => {
-      throw new Error('receipt.actions.clearValidation - Not Implemented');
+      setValidationErrors([]);
     }, []),
     generateReceiptNumber: useCallback(() => {
       throw new Error('receipt.actions.generateReceiptNumber - Not Implemented');

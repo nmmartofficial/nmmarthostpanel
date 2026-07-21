@@ -96,7 +96,7 @@ export interface ReceiptValidationError {
 }
 
 export interface ReceiptValidationResult {
-  isValid: boolean;
+  valid: boolean;
   errors: ReceiptValidationError[];
 }
 

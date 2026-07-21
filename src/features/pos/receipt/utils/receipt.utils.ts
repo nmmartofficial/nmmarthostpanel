@@ -4,7 +4,12 @@
  * Pure functions with Object.freeze
  */
 
-import type { Receipt, ReceiptCreationInput } from '../types/receipt.types';
+import type {
+  Receipt,
+  ReceiptCreationInput,
+  ReceiptValidationError,
+  ReceiptValidationResult
+} from '../types/receipt.types';
 
 /**
  * Create Receipt
@@ -62,6 +67,77 @@ export function cloneReceipt(receipt: Receipt): Receipt {
  */
 export function freezeReceipt(receipt: Receipt): Receipt {
   return Object.freeze(receipt);
+}
+
+export function validateReceiptId(receiptId?: string | null): ReceiptValidationError | null {
+  if (receiptId === undefined || receiptId === null || String(receiptId).trim() === '') {
+    return { field: 'receiptId', message: 'Receipt ID is required' };
+  }
+  return null;
+}
+
+export function validateInvoiceReference(
+  invoiceId?: string | null,
+  invoiceNumber?: string | null
+): ReceiptValidationError | null {
+  if ((invoiceId === undefined || invoiceId === null || String(invoiceId).trim() === '')
+    && (invoiceNumber === undefined || invoiceNumber === null || String(invoiceNumber).trim() === '')) {
+    return { field: 'invoiceReference', message: 'Invoice reference is required' };
+  }
+  return null;
+}
+
+export function validateOrderReference(orderId?: string | null): ReceiptValidationError | null {
+  if (orderId === undefined || orderId === null || String(orderId).trim() === '') {
+    return { field: 'orderId', message: 'Order reference is required' };
+  }
+  return null;
+}
+
+export function validateCustomerReference(
+  customerId?: string | number | null
+): ReceiptValidationError | null {
+  if (customerId === undefined || customerId === null || String(customerId).trim() === '') {
+    return { field: 'customerId', message: 'Customer reference is required' };
+  }
+  return null;
+}
+
+export function validatePaymentReference(
+  paymentId?: string | number | null
+): ReceiptValidationError | null {
+  if (paymentId === undefined || paymentId === null || String(paymentId).trim() === '') {
+    return { field: 'paymentId', message: 'Payment reference is required' };
+  }
+  return null;
+}
+
+export function validateReceipt(input: ReceiptCreationInput): ReceiptValidationResult {
+  const errors: ReceiptValidationError[] = [];
+
+  const receiptIdError = validateReceiptId(input.receiptId ?? null);
+  if (receiptIdError) errors.push(receiptIdError);
+
+  const invoiceReferenceError = validateInvoiceReference(input.invoiceId ?? null, input.invoiceNumber ?? null);
+  if (invoiceReferenceError) errors.push(invoiceReferenceError);
+
+  const orderReferenceError = validateOrderReference(input.orderId ?? null);
+  if (orderReferenceError) errors.push(orderReferenceError);
+
+  const customerReferenceError = validateCustomerReference(input.customerId ?? null);
+  if (customerReferenceError) errors.push(customerReferenceError);
+
+  const paymentReferenceError = validatePaymentReference(input.paymentId ?? null);
+  if (paymentReferenceError) errors.push(paymentReferenceError);
+
+  return {
+    valid: errors.length === 0,
+    errors: cloneValidationErrors(errors)
+  };
+}
+
+export function cloneValidationErrors(errors: ReceiptValidationError[]): ReceiptValidationError[] {
+  return errors.map((error) => ({ ...error }));
 }
 
 /**
