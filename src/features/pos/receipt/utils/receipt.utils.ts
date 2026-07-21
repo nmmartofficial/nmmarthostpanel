@@ -16,9 +16,17 @@ export function createReceipt(input: ReceiptCreationInput): Receipt {
   const receipt: Receipt = {
     receiptId: input.receiptId || generateId(),
     receiptNumber: input.receiptNumber || null,
+    invoiceId: input.invoiceId || null,
+    invoiceNumber: input.invoiceNumber || null,
     orderId: input.orderId || null,
     customerId: input.customerId || null,
     paymentId: input.paymentId || null,
+    receiptDate: input.receiptDate || new Date(),
+    receiptStatus: input.receiptStatus || input.status,
+    subtotal: input.subtotal || 0,
+    discount: input.discount || 0,
+    tax: input.tax || 0,
+    grandTotal: input.grandTotal || 0,
     items: input.items || [],
     status: input.status,
     createdAt: input.createdAt || new Date(),
@@ -35,7 +43,14 @@ export function createReceipt(input: ReceiptCreationInput): Receipt {
  * Creates a deep frozen clone of receipt
  */
 export function cloneReceipt(receipt: Receipt): Receipt {
-  const cloned = JSON.parse(JSON.stringify(receipt));
+  const cloned: Receipt = {
+    ...receipt,
+    items: receipt.items.map((item) => ({ ...item })),
+    receiptDate: new Date(receipt.receiptDate),
+    createdAt: new Date(receipt.createdAt),
+    updatedAt: new Date(receipt.updatedAt)
+  };
+
   return Object.freeze(cloned);
 }
 

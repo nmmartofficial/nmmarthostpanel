@@ -6,7 +6,6 @@
 
 import {
   createReceipt as createReceiptUtil,
-  cloneReceipt,
   freezeReceipt
 } from '../utils/receipt.utils';
 import type {
@@ -23,7 +22,7 @@ import type {
 export class ReceiptService {
   static async createReceipt(input: ReceiptCreationInput): Promise<ReceiptCreationResult> {
     try {
-      const receipt = createReceiptUtil(input);
+      const receipt = freezeReceipt(createReceiptUtil(input));
       return {
         success: true,
         receipt,

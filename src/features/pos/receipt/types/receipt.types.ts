@@ -1,6 +1,6 @@
 /**
  * Receipt Module Types
- * Phase 9 - Step 2
+ * Phase 9 - Step 3
  */
 
 import { RECEIPT_STATUS } from '../constants/receipt.constants';
@@ -33,9 +33,17 @@ export interface ReceiptItem {
 export interface Receipt {
   receiptId: string;
   receiptNumber: string | null;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
   orderId: string | null;
   customerId: string | number | null;
   paymentId: string | number | null;
+  receiptDate: Date;
+  receiptStatus: ReceiptStatus;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  grandTotal: number;
   items: ReceiptItem[];
   status: ReceiptStatus;
   createdAt: Date;
@@ -45,9 +53,17 @@ export interface Receipt {
 export interface ReceiptCreationInput {
   receiptId?: string;
   receiptNumber?: string | null;
+  invoiceId?: string | null;
+  invoiceNumber?: string | null;
   orderId?: string | null;
   customerId?: string | number | null;
   paymentId?: string | number | null;
+  receiptDate?: Date;
+  receiptStatus?: ReceiptStatus;
+  subtotal?: number;
+  discount?: number;
+  tax?: number;
+  grandTotal?: number;
   items?: ReceiptItem[];
   status: ReceiptStatus;
   createdAt?: Date;

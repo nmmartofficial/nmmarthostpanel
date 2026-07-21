@@ -6,7 +6,6 @@
 
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { initialReceiptState } from '../store/receipt.state';
-import { RECEIPT_STATUS } from '../constants/receipt.constants';
 import { ReceiptService } from '../services/receipt.service';
 
 const ReceiptContext = createContext();
@@ -93,11 +92,12 @@ export const ReceiptProvider = ({ children }) => {
         if (result.success && result.receipt) {
           setReceiptId(result.receipt.receiptId);
           setReceiptNumber(result.receipt.receiptNumber);
+          setInvoiceId(result.receipt.invoiceId);
           setOrderId(result.receipt.orderId);
           setCustomerId(result.receipt.customerId);
           setPaymentId(result.receipt.paymentId);
-          setReceiptStatus(result.receipt.status);
-          setReceiptDate(result.receipt.createdAt.toISOString());
+          setReceiptStatus(result.receipt.receiptStatus);
+          setReceiptDate(result.receipt.receiptDate.toISOString());
         } else {
           setError(result.error || 'Failed to create receipt');
         }
