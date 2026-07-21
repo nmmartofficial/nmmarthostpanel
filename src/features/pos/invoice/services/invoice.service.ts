@@ -1,6 +1,6 @@
 /**
  * Invoice Module Service
- * Phase 8 - Step 5
+ * Phase 8 - Step 6
  */
 
 import type {
@@ -12,6 +12,7 @@ import type {
   InvoiceStatusResult,
   InvoiceRepositoryResult,
   InvoiceValidationResult,
+  InvoiceProcessResult,
 } from '../types/invoice.types';
 import { INVOICE_STATUS } from '../constants/invoice.constants';
 import { 
@@ -57,6 +58,63 @@ export const InvoiceService = {
       return {
         success: false,
         invoice: null,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
+  processInvoice: (input: InvoiceCreationInput): InvoiceProcessResult => {
+    try {
+      // Step 1: Generate Invoice Number
+      const invoiceNumberResult = this.generateInvoiceNumber();
+      
+      // Create invoice input with generated number
+      const inputWithNumber = {
+        ...input,
+        invoiceNumber: invoiceNumberResult.invoiceNumber,
+      };
+      
+      // Step 2: Create invoice object to validate
+      const tempInvoice = createInvoiceUtil(inputWithNumber);
+      
+      // Step 3: Validate Invoice
+      const validationResult = this.validate(tempInvoice);
+      
+      if (!validationResult.isValid) {
+        return {
+          success: false,
+          invoice: null,
+          validation: validationResult,
+          invoiceNumber: invoiceNumberResult,
+          error: 'Invoice validation failed',
+        };
+      }
+      
+      // Step 4: Create Invoice
+      const creationResult = this.createInvoice(inputWithNumber);
+      
+      if (!creationResult.success) {
+        return {
+          success: false,
+          invoice: null,
+          validation: validationResult,
+          invoiceNumber: invoiceNumberResult,
+          error: creationResult.error,
+        };
+      }
+      
+      return {
+        success: true,
+        invoice: creationResult.invoice,
+        validation: validationResult,
+        invoiceNumber: invoiceNumberResult,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        invoice: null,
+        validation: null,
+        invoiceNumber: null,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }

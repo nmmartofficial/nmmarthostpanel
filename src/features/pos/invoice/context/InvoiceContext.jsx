@@ -1,6 +1,6 @@
 /**
  * Invoice Module Context
- * Phase 8 - Step 5
+ * Phase 8 - Step 6
  */
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
@@ -68,6 +68,25 @@ export const InvoiceProvider = ({ children }) => {
         ...prev,
         invoiceNumber: result.invoiceNumber,
       }));
+      return result;
+    },
+    processInvoice: (input) => {
+      const result = InvoiceService.processInvoice(input);
+      
+      if (result.success && result.invoice) {
+        setInvoiceState(prev => ({
+          ...prev,
+          invoiceId: result.invoice.invoiceId,
+          invoiceNumber: result.invoice.invoiceNumber,
+          validationErrors: [],
+        }));
+      } else if (result.validation) {
+        setInvoiceState(prev => ({
+          ...prev,
+          validationErrors: result.validation.errors,
+        }));
+      }
+      
       return result;
     },
   }), [invoiceState]);
