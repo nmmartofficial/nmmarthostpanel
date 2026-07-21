@@ -56,6 +56,13 @@ export interface CheckoutValidationResult {
   errors: CheckoutValidationError[];
 }
 
+export interface CheckoutProcessResult {
+  success: boolean;
+  snapshot: CheckoutSnapshot | null;
+  validation: CheckoutValidationResult | null;
+  error: string | null;
+}
+
 export interface CheckoutActions {
   setStatus: (status: CheckoutStatus) => void;
   setLoading: (loading: boolean) => void;
@@ -72,4 +79,5 @@ export interface CheckoutActions {
   clearSnapshot: () => void;
   validateCheckout: () => void;
   clearValidation: () => void;
+  processCheckout: () => CheckoutProcessResult;
 }

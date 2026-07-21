@@ -5,7 +5,7 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialCheckoutState } from '../store/checkout.state';
-import type { CheckoutState, CheckoutActions, CheckoutSnapshot } from '../types/checkout.types';
+import type { CheckoutState, CheckoutActions, CheckoutSnapshot, CheckoutProcessResult } from '../types/checkout.types';
 import { CHECKOUT_STATUS } from '../constants/checkout.constants';
 import { CheckoutService } from '../services/checkout.service';
 
@@ -60,6 +60,9 @@ export const CheckoutProvider = ({ children }) => {
       setCheckoutState(prev => ({ ...prev, lastValidationResult: validationResult }));
     },
     clearValidation: () => setCheckoutState(prev => ({ ...prev, lastValidationResult: null })),
+    processCheckout: (): CheckoutProcessResult => {
+      return CheckoutService.processCheckout(checkoutState.currentSnapshot);
+    },
   }), [checkoutState.cartId, checkoutState.customerId, checkoutState.paymentId, checkoutState.status, checkoutState.currentSnapshot]);
 
   const value = useMemo(() => ({
