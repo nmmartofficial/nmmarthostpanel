@@ -7,3 +7,4 @@ export { CustomerList } from './CustomerList';
 export { CustomerCard } from './CustomerCard';
 export { CustomerPanel } from './CustomerPanel';
 export { CheckoutSummary } from './CheckoutSummary';
+export { OrderSummary } from './OrderSummary';
