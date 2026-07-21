@@ -1,6 +1,6 @@
 /**
  * Invoice Module Context
- * Phase 8 - Step 4
+ * Phase 8 - Step 5
  */
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
@@ -61,6 +61,14 @@ export const InvoiceProvider = ({ children }) => {
         ...prev,
         validationErrors: [],
       }));
+    },
+    generateInvoiceNumber: () => {
+      const result = InvoiceService.generateInvoiceNumber();
+      setInvoiceState(prev => ({
+        ...prev,
+        invoiceNumber: result.invoiceNumber,
+      }));
+      return result;
     },
   }), [invoiceState]);
 

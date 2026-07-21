@@ -1,6 +1,6 @@
 /**
  * Invoice Module Utilities
- * Phase 8 - Step 4
+ * Phase 8 - Step 5
  */
 
 import type {
@@ -9,6 +9,7 @@ import type {
   InvoiceCreationInput,
   InvoiceValidationError,
   InvoiceValidationResult,
+  InvoiceNumberResult,
 } from '../types/invoice.types';
 
 // Invoice Item utilities
@@ -65,6 +66,34 @@ export const freezeInvoice = (invoice: Invoice): Invoice => {
     ...invoice,
     items: Object.freeze(frozenItems),
   });
+};
+
+// Invoice Number Generator Utilities - Pure Functions
+export const generateInvoicePrefix = (date?: Date): string => {
+  const inputDate = date || new Date();
+  const year = inputDate.getFullYear();
+  const month = String(inputDate.getMonth() + 1).padStart(2, '0');
+  const day = String(inputDate.getDate()).padStart(2, '0');
+  return `INV-${year}${month}${day}`;
+};
+
+export const generateInvoiceSequence = (): number => {
+  // Simple sequence using timestamp (for demo purposes, in real app you'd use a counter)
+  return Date.now();
+};
+
+export const generateInvoiceNumber = (date?: Date): InvoiceNumberResult => {
+  const generatedAt = date || new Date();
+  const prefix = generateInvoicePrefix(generatedAt);
+  const sequence = generateInvoiceSequence();
+  const invoiceNumber = `${prefix}-${sequence}`;
+
+  return {
+    invoiceNumber,
+    prefix,
+    sequence,
+    generatedAt,
+  };
 };
 
 // Validation Utilities - Pure Functions
@@ -211,18 +240,6 @@ export const validateInvoice = (invoice: Invoice): InvoiceValidationResult => {
 };
 
 // Keep other utilities as "Not Implemented" for now
-export const generateInvoicePrefix = (date?: Date): string => {
-  throw new Error('Not Implemented');
-};
-
-export const generateInvoiceSequence = (): number => {
-  throw new Error('Not Implemented');
-};
-
-export const generateInvoiceNumber = (date?: Date): any => {
-  throw new Error('Not Implemented');
-};
-
 export const updateInvoiceStatus = (invoice: Invoice, newStatus: any): Invoice => {
   throw new Error('Not Implemented');
 };

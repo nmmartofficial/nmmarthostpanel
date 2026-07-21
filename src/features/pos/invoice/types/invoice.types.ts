@@ -1,6 +1,6 @@
 /**
  * Invoice Module Types
- * Phase 8 - Step 4
+ * Phase 8 - Step 5
  */
 
 import { INVOICE_STATUS } from '../constants/invoice.constants';
@@ -142,4 +142,5 @@ export interface InvoiceActions {
   createInvoice: (input: InvoiceCreationInput) => InvoiceCreationResult;
   validateInvoice: () => InvoiceValidationResult;
   clearValidation: () => void;
+  generateInvoiceNumber: () => InvoiceNumberResult;
 }
