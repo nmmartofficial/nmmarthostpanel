@@ -78,6 +78,13 @@ export interface CheckoutProcessResult {
   error: string | null;
 }
 
+export interface CheckoutRepositoryResult {
+  success: boolean;
+  snapshot: CheckoutSnapshot | null;
+  error: string | null;
+  timestamp: Date;
+}
+
 export interface CheckoutActions {
   setStatus: (status: CheckoutStatus) => void;
   setLoading: (loading: boolean) => void;
@@ -96,4 +103,5 @@ export interface CheckoutActions {
   clearValidation: () => void;
   processCheckout: () => CheckoutProcessResult;
   createOrderSnapshot: () => OrderSnapshot | null;
+  saveCheckout: () => CheckoutRepositoryResult;
 }

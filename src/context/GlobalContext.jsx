@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { DB_SCHEMA } from '../dbSchema';
 import { dbSync } from '../dbSync';
 import { secureStorage } from '../utils/security';
+import { shouldSkipGlobalFetch } from '../utils/fetchControl';
 
 const GlobalContext = createContext();
 
@@ -117,21 +118,22 @@ export const GlobalProvider = ({ children }) => {
   const subscriptionsRef = useRef([]);
 
   // --- Fetch Logic ---
-  const fetchInitialData = useCallback(async (force = false, silent = false) => {
-    if (isFetchingRef.current) return;
-
-    // Get Company Code from Secure Storage
-    const userData = secureStorage.getItem('nm_user_data');
-    const companyCode = userData?.company_code;
-
-    // Security Guard: No data fetch if not logged in
-    if (!companyCode) {
-      setLoading(false);
+  if (typeof window !== 'undefined') window.__NM_REFRESH_DATA__ = (s) => fetchInitialData(s);
+  const fetchInitialData = useCallback(async (force = false, silent = false, options = {}) => {
+    const now = Date.now();
+    if (shouldSkipGlobalFetch({
+      isFetching: isFetchingRef.current,
+      force,
+      lastFetchedAt: mountRef.current,
+      now,
+      throttleMs: FETCH_THROTTLE_MS
+    })) {
       return;
     }
 
-    const now = Date.now();
-    if (!force && mountRef.current && (now - mountRef.current < FETCH_THROTTLE_MS)) return;
+    // Get Company Code from Secure Storage
+    const userData = secureStorage.getItem('nm_user_data');
+    const companyCode = userData?.company_code || 'NMM001';
 
     isFetchingRef.current = true;
     mountRef.current = now;
@@ -143,8 +145,10 @@ export const GlobalProvider = ({ children }) => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const dateStr = thirtyDaysAgo.toISOString();
 
+      const productsQuery = options?.productsIncludeDeleted ? { includeDeleted: true } : undefined;
+
       const results = await Promise.allSettled([
-        dbSync.fetch(DB_SCHEMA.PRODUCTS.table),
+        dbSync.fetch(DB_SCHEMA.PRODUCTS.table, productsQuery),
         dbSync.fetch(DB_SCHEMA.CATEGORIES.table, { order: { column: 'name', ascending: true } }),
         dbSync.fetch(DB_SCHEMA.ORDERS.table, { order: { column: 'created_at', ascending: false } }),
         dbSync.fetch(DB_SCHEMA.APP_CONFIG.table),
@@ -269,8 +273,7 @@ export const GlobalProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // REMOVED: No longer fetch all data on mount!
-    // Let individual components fetch only what they need when needed.
+    fetchInitialData();
     
     const tablesToWatch = [
       DB_SCHEMA.ORDERS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.NOTIFICATIONS.table,

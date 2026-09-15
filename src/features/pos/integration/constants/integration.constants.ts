@@ -1,0 +1,6 @@
+export const INTEGRATION_STATUS = {
+  IDLE: 'IDLE',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  ERROR: 'ERROR'
+} as const;

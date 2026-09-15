@@ -7,6 +7,9 @@ import { cn, generateUUID } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../../erpController';
 import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
+import {
+  toFloat, calcGst, calcPurchaseTotals, sumField
+} from '../../utils/pos/calculations';
 
 export default function PurchaseEntryView({ products, accounts, fetchInitialData }) {
   const [formData, setFormData] = useState({
@@ -34,14 +37,18 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
     );
   }, [products, searchTerm]);
 
-  // Calculate totals
+  // Calculate totals (pure calc delegation + sumField helper)
   useEffect(() => {
-    const total = items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
-    setFormData(prev => ({ 
-      ...prev, 
-      total_amount: total,
-      balance_amount: total - (parseFloat(prev.paid_amount) || 0)
-    }));
+    const totals = calcPurchaseTotals(items);
+    const total = totals.finalBillAmt || totals.subTotal || sumField(items, 'total');
+    setFormData(prev => {
+      const paid = toFloat(prev.paid_amount);
+      return {
+        ...prev,
+        total_amount: total,
+        balance_amount: Math.max(0, total - paid)
+      };
+    });
   }, [items]);
 
   const addItem = (product) => {
@@ -51,19 +58,21 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
       return;
     }
 
-    const rate = parseFloat(product.purcrate || product.purchase_rate || 0);
-    const gstPercent = parseFloat(product.gst || product.gst_percent || 0);
-    const gstAmt = (rate * gstPercent) / 100;
+    const rate = toFloat(product.purcrate || product.purchase_rate);
+    const gstPercent = toFloat(product.gst || product.gst_percent);
+    const qty = 1;
+    const gstAmtPerQty = calcGst(rate, gstPercent);
+    const lineTotal = (rate + gstAmtPerQty) * qty;
 
     setItems([...items, {
       product_id: product.id,
       item_name: product.itname || product.name,
       barcode: product.barcode,
-      quantity: 1,
-      rate: rate,
+      quantity: qty,
+      rate,
       gst_percent: gstPercent,
-      gst_amount: gstAmt,
-      total: rate + gstAmt
+      gst_amount: gstAmtPerQty * qty,
+      total: lineTotal
     }]);
     setSearchTerm('');
     setShowProductSearch(false);
@@ -73,12 +82,13 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
     const newItems = [...items];
     newItems[index][field] = value;
 
-    const qty = parseFloat(newItems[index].quantity) || 0;
-    const rate = parseFloat(newItems[index].rate) || 0;
-    const gstPercent = parseFloat(newItems[index].gst_percent) || 0;
+    const qty = toFloat(newItems[index].quantity);
+    const rate = toFloat(newItems[index].rate);
+    const gstPercent = toFloat(newItems[index].gst_percent);
 
-    newItems[index].gst_amount = (rate * gstPercent) / 100;
-    newItems[index].total = (rate + newItems[index].gst_amount) * qty;
+    const gstAmtPerQty = calcGst(rate, gstPercent);
+    newItems[index].gst_amount = gstAmtPerQty * qty;
+    newItems[index].total = (rate + gstAmtPerQty) * qty;
 
     setItems(newItems);
   };

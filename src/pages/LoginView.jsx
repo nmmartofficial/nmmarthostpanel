@@ -7,12 +7,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  validateEmail, secureStorage
+  validateEmail, secureStorage, LoginRateLimiter, sanitizeText
 } from '../utils/security';
 import { useAuthContext } from '../context';
 import { cn } from '../utils/helpers';
 
 const BRAND_NAME = "NM MART";
+const DEFAULT_COMPANY_SLUG = "nm-mart";
+const loginRateLimiter = new LoginRateLimiter(5, 5);
 
 export default function LoginView({ isTenantMode = false }) {
   const { login, sessionExpiryWarning, refreshSession, sessionExpired } = useAuthContext();
@@ -32,8 +34,9 @@ export default function LoginView({ isTenantMode = false }) {
       setEmail(rememberedEmail);
       setRememberMe(true);
     }
-    
-    // Show session expired message if applicable
+  }, []);
+
+  useEffect(() => {
     if (sessionExpired) {
       setLoginError('Your session has expired. Please sign in again.');
     }
@@ -58,7 +61,7 @@ export default function LoginView({ isTenantMode = false }) {
   const handleForgotPassword = () => {
     const forgotPasswordPath = isTenantMode && companySlug
       ? `/${companySlug}/forgot-password`
-      : '/nm-mart/forgot-password';
+      : `/${DEFAULT_COMPANY_SLUG}/forgot-password`;
     navigate(forgotPasswordPath);
   };
 
@@ -66,25 +69,37 @@ export default function LoginView({ isTenantMode = false }) {
     if (e) e.preventDefault();
     setLoginError('');
 
+    const lockout = loginRateLimiter.isLockedOut();
+    if (lockout.locked) {
+      const minutes = Math.ceil(lockout.remainingSeconds / 60);
+      return setLoginError(`Too many failed attempts. Try again in ${minutes} minute(s).`);
+    }
+
     if (!email) return setLoginError('Email is required');
-    if (!validateEmail(email)) return setLoginError('Invalid email format');
+    const cleanEmail = sanitizeText(email).toLowerCase();
+    if (!validateEmail(cleanEmail)) return setLoginError('Invalid email format');
     if (!password) return setLoginError('Password is required');
+    const cleanPassword = sanitizeText(password);
 
     setIsProcessing(true);
     try {
-      const { company } = await login(email, password, rememberMe, {
+      const result = await login(cleanEmail, cleanPassword, rememberMe, {
         expectedCompanySlug: isTenantMode ? companySlug : null
       });
 
+      loginRateLimiter.recordAttempt(true);
+
+      const company = result?.company;
+
       toast.success('Authorized Access Granted');
       
-      // Redirect to appropriate dashboard
       const dashboardPath = isTenantMode && companySlug
         ? `/${companySlug}/dashboard`
-        : '/nm-mart/dashboard';
+        : `/${DEFAULT_COMPANY_SLUG}/dashboard`;
       
       navigate(dashboardPath, { replace: true });
     } catch (err) {
+      loginRateLimiter.recordAttempt(false);
       setLoginError(err.message || 'Login failed. Please try again.');
     } finally {
       setIsProcessing(false);
@@ -172,6 +187,7 @@ export default function LoginView({ isTenantMode = false }) {
                 </div>
                 <input
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
@@ -190,6 +206,7 @@ export default function LoginView({ isTenantMode = false }) {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
@@ -206,18 +223,25 @@ export default function LoginView({ isTenantMode = false }) {
             </div>
 
             <div className="flex items-center justify-between px-1 pt-1">
-              <div
+              <label
+                htmlFor="remember-me"
                 className="flex items-center gap-2.5 cursor-pointer select-none group"
-                onClick={() => setRememberMe(!rememberMe)}
               >
+                <input
+                  id="remember-me"
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
                 <div className={cn(
                   "w-5 h-5 rounded-lg border flex items-center justify-center transition-all",
-                  rememberMe ? "bg-blue-600 border-blue-600 shadow-card shadow-blue-100" : "bg-white border-slate-300 group-hover:border-blue-400"
+                  rememberMe ? "bg-blue-600 border-blue-600 shadow-card shadow-blue-100" : "bg-white border-slate-300 group-hover:border-blue-400 peer-focus:border-blue-500 peer-focus:ring-4 peer-focus:ring-blue-500/10"
                 )}>
-                  {rememberMe && <CheckCircle2 size={14} className="text-white" fill="white" />}
+                  {rememberMe && <CheckCircle2 size={14} className="text-white" />}
                 </div>
                 <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">Remember Me</span>
-              </div>
+              </label>
               <button
                 type="button"
                 onClick={handleForgotPassword}
@@ -246,11 +270,23 @@ export default function LoginView({ isTenantMode = false }) {
               © 2026 {BRAND_NAME} RETAIL ERP
             </p>
             <div className="flex items-center justify-center gap-6">
-              <button className="text-[10px] font-black text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors">Privacy Policy</button>
+              <button
+                type="button"
+                onClick={() => toast.info('Privacy Policy coming soon')}
+                className="text-[10px] font-black text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
+              >Privacy Policy</button>
               <div className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
-              <button className="text-[10px] font-black text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors">Terms</button>
+              <button
+                type="button"
+                onClick={() => toast.info('Terms of Service coming soon')}
+                className="text-[10px] font-black text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
+              >Terms</button>
               <div className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
-              <button className="text-[10px] font-black text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors">Support</button>
+              <button
+                type="button"
+                onClick={() => toast.info('Contact support at: help@nmmart.in')}
+                className="text-[10px] font-black text-slate-500 hover:text-blue-600 uppercase tracking-widest transition-colors"
+              >Support</button>
             </div>
           </div>
         </div>

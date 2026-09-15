@@ -5,19 +5,15 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialCheckoutState } from '../store/checkout.state';
-import type { CheckoutState, CheckoutActions, CheckoutSnapshot, CheckoutProcessResult, OrderSnapshot } from '../types/checkout.types';
 import { CHECKOUT_STATUS } from '../constants/checkout.constants';
 import { CheckoutService } from '../services/checkout.service';
 
-const CheckoutContext = createContext<{
-  checkoutState: CheckoutState;
-  actions: CheckoutActions;
-} | null>(null);
+const CheckoutContext = createContext(null);
 
 export const CheckoutProvider = ({ children }) => {
-  const [checkoutState, setCheckoutState] = useState<CheckoutState>(initialCheckoutState);
+  const [checkoutState, setCheckoutState] = useState(initialCheckoutState);
 
-  const actions: CheckoutActions = useMemo(() => ({
+  const actions = useMemo(() => ({
     setStatus: (status) => setCheckoutState(prev => ({ ...prev, status })),
     setLoading: (loading) => setCheckoutState(prev => ({ ...prev, loading })),
     setError: (error) => setCheckoutState(prev => ({ ...prev, error })),
@@ -43,8 +39,8 @@ export const CheckoutProvider = ({ children }) => {
       checkoutCancelled: new Date(),
     })),
     resetCheckout: () => setCheckoutState(initialCheckoutState),
-    createSnapshot: (data?: Partial<CheckoutSnapshot>) => {
-      const snapshotData: Partial<CheckoutSnapshot> = {
+    createSnapshot: (data) => {
+      const snapshotData = {
         cartId: data?.cartId ?? checkoutState.cartId,
         customerId: data?.customerId ?? checkoutState.customerId,
         paymentId: data?.paymentId ?? checkoutState.paymentId,
@@ -60,11 +56,14 @@ export const CheckoutProvider = ({ children }) => {
       setCheckoutState(prev => ({ ...prev, lastValidationResult: validationResult }));
     },
     clearValidation: () => setCheckoutState(prev => ({ ...prev, lastValidationResult: null })),
-    processCheckout: (): CheckoutProcessResult => {
+    processCheckout: () => {
       return CheckoutService.processCheckout(checkoutState.currentSnapshot);
     },
-    createOrderSnapshot: (): OrderSnapshot | null => {
+    createOrderSnapshot: () => {
       return CheckoutService.createOrderSnapshot(checkoutState.currentSnapshot);
+    },
+    saveCheckout: () => {
+      return CheckoutService.saveCheckout(checkoutState.currentSnapshot);
     },
   }), [checkoutState.cartId, checkoutState.customerId, checkoutState.paymentId, checkoutState.status, checkoutState.currentSnapshot]);
 

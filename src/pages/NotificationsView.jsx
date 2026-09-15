@@ -23,23 +23,23 @@ export default function NotificationsView({ notifications, fetchInitialData }) {
     setIsSending(true);
     try {
       const payload = {
-        id: generateUUID(),
         title: userNotif.title,
         message: userNotif.message,
         type: 'promotion',
-        target_audience: userNotif.target,
+        reference_id: null,
+        user_id: userNotif.target === 'all' ? null : userNotif.target,
+        is_read: false,
         created_at: new Date().toISOString(),
-        is_read: false
+        company_code: 'DEFAULT'
       };
 
-      // Assuming we have a 'user_notifications' table or we use the same notifications table with a flag
       const res = await handleERPAction(DB_SCHEMA.NOTIFICATIONS.table, ACTION_TYPES.INSERT, payload);
-      
-      if (res.success) {
-        alert("Notification sent to all users!");
+
+      if (res && res.success) {
+        alert('Notification sent');
         setUserNotif({ title: '', message: '', target: 'all' });
       } else {
-        throw new Error(res.error);
+        throw new Error(res?.error || 'Insert failed');
       }
     } catch (error) {
       alert("Failed to send: " + error.message);

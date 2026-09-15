@@ -33,6 +33,8 @@ import {
   safeJsonParse
 } from './utils/security';
 import { processImageForUpload } from './utils/imageHandler';
+import { loadSupabaseTables } from './utils/supabaseDataLoader';
+import { shouldSkipGlobalFetch } from './utils/fetchControl';
 
 import MasterListView from './components/MasterListView';
 import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
@@ -60,6 +62,7 @@ const PurchaseView = lazy(() => import('./features/inventory/PurchaseView'));
 const SelfCheckoutView = lazy(() => import('./pages/SelfCheckoutView'));
 const LoyaltyManagementView = lazy(() => import('./pages/LoyaltyManagementView'));
 const CompanyManagement = lazy(() => import('./pages/SuperAdmin/CompanyManagement'));
+const ArchitectureDemo = lazy(() => import('./features/pos/pages/ArchitectureDemo'));
 
 import DashboardView from './features/dashboard/DashboardView';
 import { useAuthContext } from './context';
@@ -496,24 +499,44 @@ export default function App({ company, isTenantMode, companySlug }) {
   // handleRealtimeUpdate removed from App.jsx as it is now managed by GlobalContext
   // to avoid redundant Supabase Realtime subscriptions.
 
-  const fetchInitialData = useCallback(async (force = false, silent = false) => {
-    if (isFetchingRef.current) return;
+  const fetchInitialData = useCallback(async (force = false, silent = false, options = {}) => {
     const now = Date.now();
-    // Strict 5s debounce for global refetch to kill any lingering loops, unless forced
-    if (!force && mountRef.current && (now - mountRef.current < 5000)) return;
+    if (shouldSkipGlobalFetch({
+      isFetching: isFetchingRef.current,
+      force,
+      lastFetchedAt: mountRef.current,
+      now,
+      throttleMs: 5000
+    })) {
+      return;
+    }
 
     isFetchingRef.current = true;
     mountRef.current = now;
 
     if (!silent) setLoading(true);
     try {
+      const supabaseLoadSummary = await loadSupabaseTables(['COMPANIES', 'PRODUCTS', 'CATEGORIES', 'ORDERS', 'USERS'], {
+        limit: 5,
+        onProgress: (event) => {
+          if (import.meta.env.DEV) {
+            console.info(`[Supabase load] ${event.tableKey} -> ${event.status}`, event.tableName);
+          }
+        }
+      });
+
+      if (import.meta.env.DEV) {
+        console.info('[Supabase load summary]', supabaseLoadSummary);
+      }
       // Calculate date 30 days ago for order items
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const dateStr = thirtyDaysAgo.toISOString();
 
+      const productsQuery = options?.productsIncludeDeleted ? { includeDeleted: true } : {};
+
       const results = await Promise.allSettled([
-        dbSync.fetch(DB_SCHEMA.PRODUCTS.table),
+        dbSync.fetch(DB_SCHEMA.PRODUCTS.table, productsQuery),
         dbSync.fetch(DB_SCHEMA.CATEGORIES.table, { order: { column: 'name', ascending: true } }),
         dbSync.fetch(DB_SCHEMA.ORDERS.table, { order: { column: 'created_at', ascending: false } }),
         dbSync.fetch(DB_SCHEMA.APP_CONFIG.table),
@@ -693,8 +716,9 @@ export default function App({ company, isTenantMode, companySlug }) {
 
       // Check if supabase.storage is available
       if (!supabase.storage) {
-        if (import.meta.env.DEV) console.warn('Supabase storage not available');
-        return { url: null, error: null };
+        const errMsg = 'Supabase storage not available';
+        if (import.meta.env.DEV) console.warn(errMsg);
+        return { url: null, error: new Error(errMsg) };
       }
 
       const fileName = fileToUpload.name;
@@ -708,8 +732,9 @@ export default function App({ company, isTenantMode, companySlug }) {
         });
 
       if (uploadError) {
+        console.error(uploadError);
         if (import.meta.env.DEV) console.error(`Supabase Upload Error [Bucket: ${bucket}]:`, uploadError);
-        return { url: null, error: null };
+        return { url: null, error: uploadError };
       }
 
       const { data: { publicUrl } } = supabase.storage
@@ -717,14 +742,16 @@ export default function App({ company, isTenantMode, companySlug }) {
         .getPublicUrl(filePath);
 
       if (!publicUrl) {
-        if (import.meta.env.DEV) console.warn('Failed to generate public URL');
-        return { url: null, error: null };
+        const errMsg = 'Failed to generate public URL';
+        if (import.meta.env.DEV) console.warn(errMsg);
+        return { url: null, error: new Error(errMsg) };
       }
 
       return { url: publicUrl, error: null };
     } catch (error) {
+      console.error(error);
       if (import.meta.env.DEV) console.error("Critical Upload error:", error);
-      return { url: null, error: null };
+      return { url: null, error };
     }
   };
 
@@ -6915,6 +6942,7 @@ function renderTabContent(activeTab, props) {
     case 'POS': return <POSView orders={props.orders} {...props} />;
     case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} customerMode={props.customerMode} setCustomerMode={props.setCustomerMode} />;
     case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
+    case 'ArchitectureDemo': return <ArchitectureDemo {...props} />;
 
     // Inventory Views
     case 'StockAlerts': return <StockAlertsView products={props.products} fetchInitialData={props.fetchInitialData} />;

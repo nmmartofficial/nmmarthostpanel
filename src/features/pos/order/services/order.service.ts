@@ -6,6 +6,7 @@
 import { generateOrderNumber as generateOrderNumberUtil, createOrder as createOrderUtil, freezeOrder as freezeOrderUtil, updateOrderStatus as updateOrderStatusUtil, markOrderCompleted as markOrderCompletedUtil, markOrderCancelled as markOrderCancelledUtil, markOrderPending as markOrderPendingUtil, freezeUpdatedOrder as freezeUpdatedOrderUtil } from '../utils/order.utils';
 import type { OrderNumberResult, OrderCreationInput, OrderCreationResult, Order, OrderStatus, OrderStatusResult, OrderRepositoryResult } from '../types/order.types';
 import { ORDER_STATUS } from '../constants/order.constants';
+import { RepositoryService } from '../../repository';
 
 export const OrderService = {
   startOrder: () => {
@@ -151,15 +152,17 @@ export const OrderService = {
       const updatedOrders = [...existingOrders, newOrder];
       return {
         success: true,
-        orders: updatedOrders,
-        order: newOrder,
+        orderId: newOrder.orderId,
+        repositoryStatus: 'SUCCESS',
+        savedAt: new Date(),
         error: null,
       };
     } catch (err) {
       return {
         success: false,
-        orders: existingOrders,
-        order: null,
+        orderId: null,
+        repositoryStatus: 'ERROR',
+        savedAt: new Date(),
         error: err instanceof Error ? err.message : 'Unknown error',
       };
     }
@@ -169,15 +172,17 @@ export const OrderService = {
       const updatedOrders = existingOrders.filter(order => order.orderId !== orderId);
       return {
         success: true,
-        orders: updatedOrders,
-        order: null,
+        orderId: orderId,
+        repositoryStatus: 'SUCCESS',
+        savedAt: new Date(),
         error: null,
       };
     } catch (err) {
       return {
         success: false,
-        orders: existingOrders,
-        order: null,
+        orderId: null,
+        repositoryStatus: 'ERROR',
+        savedAt: new Date(),
         error: err instanceof Error ? err.message : 'Unknown error',
       };
     }
@@ -189,15 +194,17 @@ export const OrderService = {
       );
       return {
         success: true,
-        orders: updatedOrders,
-        order: updatedOrder,
+        orderId: updatedOrder.orderId,
+        repositoryStatus: 'SUCCESS',
+        savedAt: new Date(),
         error: null,
       };
     } catch (err) {
       return {
         success: false,
-        orders: existingOrders,
-        order: null,
+        orderId: null,
+        repositoryStatus: 'ERROR',
+        savedAt: new Date(),
         error: err instanceof Error ? err.message : 'Unknown error',
       };
     }
@@ -206,16 +213,18 @@ export const OrderService = {
     try {
       const foundOrder = existingOrders.find(order => order.orderId === orderId) || null;
       return {
-        success: true,
-        orders: existingOrders,
-        order: foundOrder,
-        error: null,
+        success: !!foundOrder,
+        orderId: orderId,
+        repositoryStatus: foundOrder ? 'SUCCESS' : 'NOT_FOUND',
+        savedAt: new Date(),
+        error: foundOrder ? null : 'Order not found',
       };
     } catch (err) {
       return {
         success: false,
-        orders: existingOrders,
-        order: null,
+        orderId: null,
+        repositoryStatus: 'ERROR',
+        savedAt: new Date(),
         error: err instanceof Error ? err.message : 'Unknown error',
       };
     }
@@ -224,15 +233,17 @@ export const OrderService = {
     try {
       return {
         success: true,
-        orders: existingOrders,
-        order: null,
+        orderId: null,
+        repositoryStatus: 'SUCCESS',
+        savedAt: new Date(),
         error: null,
       };
     } catch (err) {
       return {
         success: false,
-        orders: existingOrders,
-        order: null,
+        orderId: null,
+        repositoryStatus: 'ERROR',
+        savedAt: new Date(),
         error: err instanceof Error ? err.message : 'Unknown error',
       };
     }
@@ -241,17 +252,45 @@ export const OrderService = {
     try {
       return {
         success: true,
-        orders: [],
-        order: null,
+        orderId: null,
+        repositoryStatus: 'SUCCESS',
+        savedAt: new Date(),
         error: null,
       };
     } catch (err) {
       return {
         success: false,
-        orders: [],
-        order: null,
+        orderId: null,
+        repositoryStatus: 'ERROR',
+        savedAt: new Date(),
         error: err instanceof Error ? err.message : 'Unknown error',
       };
     }
+  },
+  saveOrder: (order: Order | null): OrderRepositoryResult => {
+    if (!order) {
+      return {
+        success: false,
+        orderId: null,
+        repositoryStatus: 'ERROR',
+        savedAt: new Date(),
+        error: 'No order provided',
+      };
+    }
+
+    const adapter = RepositoryService.createStorageAdapter('IN_MEMORY');
+    const entity = {
+      ...order,
+      id: order.orderId,
+    };
+    const result = adapter.save('order', entity);
+
+    return {
+      success: result.success,
+      orderId: order.orderId,
+      repositoryStatus: result.success ? 'SUCCESS' : 'ERROR',
+      savedAt: result.timestamp,
+      error: result.error,
+    };
   },
 };

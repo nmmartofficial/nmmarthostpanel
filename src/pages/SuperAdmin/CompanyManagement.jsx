@@ -19,13 +19,8 @@ export default function CompanyManagement() {
     owner_name: '',
     email: '',
     mobile: '',
-    subscription_plan: 'basic',
-    expiry_date: '',
-    country: 'India',
-    timezone: 'Asia/Kolkata',
-    currency: 'INR',
-    max_users: 5,
-    storage_limit: 10,
+    address: '',
+    plan: 'starter',
     status: 'active'
   });
 
@@ -67,20 +62,27 @@ export default function CompanyManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      let companyData = { ...formData };
-      
+      // Keep payload limited to columns that exist in DB
+      const companyData = {
+        company_name: formData.company_name,
+        owner_name: formData.owner_name,
+        email: formData.email,
+        mobile: formData.mobile,
+        address: formData.address,
+        plan: formData.plan || 'starter',
+        status: formData.status || 'active'
+      };
+
       if (editingCompany) {
-        // Update existing company
         await dbSync.update(DB_SCHEMA.COMPANIES.table, editingCompany.id, companyData);
         toast.success('Company updated successfully');
       } else {
-        // Create new company
         companyData.company_code = generateCompanyCode();
-        companyData.company_slug = generateSlug(formData.company_name);
+        companyData.company_slug = generateSlug(formData.company_name || 'company');
         await dbSync.insert(DB_SCHEMA.COMPANIES.table, companyData);
         toast.success('Company created successfully');
       }
-      
+
       setShowModal(false);
       resetForm();
       fetchCompanies();
@@ -122,13 +124,8 @@ export default function CompanyManagement() {
       owner_name: '',
       email: '',
       mobile: '',
-      subscription_plan: 'basic',
-      expiry_date: '',
-      country: 'India',
-      timezone: 'Asia/Kolkata',
-      currency: 'INR',
-      max_users: 5,
-      storage_limit: 10,
+      address: '',
+      plan: 'starter',
       status: 'active'
     });
     setEditingCompany(null);
@@ -141,13 +138,8 @@ export default function CompanyManagement() {
       owner_name: company.owner_name,
       email: company.email,
       mobile: company.mobile,
-      subscription_plan: company.subscription_plan,
-      expiry_date: company.expiry_date,
-      country: company.country,
-      timezone: company.timezone,
-      currency: company.currency,
-      max_users: company.max_users,
-      storage_limit: company.storage_limit,
+      address: company.address || '',
+      plan: company.plan || 'starter',
       status: company.status
     });
     setShowModal(true);
@@ -225,11 +217,11 @@ export default function CompanyManagement() {
                 <div className="flex gap-2 mb-4">
                   <div className="flex-1 bg-slate-50 rounded-lg p-3 text-center">
                     <p className="text-xs text-slate-500 font-black uppercase tracking-wider">Plan</p>
-                    <p className="text-lg font-black text-slate-900 capitalize">{company.subscription_plan}</p>
+                    <p className="text-lg font-black text-slate-900 capitalize">{company.plan || company.subscription_plan}</p>
                   </div>
                   <div className="flex-1 bg-slate-50 rounded-lg p-3 text-center">
-                    <p className="text-xs text-slate-500 font-black uppercase tracking-wider">Users</p>
-                    <p className="text-lg font-black text-slate-900">{company.max_users}</p>
+                    <p className="text-xs text-slate-500 font-black uppercase tracking-wider">Code</p>
+                    <p className="text-lg font-black text-slate-900">{company.company_code}</p>
                   </div>
                 </div>
 
@@ -351,86 +343,17 @@ export default function CompanyManagement() {
                   </div>
                   <div>
                     <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Subscription Plan
+                      Plan
                     </label>
                     <select
-                      value={formData.subscription_plan}
-                      onChange={(e) => setFormData({ ...formData, subscription_plan: e.target.value })}
+                      value={formData.plan}
+                      onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
                       className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                     >
-                      <option value="basic">Basic</option>
+                      <option value="starter">Starter</option>
                       <option value="pro">Pro</option>
                       <option value="enterprise">Enterprise</option>
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Expiry Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.expiry_date}
-                      onChange={(e) => setFormData({ ...formData, expiry_date: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Country
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Timezone
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.timezone}
-                      onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Currency
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.currency}
-                      onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Max Users
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.max_users}
-                      onChange={(e) => setFormData({ ...formData, max_users: parseInt(e.target.value) })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      min="1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Storage Limit (GB)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.storage_limit}
-                      onChange={(e) => setFormData({ ...formData, storage_limit: parseInt(e.target.value) })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      min="1"
-                    />
                   </div>
                   <div>
                     <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">

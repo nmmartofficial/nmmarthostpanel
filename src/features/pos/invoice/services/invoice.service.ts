@@ -20,6 +20,7 @@ import {
   validateInvoice, 
   generateInvoiceNumber as generateInvoiceNumberUtil, 
 } from '../utils/invoice.utils';
+import { RepositoryService } from '../../repository';
 
 export const InvoiceService = {
   startInvoice: () => {
@@ -148,5 +149,31 @@ export const InvoiceService = {
   },
   clearInvoices: (): InvoiceRepositoryResult => {
     throw new Error('Not Implemented');
+  },
+  saveInvoice: (invoice: Invoice | null): InvoiceRepositoryResult => {
+    if (!invoice) {
+      return {
+        success: false,
+        invoiceId: null,
+        repositoryStatus: 'ERROR',
+        savedAt: new Date(),
+        error: 'No invoice provided',
+      };
+    }
+
+    const adapter = RepositoryService.createStorageAdapter('IN_MEMORY');
+    const entity = {
+      ...invoice,
+      id: invoice.invoiceId,
+    };
+    const result = adapter.save('invoice', entity);
+
+    return {
+      success: result.success,
+      invoiceId: invoice.invoiceId,
+      repositoryStatus: result.success ? 'SUCCESS' : 'ERROR',
+      savedAt: result.timestamp,
+      error: result.error,
+    };
   },
 };

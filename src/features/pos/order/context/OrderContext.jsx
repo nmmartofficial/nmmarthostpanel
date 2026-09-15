@@ -5,19 +5,15 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialOrderState } from '../store/order.state';
-import type { OrderState, OrderActions } from '../types/order.types';
 import { ORDER_STATUS } from '../constants/order.constants';
 import { OrderService } from '../services/order.service';
 
-const OrderContext = createContext<{
-  orderState: OrderState;
-  actions: OrderActions;
-} | null>(null);
+const OrderContext = createContext(null);
 
 export const OrderProvider = ({ children }) => {
-  const [orderState, setOrderState] = useState<OrderState>(initialOrderState);
+  const [orderState, setOrderState] = useState(initialOrderState);
 
-  const actions: OrderActions = useMemo(() => ({
+  const actions = useMemo(() => ({
     setOrders: (orders) => setOrderState(prev => ({ ...prev, orders })),
     setSelectedOrder: (order) => setOrderState(prev => ({ ...prev, selectedOrder: order })),
     setOrderStatus: (status) => setOrderState(prev => ({ ...prev, orderStatus: status })),
@@ -32,43 +28,46 @@ export const OrderProvider = ({ children }) => {
     markCancelled: (order) => OrderService.markCancelled(order),
     markPending: (order) => OrderService.markPending(order),
     addOrder: (newOrder) => {
-      let result;
-      setOrderState(prev => {
-        result = OrderService.addOrder(prev.orders, newOrder);
-        return { ...prev, orders: result.orders };
-      });
-      return result!;
+      const result = OrderService.addOrder(orderState.orders, newOrder);
+      if (result.success) {
+        setOrderState(prev => ({ ...prev, orders: [...prev.orders, newOrder] }));
+      }
+      return result;
     },
     removeOrder: (orderId) => {
-      let result;
-      setOrderState(prev => {
-        result = OrderService.removeOrder(prev.orders, orderId);
-        return { ...prev, orders: result.orders };
-      });
-      return result!;
+      const result = OrderService.removeOrder(orderState.orders, orderId);
+      if (result.success) {
+        setOrderState(prev => ({ ...prev, orders: prev.orders.filter(o => o.orderId !== orderId) }));
+      }
+      return result;
     },
     updateOrder: (updatedOrder) => {
-      let result;
-      setOrderState(prev => {
-        result = OrderService.updateOrder(prev.orders, updatedOrder);
-        return { ...prev, orders: result.orders };
-      });
-      return result!;
+      const result = OrderService.updateOrder(orderState.orders, updatedOrder);
+      if (result.success) {
+        setOrderState(prev => ({
+          ...prev,
+          orders: prev.orders.map(o => o.orderId === updatedOrder.orderId ? updatedOrder : o),
+        }));
+      }
+      return result;
     },
     findOrder: (orderId) => {
-      // findOrder doesn't change state, just uses current orders
       return OrderService.findOrder(orderState.orders, orderId);
     },
     getOrders: () => {
-      // getOrders just returns current orders, no state change
       return OrderService.getOrders(orderState.orders);
     },
     clearOrders: () => {
       const result = OrderService.clearOrders();
-      setOrderState(prev => ({ ...prev, orders: result.orders }));
+      if (result.success) {
+        setOrderState(prev => ({ ...prev, orders: [] }));
+      }
       return result;
     },
-  }), [orderState.orders]);
+    saveOrder: () => {
+      return OrderService.saveOrder(orderState.selectedOrder);
+    },
+  }), [orderState.orders, orderState.selectedOrder]);
 
   const value = useMemo(() => ({
     orderState,

@@ -5,18 +5,14 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialInvoiceState } from '../store/invoice.state';
-import type { InvoiceState, InvoiceActions, Invoice } from '../types/invoice.types';
 import { InvoiceService } from '../services/invoice.service';
 
-const InvoiceContext = createContext<{
-  invoiceState: InvoiceState;
-  actions: InvoiceActions;
-} | null>(null);
+const InvoiceContext = createContext(null);
 
 export const InvoiceProvider = ({ children }) => {
-  const [invoiceState, setInvoiceState] = useState<InvoiceState>(initialInvoiceState);
+  const [invoiceState, setInvoiceState] = useState(initialInvoiceState);
 
-  const actions: InvoiceActions = useMemo(() => ({
+  const actions = useMemo(() => ({
     setInvoiceId: (invoiceId) => setInvoiceState(prev => ({ ...prev, invoiceId })),
     setInvoiceNumber: (invoiceNumber) => setInvoiceState(prev => ({ ...prev, invoiceNumber })),
     setOrderId: (orderId) => setInvoiceState(prev => ({ ...prev, orderId })),
@@ -34,7 +30,7 @@ export const InvoiceProvider = ({ children }) => {
     createInvoice: (input) => InvoiceService.createInvoice(input),
     validateInvoice: () => {
       // Create invoice object from current state
-      const invoice: Invoice = {
+      const invoice = {
         invoiceId: invoiceState.invoiceId || `inv-temp-${Date.now()}`,
         invoiceNumber: invoiceState.invoiceNumber,
         orderId: invoiceState.orderId,
@@ -89,6 +85,24 @@ export const InvoiceProvider = ({ children }) => {
       
       return result;
     },
+    saveInvoice: () => {
+      const invoice = {
+        invoiceId: invoiceState.invoiceId || `inv-temp-${Date.now()}`,
+        invoiceNumber: invoiceState.invoiceNumber,
+        orderId: invoiceState.orderId,
+        customerId: invoiceState.customerId,
+        paymentId: invoiceState.paymentId,
+        items: [],
+        subtotal: invoiceState.subtotal,
+        discount: invoiceState.discount,
+        tax: invoiceState.tax,
+        grandTotal: invoiceState.grandTotal,
+        status: invoiceState.invoiceStatus,
+        createdAt: invoiceState.invoiceDate || new Date(),
+        updatedAt: invoiceState.invoiceDate || new Date(),
+      };
+      return InvoiceService.saveInvoice(invoice);
+    },
   }), [invoiceState]);
 
   const value = useMemo(() => ({
@@ -106,7 +120,7 @@ export const InvoiceProvider = ({ children }) => {
 export const useInvoiceContext = () => {
   const context = useContext(InvoiceContext);
   if (!context) {
-    throw new Error('useInvoiceContext must be used within an InvoiceProvider');
+    throw new Error('useInvoiceContext must be used within a InvoiceProvider');
   }
   return context;
 };

@@ -5,78 +5,45 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import { initialCustomerState } from '../store/customer.state';
-import type { CustomerState, Customer, CustomerActions } from '../types/customer.types';
 import { CustomerService } from '../services/customer.service';
 
 // Create CustomerContext
-const CustomerContext = createContext<{
-  customerState: CustomerState;
-  actions: CustomerActions;
-  selectedCustomer: Customer | null;
-  customers: Customer[];
-  loading: boolean;
-  error: string;
-  searchQuery: string;
-  walletBalance: number;
-  creditBalance: number;
-  loyaltyPoints: number;
-  setSelectedCustomer: (customer: Customer | null) => void;
-  setCustomers: (customers: Customer[]) => void;
-  setSearchQuery: (query: string) => void;
-  setWalletBalance: (balance: number) => void;
-  setCreditBalance: (balance: number) => void;
-  setLoyaltyPoints: (points: number) => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string) => void;
-  resetCustomer: () => void;
-  search: (query: string) => void;
-  create: (customer: Partial<Customer>) => void;
-  update: (id: string, customer: Partial<Customer>) => void;
-  remove: (id: string) => void;
-  selectCustomer: (customer: Customer) => void;
-  clearSelectedCustomer: () => void;
-  validateCustomer: (customer: {
-    customerCode: string;
-    name: string;
-    mobile: string;
-    email?: string;
-  }) => { isValid: boolean; errors: Record<string, string> };
-} | null>(null);
+const CustomerContext = createContext(null);
 
 // CustomerProvider Component
 export const CustomerProvider = ({ children }) => {
-  const [customerState, setCustomerState] = useState<CustomerState>(initialCustomerState);
+  const [customerState, setCustomerState] = useState(initialCustomerState);
 
   // Simple state setters
-  const setSelectedCustomer = (customer: Customer | null) => {
+  const setSelectedCustomer = (customer) => {
     setCustomerState(prev => ({ ...prev, selectedCustomer: customer }));
   };
 
-  const setCustomers = (customers: Customer[]) => {
+  const setCustomers = (customers) => {
     setCustomerState(prev => ({ ...prev, customers }));
   };
 
-  const setSearchQuery = (query: string) => {
+  const setSearchQuery = (query) => {
     setCustomerState(prev => ({ ...prev, searchQuery: query }));
   };
 
-  const setWalletBalance = (balance: number) => {
+  const setWalletBalance = (balance) => {
     setCustomerState(prev => ({ ...prev, walletBalance: balance }));
   };
 
-  const setCreditBalance = (balance: number) => {
+  const setCreditBalance = (balance) => {
     setCustomerState(prev => ({ ...prev, creditBalance: balance }));
   };
 
-  const setLoyaltyPoints = (points: number) => {
+  const setLoyaltyPoints = (points) => {
     setCustomerState(prev => ({ ...prev, loyaltyPoints: points }));
   };
 
-  const setLoading = (loading: boolean) => {
+  const setLoading = (loading) => {
     setCustomerState(prev => ({ ...prev, loading }));
   };
 
-  const setError = (error: string) => {
+  const setError = (error) => {
     setCustomerState(prev => ({ ...prev, error }));
   };
 
@@ -85,25 +52,25 @@ export const CustomerProvider = ({ children }) => {
   };
 
   // Placeholder actions
-  const search = (query: string) => {
+  const search = (query) => {
     setSearchQuery(query);
     const results = CustomerService.search(query);
     setCustomers(results);
   };
 
-  const create = (customer: Partial<Customer>) => {
+  const create = (customer) => {
     throw new Error('Not Implemented');
   };
 
-  const update = (id: string, customer: Partial<Customer>) => {
+  const update = (id, customer) => {
     throw new Error('Not Implemented');
   };
 
-  const remove = (id: string) => {
+  const remove = (id) => {
     throw new Error('Not Implemented');
   };
 
-  const selectCustomer = (customer: Customer) => {
+  const selectCustomer = (customer) => {
     const selected = CustomerService.selectCustomer(customer);
     setSelectedCustomer(selected);
   };
@@ -113,12 +80,7 @@ export const CustomerProvider = ({ children }) => {
     setSelectedCustomer(cleared);
   };
 
-  const validateCustomer = (customer: {
-    customerCode: string;
-    name: string;
-    mobile: string;
-    email?: string;
-  }) => {
+  const validateCustomer = (customer) => {
     return CustomerService.validate(customer);
   };
 

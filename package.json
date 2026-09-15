@@ -6,14 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/utils/authFallback.test.js src/utils/security.test.js",
+    "test": "node --test src/utils/authFallback.test.js src/utils/security.test.js src/utils/fetchControl.test.js src/utils/activeFilter.test.js",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.2",
+    "@supabase/supabase-js": "^2.110.8",
     "@yudiel/react-qr-scanner": "^2.6.0",
     "clsx": "^2.0.0",
+    "dotenv": "^17.4.2",
     "framer-motion": "^10.16.4",
     "jsbarcode": "^3.12.3",
     "jspdf": "^4.2.1",

@@ -309,15 +309,16 @@ if (!rootContainer) {
   throw new Error('Root container not found');
 }
 
-let reactRoot = null;
+let reactRoot = window.__reactRoot;
 
 if (!reactRoot) {
   reactRoot = ReactDOM.createRoot(rootContainer);
+  window.__reactRoot = reactRoot;
 }
 
 reactRoot.render(
 
-  <React.StrictMode>
+  <>
 
     <ErrorBoundary>
 
@@ -336,37 +337,26 @@ reactRoot.render(
 
 
               {/* Super Admin / Central Access Routes */}
-
               <Route path={`/${SECRET_CLIENT_PATH}`} element={<AuthChecker isTenantMode={false} />} />
-
               <Route path={`/${SECRET_CLIENT_PATH}/login`} element={<LoginView />} />
-
+              <Route path={`/${SECRET_CLIENT_PATH}/forgot-password`} element={<ForgotPasswordView isTenantMode={false} />} />
+              <Route path={`/${SECRET_CLIENT_PATH}/reset-password`} element={<ResetPasswordView isTenantMode={false} />} />
               <Route path={`/${SECRET_CLIENT_PATH}/*`} element={
-
                 <ProtectedRoute>
-
                   <App isTenantMode={false} />
-
                 </ProtectedRoute>
-
               } />
 
 
-
               {/* Tenant-Specific Access via Company Slug */}
-
               <Route path="/:companySlug" element={<AuthChecker isTenantMode={true} />} />
-
               <Route path="/:companySlug/login" element={<LoginView isTenantMode={true} />} />
-
+              <Route path="/:companySlug/forgot-password" element={<ForgotPasswordView isTenantMode={true} />} />
+              <Route path="/:companySlug/reset-password" element={<ResetPasswordView isTenantMode={true} />} />
               <Route path="/:companySlug/*" element={
-
                 <ProtectedRoute>
-
                   <TenantWrapper />
-
                 </ProtectedRoute>
-
               } />
 
 
@@ -385,7 +375,7 @@ reactRoot.render(
 
     </ErrorBoundary>
 
-  </React.StrictMode>,
+  </>,
 
 )
 

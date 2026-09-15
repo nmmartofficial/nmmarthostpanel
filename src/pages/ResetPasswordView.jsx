@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Lock, Eye, EyeOff, Loader2, CheckCircle, XCircle, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { validatePasswordStrength } from '../utils/security';
+import { validatePasswordStrength, sanitizeText } from '../utils/security';
 
 const BRAND_NAME = "NM MART";
+const DEFAULT_COMPANY_SLUG = 'nm-mart';
 
-export default function ResetPasswordView() {
+export default function ResetPasswordView({ isTenantMode = false }) {
   const navigate = useNavigate();
+  const { companySlug } = useParams();
+  const resolvedSlug = (isTenantMode && companySlug) ? companySlug : DEFAULT_COMPANY_SLUG;
   const [searchParams] = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -20,40 +23,54 @@ export default function ResetPasswordView() {
   const [error, setError] = useState('');
   const [passwordStrength, setPasswordStrength] = useState({ valid: false, message: '' });
 
-  // Check for valid reset token
   const [isValidToken, setIsValidToken] = useState(null);
   const [tokenError, setTokenError] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
     const validateToken = async () => {
       const accessToken = searchParams.get('access_token');
-      
+
       if (!accessToken) {
-        setTokenError('Invalid reset link. Missing access token.');
-        setIsValidToken(false);
+        if (!cancelled) {
+          setTokenError('Invalid reset link. Missing access token.');
+          setIsValidToken(false);
+        }
         return;
       }
 
       try {
-        // Verify the token by getting current session
         const { data: { session }, error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: searchParams.get('refresh_token') || ''
         });
 
+        if (cancelled) {
+          try { await supabase.auth.signOut(); } catch {}
+          return;
+        }
+
         if (error || !session) {
+          try { await supabase.auth.signOut(); } catch {}
           setTokenError('Invalid or expired reset link. Please request a new password reset.');
           setIsValidToken(false);
         } else {
           setIsValidToken(true);
         }
       } catch (err) {
-        setTokenError('Invalid reset link. Please request a new password reset.');
-        setIsValidToken(false);
+        if (!cancelled) {
+          try { await supabase.auth.signOut(); } catch {}
+          setTokenError('Invalid reset link. Please request a new password reset.');
+          setIsValidToken(false);
+        }
       }
     };
 
     validateToken();
+    return () => {
+      cancelled = true;
+      supabase.auth.signOut().catch(() => {});
+    };
   }, [searchParams]);
 
   useEffect(() => {
@@ -64,6 +81,22 @@ export default function ResetPasswordView() {
       setPasswordStrength({ valid: false, message: '' });
     }
   }, [password]);
+
+  const getSafeResetError = (rawErr) => {
+    const fallback = 'Failed to reset password. Please try again.';
+    try {
+      const msg = String(rawErr?.message || '').toLowerCase();
+      const code = String(rawErr?.code || '').toLowerCase();
+      if (msg.includes('weak') || msg.includes('password') || code.includes('weak_password')) {
+        return 'Password does not meet requirements. Please choose a stronger password.';
+      }
+      if (msg.includes('same') || msg.includes('previous')) return 'Cannot reuse your previous password.';
+      if (msg.includes('expired') || msg.includes('token')) return 'Reset link expired. Please request a new one.';
+      return fallback;
+    } catch {
+      return fallback;
+    }
+  };
 
   const getPasswordStrengthColor = () => {
     if (!password) return 'bg-slate-200';
@@ -89,28 +122,27 @@ export default function ResetPasswordView() {
     if (!passwordStrength.valid) return setError(passwordStrength.message);
     if (password !== confirmPassword) return setError('Passwords do not match');
 
+    const cleanPassword = sanitizeText(password);
+
     setIsProcessing(true);
     try {
-      // Update password using Supabase
       const { error: updateError } = await supabase.auth.updateUser({
-        password: password
+        password: cleanPassword
       });
 
       if (updateError) throw updateError;
 
-      // Sign out all sessions (invalidate old sessions)
       await supabase.auth.signOut();
 
       setIsSuccess(true);
       toast.success('Password updated successfully');
 
-      // Redirect to login after 3 seconds
       setTimeout(() => {
-        navigate('/nm-mart/login');
+        navigate(`/${resolvedSlug}/login`);
       }, 3000);
     } catch (err) {
       console.error('Reset password error:', err);
-      setError(err.message || 'Failed to reset password. Please try again.');
+      setError(getSafeResetError(err));
     } finally {
       setIsProcessing(false);
     }
@@ -148,7 +180,7 @@ export default function ResetPasswordView() {
             </p>
 
             <button
-              onClick={() => navigate('/nm-mart/login')}
+              onClick={() => navigate(`/${resolvedSlug}/login`)}
               className="w-full h-14 bg-gradient-to-r from-[#2563EB] to-[#7C3AED] text-white font-black text-[15px] tracking-[0.1em] rounded-2xl shadow-xl shadow-blue-100 hover:opacity-95 transition-colors"
             >
               Back to Login

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { initialPrinterState } from '../store/printer.state';
-import type { PrinterState } from '../types/printer.types';
+import { PrinterService } from '../services/printer.service';
 
 const PrinterContext = createContext(null);
 
@@ -13,46 +13,154 @@ export const usePrinter = () => {
 };
 
 export const PrinterProvider = ({ children }) => {
-  const [state, setState] = useState<PrinterState>(initialPrinterState);
+  const [printerId, setPrinterId] = useState(initialPrinterState.printerId);
+  const [printerName, setPrinterName] = useState(initialPrinterState.printerName);
+  const [printerType, setPrinterType] = useState(initialPrinterState.printerType);
+  const [printerStatus, setPrinterStatus] = useState(initialPrinterState.printerStatus);
+  const [isConnected, setConnected] = useState(initialPrinterState.isConnected);
+  const [isPrinting, setPrinting] = useState(initialPrinterState.isPrinting);
+  const [copies, setCopies] = useState(initialPrinterState.copies);
+  const [paperWidth, setPaperWidth] = useState(initialPrinterState.paperWidth);
+  const [lastPrintedAt, setLastPrintedAt] = useState(initialPrinterState.lastPrintedAt);
+  const [loading, setLoading] = useState(initialPrinterState.loading);
+  const [error, setError] = useState(initialPrinterState.error);
+  const [validationErrors, setValidationErrors] = useState(initialPrinterState.validationErrors);
+  const [configurations, setConfigurations] = useState(initialPrinterState.configurations);
+
+  const state = useMemo(() => ({
+    printerId,
+    printerName,
+    printerType,
+    printerStatus,
+    isConnected,
+    isPrinting,
+    copies,
+    paperWidth,
+    lastPrintedAt,
+    loading,
+    error,
+    validationErrors,
+    configurations
+  }), [
+    printerId,
+    printerName,
+    printerType,
+    printerStatus,
+    isConnected,
+    isPrinting,
+    copies,
+    paperWidth,
+    lastPrintedAt,
+    loading,
+    error,
+    validationErrors,
+    configurations
+  ]);
+
+  const createConfiguration = useCallback((input) => {
+    return PrinterService.createConfiguration(input);
+  }, []);
+
+  const validateConfiguration = useCallback((input) => {
+    const result = PrinterService.validateConfiguration(input);
+    setValidationErrors(result.errors);
+    return result;
+  }, []);
+
+  const clearValidation = useCallback(() => {
+    setValidationErrors([]);
+  }, []);
+
+  const processPrinter = useCallback((input) => {
+    return PrinterService.processPrinter(input);
+  }, []);
+
+  // Repository Actions
+  const addConfiguration = useCallback((configuration) => {
+    const { configurations: newConfigs, result } = PrinterService.addConfiguration(configurations, configuration);
+    setConfigurations(newConfigs);
+    return result;
+  }, [configurations]);
+
+  const removeConfiguration = useCallback((configurationId) => {
+    const { configurations: newConfigs, result } = PrinterService.removeConfiguration(configurations, configurationId);
+    setConfigurations(newConfigs);
+    return result;
+  }, [configurations]);
+
+  const updateConfiguration = useCallback((configurationId, updates) => {
+    const { configurations: newConfigs, result } = PrinterService.updateConfiguration(configurations, configurationId, updates);
+    setConfigurations(newConfigs);
+    return result;
+  }, [configurations]);
+
+  const findConfiguration = useCallback((configurationId) => {
+    return PrinterService.findConfiguration(configurations, configurationId);
+  }, [configurations]);
+
+  const getConfigurations = useCallback(() => {
+    return PrinterService.getConfigurations(configurations);
+  }, [configurations]);
+
+  const clearConfigurations = useCallback(() => {
+    const { configurations: newConfigs } = PrinterService.clearConfigurations();
+    setConfigurations(newConfigs);
+  }, []);
+
+  const savePrinter = useCallback(() => {
+    const configuration = {
+      configurationId: `printer-config-${Date.now()}`,
+      printerId: printerId || `printer-${Date.now()}`,
+      printerName: printerName || "Default Printer",
+      printerType: printerType || "thermal",
+      paperWidth: paperWidth || "80mm",
+      copies: copies || 1,
+      isConnected: isConnected || false,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    return PrinterService.savePrinter(configuration);
+  }, [printerId, printerName, printerType, paperWidth, copies, isConnected]);
 
   const actions = useMemo(() => ({
-    setPrinterStatus: (printerStatus: PrinterState['printerStatus']) => {
-      throw new Error('printer.context.setPrinterStatus - Not Implemented');
-    },
-    setSelectedDevice: (selectedDevice: PrinterState['selectedDevice']) => {
-      throw new Error('printer.context.setSelectedDevice - Not Implemented');
-    },
-    setSettings: (settings: PrinterState['settings']) => {
-      throw new Error('printer.context.setSettings - Not Implemented');
-    },
-    setLoading: (loading: boolean) => {
-      throw new Error('printer.context.setLoading - Not Implemented');
-    },
-    setError: (error: string) => {
-      throw new Error('printer.context.setError - Not Implemented');
-    },
+    setPrinterId,
+    setPrinterName,
+    setPrinterType,
+    setPrinterStatus,
+    setConnected,
+    setPrinting,
+    setCopies,
+    setPaperWidth,
+    setLastPrintedAt,
+    setLoading,
+    setError,
     resetPrinter: useCallback(() => {
-      throw new Error('printer.context.resetPrinter - Not Implemented');
+      setPrinterId(initialPrinterState.printerId);
+      setPrinterName(initialPrinterState.printerName);
+      setPrinterType(initialPrinterState.printerType);
+      setPrinterStatus(initialPrinterState.printerStatus);
+      setConnected(initialPrinterState.isConnected);
+      setPrinting(initialPrinterState.isPrinting);
+      setCopies(initialPrinterState.copies);
+      setPaperWidth(initialPrinterState.paperWidth);
+      setLastPrintedAt(initialPrinterState.lastPrintedAt);
+      setLoading(initialPrinterState.loading);
+      setError(initialPrinterState.error);
+      setValidationErrors(initialPrinterState.validationErrors);
+      setConfigurations(initialPrinterState.configurations);
     }, []),
-    connectPrinter: useCallback(async (deviceId: string) => {
-      throw new Error('printer.context.connectPrinter - Not Implemented');
-    }, []),
-    disconnectPrinter: useCallback(async () => {
-      throw new Error('printer.context.disconnectPrinter - Not Implemented');
-    }, []),
-    printDocument: useCallback(async (document: any) => {
-      throw new Error('printer.context.printDocument - Not Implemented');
-    }, []),
-    getPrinterStatus: useCallback(async () => {
-      throw new Error('printer.context.getPrinterStatus - Not Implemented');
-    }, []),
-    configurePrinter: useCallback((settings: PrinterState['settings']) => {
-      throw new Error('printer.context.configurePrinter - Not Implemented');
-    }, []),
-    preparePrintJob: useCallback((document: any) => {
-      throw new Error('printer.context.preparePrintJob - Not Implemented');
-    }, [])
-  }), []);
+    createConfiguration,
+    validateConfiguration,
+    clearValidation,
+    processPrinter,
+    addConfiguration,
+    removeConfiguration,
+    updateConfiguration,
+    findConfiguration,
+    getConfigurations,
+    clearConfigurations,
+    savePrinter
+  }), [createConfiguration, validateConfiguration, clearValidation, processPrinter, addConfiguration, removeConfiguration, updateConfiguration, findConfiguration, getConfigurations, clearConfigurations, savePrinter]);
 
   const value = useMemo(() => ({ state, actions }), [state, actions]);
 

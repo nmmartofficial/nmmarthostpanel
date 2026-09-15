@@ -7,6 +7,13 @@ export type {
   PrinterConnectionResult,
   PrinterPrintResult,
   PrinterStatusResult,
+  PrinterConfiguration,
+  PrinterConfigurationCreationInput,
+  PrinterConfigurationCreationResult,
+  PrinterValidationError,
+  PrinterValidationResult,
+  PrinterProcessResult,
+  PrinterRepositoryResult,
   PrinterState,
   PrinterActions
 } from './types/printer.types';
@@ -31,5 +38,15 @@ export {
   simulatePrinterResponse,
   createPrinterConnectionResult,
   createPrinterPrintResult,
-  createPrinterStatusResult
+  createPrinterStatusResult,
+  generatePrinterConfigurationId,
+  createPrinterConfiguration,
+  clonePrinterConfiguration,
+  freezePrinterConfiguration,
+  validatePrinterId,
+  validatePrinterName,
+  validatePrinterType,
+  validatePaperWidth,
+  validateCopies,
+  validateConfiguration
 } from './utils/printer.utils';

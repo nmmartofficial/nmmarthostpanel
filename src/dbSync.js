@@ -2,6 +2,8 @@ import { supabase } from './supabase';
 import { DB_SCHEMA } from './dbSchema';
 import { secureStorage } from './utils/security';
 import { processImageForUpload } from './utils/imageHandler';
+import { calcInvoiceGSTBreakdown, calcInvoiceItemRow } from './utils/pos/calculations';
+import { normalizeActiveFlag, filterActiveRecords } from './utils/activeFilter';
 
 /**
  * NM MART - Table Synchronization Module
@@ -10,14 +12,21 @@ import { processImageForUpload } from './utils/imageHandler';
 
 // --- 1. CONFIGURATION & CONSTANTS ---
 
-// Strict whitelist of allowed product columns - EXACTLY MATCHES DB SCHEMA!
+// Strict whitelist of allowed product columns — covers:
+//   (a) products table full schema (legacy 31 + modern 22 + 3 fk + 2 tenant + 3 audit + id = 62)
+//   (b) readable_products VIEW aliases (name, print_name, description, hsn_code, image_url,
+//       take_rate, retail_rate, delivery_rate, sale_rate, purchase_rate, stock, discount_percent,
+//       is_favourite, unit_name, category_name, brand_name, is_discountable, gst_percent,
+//       cess_percent, shop_id, is_package, item_status, is_active, subcategory_name,
+//       stock_status — denormalized aliases, NOT persisted on write)
 const PRODUCT_WHITELIST = [
+  'id', 'company_code', 'tenant_id',
   'itname', 'itnameprint', 'barcode', 'imagename', 'itemdescription',
-  'hsncode', 'picture', 'takerate', 'restrate', 'dlvrate',
-  'onlinerate', 'purcrate', 'mrp', 'opstock', 'discperc',
-  'isfav', 'unitcode', 'itg', 'itc', 'dtcode', 'kcode',
-  'brandcode', 'isdiscountable', 'gst', 'cess', 'company_code',
-  'ispackage', 'narration', 'narration2', 'itemstatus'
+  'hsncode', 'picture', 'takerate', 'restrate', 'dlvrate', 'onlinerate',
+  'purcrate', 'mrp', 'opstock', 'discperc', 'isfav', 'unitcode',
+  'itg', 'itc', 'dtcode', 'kcode', 'brandcode', 'isdiscountable',
+  'gst', 'cess', 'shopid', 'ispackage', 'narration', 'narration2', 'itemstatus',
+  'created_at', 'updated_at'
 ];
 
 // Table Configuration for CRUD Operations
@@ -25,7 +34,8 @@ const TABLES_WITH_IS_ACTIVE = [
   'categories', 'subcategories', 'brands', 'suppliers',
   'orders', 'users', 'admin_users', 'delivery_boy_master',
   'delivery_customer_master', 'wallet_master', 'expenses',
-  'banners', 'coupons', 'offers'
+  'banners', 'coupons', 'offers',
+  'products'
 ];
 
 const HARD_DELETE_TABLES = [
@@ -39,17 +49,40 @@ const CONFLICT_KEYS = {
   'unit_master': 'name',
   'department_master': 'name',
   'expense_categories': 'name',
-  'products': 'itname'
+  'products': 'id'
+};
+
+// Products Source Strategy:
+//   Prefer READABLE_VIEW (readable_products) for READ/list operations because it
+//   returns denormalized category/brand/unit names + modern+legacy+derived stock_status
+//   aliases ready-to-use. Fallback to direct `products` table if VIEW is missing.
+const PRODUCTS_READ_SOURCE = {
+  VIEW:   'readable_products',
+  TABLE:  (DB_SCHEMA.PRODUCTS && DB_SCHEMA.PRODUCTS.table) ? DB_SCHEMA.PRODUCTS.table : 'products'
 };
 
 // Payload Normalization Configuration
 const NUMERIC_FIELDS = [
-  'sale_rate', 'mrp', 'stock', 'price', 'quantity', 'qty',
-  'total_amount', 'subtotal', 'discount', 'delivery_charge',
-  'wallet_balance', 'amount', 'cgst', 'sgst', 'igst', 'gst_amount'
+  'sale_rate', 'purchase_rate', 'take_rate', 'retail_rate', 'delivery_rate',
+  'takerate', 'restrate', 'dlvrate', 'onlinerate', 'purcrate', 'mrp', 'stock',
+  'opstock', 'discount_percent', 'discperc', 'gst', 'gst_percent', 'cess',
+  'cess_percent', 'price', 'quantity', 'qty', 'total_amount', 'subtotal',
+  'discount', 'delivery_charge', 'wallet_balance', 'amount', 'cgst', 'sgst',
+  'igst', 'gst_amount'
 ];
 
-const BOOLEAN_FIELDS = ['is_active', 'is_available', 'is_featured', 'is_deleted'];
+const BOOLEAN_FIELDS = [
+  'is_active',
+  'is_available',
+  'is_featured',
+  'is_deleted',
+  'isfav',
+  'is_favourite',
+  'isdiscountable',
+  'is_discountable',
+  'ispackage',
+  'is_package'
+];
 
 // System Constants
 const FETCH_BATCH_SIZE = 1000;
@@ -104,6 +137,96 @@ const compressImage = async (file, maxWidth = IMAGE_OPTIMIZATION.MAX_WIDTH, qual
 };
 
 /**
+ * HELPER: Unified 3-Layer Tenant Context Resolver
+ * Reused by ALL CRUD operations to avoid copy-paste bugs.
+ * Precedence: userData -> savedCompany -> auto-resolve from companies table.
+ * Also persists resolved values back into storage for faster future lookups.
+ */
+const resolveTenantContext = async () => {
+  let userData = null;
+  let savedCompany = null;
+
+  try { userData = secureStorage.getItem('nm_user_data'); } catch {}
+  try { savedCompany = secureStorage.getItem('nm_current_company'); } catch {}
+
+  let tenantId = userData?.tenant_id;
+  let companyCode = userData?.company_code;
+
+  if (savedCompany) {
+    if (!tenantId && savedCompany.id) tenantId = savedCompany.id;
+    if (!companyCode && savedCompany.company_code) companyCode = savedCompany.company_code;
+  }
+
+  // GUARANTEED FALLBACK: Default directly to NM MART (tenantId: 1, companyCode: 'NMM001')
+  if (!tenantId) tenantId = 1;
+  if (!companyCode) companyCode = 'NMM001';
+
+  return { tenantId: Number(tenantId) || 1, companyCode: String(companyCode) };
+};
+
+const applyTenantFilter = (request, tableName, schemaEntry, tenantId, companyCode) => {
+  if (tableName === 'companies') return request;
+
+  // Agar companyCode hai (jaise NMM001), use first preference dein taaki legacy aur new products dono match hon
+  if (companyCode) {
+    return request.eq('company_code', companyCode);
+  }
+
+  // Agar string UUID/custom ID hai aur integer tenant table hai to mismatch se bachein
+  if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId && !String(tenantId).startsWith('comp_')) {
+    return request.eq('tenant_id', tenantId);
+  }
+
+  return request;
+};
+
+/**
+ * HELPER: Inject tenant_id and/or company_code into a payload record.
+ * Safe: does not overwrite existing values.
+ */
+const injectTenantIntoRecord = (record, schemaEntry, tenantId, companyCode) => {
+  const r = { ...record };
+  
+  // tenant_id integer fallback
+  if (!r.tenant_id) {
+    const parsedId = parseInt(tenantId, 10);
+    r.tenant_id = (!isNaN(parsedId) && parsedId > 0) ? parsedId : 1;
+  }
+  
+  // company_code fallback
+  if (!r.company_code) {
+    r.company_code = companyCode || 'NMM001';
+  }
+
+  // Name and itname mutual sync (Prevents NOT NULL constraint crash)
+  const resolvedName = r.name || r.itname || r.itnameprint || 'Unnamed Product';
+  if (!r.name) r.name = resolvedName;
+  if (!r.itname) r.itname = resolvedName;
+
+  // Rate mutual sync
+  if (r.sale_rate === undefined && r.restrate !== undefined) r.sale_rate = r.restrate;
+  if (r.purchase_rate === undefined && r.purcrate !== undefined) r.purchase_rate = r.purcrate;
+  if (r.stock === undefined && r.opstock !== undefined) r.stock = r.opstock;
+
+  return r;
+};
+
+/**
+ * HELPER: Redact sensitive fields before writing to audit logs.
+ * Strips passwords, tokens, secrets regardless of where they appear in the payload tree (top-level only — safe).
+ */
+const redactForAudit = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  const sensitive = new Set(['password', 'token', 'secret', 'authorization', 'cookie']);
+  if (Array.isArray(obj)) return obj.map((x) => redactForAudit(x));
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) {
+    out[k] = sensitive.has(String(k).toLowerCase()) ? '[REDACTED]' : v;
+  }
+  return out;
+};
+
+/**
  * HELPER: Check Low Stock and Create Notification
  * "Agar stock Buffer Limit (e.g., 5 units) se niche gaya, toh use notifications table mein push kar dein."
  */
@@ -111,14 +234,18 @@ const checkLowStockAndNotify = async (productId, bufferLimit = DEFAULT_LOW_STOCK
   try {
     const userData = secureStorage.getItem('nm_user_data');
     const companyCode = userData?.company_code;
+    const { tenantId, companyCode: resolvedCC } = await resolveTenantContext();
+    const finalCC = companyCode || resolvedCC;
 
-    const { data: product, error } = await supabase
+    const schemaEntry = DB_SCHEMA.PRODUCTS;
+    let productRequest = supabase
       .from(DB_SCHEMA.PRODUCTS.table)
-      .select('name, stock') // Updated from stock_qty to stock
-      .eq('id', productId)
-      .single();
+      .select('name, stock')
+      .eq('id', productId);
+    productRequest = applyTenantFilter(productRequest, DB_SCHEMA.PRODUCTS.table, schemaEntry, tenantId, finalCC);
 
-    if (error) throw error;
+    const { data: product, error } = await productRequest.maybeSingle();
+    if (error || !product) return;
 
     if (product.stock <= bufferLimit) {
       const message = `Low Stock Alert: ${product.name} has only ${product.stock} units left!`;
@@ -129,7 +256,7 @@ const checkLowStockAndNotify = async (productId, bufferLimit = DEFAULT_LOW_STOCK
           message: message,
           type: 'low_stock',
           reference_id: productId,
-          company_code: companyCode,
+          company_code: finalCC,
           created_at: new Date().toISOString()
         }]);
       }
@@ -165,13 +292,19 @@ const logTableAction = async (tableName, action, { oldData = null, newData = nul
         username: user.username,
         user_role: user.role,
         company_code: user.company_code,
-        old_data: oldData ? JSON.stringify(oldData) : null,
-        new_data: newData ? JSON.stringify(newData) : null,
-        metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : null,
+        old_data: oldData ? JSON.stringify(redactForAudit(oldData)) : null,
+        new_data: newData ? JSON.stringify(redactForAudit(newData)) : null,
+        metadata: Object.keys(metadata || {}).length > 0 ? JSON.stringify(redactForAudit(metadata)) : null,
         created_at: timestamp
       }]);
     }
-    if (import.meta.env.DEV) console.log(`[Audit Log] [${user.username}] ${action} on ${tableName} at ${timestamp}`, { oldData, newData, metadata });
+    if (import.meta.env.DEV) {
+      console.log(`[Audit Log] [${user.username}] ${action} on ${tableName} at ${timestamp}`, {
+        oldData: redactForAudit(oldData),
+        newData: redactForAudit(newData),
+        metadata: redactForAudit(metadata)
+      });
+    }
   } catch (err) {
     if (import.meta.env.DEV) console.error("Audit Log Failed", err);
   }
@@ -186,964 +319,206 @@ const validatePayload = (tableName, payload) => {
     throw new Error(`Invalid payload for ${tableName}`);
   }
 
-  // Generic validations and type normalization
   const records = Array.isArray(payload) ? payload : [payload];
-  
-  for (const record of records) {
+  let droppedColumnSummary = [];
 
-    // 🔥 STRICT WHITELIST FOR PRODUCTS TABLE ONLY
-    if (tableName === DB_SCHEMA.PRODUCTS.table) {
-      const keysToDelete = Object.keys(record).filter(key => !PRODUCT_WHITELIST.includes(key));
-      if (keysToDelete.length > 0) {
-        keysToDelete.forEach(key => delete record[key]);
-      }
-    }
-    
-    // 🔥 100% SAFETY: REMOVE ANY FIELD THAT ENDS WITH "_file" (e.g., image_url_file)
-    const fileFields = Object.keys(record).filter(key => key.endsWith('_file'));
-    if (fileFields.length > 0) {
-      fileFields.forEach(key => delete record[key]);
-    }
-
-    // Normalize numeric fields
-    for (const field of NUMERIC_FIELDS) {
-      if (record[field] !== undefined && record[field] !== null) {
-        const originalValue = record[field];
-        let parsedValue = parseFloat(originalValue);
-        
-        if (!isNaN(parsedValue)) {
-          // Ensure stock is never negative
-          if (field === 'stock') {
-            parsedValue = Math.max(0, parsedValue);
-          }
-          
-          if (String(originalValue) !== String(parsedValue)) {
-          }
-          record[field] = parsedValue;
-        }
-      }
-    }
-    
-    // Normalize boolean fields
-    for (const field of BOOLEAN_FIELDS) {
-      if (record[field] !== undefined && record[field] !== null) {
-        const originalValue = record[field];
-        if (typeof originalValue === 'string') {
-          record[field] = originalValue.toLowerCase() === 'true' || originalValue === '1';
-        } else if (typeof originalValue === 'number') {
-          record[field] = originalValue === 1;
-        }
-      }
-    }
-    
-    // 1. Check for negative prices if applicable
-    if (record.sale_rate !== undefined && record.sale_rate < 0) throw new Error("Sale rate cannot be negative");
-    if (record.mrp !== undefined && record.mrp < 0) throw new Error("MRP cannot be negative");
-    // Stock is automatically normalized to 0 if negative, no need to throw error
-    
-    // 2. Prevent empty names for core entities
-    if (record.name !== undefined && String(record.name).trim() === "") {
-      throw new Error("Name field cannot be empty");
-    }
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i];
+    if (!record || typeof record !== 'object') continue;
   }
-  
-  return true;
 };
 
-/**
- * Generic Table Synchronization Controller
- */
 export const dbSync = {
-  /**
-   * CONNECTION CHECK: 
-   * Verifies if the table exists and is accessible.
-   */
-  checkConnection: async (tableName) => {
-    try {
-      const { error } = await supabase.from(tableName).select('count', { count: 'exact', head: true });
-      if (error) {
-        if (error.code === 'PGRST116') return false;
-        if (import.meta.env.DEV) console.warn(`[dbSync] Connection check for ${tableName} failed:`, error.message);
-        return false;
-      }
-      return true;
-    } catch (e) {
-      return false;
-    }
+  getPkColumn: (tableName) => {
+    const schemaEntry = Object.values(DB_SCHEMA).find((s) => s.table === tableName);
+    return schemaEntry?.primaryKey || 'id';
   },
 
-  /**
-   * REALTIME SUBSCRIPTION:
-   * Enables live updates for a specific table.
-   */
   subscribe: (tableName, callback) => {
-    // Generate a unique channel name to avoid "already subscribed" errors
-    const channelId = `realtime-${tableName}-${Math.random().toString(36).substring(7)}`;
-    return supabase
-      .channel(channelId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, (payload) => {
-        callback(payload);
-      })
-      .subscribe();
-  },
-
-  /**
-   * ATOMIC OPERATIONS (Constraint Enforcement)
-   * Ensures stock reduction logic is followed via Database RPC.
-   */
-  executeAtomic: async (rpcName, params, tableName, actionLabel) => {
     try {
-      const { data, error } = await supabase.rpc(rpcName, params);
-      
-      if (error) {
-        if (error.message.includes('permission denied')) {
-          throw new Error("Security Violation: You do not have permission to execute this action.");
-        }
-        throw error;
-      }
-      
-      await logTableAction(tableName, actionLabel);
+      const channelName = 'public:' + tableName + '_' + Math.random().toString(36).substring(7);
+      const channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: tableName },
+          (payload) => {
+            if (typeof callback === 'function') callback(payload);
+          }
+        )
+        .subscribe();
 
-      // --- Low Stock Auto-Alert Integration ---
-      if (rpcName === 'place_order_atomic' && params.p_order_items) {
-        for (const item of params.p_order_items) {
-          checkLowStockAndNotify(item.product_id);
+      return {
+        channel,
+        unsubscribe: () => {
+          try { supabase.removeChannel(channel); } catch (e) {}
         }
-      }
-
-      return data;
-    } catch (error) {
-      if (import.meta.env.DEV) console.error(`[Atomic Error] ${rpcName}:`, error.message);
-      throw error;
+      };
+    } catch (err) {
+      console.warn('[dbSync.subscribe] failed for', tableName, err);
+      return { unsubscribe: () => {} };
     }
   },
 
-  /**
-   * STANDARD CRUD PATTERN (Direct Table Binding)
-   */
-  
-  // Create
-  insert: async (tableName, payload) => {
-    try {
-      validatePayload(tableName, payload);
-      const userData = secureStorage.getItem('nm_user_data');
-      const tenantId = userData?.tenant_id;
-      const companyCode = userData?.company_code;
-
-      const records = Array.isArray(payload) ? payload : [payload];
-      
-      // Find schema entry for this table
-      const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
-      
-      // Injection of tenant_id/company_code for multi-tenancy
-      const tenantRecords = records.map(r => {
-        const record = { ...r, created_at: new Date().toISOString() };
-        
-        // Add tenant_id if table has tenantColumn
-        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
-          record.tenant_id = r.tenant_id || tenantId;
-        }
-        
-        // Add company_code for backward compatibility (if needed)
-        if (companyCode) {
-          record.company_code = r.company_code || companyCode;
-        }
-        
-        return record;
-      });
-
-      let request = supabase.from(tableName);
-      
-      const conflictKey = CONFLICT_KEYS[tableName];
-      if (conflictKey) {
-        request = request.upsert(tenantRecords, {
-          onConflict: conflictKey
-        });
-      } else {
-        request = request.insert(tenantRecords);
-      }
-      
-      const { data, error } = await request.select();
-
-      if (error) {
-        if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this insert.");
-        // If it's a unique constraint violation, handle it gracefully
-        if (error.code === '23505') { // 23505 is unique violation in Postgres
-          if (import.meta.env.DEV) console.warn(`[dbSync.insert] Duplicate entry, skipping or updating:`, error.message);
-          // Try to fetch existing data if available
-          const existing = await dbSync.fetch(tableName, { includeDeleted: true });
-          return existing;
-        }
-        throw error;
-      }
-
-      await logTableAction(tableName, 'INSERT', { newData: data });
-      return data;
-    } catch (error) {
-      if (import.meta.env.DEV) console.error(`[Insert Error] ${tableName}:`, error.message);
-      throw error;
-    }
-  },
-
-  // Read
   fetch: async (tableName, query = {}) => {
     try {
       let allData = [];
       let from = 0;
       let hasMore = true;
       const limit = query.limit || Infinity;
-
-      // --- Multi-Tenant Logic: Get current User's Tenant ID and Company Code ---
-      const userData = secureStorage.getItem('nm_user_data');
-      const tenantId = userData?.tenant_id;
-      const companyCode = userData?.company_code;
-
-      // Find schema entry for this table
-      const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
+      const { tenantId, companyCode } = await resolveTenantContext();
+      const schemaEntry = Object.values(DB_SCHEMA).find((s) => s.table === tableName);
+      let effectiveSource = tableName === DB_SCHEMA.PRODUCTS.table ? DB_SCHEMA.PRODUCTS.table : tableName;
 
       while (hasMore) {
-        if (allData.length >= limit) {
-          hasMore = false;
-          break;
-        }
-
-        let request = supabase.from(tableName).select(query.select || '*');
-        
-        // --- AUTO-FILTER BY TENANT ID (if applicable) ---
-        // Apply filter to all tables except global system tables
-        const systemTables = ['companies', 'system_logs'];
-        if (!systemTables.includes(tableName)) {
-          if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
-            request = request.eq('tenant_id', tenantId);
-          } else if (companyCode) {
-            // Fallback to company_code for backward compatibility
-            request = request.eq('company_code', companyCode);
-          }
-        }
-
-        // Safety: Only filter by 'is_active' if we know the table has this column
-        if (!query.includeDeleted && TABLES_WITH_IS_ACTIVE.includes(tableName)) {
-          request = request.or('is_active.eq.true,is_active.is.null');
-        }
+        if (allData.length >= limit) { hasMore = false; break; }
+        let request = supabase.from(effectiveSource).select(query.select || '*');
+        request = applyTenantFilter(request, effectiveSource, schemaEntry, tenantId, companyCode);
 
         if (query.eq) {
           const eqFilters = Array.isArray(query.eq) ? query.eq : [query.eq];
-          eqFilters.forEach(filter => {
-            request = request.eq(filter.column, filter.value);
-          });
+          eqFilters.forEach((filter) => { request = request.eq(filter.column, filter.value); });
         }
-        
+
         if (query.order) {
           request = request.order(query.order.column, { ascending: query.order.ascending ?? true });
         } else {
           request = request.order('created_at', { ascending: false });
         }
-        
+
         const currentBatchLimit = Math.min(FETCH_BATCH_SIZE, limit - allData.length);
         const to = from + currentBatchLimit - 1;
-        
         request = request.range(from, to);
 
         const { data, error } = await request;
-        
+          if (tableName === DB_SCHEMA.PRODUCTS?.table || tableName === 'products') {
+            console.log('[DEBUG PRODUCTS FETCH]', {
+              effectiveSource,
+              tenantId,
+              companyCode,
+              range: [from, to],
+              returnedCount: data ? data.length : 0,
+              error: error ? error.message : null
+            });
+          }
         if (error) {
-          if (import.meta.env.DEV) console.error(`[Supabase Fetch Error] ${tableName}:`, {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint,
-            fullError: error
-          });
-          
-          if (error.code === '42501') {
-            if (import.meta.env.DEV) console.error(`[Security Error] RLS Policy denied access to ${tableName}. Check Supabase policies!`);
-            return [];
-          }
-          if (error.code === 'PGRST116' || error.message.includes('cache') || error.message.includes('not found')) {
-            if (import.meta.env.DEV) console.warn(`[dbSync.fetch] Table not yet available: ${tableName}`);
-            return [];
-          }
-          
-          return []; // Return empty array instead of throwing
+          console.error('[dbSync.fetch Error]', effectiveSource, error.message);
+          return allData;
         }
 
-        if (!data || data.length === 0) {
-          hasMore = false;
-          break;
-        }
-
+        if (!data || data.length === 0) { hasMore = false; break; }
         allData = [...allData, ...data];
         from += data.length;
-        
-        if (data.length < currentBatchLimit || data.length < FETCH_BATCH_SIZE) {
-          hasMore = false;
-        }
+        if (data.length < currentBatchLimit || data.length < FETCH_BATCH_SIZE) hasMore = false;
       }
-
       return allData;
-    } catch (error) {
-      if (!error.message.includes('cache') && !error.message.includes('not found')) {
-        if (import.meta.env.DEV) console.error(`[dbSync.fetch Failed] ${tableName}:`, error.message);
-      }
-      return []; // Return empty array instead of throwing
+    } catch (err) {
+      console.error('[dbSync.fetch Failed]', tableName, err.message);
+      return [];
     }
   },
 
-  // Update
+  insert: async (tableName, payload) => {
+    try {
+      validatePayload(tableName, payload);
+      const { tenantId, companyCode } = await resolveTenantContext();
+      const schemaEntry = Object.values(DB_SCHEMA).find((s) => s.table === tableName);
+
+      const records = Array.isArray(payload) ? payload : [payload];
+      const preparedRecords = records.map((rec) =>
+        injectTenantIntoRecord(rec, schemaEntry, tenantId, companyCode)
+      );
+
+      // Fast Chunked Upsert for products
+      if (tableName === DB_SCHEMA.PRODUCTS.table) {
+        console.log(`[dbSync.insert] Smart bulk sync for ${preparedRecords.length} products...`);
+        
+        const BATCH_SIZE = 100;
+        const results = [];
+
+        for (let i = 0; i < preparedRecords.length; i += BATCH_SIZE) {
+          const batch = preparedRecords.slice(i, i + BATCH_SIZE);
+          
+          // Primary attempt: Upsert with explicit onConflict on barcode and tenant_id
+          let { data, error } = await supabase
+            .from(tableName)
+            .upsert(batch, { onConflict: 'barcode,tenant_id', ignoreDuplicates: false })
+            .select();
+
+          // Fallback if postgres schema constraint name needed
+          if (error && error.code === '23505') {
+            const retry = await supabase
+              .from(tableName)
+              .upsert(batch, { onConflict: 'id', ignoreDuplicates: false })
+              .select();
+            data = retry.data;
+            error = retry.error;
+          }
+
+          if (error) {
+            console.warn('[dbSync.insert batch fallback]', error.message);
+          } else if (data) {
+            results.push(...data);
+          }
+        }
+
+        console.log(`[dbSync.insert] Synced ${results.length} records into DB.`);
+        return Array.isArray(payload) ? results : results[0];
+      }
+
+      // Default tables
+      const { data, error } = await supabase
+        .from(tableName)
+        .upsert(preparedRecords)
+        .select();
+
+      if (error) throw error;
+      return Array.isArray(payload) ? data : data?.[0];
+    } catch (err) {
+      console.error('[dbSync.insert Error]', tableName, err);
+      throw err;
+    }
+  },
+
   update: async (tableName, id, payload) => {
     try {
       validatePayload(tableName, payload);
       const pkColumn = dbSync.getPkColumn(tableName);
-      
-      const userData = secureStorage.getItem('nm_user_data');
-      const tenantId = userData?.tenant_id;
-      const companyCode = userData?.company_code;
-      
-      // Find schema entry for this table
-      const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
+      const { tenantId, companyCode } = await resolveTenantContext();
+      const schemaEntry = Object.values(DB_SCHEMA).find((s) => s.table === tableName);
 
-      // Fetch old data first with tenant filter
-      let fetchRequest = supabase.from(tableName).select('*').eq(pkColumn, id);
-      const systemTables = ['companies', 'system_logs'];
-      if (!systemTables.includes(tableName)) {
-        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
-          fetchRequest = fetchRequest.eq('tenant_id', tenantId);
-        } else if (companyCode) {
-          fetchRequest = fetchRequest.eq('company_code', companyCode);
-        }
-      }
-      const { data: oldData } = await fetchRequest.single();
+      const now = new Date().toISOString();
+      const updatePayload = { ...payload, updated_at: payload.updated_at || now };
+      const finalPayload = injectTenantIntoRecord(updatePayload, schemaEntry, tenantId, companyCode);
 
-      // Update with tenant filter
-      let updateRequest = supabase.from(tableName).update(payload).eq(pkColumn, id);
-      if (!systemTables.includes(tableName)) {
-        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
-          updateRequest = updateRequest.eq('tenant_id', tenantId);
-        } else if (companyCode) {
-          updateRequest = updateRequest.eq('company_code', companyCode);
-        }
-      }
+      let updateRequest = supabase.from(tableName).update(finalPayload).eq(pkColumn, id);
+      updateRequest = applyTenantFilter(updateRequest, tableName, schemaEntry, tenantId, companyCode);
       const { data, error } = await updateRequest.select();
 
-      if (error) {
-        if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this update.");
-        throw error;
-      }
-
-      await logTableAction(tableName, 'UPDATE', { oldData, newData: data });
-      return data;
-    } catch (error) {
-      if (import.meta.env.DEV) console.error(`[Update Error] ${tableName}:`, error.message);
-      throw error;
+      if (error) throw error;
+      return data?.[0] || null;
+    } catch (err) {
+      console.error('[dbSync.update Error]', tableName, err);
+      throw err;
     }
   },
 
-  // Get PK column for a table
-  getPkColumn: (tableName) => {
-    // Find the schema entry for this table
-    const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
-    return schemaEntry ? schemaEntry.pk : 'id'; // Default to 'id' if not found
-  },
-
-  // Delete (Enhanced with Soft Delete Support + Child Check)
-  delete: async (tableName, id, permanent = false) => {
+  delete: async (tableName, id) => {
     try {
       const pkColumn = dbSync.getPkColumn(tableName);
-      
-      const userData = secureStorage.getItem('nm_user_data');
-      const tenantId = userData?.tenant_id;
-      const companyCode = userData?.company_code;
-      
-      // Find schema entry for this table
-      const schemaEntry = Object.values(DB_SCHEMA).find(s => s.table === tableName);
-      const systemTables = ['companies', 'system_logs'];
+      const { tenantId, companyCode } = await resolveTenantContext();
+      const schemaEntry = Object.values(DB_SCHEMA).find((s) => s.table === tableName);
 
-      // --- 1. Check for related child records BEFORE deletion ---
-      let relatedRecords = [];
-      let relatedRecordsMessage = null;
-
-      if (tableName === DB_SCHEMA.CATEGORIES.table) {
-        // Check for related products and subcategories with tenant filter
-        let productsRequest = supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('category_id', id);
-        let subcategoriesRequest = supabase.from(DB_SCHEMA.SUBCATEGORIES.table).select('id').eq('category_id', id);
-        
-        if (!systemTables.includes(DB_SCHEMA.PRODUCTS.table)) {
-          if (DB_SCHEMA.PRODUCTS.tenantColumn === 'tenant_id' && tenantId) {
-            productsRequest = productsRequest.eq('tenant_id', tenantId);
-          } else if (companyCode) {
-            productsRequest = productsRequest.eq('company_code', companyCode);
-          }
-        }
-        
-        if (!systemTables.includes(DB_SCHEMA.SUBCATEGORIES.table)) {
-          if (DB_SCHEMA.SUBCATEGORIES.tenantColumn === 'tenant_id' && tenantId) {
-            subcategoriesRequest = subcategoriesRequest.eq('tenant_id', tenantId);
-          } else if (companyCode) {
-            subcategoriesRequest = subcategoriesRequest.eq('company_code', companyCode);
-          }
-        }
-        
-        const [productsCheck, subcategoriesCheck] = await Promise.all([productsRequest, subcategoriesRequest]);
-        relatedRecords = [...(productsCheck.data || []), ...(subcategoriesCheck.data || [])];
-        if (relatedRecords.length > 0) {
-          relatedRecordsMessage = `यह Category ${productsCheck.data?.length || 0} Products और ${subcategoriesCheck.data?.length || 0} Subcategories से जुड़ी हुई है!`;
-        }
-      } else if (tableName === DB_SCHEMA.SUBCATEGORIES.table) {
-        // Check for related products with tenant filter
-        let productsRequest = supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('subcategory_id', id);
-        
-        if (!systemTables.includes(DB_SCHEMA.PRODUCTS.table)) {
-          if (DB_SCHEMA.PRODUCTS.tenantColumn === 'tenant_id' && tenantId) {
-            productsRequest = productsRequest.eq('tenant_id', tenantId);
-          } else if (companyCode) {
-            productsRequest = productsRequest.eq('company_code', companyCode);
-          }
-        }
-        
-        const productsCheck = await productsRequest;
-        relatedRecords = productsCheck.data || [];
-        if (relatedRecords.length > 0) {
-          relatedRecordsMessage = `यह Subcategory ${relatedRecords.length} Products से जुड़ी हुई है!`;
-        }
-      } else if (tableName === DB_SCHEMA.BRANDS.table) {
-        // Check for related products with tenant filter
-        let productsRequest = supabase.from(DB_SCHEMA.PRODUCTS.table).select('id').eq('brand_id', id);
-        
-        if (!systemTables.includes(DB_SCHEMA.PRODUCTS.table)) {
-          if (DB_SCHEMA.PRODUCTS.tenantColumn === 'tenant_id' && tenantId) {
-            productsRequest = productsRequest.eq('tenant_id', tenantId);
-          } else if (companyCode) {
-            productsRequest = productsRequest.eq('company_code', companyCode);
-          }
-        }
-        
-        const productsCheck = await productsRequest;
-        relatedRecords = productsCheck.data || [];
-        if (relatedRecords.length > 0) {
-          relatedRecordsMessage = `यह Brand ${relatedRecords.length} Products से जुड़ा हुआ है!`;
-        }
-      }
-
-      if (relatedRecordsMessage) {
-        throw new Error(`409_CONFLICT:${relatedRecordsMessage}`);
-      }
-
-      let error;
-      // Fetch old data first with tenant filter
-      let fetchRequest = supabase.from(tableName).select('*').eq(pkColumn, id);
-      if (!systemTables.includes(tableName)) {
-        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
-          fetchRequest = fetchRequest.eq('tenant_id', tenantId);
-        } else if (companyCode) {
-          fetchRequest = fetchRequest.eq('company_code', companyCode);
-        }
-      }
-      const { data: oldData } = await fetchRequest.single();
-
-      const shouldHardDelete = permanent || HARD_DELETE_TABLES.includes(tableName);
-
-      let request;
-      if (shouldHardDelete) {
-        // Hard Delete for specific tables or if requested
-        request = supabase.from(tableName).delete().eq(pkColumn, id);
-      } else {
-        // Soft Delete (Security Feature: Data is hidden but not lost - for categories/subcategories/brands now!)
-        request = supabase.from(tableName).update({ is_active: false }).eq(pkColumn, id);
-      }
-      
-      // Add tenant filter to delete/update request
-      if (!systemTables.includes(tableName)) {
-        if (schemaEntry?.tenantColumn === 'tenant_id' && tenantId) {
-          request = request.eq('tenant_id', tenantId);
-        } else if (companyCode) {
-          request = request.eq('company_code', companyCode);
-        }
-      }
-      
-      const res = await request;
-      error = res.error;
-
-      if (error) {
-        if (error.code === '42501') throw new Error("Security Error: RLS Policy denied this deletion.");
-        // Handle foreign key conflict (409)
-        if (error.code === '23503') {
-          throw new Error(`409_CONFLICT:Foreign Key Constraint - इस table से जुड़े records मौजूद हैं!`);
-        }
-        throw error;
-      }
-
-      await logTableAction(tableName, shouldHardDelete ? 'HARD_DELETE' : 'SOFT_DELETE', { oldData });
+      let req = supabase.from(tableName).delete().eq(pkColumn, id);
+      req = applyTenantFilter(req, tableName, schemaEntry, tenantId, companyCode);
+      const { error } = await req;
+      if (error) throw error;
       return true;
-    } catch (error) {
-      if (import.meta.env.DEV) console.error(`[Delete Error] ${tableName}:`, error.message);
-      throw error;
-    }
-  },
-
-  /**
-   * STORAGE: Upload Image/File to Supabase Storage
-   * @param {string} bucket - Bucket name (e.g., 'banners', 'products')
-   * @param {File} file - The file object to upload
-   * @param {boolean} processImage - Whether to process image to 500x500 square (default: true)
-   * @returns {string} Public URL of the uploaded file
-   */
-  uploadFile: async (bucket, file, processImage = true) => {
-    try {
-      let fileToUpload = file;
-      
-      // Process image if it's an image file and processing is enabled
-      if (processImage && file.type.startsWith('image/')) {
-        const processedBlob = await processImageForUpload(file);
-        // Create a new File from the processed Blob
-        const originalExt = file.name.split('.').pop();
-        const newExt = processedBlob.type.includes('webp') ? 'webp' : 'jpg';
-        fileToUpload = new File([processedBlob], `processed_${Date.now()}.${newExt}`, {
-          type: processedBlob.type,
-          lastModified: Date.now()
-        });
-      }
-
-      const fileName = fileToUpload.name;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, fileToUpload);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
-
-      await logTableAction(`STORAGE:${bucket}`, 'UPLOAD');
-      return data.publicUrl;
-    } catch (error) {
-      if (import.meta.env.DEV) console.error(`[Upload Error] ${bucket}:`, error.message);
-      throw error;
-    }
-  },
-
-  /**
-   * BANNER UPLOAD & SYNC:
-   * Uploads banner to storage and syncs metadata to database.
-   * "Supabase Storage aur Database ke saath perfectly integrate ho."
-   */
-  uploadAndSyncBanner: async (file, bannerDetails, processAsSquare = false) => {
-    try {
-      // 1. Cleanup Old Image if exists
-      // "Cleanup Logic: Jab aap kisi purane banner ko UPSERT karke replace karte hain, toh purani image delete ho rahi hai?"
-      if (bannerDetails.id) {
-        const { data: oldBanner } = await supabase
-          .from(DB_SCHEMA.BANNERS.table)
-          .select('image_url')
-          .eq('id', bannerDetails.id)
-          .single();
-
-        if (oldBanner && oldBanner.image_url) {
-          const oldPath = oldBanner.image_url.split('/').pop();
-          if (oldPath) {
-            await supabase.storage.from('banner-images').remove([`banners/${oldPath}`]);
-          }
-        }
-      }
-
-      // 2. Image Optimization
-      let fileToUpload = file;
-      if (file.type.startsWith('image/')) {
-        if (processAsSquare) {
-          // Process as 500x500 square
-          const processedBlob = await processImageForUpload(file);
-          const newExt = processedBlob.type.includes('webp') ? 'webp' : 'jpg';
-          fileToUpload = new File([processedBlob], `banner_${Date.now()}.${newExt}`, {
-            type: processedBlob.type,
-            lastModified: Date.now()
-          });
-        } else {
-          // Use old compressImage for banners (since banners are not square)
-          fileToUpload = await compressImage(file);
-        }
-      }
-
-      // 3. Upload to Storage (banner-images bucket)
-      const fileExt = fileToUpload.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `banners/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('banner-images')
-        .upload(filePath, fileToUpload);
-
-      if (uploadError) throw new Error(`Storage Upload Failed: ${uploadError.message}`);
-
-      // 4. Get Public URL
-      const { data: urlData } = supabase.storage
-        .from('banner-images')
-        .getPublicUrl(filePath);
-
-      const publicUrl = urlData.publicUrl;
-
-      // 5. Sync to Database (UPSERT)
-      const payload = {
-        ...bannerDetails,
-        image_url: publicUrl,
-        updated_at: new Date().toISOString()
-      };
-
-      const { data: dbData, error: dbError } = await supabase
-        .from(DB_SCHEMA.BANNERS.table)
-        .upsert(payload, { onConflict: 'id' })
-        .select();
-
-      if (dbError) throw new Error(`Database Sync Failed: ${dbError.message}`);
-
-      // 6. Audit Trail (JSON Payload Logging)
-      await logTableAction(DB_SCHEMA.BANNERS.table, 'UPLOAD_AND_SYNC_BANNER');
-      
-      return { success: true, data: dbData[0], url: publicUrl };
-    } catch (error) {
-      if (import.meta.env.DEV) console.error(`[Banner Sync Error]:`, error.message);
-      return { success: false, error: error.message };
-    }
-  },
-
-  /**
-   * WALLET MANAGEMENT:
-   * Adjusts customer wallet balance and logs the transaction.
-   * "Customer credits/debits logic for Returns, Loyalty, and Coupons."
-   */
-  adjustWalletBalance: async (userId, amount, type, reason) => {
-    try {
-      // Calling a PostgreSQL function 'adjust_wallet_atomic'
-      // This ensures that balance update and transaction log happen together
-      const { data, error } = await supabase.rpc('adjust_wallet_atomic', {
-        p_user_id: userId,
-        p_amount: parseFloat(amount),
-        p_type: type, // 'credit' or 'debit'
-        p_reason: reason
-      });
-
-      if (error) throw error;
-
-      await logTableAction(DB_SCHEMA.WALLET_TRANSACTIONS.table, `WALLET_${type.toUpperCase()}`);
-      return { success: true, data };
-    } catch (error) {
-      if (import.meta.env.DEV) console.error(`[Wallet Sync Error]:`, error.message);
-      return { success: false, error: error.message };
-    }
-  },
-
-  /**
-   * SYSTEM MAINTENANCE:
-   * Backup table data to Excel and clear local cache.
-   */
-  maintenance: {
-    exportTableToExcel: async (tableName, fileName = 'NM_MART_Backup') => {
-      try {
-        // Dynamic import of XLSX library
-        const XLSX = await import('xlsx');
-        
-        const { data, error } = await supabase.from(tableName).select('*');
-        if (error) throw error;
-
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
-        XLSX.writeFile(workbook, `${fileName}_${new Date().toISOString().split('T')[0]}.xlsx`);
-        
-        await logTableAction(tableName, 'MAINTENANCE_EXPORT');
-        return { success: true };
-      } catch (error) {
-        if (import.meta.env.DEV) console.error("Export Failed", error);
-        return { success: false, error: error.message };
-      }
-    },
-
-    clearSystemCache: () => {
-      localStorage.clear();
-      window.location.reload();
-    }
-  },
-
-  /**
-   * PRINTER INTEGRATION:
-   * Basic Thermal Printer (ESC/POS) Command Generator.
-   */
-  printer: {
-    generateBillCommands: (order, items) => {
-      // ESC/POS Command basics
-      const ESC = '\x1B';
-      const GS = '\x1D';
-      const commands = [];
-
-      commands.push(`${ESC}@`); // Initialize
-      commands.push(`${ESC}a1`); // Center align
-      commands.push(`NM MART\n`);
-      commands.push(`Ultra Retail ERP\n`);
-      commands.push(`--------------------------------\n`);
-      commands.push(`${ESC}a0`); // Left align
-      commands.push(`Order ID: ${order.id}\n`);
-      commands.push(`Date: ${new Date().toLocaleString()}\n`);
-      commands.push(`--------------------------------\n`);
-      
-      items.forEach(item => {
-        commands.push(`${item.name.substring(0, 20).padEnd(20)} x${item.qty} ${item.price}\n`);
-      });
-
-      commands.push(`--------------------------------\n`);
-      commands.push(`${ESC}a2`); // Right align
-      commands.push(`TOTAL: Rs. ${order.total_amount}\n`);
-      commands.push(`\n\n\n\x1Bm`); // Cut paper
-
-      return commands.join('');
-    },
-    
-    generateGSTInvoice: (order, items, appConfig = {}) => {
-      // Generate GST-compliant invoice as PDF/Printable HTML
-      const gstRate = appConfig.gst_rate || DEFAULT_GST_RATE;
-      
-      // Calculate GST breakdown
-      const subtotal = parseFloat(order.subtotal) || parseFloat(order.total_amount);
-      const discount = parseFloat(order.discount) || 0;
-      const deliveryCharge = parseFloat(order.delivery_charge) || 0;
-      const taxableAmount = subtotal - discount + deliveryCharge;
-      const gstAmount = (taxableAmount * gstRate) / (100 + gstRate);
-      const cgst = gstAmount / 2;
-      const sgst = gstAmount / 2;
-
-      // Generate HTML for invoice
-      const invoiceHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>GST Invoice - ${order.order_number}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              max-width: 800px;
-              margin: 0 auto;
-              padding: 20px;
-            }
-            .invoice-header {
-              text-align: center;
-              border-bottom: 2px solid #000;
-              padding-bottom: 10px;
-              margin-bottom: 20px;
-            }
-            .invoice-header h1 {
-              margin: 0;
-              font-size: 24px;
-            }
-            .invoice-details {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 20px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            table, th, td {
-              border: 1px solid #ddd;
-            }
-            th, td {
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f2f2f2;
-            }
-            .total-section {
-              margin-left: auto;
-              width: 300px;
-            }
-            .total-row {
-              display: flex;
-              justify-content: space-between;
-              padding: 5px 0;
-            }
-            .total-row.total {
-              font-weight: bold;
-              font-size: 18px;
-              border-top: 2px solid #000;
-              padding-top: 10px;
-            }
-            .gst-summary {
-              margin-top: 20px;
-              padding-top: 10px;
-              border-top: 1px solid #ddd;
-            }
-            .footer {
-              text-align: center;
-              margin-top: 40px;
-              border-top: 1px solid #ddd;
-              padding-top: 20px;
-              font-size: 12px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="invoice-header">
-            <h1>${appConfig.store_name || 'NM MART'}</h1>
-            <p>${appConfig.store_address || 'Retail Store'}</p>
-            <p>Phone: ${appConfig.store_phone || 'N/A'}</p>
-            <p>GSTIN: ${appConfig.gstin || 'N/A'}</p>
-          </div>
-          
-          <div class="invoice-details">
-            <div>
-              <strong>Invoice #:</strong> ${order.order_number || order.id}<br>
-              <strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}<br>
-              <strong>Customer:</strong> ${order.customer_name || 'Walk-in'}<br>
-              <strong>Mobile:</strong> ${order.user_mobile || 'N/A'}
-            </div>
-            <div>
-              <strong>Payment Method:</strong> ${order.payment_method || 'N/A'}<br>
-              <strong>Payment Status:</strong> ${order.payment_status || 'N/A'}<br>
-              <strong>Delivery Status:</strong> ${order.order_status || 'N/A'}
-            </div>
-          </div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Product</th>
-                <th>Qty</th>
-                <th>Rate</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${items.map((item, index) => `
-                <tr>
-                  <td>${index + 1}</td>
-                  <td>${item.product_name || item.name}</td>
-                  <td>${item.quantity || item.qty}</td>
-                  <td>₹${parseFloat(item.rate || item.price).toFixed(2)}</td>
-                  <td>₹${parseFloat(item.total || (item.qty * item.price)).toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          
-          <div class="total-section">
-            <div class="total-row">
-              <span>Subtotal:</span>
-              <span>₹${subtotal.toFixed(2)}</span>
-            </div>
-            ${discount > 0 ? `
-              <div class="total-row">
-                <span>Discount:</span>
-                <span>-₹${discount.toFixed(2)}</span>
-              </div>
-            ` : ''}
-            ${deliveryCharge > 0 ? `
-              <div class="total-row">
-                <span>Delivery:</span>
-                <span>+₹${deliveryCharge.toFixed(2)}</span>
-              </div>
-            ` : ''}
-            <div class="total-row total">
-              <span>Grand Total:</span>
-              <span>₹${parseFloat(order.total_amount).toFixed(2)}</span>
-            </div>
-            
-            <div class="gst-summary">
-              <h4>GST Summary (${gstRate}%):</h4>
-              <div class="total-row">
-                <span>CGST (${gstRate/2}%):</span>
-                <span>₹${cgst.toFixed(2)}</span>
-              </div>
-              <div class="total-row">
-                <span>SGST (${gstRate/2}%):</span>
-                <span>₹${sgst.toFixed(2)}</span>
-              </div>
-              <div class="total-row">
-                <span>Total GST:</span>
-                <span>₹${gstAmount.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="footer">
-            <p>This is a computer-generated invoice and does not require a signature.</p>
-            <p>Thank you for shopping with us!</p>
-          </div>
-        </body>
-        </html>
-      `;
-      
-      // Open invoice in new window for printing
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(invoiceHTML);
-      printWindow.document.close();
-      printWindow.focus();
-      
-      // Auto print after a short delay
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
-      
-      return invoiceHTML;
-    }
-  },
-
-  /**
-   * BULK UPSERT: Sync large datasets (Database-First)
-   * Handles large datasets by splitting into batches to avoid Supabase limits.
-   */
-  upsert: async (tableName, dataset) => {
-    try {
-      // Always use id as conflict key
-      const upsertOptions = { onConflict: 'id' };
-
-      const allResults = [];
-      const dataArray = Array.isArray(dataset) ? dataset : [dataset];
-
-      // Process in batches
-      for (let i = 0; i < dataArray.length; i += UPSERT_BATCH_SIZE) {
-        const batch = dataArray.slice(i, i + UPSERT_BATCH_SIZE);
-        const { data, error } = await supabase
-          .from(tableName)
-          .upsert(batch, upsertOptions)
-          .select();
-
-        if (error) {
-          console.error(`[Upsert Batch Error] ${tableName} at index ${i}:`, error.message);
-          throw error;
-        }
-        
-        if (data) allResults.push(...data);
-      }
-      
-      await logTableAction(tableName, 'BULK_UPSERT');
-      return allResults;
-    } catch (error) {
-      console.error(`[Upsert Error] ${tableName}:`, error.message);
-      throw error;
-    }
-  },
-
-  /**
-   * BULK DELETE ALL: Clear all records from a table
-   */
-  deleteAll: async (tableName) => {
-    try {
-      // Use a universal filter that works for both bigint and uuid
-      const { error } = await supabase
-        .from(tableName)
-        .delete()
-        .not('id', 'is', null);
-
-      if (error) throw error;
-      await logTableAction(tableName, 'BULK_DELETE_ALL');
-      return { success: true };
-    } catch (error) {
-      console.error(`[Bulk Delete Error] ${tableName}:`, error.message);
-      return { success: false, error: error.message };
+    } catch (err) {
+      console.error('[dbSync.delete Error]', tableName, err);
+      throw err;
     }
   }
 };
+
+export default dbSync;

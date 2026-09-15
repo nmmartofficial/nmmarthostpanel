@@ -4,7 +4,8 @@
  */
 
 import { createCheckoutSnapshot, validateCheckout, createOrderSnapshot } from '../utils/checkout.utils';
-import type { CheckoutSnapshot, CheckoutValidationResult, CheckoutProcessResult, OrderSnapshot } from '../types/checkout.types';
+import type { CheckoutSnapshot, CheckoutValidationResult, CheckoutProcessResult, OrderSnapshot, CheckoutRepositoryResult } from '../types/checkout.types';
+import { RepositoryService } from '../../repository';
 
 export const CheckoutService = {
   startCheckout: () => {
@@ -55,5 +56,29 @@ export const CheckoutService = {
       return null;
     }
     return createOrderSnapshot(checkoutSnapshot);
+  },
+  saveCheckout: (snapshot: CheckoutSnapshot | null): CheckoutRepositoryResult => {
+    if (!snapshot) {
+      return {
+        success: false,
+        snapshot: null,
+        error: 'No checkout snapshot available',
+        timestamp: new Date(),
+      };
+    }
+
+    const adapter = RepositoryService.createStorageAdapter('IN_MEMORY');
+    const entity = {
+      ...snapshot,
+      id: snapshot.snapshotId,
+    };
+    const result = adapter.save('checkout', entity);
+
+    return {
+      success: result.success,
+      snapshot: result.data,
+      error: result.error,
+      timestamp: result.timestamp,
+    };
   },
 };

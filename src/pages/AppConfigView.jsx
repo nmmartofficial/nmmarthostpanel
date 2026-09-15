@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, RefreshCw, Link as LinkIcon, Copy } from 'lucide-react';
 import { handleERPAction, ACTION_TYPES } from '../erpController';
+import { supabase } from '../supabase';
 import { DB_SCHEMA } from '../dbSchema';
 import { cn } from '../utils/helpers';
 import { toast } from 'sonner';
@@ -40,13 +41,29 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
     }
   }, [appConfig]);
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    const correctPin = appConfig?.security_pin || '1234';
-    if (password === correctPin) {
-      setIsVerified(true);
-    } else {
-      alert("Incorrect Password!");
+    try {
+      // Prefer server-side verification via RPC
+      if (supabase && supabase.rpc) {
+        const { data, error } = await supabase.rpc('verify_admin_pin', { pin: password });
+        if (error) throw error;
+        if (data === true || data === 't') {
+          setIsVerified(true);
+          return;
+        }
+      }
+
+      // Fallback: compare to plain default (development only)
+      const correctPin = appConfig?.security_pin || '1234';
+      if (password === correctPin) {
+        setIsVerified(true);
+      } else {
+        alert('Incorrect Password!');
+      }
+    } catch (err) {
+      console.error('PIN verification failed:', err);
+      alert('PIN verification failed');
     }
   };
 
@@ -65,9 +82,9 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
         });
       }
       
-      // ALWAYS include id
-      finalData.id = 'default';
-      
+      // Use company_code to identify tenant config (avoid forcing id)
+      finalData.company_code = appConfig?.company_code || 'DEFAULT';
+
       // Only add logo_url if it exists in appConfig or we just uploaded one
       if (logoFile) {
         const { url, error: uploadError } = await uploadImage(logoFile, 'product-images');

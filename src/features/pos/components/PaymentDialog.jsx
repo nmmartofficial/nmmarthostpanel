@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { usePayment } from '../../payment';
+import { usePayment } from '../payment';
 
 const PaymentDialog = ({ payableAmount = 0 }) => {
   const {

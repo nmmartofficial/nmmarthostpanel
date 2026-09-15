@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ShoppingCart, Search, Plus, PlusCircle, Trash2 
 } from 'lucide-react';
 import { handleERPAction, ACTION_TYPES } from '../../erpController';
 import { generateUUID } from '../../utils/helpers';
+import { calcPurchaseLineItem, calcPurchaseTotals } from '../../utils/pos/calculations';
 
 export default function PurchaseView({ title, table, data, products, departments, fetchInitialData }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,7 +18,7 @@ export default function PurchaseView({ title, table, data, products, departments
     tax_type: 'Include',
     items: []
   });
-  const [currentItem, setCurrentItem] = useState({ name: '', barcode: '', qty: 1, purch_rate: 0, dis_percent: 0 });
+  const [currentItem, setCurrentItem] = useState({ name: '', barcode: '', qty: 1, purch_rate: 0, dis_percent: 0, gst: 0 });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const filteredData = (data || []).filter(item => 
@@ -26,15 +27,19 @@ export default function PurchaseView({ title, table, data, products, departments
 
   const addItem = () => {
     if (!currentItem.name) return alert("Select an item first");
-    const gst = 0; // Placeholder for GST logic
-    const amount = (currentItem.qty * currentItem.purch_rate) * (1 - currentItem.dis_percent/100);
-    const gst_amt = amount * (gst/100);
+    const { gstAmount, lineTotal } = calcPurchaseLineItem({
+      purchRate: currentItem.purch_rate,
+      qty: currentItem.qty,
+      disPercent: currentItem.dis_percent,
+      gstPercent: currentItem.gst,
+      taxType: formData.tax_type
+    });
     
     setFormData({
       ...formData,
-      items: [...formData.items, { ...currentItem, gst, gst_amt, amount: amount + gst_amt }]
+      items: [...formData.items, { ...currentItem, gst: Number(currentItem.gst) || 0, gst_amt: gstAmount, amount: lineTotal }]
     });
-    setCurrentItem({ name: '', barcode: '', qty: 1, purch_rate: 0, dis_percent: 0 });
+    setCurrentItem({ name: '', barcode: '', qty: 1, purch_rate: 0, dis_percent: 0, gst: 0 });
   };
 
   const removeItem = (index) => {
@@ -42,11 +47,10 @@ export default function PurchaseView({ title, table, data, products, departments
     setFormData({ ...formData, items: newItems });
   };
 
-  const totalQty = formData.items.reduce((sum, item) => sum + Number(item.qty), 0);
-  const totalGst = formData.items.reduce((sum, item) => sum + Number(item.gst_amt), 0);
-  const subTotal = formData.items.reduce((sum, item) => sum + Number(item.amount), 0);
-  const finalBillAmt = Math.round(subTotal);
-  const roundOff = subTotal - finalBillAmt;
+  const { totalQty, totalGst, subTotal, finalBillAmt, roundOff } = useMemo(
+    () => calcPurchaseTotals(formData.items),
+    [formData.items]
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();

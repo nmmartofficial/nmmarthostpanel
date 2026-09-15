@@ -6,7 +6,7 @@
 export { CheckoutProvider, useCheckoutContext } from './context/CheckoutContext';
 export { useCheckout } from './hooks/useCheckout';
 export { CHECKOUT_STATUS } from './constants/checkout.constants';
-export type { CheckoutStatus, CheckoutSummary, CheckoutResult, CheckoutState, CheckoutActions, CheckoutSnapshot, CheckoutValidationError, CheckoutValidationResult, CheckoutProcessResult, OrderSnapshot } from './types/checkout.types';
+export type { CheckoutStatus, CheckoutSummary, CheckoutResult, CheckoutState, CheckoutActions, CheckoutSnapshot, CheckoutValidationError, CheckoutValidationResult, CheckoutProcessResult, OrderSnapshot, CheckoutRepositoryResult } from './types/checkout.types';
 export { initialCheckoutState } from './store/checkout.state';
 export { checkoutActions } from './store/checkout.actions';
 export { checkoutSelectors } from './store/checkout.selectors';

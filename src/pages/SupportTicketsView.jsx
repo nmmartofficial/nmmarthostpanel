@@ -47,9 +47,23 @@ export default function SupportTicketsView() {
     try {
       // 1. Mark as Resolved
       await updateStatus(selectedTicket.id, 'resolved');
-      
-      // 2. Add system log or send notification (Simplified for now)
-      alert("Reply sent to user and ticket marked as resolved!");
+
+      // 2. Persist a notification to user so there's an auditable record
+      try {
+        await handleERPAction(DB_SCHEMA.NOTIFICATIONS.table, ACTION_TYPES.INSERT, {
+          title: `Reply: ${selectedTicket.subject || 'Support'}`,
+          message: reply,
+          type: 'support_reply',
+          reference_id: selectedTicket.id,
+          user_id: selectedTicket.user_mobile || selectedTicket.user_email || null,
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.warn('Failed to persist support reply as notification', e);
+      }
+
+      alert('Reply sent to user and ticket marked as resolved!');
       setReply('');
       setSelectedTicket(null);
     } catch (e) { alert(e.message); }

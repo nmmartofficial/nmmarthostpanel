@@ -98,8 +98,16 @@ body {
 }
 
 /* Enterprise-style table stripes and hovers */
+.table-striped tbody tr:nth-child(odd) {
+  @apply bg-white;
+}
+
 .table-striped tbody tr:nth-child(even) {
   @apply bg-gray-50 dark:bg-gray-800/50;
+}
+
+.table-striped tbody tr:hover {
+  @apply bg-primary-50 dark:bg-primary-900/20;
 }
 
 .table-hover tbody tr:hover {

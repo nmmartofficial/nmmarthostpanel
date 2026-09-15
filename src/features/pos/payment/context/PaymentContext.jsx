@@ -110,6 +110,54 @@ export const PaymentProvider = ({ children }) => {
   });
 
   // --- Payment Actions (Phase 4 Step 2) ---
+  const resetPaymentAction = useCallback(() => {
+    // Reset base payment state
+    setSelectedMethod(PAYMENT_METHODS.CASH);
+    setPaymentStatus(PAYMENT_STATUS.PENDING);
+    setPayableAmount(0);
+    setPaidAmount(0);
+    setRemainingAmount(0);
+    setChangeAmount(0);
+    setLoading(false);
+    setError('');
+    
+    // Reset cash state
+    setCashAmount(0);
+    
+    // Reset UPI state
+    setUPIId('');
+    setUPIStatus('');
+    setUPITransactionId('');
+    
+    // Reset card state
+    setCardNumber('');
+    setCardHolderName('');
+    setExpiryDate('');
+    setCvv('');
+    setCardType('');
+    setCardTransactionId('');
+    setCardStatus('');
+    
+    // Reset split state
+    setSplitPayments([]);
+    setSplitStatus('');
+    setSplitTransactionIds([]);
+    
+    // Reset credit state
+    setCreditCustomerId('');
+    setCreditCustomerName('');
+    setCreditReference('');
+    setCreditStatus('');
+    
+    // Reset change state
+    setChangeBreakdown([]);
+    setShortageAmount(0);
+    
+    // Reset validation state
+    setValidationErrors([]);
+    setValidationStatus('');
+  }, []);
+
   // Placeholder actions - no calculations, no validation
   const actions = useMemo(() => ({
     setSelectedMethod,
@@ -466,54 +514,6 @@ export const PaymentProvider = ({ children }) => {
     creditCustomerName,
     creditReference
   ]);
-
-  const resetPaymentAction = useCallback(() => {
-    // Reset base payment state
-    setSelectedMethod(PAYMENT_METHODS.CASH);
-    setPaymentStatus(PAYMENT_STATUS.PENDING);
-    setPayableAmount(0);
-    setPaidAmount(0);
-    setRemainingAmount(0);
-    setChangeAmount(0);
-    setLoading(false);
-    setError('');
-    
-    // Reset cash state
-    setCashAmount(0);
-    
-    // Reset UPI state
-    setUPIId('');
-    setUPIStatus('');
-    setUPITransactionId('');
-    
-    // Reset card state
-    setCardNumber('');
-    setCardHolderName('');
-    setExpiryDate('');
-    setCvv('');
-    setCardType('');
-    setCardTransactionId('');
-    setCardStatus('');
-    
-    // Reset split state
-    setSplitPayments([]);
-    setSplitStatus('');
-    setSplitTransactionIds([]);
-    
-    // Reset credit state
-    setCreditCustomerId('');
-    setCreditCustomerName('');
-    setCreditReference('');
-    setCreditStatus('');
-    
-    // Reset change state
-    setChangeBreakdown([]);
-    setShortageAmount(0);
-    
-    // Reset validation state
-    setValidationErrors([]);
-    setValidationStatus('');
-  }, []);
 
   // --- Payment State (Phase 4 Step 2) ---
   const paymentState = useMemo(() => ({

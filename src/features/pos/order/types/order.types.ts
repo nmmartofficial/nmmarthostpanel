@@ -95,8 +95,9 @@ export interface OrderStatusResult {
 
 export interface OrderRepositoryResult {
   success: boolean;
-  orders: Order[];
-  order: Order | null;
+  orderId: string | null;
+  repositoryStatus: string;
+  savedAt: Date;
   error: string | null;
 }
 
@@ -120,4 +121,5 @@ export interface OrderActions {
   findOrder: (orderId: string) => OrderRepositoryResult;
   getOrders: () => OrderRepositoryResult;
   clearOrders: () => OrderRepositoryResult;
+  saveOrder: () => OrderRepositoryResult;
 }

@@ -3,16 +3,18 @@ import { Mail, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useNavigate, useParams } from 'react-router-dom';
-import { validateEmail } from '../utils/security';
+import { validateEmail, sanitizeText } from '../utils/security';
 import { useAuthContext } from '../context';
 import { supabase } from '../supabase';
 import { DB_SCHEMA } from '../dbSchema';
 
 const BRAND_NAME = "NM MART";
+const DEFAULT_COMPANY_SLUG = 'nm-mart';
 
 export default function ForgotPasswordView({ isTenantMode = false }) {
   const navigate = useNavigate();
   const { companySlug } = useParams();
+  const resolvedSlug = (isTenantMode && companySlug) ? companySlug : DEFAULT_COMPANY_SLUG;
   const [email, setEmail] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -23,37 +25,38 @@ export default function ForgotPasswordView({ isTenantMode = false }) {
     setError('');
 
     if (!email) return setError('Email is required');
-    if (!validateEmail(email)) return setError('Invalid email format');
+    const cleanEmail = sanitizeText(email).toLowerCase();
+    if (!validateEmail(cleanEmail)) return setError('Invalid email format');
 
     setIsProcessing(true);
     try {
-      // If tenant mode, verify email belongs to this tenant
       if (isTenantMode && companySlug) {
-        const { data: company } = await supabase
+        const { data: company, error: companyError } = await supabase
           .from(DB_SCHEMA.COMPANIES.table)
           .select('company_code')
           .eq('company_slug', companySlug)
           .single();
 
-        if (company) {
-          const { data: user } = await supabase
-            .from('admin_users')
-            .select('username')
-            .eq('username', email)
-            .single();
+        if (companyError || !company) {
+          setIsSuccess(true);
+          return;
+        }
 
-          if (!user) {
-            // Don't reveal whether email exists
-            // Show success message anyway for security
-            setIsSuccess(true);
-            return;
-          }
+        const { data: user, error: userError } = await supabase
+          .from('admin_users')
+          .select('username, company_code')
+          .eq('username', cleanEmail)
+          .eq('company_code', company.company_code)
+          .maybeSingle();
+
+        if (userError || !user) {
+          setIsSuccess(true);
+          return;
         }
       }
 
-      // Send reset email via Supabase
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${window.location.origin}/${resolvedSlug}/reset-password`
       });
 
       if (resetError) throw resetError;
@@ -69,10 +72,7 @@ export default function ForgotPasswordView({ isTenantMode = false }) {
   };
 
   const handleBackToLogin = () => {
-    const loginPath = isTenantMode && companySlug
-      ? `/${companySlug}/login`
-      : '/nm-mart/login';
-    navigate(loginPath);
+    navigate(`/${resolvedSlug}/login`);
   };
 
   return (

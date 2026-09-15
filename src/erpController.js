@@ -69,6 +69,48 @@ export const ACTION_TYPES = {
   GENERATE_GST_INVOICE: 'GENERATE_GST_INVOICE'
 };
 
+const PRODUCT_CANONICAL_COLUMN_MAP = {
+  itname: 'name',
+  itnameprint: 'print_name',
+  itemdescription: 'description',
+  hsncode: 'hsn_code',
+  picture: 'image_url',
+  takerate: 'take_rate',
+  restrate: 'retail_rate',
+  dlvrate: 'delivery_rate',
+  onlinerate: 'sale_rate',
+  purcrate: 'purchase_rate',
+  discperc: 'discount_percent',
+  isfav: 'is_favourite',
+  unitcode: 'unit_name',
+  brandcode: 'brand_name',
+  isdiscountable: 'is_discountable',
+  gst: 'gst_percent',
+  cess: 'cess_percent',
+  shopid: 'shop_id',
+  ispackage: 'is_package',
+  itemstatus: 'item_status'
+};
+
+const normalizeUploadPayloadForTable = (tableKey, payload) => {
+  if (!Array.isArray(payload) || tableKey !== 'PRODUCTS') {
+    return payload;
+  }
+
+  return payload.map((record) => {
+    const normalized = { ...record };
+
+    Object.entries(record).forEach(([key, value]) => {
+      const canonicalKey = PRODUCT_CANONICAL_COLUMN_MAP[key];
+      if (canonicalKey && normalized[canonicalKey] === undefined) {
+        normalized[canonicalKey] = value;
+      }
+    });
+
+    return normalized;
+  });
+};
+
 /**
  * Main Controller Function
  * @param {string} moduleName - The module table name or bucket name
@@ -88,6 +130,8 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
   }
 
   window._isERPProcessing = true;
+  const requestKey = `${moduleName}:${actionType}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+  window.__erpRequestKey = requestKey;
   
   try {
     let data = null;
@@ -157,8 +201,19 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
 
   } catch (error) {
     console.error(`[Controller Logic Failure]`, error);
-    toast.error(`Error: ${error.message}`);
-    return { success: false, error: error.message };
+    const code = error?.code || error?.status || 'none';
+    const details = error?.details || '';
+    const hint = error?.hint || '';
+    if (import.meta.env.DEV) {
+      console.error(`[handleERPAction] Full error breakdown:`, {
+        message: error.message, code, details, hint, stack: error.stack
+      });
+    }
+    const safeMsg = error?.message
+      ? String(error.message).replace(/Security Error: RLS Policy denied this (insert|update|deletion)\./g, 'DB policy check failed — check browser Console for actual error.')
+      : 'Unknown error';
+    toast.error(`Error: ${safeMsg}${code && code !== 'none' ? ` (${code})` : ''}`);
+    return { success: false, error: safeMsg, code, details, hint };
   } finally {
     window._isERPProcessing = false;
   }
@@ -313,53 +368,111 @@ export const uploadExcelForTable = async (
   uniqueField = null,
   processData = null
 ) => {
+  console.log("[uploadExcelForTable] ENTERING function");
+  
   if (!file) {
+    console.log("[uploadExcelForTable] EXITING: No file selected");
     if (onError) onError(new Error("No file selected"));
     return;
   }
   
   try {
+    console.log("[uploadExcelForTable] Setting loading to true");
     if (setLoading) setLoading(true);
     
+    console.log("[uploadExcelForTable] Getting table info for", tableKey);
     // Get table info from DB_SCHEMA
     const tableInfo = DB_SCHEMA[tableKey];
     if (!tableInfo) {
       throw new Error(`Invalid table: ${tableKey}`);
     }
+    console.log("[uploadExcelForTable] Table info found:", tableInfo);
     
+    console.log("[uploadExcelForTable] Getting column mappings");
     // Get column mappings for this table
     const columnMapping = TABLE_COLUMN_MAPPINGS[tableKey] || {};
     
+    console.log("[uploadExcelForTable] Parsing Excel file");
     // Parse the Excel file
     const parsedData = await parseERPCSV(file, columnMapping, uniqueField);
     if (!parsedData || parsedData.length === 0) {
       throw new Error("No data found in file");
     }
+    console.log("[uploadExcelForTable] Excel parsed, record count:", parsedData.length);
     
     if (import.meta.env.DEV) {
       console.log(`Uploading ${parsedData.length} records to ${tableInfo.table}`);
       console.log("Parsed data sample:", parsedData[0]);
     }
     
-    // Process data with custom function if provided
-    let processedData = parsedData;
-    if (processData) {
-      processedData = await processData(parsedData);
+    try {
+      console.log("DEBUG 1");
+      let processedData = parsedData;
+      
+      console.log("DEBUG 2 - Normalize payload FIRST (preserve original + add canonical)");
+      processedData = normalizeUploadPayloadForTable(tableKey, processedData);
+
+      console.log("DEBUG 3 - Then apply custom processData");
+      if (processData) {
+        console.log("DEBUG 3a");
+        processedData = await processData(processedData);
+      }
+
+      console.log("DEBUG 4");
+      const expectedColumns = new Set(Object.values(TABLE_COLUMN_MAPPINGS[tableKey] || {}));
+
+      console.log("DEBUG 5");
+      const payloadColumns = Object.keys(processedData[0] || {});
+
+      console.log("DEBUG 6");
+      const unknownColumns = payloadColumns.filter(column => !expectedColumns.has(column));
+
+      console.log("DEBUG 7");
+      if (unknownColumns.length > 0 && import.meta.env.DEV) {
+        console.warn(`[${tableKey} Upload] Payload contains columns outside the active Supabase mapping`, {
+          unknownColumns,
+          expectedColumns: Array.from(expectedColumns)
+        });
+      }
+
+      console.log("DEBUG 8");
+      // Upload to database
+      const result = await dbSync.insert(tableInfo.table, processedData);
+
+      console.log("DEBUG 9");
+      
+      // Auto refresh Global Context / View data if available
+        if (typeof fetchInitialData === 'function') {
+          try { await fetchInitialData(true); } catch(e) {}
+        } else if (typeof window !== 'undefined' && window.__NM_REFRESH_DATA__) {
+          try { await window.__NM_REFRESH_DATA__(true); } catch(e) {}
+        }
+
+        const successMessage = `SUCCESS! ${processedData.length} records imported to ${tableKey}`;
+      if (import.meta.env.DEV) console.log(successMessage);
+      if (onSuccess) onSuccess(processedData, successMessage);
+      alert(successMessage);
+    } catch (e) {
+      console.error("UPLOAD FLOW ERROR", e);
+      throw e;
     }
     
-    // Upload to database
-    await dbSync.insert(tableInfo.table, processedData);
-    
-    const successMessage = `SUCCESS! ${processedData.length} records imported to ${tableKey}`;
-    if (import.meta.env.DEV) console.log(successMessage);
-    if (onSuccess) onSuccess(processedData, successMessage);
-    alert(successMessage);
-    
   } catch (error) {
-    console.error(`[${tableKey} Upload Error]`, error);
+    console.error(`[uploadExcelForTable][${tableKey} Upload Error]`, error);
+    console.error("[uploadExcelForTable] Error stack:", error.stack);
+    console.error("[uploadExcelForTable] Full error breakdown:", {
+      message: error?.message, code: error?.code, details: error?.details, hint: error?.hint
+    });
     if (onError) onError(error);
-    alert(`Upload Failed: ${error.message}`);
+    const code = error?.code || error?.status || '';
+    const rawMsg = String(error?.message || 'Unknown error');
+    const filteredMsg = rawMsg.replace(
+      /Security Error: RLS Policy denied this (insert|update|deletion)\./g,
+      'DB policy check failed — open F12 → Console for the ACTUAL Supabase error code and details.'
+    );
+    alert(`Upload Failed: ${filteredMsg}${code ? ` [code: ${code}]` : ''}`);
   } finally {
+    console.log("[uploadExcelForTable] EXITING function (finally block)");
     if (setLoading) setLoading(false);
   }
 };

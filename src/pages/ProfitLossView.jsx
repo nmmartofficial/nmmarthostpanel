@@ -9,30 +9,22 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, Cell, PieChart as RePie, Pie, Legend, LineChart, Line, AreaChart, Area
 } from 'recharts';
+import {
+  calcProfitLossSummary, calcReverseGST, sumField, toFloat
+} from '../utils/pos/calculations';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+
+const DEFAULT_GST_EXPORT_RATE = 5;
 
 export default function ProfitLossView({ orders, purchases, expenses }) {
   const [dateRange, setDateFilter] = useState('Month');
   const [viewType, setViewType] = useState('bar'); // 'bar' or 'area'
 
-  const stats = useMemo(() => {
-    const totalSales = orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-    const totalPurchase = purchases.reduce((sum, p) => sum + (parseFloat(p.total_amount) || 0), 0);
-    const totalExpenses = (expenses || []).reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-    
-    const grossProfit = totalSales - totalPurchase;
-    const netProfit = grossProfit - totalExpenses;
-    const margin = totalSales > 0 ? (netProfit / totalSales) * 100 : 0;
-
-    return {
-      sales: totalSales,
-      purchase: totalPurchase,
-      expenses: totalExpenses,
-      profit: netProfit,
-      margin: margin.toFixed(1)
-    };
-  }, [orders, purchases, expenses]);
+  const stats = useMemo(
+    () => calcProfitLossSummary({ orders, purchases, expenses }),
+    [orders, purchases, expenses]
+  );
 
   const chartData = useMemo(() => {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -40,17 +32,17 @@ export default function ProfitLossView({ orders, purchases, expenses }) {
 
     orders.forEach(o => {
       const d = new Date(o.created_at);
-      data[d.getMonth()].sales += parseFloat(o.total_amount) || 0;
+      data[d.getMonth()].sales += toFloat(o.total_amount);
     });
 
     purchases.forEach(p => {
       const d = new Date(p.created_at);
-      data[d.getMonth()].purchase += parseFloat(p.total_amount) || 0;
+      data[d.getMonth()].purchase += toFloat(p.total_amount);
     });
 
     (expenses || []).forEach(e => {
       const d = new Date(e.date);
-      data[d.getMonth()].expenses += parseFloat(e.amount) || 0;
+      data[d.getMonth()].expenses += toFloat(e.amount);
     });
 
     return data.map(d => ({
@@ -63,22 +55,27 @@ export default function ProfitLossView({ orders, purchases, expenses }) {
     const dist = {};
     (expenses || []).forEach(e => {
       const cat = e.category || 'General';
-      dist[cat] = (dist[cat] || 0) + (parseFloat(e.amount) || 0);
+      dist[cat] = (dist[cat] || 0) + toFloat(e.amount);
     });
     return Object.entries(dist).map(([name, value]) => ({ name, value }));
   }, [expenses]);
 
   const handleExportGST = () => {
-    // Basic GST Export logic
-    const gstData = orders.map(o => ({
-      'Invoice No': o.order_number,
-      'Date': new Date(o.created_at).toLocaleDateString(),
-      'Customer': o.customer_name,
-      'Total Amount': o.total_amount,
-      'Taxable Amount': (o.total_amount / 1.05).toFixed(2),
-      'GST (5%)': (o.total_amount - (o.total_amount / 1.05)).toFixed(2)
-    }));
-    
+    // Basic GST Export logic — monetary math via pure calcReverseGST utility
+    const exportGstRate = DEFAULT_GST_EXPORT_RATE;
+    const gstData = orders.map(o => {
+      const total = toFloat(o.total_amount);
+      const { taxableAmount, gstAmount } = calcReverseGST(total, exportGstRate);
+      return {
+        'Invoice No': o.order_number,
+        'Date': new Date(o.created_at).toLocaleDateString(),
+        'Customer': o.customer_name,
+        'Total Amount': total.toFixed(2),
+        'Taxable Amount': taxableAmount.toFixed(2),
+        [`GST (${exportGstRate}%)`]: gstAmount.toFixed(2)
+      };
+    });
+
     // Using simple alert as mock, in real we would use XLSX
     console.table(gstData);
     alert("GST Report generated in console. In production, this will download an Excel file.");

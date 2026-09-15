@@ -250,6 +250,8 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
     setIsSubmitting(true);
     try {
       const finalData = { ...formData };
+      const allowedKeys = new Set(fields.map(f => f.name));
+
       for (const field of fields) {
         if (field.type === 'image') {
           if (finalData[`${field.name}_file`]) {
@@ -260,14 +262,27 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
               delete finalData[`${field.name}_file`];
             }
           }
-          
-          // No fallback - image fields can be null
+
           if (!finalData[field.name]) {
             finalData[field.name] = null;
           }
         } else if (field.type === 'boolean' && !(field.name in finalData)) {
-          // Set default boolean to true if not provided
           finalData[field.name] = true;
+        }
+      }
+
+      for (const key of Object.keys(finalData)) {
+        if (!allowedKeys.has(key) && !key.endsWith('_file')) {
+          delete finalData[key];
+        }
+      }
+
+      if (table === DB_SCHEMA.CATEGORIES.table || table === DB_SCHEMA.SUBCATEGORIES.table || table === DB_SCHEMA.BRANDS.table || table === DB_SCHEMA.BANNERS.table) {
+        if (finalData.name && typeof finalData.name === 'string') {
+          finalData.name = finalData.name.trim();
+        }
+        if (finalData.description && typeof finalData.description === 'string') {
+          finalData.description = finalData.description.trim();
         }
       }
 
@@ -287,8 +302,8 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
       setEditingItem(null);
       setFormData({});
       
-      // Force immediate refresh from server
-      await fetchInitialData();
+      // Force immediate refresh from server so the new record appears in the UI right away
+      await fetchInitialData(true, true);
       
       alert(`${title.slice(0, -1)} saved successfully!`);
     } catch (error) {
@@ -467,7 +482,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                 <th className="px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-100 table-striped">
               {loading ? (
                 [1,2,3,4,5].map(i => (
                   <tr key={i} className="animate-pulse">

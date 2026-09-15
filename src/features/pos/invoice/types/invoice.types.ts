@@ -119,8 +119,9 @@ export interface InvoiceStatusResult {
 
 export interface InvoiceRepositoryResult {
   success: boolean;
-  invoices: Invoice[];
-  invoice: Invoice | null;
+  invoiceId: string | null;
+  repositoryStatus: string;
+  savedAt: Date;
   error: string | null;
 }
 
@@ -152,4 +153,5 @@ export interface InvoiceActions {
   clearValidation: () => void;
   generateInvoiceNumber: () => InvoiceNumberResult;
   processInvoice: (input: InvoiceCreationInput) => InvoiceProcessResult;
+  saveInvoice: () => InvoiceRepositoryResult;
 }

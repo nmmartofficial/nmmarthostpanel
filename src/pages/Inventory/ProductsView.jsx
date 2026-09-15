@@ -3,7 +3,7 @@ import {
   GitBranch, Search, Trash2, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn, generateUUID } from '../../utils/helpers';
+import { cn, generateUUID, generateNumericId } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../../erpController';
 import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
@@ -27,6 +27,24 @@ const sanitizeMasterCode = (value, fallback = 'master') => {
   return cleaned.slice(0, 40) || fallback;
 };
 
+const normalizeProductStatus = (rawValue) => {
+  const statusText = String(rawValue ?? 'Active').trim().toLowerCase();
+
+  if (['inactive', 'false', 'no', 'n'].includes(statusText)) {
+    return { statusText: 'Inactive', isActive: false };
+  }
+
+  if (['', 'active', 'true', 'yes', 'y'].includes(statusText)) {
+    return { statusText: 'Active', isActive: true };
+  }
+
+  if (/^\d+(\.\d+)?$/.test(statusText)) {
+    return { statusText: 'Active', isActive: true };
+  }
+
+  return { statusText: 'Active', isActive: true };
+};
+
 // --- Product Import Processing ---
 const processProductImportData = async (parsedData) => {
   // --- CHECK FOR DUPLICATES IN EXCEL (User Requirement) ---
@@ -44,6 +62,8 @@ const processProductImportData = async (parsedData) => {
   return parsedData.map((item) => {
     // Sanitize stock: ensure it's never negative
     let stock = Math.max(0, parseFloat(item.opstock || item.stock) || 0);
+    const { statusText, isActive } = normalizeProductStatus(item.itemstatus ?? item.item_status ?? 'Active');
+    const statusCode = isActive ? 1 : 0;
     
     // Map both old and new column names for backward compatibility
     return {
@@ -74,8 +94,8 @@ const processProductImportData = async (parsedData) => {
       stock: stock,
       discperc: parseFloat(item.discperc || item.discount_percent) || 0,
       discount_percent: parseFloat(item.discperc || item.discount_percent) || 0,
-      isfav: String(item.isfav || item.is_favourite || "No").trim() === 'true' || String(item.isfav || item.is_favourite || "No").trim().toLowerCase() === 'yes' || String(item.isfav || item.is_favourite || "No").trim() === '1' ? 'Yes' : 'No',
-      is_favourite: String(item.isfav || item.is_favourite || "No").trim() === 'true' || String(item.isfav || item.is_favourite || "No").trim().toLowerCase() === 'yes' || String(item.isfav || item.is_favourite || "No").trim() === '1' ? 'Yes' : 'No',
+      isfav: String(item.isfav || item.is_favourite || "No").trim() === 'true' || String(item.isfav || item.is_favourite || "No").trim().toLowerCase() === 'yes' || String(item.isfav || item.is_favourite || "No").trim() === '1',
+      is_favourite: String(item.isfav || item.is_favourite || "No").trim() === 'true' || String(item.isfav || item.is_favourite || "No").trim().toLowerCase() === 'yes' || String(item.isfav || item.is_favourite || "No").trim() === '1',
       unitcode: String(item.unitcode || item.unit_name || "Nos").trim(),
       unit_name: String(item.unitcode || item.unit_name || "Nos").trim(),
       itg: String(item.itg || "").trim() || null,
@@ -84,18 +104,19 @@ const processProductImportData = async (parsedData) => {
       kcode: String(item.kcode || "").trim() || null,
       brandcode: String(item.brandcode || item.brand_name || "").trim() || null,
       brand_name: String(item.brandcode || item.brand_name || "").trim() || null,
-      isdiscountable: String(item.isdiscountable || item.is_discountable || "Yes").trim() !== 'false' && String(item.isdiscountable || item.is_discountable || "Yes").trim().toLowerCase() !== 'no' && String(item.isdiscountable || item.is_discountable || "Yes").trim() !== '0' ? 'Yes' : 'No',
-      is_discountable: String(item.isdiscountable || item.is_discountable || "Yes").trim() !== 'false' && String(item.isdiscountable || item.is_discountable || "Yes").trim().toLowerCase() !== 'no' && String(item.isdiscountable || item.is_discountable || "Yes").trim() !== '0' ? 'Yes' : 'No',
+      isdiscountable: String(item.isdiscountable || item.is_discountable || "Yes").trim() !== 'false' && String(item.isdiscountable || item.is_discountable || "Yes").trim().toLowerCase() !== 'no' && String(item.isdiscountable || item.is_discountable || "Yes").trim() !== '0',
+      is_discountable: String(item.isdiscountable || item.is_discountable || "Yes").trim() !== 'false' && String(item.isdiscountable || item.is_discountable || "Yes").trim().toLowerCase() !== 'no' && String(item.isdiscountable || item.is_discountable || "Yes").trim() !== '0',
       gst: parseFloat(item.gst || item.gst_percent) || 0,
       gst_percent: parseFloat(item.gst || item.gst_percent) || 0,
       cess: parseFloat(item.cess || item.cess_percent) || 0,
       cess_percent: parseFloat(item.cess || item.cess_percent) || 0,
       shopid: String(item.shopid || "").trim() || null,
-      ispackage: String(item.ispackage || item.is_package || "No").trim() === 'true' || String(item.ispackage || item.is_package || "No").trim().toLowerCase() === 'yes' || String(item.ispackage || item.is_package || "No").trim() === '1' ? 'Yes' : 'No',
+      ispackage: String(item.ispackage || item.is_package || "No").trim() === 'true' || String(item.ispackage || item.is_package || "No").trim().toLowerCase() === 'yes' || String(item.ispackage || item.is_package || "No").trim() === '1',
       narration: String(item.narration || "").trim() || null,
       narration2: String(item.narration2 || "").trim() || null,
-      itemstatus: String(item.itemstatus || "Active").trim(),
-      is_active: String(item.itemstatus || "Active").trim() === 'Active'
+      itemstatus: statusCode,
+      item_status: statusText,
+      is_active: isActive
     };
   });
 };
@@ -131,9 +152,15 @@ export default function ProductsView({ products, categories, brands, subcategori
     
     // Safety: Filter based on showTrash state
     if (showTrash) {
-      list = list.filter(p => p.is_active === false);
+      list = list.filter(p => p.is_active === false || p.is_active === 'Inactive' || p.is_active === 'inactive');
     } else {
-      list = list.filter(p => p.is_active !== false);
+      list = list.filter((p) => {
+        const activeValue = p.is_active;
+        if (activeValue === false || activeValue === 'false' || activeValue === 'FALSE' || activeValue === 'Inactive' || activeValue === 'inactive') {
+          return false;
+        }
+        return true;
+      });
     }
 
     if (filter === 'low_stock') {
@@ -221,6 +248,10 @@ export default function ProductsView({ products, categories, brands, subcategori
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
 
     // Validate GST and CESS
     const gstValue = formData.gst || formData.gst_percent || 0;
@@ -381,7 +412,7 @@ export default function ProductsView({ products, categories, brands, subcategori
         const newStock = finalData.opstock ?? finalData.stock ?? 0;
         if (parseFloat(oldStock) !== parseFloat(newStock)) {
           await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-            id: generateUUID(),
+            id: generateNumericId(),
             product_id: editingProduct.id,
             old_stock: parseFloat(oldStock) || 0,
             new_stock: parseFloat(newStock) || 0,
@@ -402,7 +433,7 @@ export default function ProductsView({ products, categories, brands, subcategori
         const newStock = finalData.opstock ?? finalData.stock ?? 0;
         if (insertedProduct && insertedProduct.id) {
           await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-            id: generateUUID(),
+            id: generateNumericId(),
             product_id: insertedProduct.id,
             old_stock: 0,
             new_stock: parseFloat(newStock) || 0,
@@ -419,7 +450,13 @@ export default function ProductsView({ products, categories, brands, subcategori
       setShowForm(false);
       setEditingProduct(null);
       setFormData({});
-      fetchInitialData(); // Refresh all data including master tables
+      setSearchTerm('');
+      setSelectedCategoryId('');
+      setSelectedSubcategoryId('');
+      setCurrentPage(1);
+      setGstError('');
+      setCessError('');
+      await fetchInitialData(true, true, { productsIncludeDeleted: showTrash });
       alert("Product saved successfully!");
     } catch (error) {
       console.error("Product Save Error:", error);
@@ -504,7 +541,13 @@ export default function ProductsView({ products, categories, brands, subcategori
 
         <div className="flex items-center gap-3 w-full md:w-auto">
           <button 
-            onClick={() => setShowTrash(!showTrash)}
+            onClick={async () => {
+              const next = !showTrash;
+              setShowTrash(next);
+              try {
+                await fetchInitialData(true, false, { productsIncludeDeleted: next });
+              } catch {}
+            }}
             className={cn(
               "flex-1 md:flex-none px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-md border-none",
               showTrash ? "bg-amber-500 text-white" : "bg-slate-200 text-slate-600 hover:bg-slate-300"
@@ -532,6 +575,7 @@ export default function ProductsView({ products, categories, brands, subcategori
           >
             <Trash2 size={14} /> DELETE ALL
           </button>
+
           <ExcelUpload 
             tableKey="PRODUCTS" 
             buttonText="IMPORT ITEM"
