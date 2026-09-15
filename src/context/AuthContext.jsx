@@ -655,7 +655,7 @@ export const AuthProvider = ({ children }) => {
 
         // Handle company detection
         if (userData.company_code) {
-          const companyResult = await withRetry(
+          let companyResult = await withRetry(
             () => withTimeout(
               supabase
                 .from(DB_SCHEMA.COMPANIES.table)
