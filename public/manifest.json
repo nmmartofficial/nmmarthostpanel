@@ -1,0 +1,21 @@
+{
+  "name": "NM MART Admin ERP",
+  "short_name": "NM MART",
+  "description": "Enterprise Retail Management System for NM MART",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0062FF",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

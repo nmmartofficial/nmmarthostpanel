@@ -1,0 +1,7 @@
+export const PERSISTENCE_STATUS = {
+  IDLE: 'IDLE',
+  READY: 'READY',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+} as const;
