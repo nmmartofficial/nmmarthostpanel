@@ -26,7 +26,11 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const getImageUrl = (src) => {
     if (!src) return null;
     if (src.startsWith('http')) return src;
-    const baseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
+    const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!baseUrl) {
+      console.error('VITE_SUPABASE_URL environment variable is not set');
+      return null;
+    }
     return `${baseUrl}/storage/v1/object/public/${bucket || 'images'}/${src}`;
   };
   

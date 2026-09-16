@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { supabase, isSupabaseMock } from '../supabase';
+import { supabase } from '../supabase';
 import { DB_SCHEMA } from '../dbSchema';
 import { secureStorage } from '../utils/security';
-import { getDemoAuthResult } from '../utils/authFallback';
 import { withRetry } from '../utils/retry';
 import { 
   logSecurityEvent, 
@@ -38,16 +37,6 @@ export const useAuthContext = () => {
 export const AuthProvider = ({ children }) => {
   const refreshSession = useCallback(async () => {
     try {
-      const storedAuth = secureStorage.getItem('nm_auth_session');
-      const provider = sessionRef.current?.provider || storedAuth?.provider;
-      const isSynthetic = provider === 'admin_table_fallback' || provider === 'demo' || String(sessionRef.current?.access_token || storedAuth?.access_token || '').startsWith('fb_');
-      if (isSynthetic) {
-        const newExpiresAt = Math.floor(Date.now() / 1000) + (3600 * 8);
-        const updatedSession = { ...(sessionRef.current || storedAuth || {}), expires_at: newExpiresAt, expires_in: 3600 * 8 };
-        setSession(updatedSession);
-        try { secureStorage.setItem('nm_auth_session', { ...(storedAuth || {}), access_token: updatedSession.access_token, expires_at: newExpiresAt }); } catch (e) {}
-        return updatedSession;
-      }
       const { data, error } = await supabase.auth.refreshSession();
       if (error) throw error;
       setSession(data.session);
@@ -119,21 +108,14 @@ export const AuthProvider = ({ children }) => {
 
   const restoreStoredAuthState = useCallback(() => {
     try {
-      const { hasRealSupabaseConfig } = getAppEnv();
       const storedSession = secureStorage.getItem('nm_auth_session');
       const storedUser = secureStorage.getItem('nm_user_data');
       const storedCompany = secureStorage.getItem('nm_current_company');
 
       if (storedSession && storedUser) {
         const now = Math.floor(Date.now() / 1000);
-        const isSyntheticSession = storedSession?.provider === 'admin_table_fallback' || storedSession?.provider === 'demo' || String(storedSession?.access_token || '').startsWith('fb_');
 
-        if (hasRealSupabaseConfig && isSyntheticSession) {
-          clearAuthState();
-          return false;
-        }
-
-        if (storedSession.expires_at && storedSession.expires_at < now && !isSyntheticSession) {
+        if (storedSession.expires_at && storedSession.expires_at < now) {
           try {
             logSecurityEvent('stored_session_expired', {
               user_id: storedUser.id,
@@ -168,17 +150,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const hydrateAuthState = useCallback(async (supabaseSession) => {
-    const { hasRealSupabaseConfig } = getAppEnv();
-    const localAuth = secureStorage.getItem('nm_auth_session');
-      const isLocalSynthetic = localAuth?.provider === 'admin_table_fallback' || localAuth?.provider === 'demo' || String(localAuth?.access_token || '').startsWith('fb_');
-      if (hasRealSupabaseConfig && isLocalSynthetic) {
-        clearAuthState();
-        return null;
-      }
       if (!supabaseSession?.user) {
-        if (isLocalSynthetic) {
-          return null; // Don't wipe fallback admin login on refresh
-        }
         clearAuthState();
         return null;
       }
@@ -289,14 +261,6 @@ export const AuthProvider = ({ children }) => {
     let isMounted = true;
 
     const initAuth = async () => {
-      if (isSupabaseMock) {
-        hasHydratedSessionRef.current = true;
-        if (isMounted) {
-          setAuthLoading(false);
-        }
-        return;
-      }
-
       try {
         const restoredFromStorage = restoreStoredAuthState();
         if (restoredFromStorage) {
@@ -409,18 +373,8 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (event === 'SIGNED_OUT') {
-            const localSession = secureStorage.getItem('nm_auth_session');
-            if (localSession?.provider === 'admin_table_fallback' || String(localSession?.access_token || '').startsWith('fb_')) {
-              return; // Do not clear fallback session on Supabase SIGNED_OUT
-            }
           const storedAuth = secureStorage.getItem('nm_auth_session');
           const hasPersistentSession = !!storedAuth;
-          const provider = storedAuth?.provider || sessionRef.current?.provider;
-          const isSyntheticSession = provider === 'admin_table_fallback' || provider === 'demo';
-          if (isSyntheticSession && hasPersistentSession) {
-            setAuthLoading(false);
-            return;
-          }
           if (!hasPersistentSession && hasHydratedSessionRef.current && (sessionRef.current || currentUserRef.current || isAuthenticatedRef.current)) {
             clearAuthState();
           }
@@ -440,45 +394,16 @@ export const AuthProvider = ({ children }) => {
     if (!isAuthenticated) return;
 
     const checkSessionExpiry = async () => {
-      let localSession = sessionRef.current;
-      const storedAuth = secureStorage.getItem('nm_auth_session');
-      const provider = localSession?.provider || storedAuth?.provider;
-      const isSynthetic = provider === 'admin_table_fallback' || provider === 'demo' ||
-                         String(localSession?.access_token || storedAuth?.access_token || '').startsWith('fb_');
-
-      if (isSynthetic) {
-        const expiresAt = localSession?.expires_at || storedAuth?.expires_at;
-        if (!expiresAt) return;
-        const now = Math.floor(Date.now() / 1000);
-        const timeUntilExpiry = expiresAt - now;
-        if (timeUntilExpiry < 300 && timeUntilExpiry > 0) {
-          setSessionExpiryWarning(true);
-        }
-        if (timeUntilExpiry <= 0) {
-          try {
-            await refreshSession();
-          } catch {}
-          const refreshedStored = secureStorage.getItem('nm_auth_session');
-          const refreshedExpiry = sessionRef.current?.expires_at || refreshedStored?.expires_at;
-          const nowCheck = Math.floor(Date.now() / 1000);
-          if (!refreshedExpiry || nowCheck > refreshedExpiry + 30) {
-            await performLogoutRef.current?.();
-            setSessionExpired(true);
-          }
-        }
-        return;
-      }
-
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const expiresAt = session.expires_at;
         const now = Math.floor(Date.now() / 1000);
         const timeUntilExpiry = expiresAt - now;
-        
+
         if (timeUntilExpiry < 300 && timeUntilExpiry > 0) {
           setSessionExpiryWarning(true);
         }
-        
+
         if (timeUntilExpiry <= 0) {
           await performLogoutRef.current?.();
           setSessionExpired(true);
@@ -502,159 +427,94 @@ export const AuthProvider = ({ children }) => {
         expected_company: options.expectedCompanySlug
       });
 
-      const demoResult = getDemoAuthResult(email, password);
-
       let authSession = null;
       let userData = null;
       let company = null;
 
-      if (demoResult) {
-        authSession = demoResult.authSession;
-        userData = demoResult.userData;
-        company = demoResult.companyData;
-      } else {
-        let usedFallbackAuth = false;
-        let fetchedFromAdminTable = null;
+      const authResult = await withRetry(
+        () => withTimeout(
+          supabase.auth.signInWithPassword({
+            email,
+            password
+          }),
+          SUPABASE_NETWORK_TIMEOUT_MS,
+          { data: null, error: { message: 'Login request is taking longer than expected. Please check your internet connection or try again in a moment.' } }
+        ),
+        {
+          retries: 1,
+          delayMs: 300,
+          shouldRetry: (error) => !String(error?.message || '').includes('Invalid login credentials')
+        }
+      );
+      let { data: authData, error: authError } = authResult || {};
 
-        const authResult = await withRetry(
+      if (authError) {
+        logSecurityEvent('login_failed', {
+          email: email,
+          reason: authError.message
+        });
+        throw new Error(authError.message);
+      }
+
+      if (!authData?.session || !authData?.user) {
+        logSecurityEvent('login_failed', {
+          email: email,
+          reason: 'Supabase Auth failed to return session'
+        });
+        throw new Error('Authentication failed. Please try again.');
+      }
+
+      authSession = authData.session;
+
+      const lookupValue = getAdminUserLookupValue(email);
+      let fetchedUserData = null;
+      let userError = null;
+
+      const userResult = await withRetry(
+        () => withTimeout(
+          supabase
+            .from('admin_users')
+            .select('*')
+            .eq('username', lookupValue)
+            .single(),
+          SUPABASE_NETWORK_TIMEOUT_MS,
+          { data: null, error: { message: 'Unable to load your account profile. Please try again.' } }
+        ),
+        {
+          retries: 1,
+          delayMs: 300,
+          shouldRetry: (error) => !String(error?.message || '').includes('User profile not found')
+        }
+      );
+      fetchedUserData = userResult?.data;
+      userError = userResult?.error;
+
+      if (!fetchedUserData) {
+        const emailUserResult = await withRetry(
           () => withTimeout(
-            supabase.auth.signInWithPassword({
-              email,
-              password
-            }),
+            supabase
+              .from('admin_users')
+              .select('*')
+              .eq('email', email)
+              .single(),
             SUPABASE_NETWORK_TIMEOUT_MS,
-            { data: null, error: { message: 'Login request is taking longer than expected. Please check your internet connection or try again in a moment.' } }
+            { data: null, error: null }
           ),
-          {
-            retries: 1,
-            delayMs: 300,
-            shouldRetry: (error) => !String(error?.message || '').includes('Invalid login credentials')
-          }
+          { retries: 1, delayMs: 300, shouldRetry: () => false }
         );
-        let { data: authData, error: authError } = authResult || {};
+        fetchedUserData = fetchedUserData || emailUserResult?.data;
+        userError = fetchedUserData ? null : (userError || emailUserResult?.error);
+      }
 
-        if (!authData?.session && (authError || !authData?.user)) {
-          logSecurityEvent('login_fallback', {
-            email: email,
-            reason: authError?.message || 'Supabase Auth session missing, trying admin_users table'
-          });
-
-          const fallbackResult = await withRetry(
-            () => withTimeout(
-              supabase.rpc('verify_admin_password', {
-                p_username_or_email: email,
-                p_password: password
-              }),
-              SUPABASE_NETWORK_TIMEOUT_MS,
-              { data: null, error: { message: 'Unable to verify credentials. Please try again.' } }
-            ),
-            { retries: 1, delayMs: 200, shouldRetry: () => false }
-          );
-
-          const fbData = fallbackResult?.data;
-          const fbError = fallbackResult?.error;
-
-          if (!fbError && fbData && fbData.verified === true && fbData.profile) {
-            usedFallbackAuth = true;
-            fetchedFromAdminTable = fbData.profile;
-
-            const syntheticUser = {
-              id: String(fbData.profile.id || 'fallback-user'),
-              email: email,
-              app_metadata: {},
-              user_metadata: {},
-              aud: 'authenticated',
-              created_at: new Date().toISOString()
-            };
-
-            authData = {
-              user: syntheticUser,
-              session: {
-                access_token: 'fb_' + (globalThis.crypto?.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join('')).slice(0, 40),
-                token_type: 'bearer',
-                expires_in: 3600 * 8,
-                expires_at: Math.floor((Date.now() + 3600 * 8 * 1000) / 1000),
-                refresh_token: 'fb_ref_' + (globalThis.crypto?.randomUUID?.() || Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2,'0')).join('')).slice(0, 40),
-                user: syntheticUser,
-                provider: 'admin_table_fallback'
-              }
-            };
-            authError = null;
-          } else {
-            const originalMsg = authError?.message || 'Invalid login credentials';
-            const fbMsg = fbError?.message || null;
-            const finalMsg = fbMsg && !fbMsg.includes('Unable to verify')
-              ? `${originalMsg} (Fallback: ${fbMsg})`
-              : originalMsg;
-            logSecurityEvent('login_failed', {
-              email: email,
-              reason: finalMsg
-            });
-            throw new Error(finalMsg);
-          }
-        }
-
-        if (authError) {
-          logSecurityEvent('login_failed', {
-            email: email,
-            reason: authError.message
-          });
-          throw new Error(authError.message);
-        }
-
-        authSession = authData?.session ?? null;
-
-        const lookupValue = getAdminUserLookupValue(email);
-        let fetchedUserData = fetchedFromAdminTable;
-        let userError = fetchedUserData ? null : { message: 'Using prefetched profile from fallback auth' };
-
-        if (!fetchedUserData) {
-          const userResult = await withRetry(
-            () => withTimeout(
-              supabase
-                .from('admin_users')
-                .select('*')
-                .eq('username', lookupValue)
-                .single(),
-              SUPABASE_NETWORK_TIMEOUT_MS,
-              { data: null, error: { message: 'Unable to load your account profile. Please try again.' } }
-            ),
-            {
-              retries: 1,
-              delayMs: 300,
-              shouldRetry: (error) => !String(error?.message || '').includes('User profile not found')
-            }
-          );
-          fetchedUserData = userResult?.data;
-          userError = userResult?.error;
-        }
-
-        if (!fetchedUserData) {
-          const emailUserResult = await withRetry(
-            () => withTimeout(
-              supabase
-                .from('admin_users')
-                .select('*')
-                .eq('email', email)
-                .single(),
-              SUPABASE_NETWORK_TIMEOUT_MS,
-              { data: null, error: null }
-            ),
-            { retries: 1, delayMs: 300, shouldRetry: () => false }
-          );
-          fetchedUserData = fetchedUserData || emailUserResult?.data;
-          userError = fetchedUserData ? null : (userError || emailUserResult?.error);
-        }
-
-        if (userError || !fetchedUserData) {
-          userData = buildFallbackAdminProfile(authSession?.user || { email }, email);
-          logSecurityEvent('login_failed', {
-            email: email,
-            reason: 'Using fallback profile because admin_users lookup failed'
-          });
-        } else {
-          userData = normalizeAdminUserProfile(fetchedUserData, email);
-        }
+      if (userError || !fetchedUserData) {
+        userData = buildFallbackAdminProfile(authSession?.user || { email }, email);
+        logSecurityEvent('login_failed', {
+          email: email,
+          reason: 'Using fallback profile because admin_users lookup failed'
+        });
+      } else {
+        userData = normalizeAdminUserProfile(fetchedUserData, email);
+      }
 
         // Check if user is disabled
         if (userData.status === 'disabled') {
@@ -685,7 +545,7 @@ export const AuthProvider = ({ children }) => {
             }
           );
           const { data: companyData, error: companyError } = companyResult || {};
-          
+
           if (!companyError && companyData) {
             // Check if company is suspended
             if (companyData.status === 'suspended') {
@@ -700,7 +560,6 @@ export const AuthProvider = ({ children }) => {
             company = companyData;
           }
         }
-      }
 
       if (options.expectedCompanySlug) {
         if (!company) {
@@ -740,7 +599,7 @@ export const AuthProvider = ({ children }) => {
           id: userData.id,
           email: userData.email
         },
-        provider: authSession?.provider || (demoResult ? 'demo' : 'supabase')
+        provider: authSession?.provider || 'supabase'
       });
       
       if (company) {
@@ -797,14 +656,7 @@ export const AuthProvider = ({ children }) => {
         company_id: currentCompany?.id
       });
 
-      const storedAuth = secureStorage.getItem('nm_auth_session');
-      const provider = sessionRef.current?.provider || storedAuth?.provider;
-      const isSynthetic = provider === 'admin_table_fallback' || provider === 'demo' ||
-                         String(sessionRef.current?.access_token || storedAuth?.access_token || '').startsWith('fb_');
-
-      if (!isSynthetic) {
-        await supabase.auth.signOut();
-      }
+      await supabase.auth.signOut();
     } catch (err) {
       if (import.meta.env.DEV) console.error('Supabase logout error:', err);
       try {

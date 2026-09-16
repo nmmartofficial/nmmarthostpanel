@@ -80,11 +80,16 @@ export interface ReceiptState {
   receiptId: string | null;
   receiptNumber: string | null;
   invoiceId: string | null;
+  invoiceNumber: string | null;
   orderId: string | number | null;
   customerId: string | number | null;
   paymentId: string | number | null;
   receiptStatus: ReceiptStatus;
   receiptDate: string | null;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  grandTotal: number;
   loading: boolean;
   error: string;
   validationErrors: ReceiptValidationError[];

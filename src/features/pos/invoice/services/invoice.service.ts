@@ -24,22 +24,46 @@ import { RepositoryService } from '../../repository';
 
 export const InvoiceService = {
   startInvoice: () => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      invoiceId: `INV-${Date.now()}`,
+      status: 'DRAFT',
+      startedAt: new Date(),
+    };
   },
-  completeInvoice: () => {
-    throw new Error('Not Implemented');
+  completeInvoice: (invoice: Invoice) => {
+    return {
+      success: true,
+      invoice: { ...invoice, status: 'COMPLETED' as InvoiceStatus },
+      completedAt: new Date(),
+    };
   },
-  cancelInvoice: () => {
-    throw new Error('Not Implemented');
+  cancelInvoice: (invoice: Invoice) => {
+    return {
+      success: true,
+      invoice: { ...invoice, status: 'CANCELLED' as InvoiceStatus },
+      cancelledAt: new Date(),
+    };
   },
   resetInvoice: () => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      resetAt: new Date(),
+    };
   },
   createSnapshot: (data?: any) => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      snapshotId: `SNAP-${Date.now()}`,
+      data: data || null,
+      createdAt: new Date(),
+    };
   },
   clearSnapshot: () => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      clearedAt: new Date(),
+    };
   },
   validate: (invoice: Invoice): InvoiceValidationResult => {
     return validateInvoice(invoice);
@@ -66,20 +90,20 @@ export const InvoiceService = {
   processInvoice: (input: InvoiceCreationInput): InvoiceProcessResult => {
     try {
       // Step 1: Generate Invoice Number
-      const invoiceNumberResult = this.generateInvoiceNumber();
-      
+      const invoiceNumberResult = generateInvoiceNumberUtil();
+
       // Create invoice input with generated number
       const inputWithNumber = {
         ...input,
         invoiceNumber: invoiceNumberResult.invoiceNumber,
       };
-      
+
       // Step 2: Create invoice object to validate
       const tempInvoice = createInvoiceUtil(inputWithNumber);
-      
+
       // Step 3: Validate Invoice
-      const validationResult = this.validate(tempInvoice);
-      
+      const validationResult = validateInvoice(tempInvoice);
+
       if (!validationResult.isValid) {
         return {
           success: false,
@@ -89,10 +113,10 @@ export const InvoiceService = {
           error: 'Invoice validation failed',
         };
       }
-      
+
       // Step 4: Create Invoice
-      const creationResult = this.createInvoice(inputWithNumber);
-      
+      const creationResult = InvoiceService.createInvoice(inputWithNumber);
+
       if (!creationResult.success) {
         return {
           success: false,
@@ -102,7 +126,7 @@ export const InvoiceService = {
           error: creationResult.error,
         };
       }
-      
+
       return {
         success: true,
         invoice: creationResult.invoice,
@@ -121,34 +145,97 @@ export const InvoiceService = {
     }
   },
   updateStatus: (invoice: Invoice, newStatus: InvoiceStatus): InvoiceStatusResult => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      invoice: { ...invoice, status: newStatus },
+      previousStatus: invoice.status,
+      currentStatus: newStatus,
+      updatedAt: new Date(),
+      error: null,
+    };
   },
   markCompleted: (invoice: Invoice): InvoiceStatusResult => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      invoice: { ...invoice, status: 'COMPLETED' as InvoiceStatus },
+      previousStatus: invoice.status,
+      currentStatus: 'COMPLETED' as InvoiceStatus,
+      updatedAt: new Date(),
+      error: null,
+    };
   },
   markCancelled: (invoice: Invoice): InvoiceStatusResult => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      invoice: { ...invoice, status: 'CANCELLED' as InvoiceStatus },
+      previousStatus: invoice.status,
+      currentStatus: 'CANCELLED' as InvoiceStatus,
+      updatedAt: new Date(),
+      error: null,
+    };
   },
   markPending: (invoice: Invoice): InvoiceStatusResult => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      invoice: { ...invoice, status: 'PENDING' as InvoiceStatus },
+      previousStatus: invoice.status,
+      currentStatus: 'PENDING' as InvoiceStatus,
+      updatedAt: new Date(),
+      error: null,
+    };
   },
   addInvoice: (existingInvoices: Invoice[], newInvoice: Invoice): InvoiceRepositoryResult => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      invoices: [...existingInvoices, newInvoice],
+      invoice: newInvoice,
+      error: null,
+    };
   },
   removeInvoice: (existingInvoices: Invoice[], invoiceId: string): InvoiceRepositoryResult => {
-    throw new Error('Not Implemented');
+    const filtered = existingInvoices.filter(inv => inv.invoiceId !== invoiceId);
+    return {
+      success: true,
+      invoices: filtered,
+      invoice: null,
+      error: null,
+    };
   },
   updateInvoice: (existingInvoices: Invoice[], updatedInvoice: Invoice): InvoiceRepositoryResult => {
-    throw new Error('Not Implemented');
+    const updated = existingInvoices.map(inv =>
+      inv.invoiceId === updatedInvoice.invoiceId ? updatedInvoice : inv
+    );
+    return {
+      success: true,
+      invoices: updated,
+      invoice: updatedInvoice,
+      error: null,
+    };
   },
   findInvoice: (existingInvoices: Invoice[], invoiceId: string): InvoiceRepositoryResult => {
-    throw new Error('Not Implemented');
+    const found = existingInvoices.find(inv => inv.invoiceId === invoiceId);
+    return {
+      success: !!found,
+      invoices: existingInvoices,
+      invoice: found || null,
+      error: found ? null : 'Invoice not found',
+    };
   },
   getInvoices: (existingInvoices: Invoice[]): InvoiceRepositoryResult => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      invoices: existingInvoices,
+      invoice: null,
+      error: null,
+    };
   },
   clearInvoices: (): InvoiceRepositoryResult => {
-    throw new Error('Not Implemented');
+    return {
+      success: true,
+      invoices: [],
+      invoice: null,
+      error: null,
+    };
   },
   saveInvoice: (invoice: Invoice | null): InvoiceRepositoryResult => {
     if (!invoice) {

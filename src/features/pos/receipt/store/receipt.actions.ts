@@ -1,7 +1,7 @@
 /**
  * Receipt Module Actions
  * Phase 9 - Step 1
- * Placeholder - Not Implemented
+ * Basic state setters implementation
  */
 
 import type { ReceiptActions, ReceiptState } from '../types/receipt.types';
@@ -10,46 +10,92 @@ import { initialReceiptState } from './receipt.state';
 export const createReceiptActions = (state: ReceiptState, setState: (state: ReceiptState) => void): ReceiptActions => {
   return {
     setReceiptId: (receiptId: string | null) => {
-      throw new Error('receipt.actions.setReceiptId - Not Implemented');
+      setState({ ...state, receiptId });
     },
     setReceiptNumber: (receiptNumber: string | null) => {
-      throw new Error('receipt.actions.setReceiptNumber - Not Implemented');
+      setState({ ...state, receiptNumber });
+    },
+    setInvoiceId: (invoiceId: string | null) => {
+      setState({ ...state, invoiceId });
     },
     setOrderId: (orderId: string | number | null) => {
-      throw new Error('receipt.actions.setOrderId - Not Implemented');
+      setState({ ...state, orderId });
     },
     setCustomerId: (customerId: string | number | null) => {
-      throw new Error('receipt.actions.setCustomerId - Not Implemented');
+      setState({ ...state, customerId });
     },
     setPaymentId: (paymentId: string | number | null) => {
-      throw new Error('receipt.actions.setPaymentId - Not Implemented');
+      setState({ ...state, paymentId });
     },
     setReceiptStatus: (status: any) => {
-      throw new Error('receipt.actions.setReceiptStatus - Not Implemented');
+      setState({ ...state, receiptStatus: status });
+    },
+    setReceiptDate: (receiptDate: string | null) => {
+      setState({ ...state, receiptDate });
     },
     setLoading: (loading: boolean) => {
-      throw new Error('receipt.actions.setLoading - Not Implemented');
+      setState({ ...state, loading });
     },
     setError: (error: string) => {
-      throw new Error('receipt.actions.setError - Not Implemented');
+      setState({ ...state, error });
     },
     resetReceipt: () => {
-      throw new Error('receipt.actions.resetReceipt - Not Implemented');
+      setState(initialReceiptState);
     },
-    createReceipt: (input: any) => {
-      throw new Error('receipt.actions.createReceipt - Not Implemented');
+    createReceipt: async (input: any) => {
+      setState({
+        ...state,
+        receiptId: input.receiptId || `RCP-${Date.now()}`,
+        receiptNumber: input.receiptNumber || null,
+        invoiceId: input.invoiceId || null,
+        invoiceNumber: input.invoiceNumber || null,
+        orderId: input.orderId || null,
+        customerId: input.customerId || null,
+        paymentId: input.paymentId || null,
+        receiptDate: input.receiptDate ? input.receiptDate.toISOString() : new Date().toISOString(),
+        receiptStatus: input.receiptStatus || 'PENDING',
+        subtotal: input.subtotal || 0,
+        discount: input.discount || 0,
+        tax: input.tax || 0,
+        grandTotal: input.grandTotal || 0,
+        loading: false,
+        error: '',
+      });
+      return { success: true, receipt: null, error: null };
     },
-    validateReceipt: () => {
-      throw new Error('receipt.actions.validateReceipt - Not Implemented');
+    validateReceipt: async () => {
+      const errors = [];
+      if (!state.receiptId) errors.push({ field: 'receiptId', message: 'Receipt ID is required' });
+      if (!state.receiptNumber) errors.push({ field: 'receiptNumber', message: 'Receipt number is required' });
+      if (state.subtotal < 0) errors.push({ field: 'subtotal', message: 'Subtotal cannot be negative' });
+      if (state.grandTotal < 0) errors.push({ field: 'grandTotal', message: 'Grand total cannot be negative' });
+      setState({ ...state, validationErrors: errors });
+      return { valid: errors.length === 0, errors };
     },
     clearValidation: () => {
-      throw new Error('receipt.actions.clearValidation - Not Implemented');
+      setState({ ...state, validationErrors: [] });
     },
     generateReceiptNumber: () => {
-      throw new Error('receipt.actions.generateReceiptNumber - Not Implemented');
+      const receiptNumber = `RCP-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      setState({ ...state, receiptNumber });
+      return {
+        receiptNumber,
+        prefix: 'RCP',
+        sequence: Date.now(),
+        generatedAt: new Date(),
+      };
     },
-    processReceipt: (input: any) => {
-      throw new Error('receipt.actions.processReceipt - Not Implemented');
+    processReceipt: async (input: any) => {
+      const actions = createReceiptActions(state, setState);
+      await actions.createReceipt(input);
+      const validation = await actions.validateReceipt();
+      return {
+        success: validation.valid,
+        receipt: null,
+        validation,
+        receiptNumber: null,
+        error: validation.valid ? null : 'Validation failed',
+      };
     }
   };
 };
