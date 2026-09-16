@@ -45,8 +45,23 @@ const normalizeProductStatus = (rawValue) => {
   return { statusText: 'Active', isActive: true };
 };
 
+const resolveProductImageUrl = (rawValue) => {
+  const imageName = String(rawValue || '').trim();
+  if (!imageName) return null;
+  if (/^https?:\/\//i.test(imageName)) return imageName;
+
+  const baseUrl = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
+  const encodedPath = imageName.split('/').map((part) => encodeURIComponent(part)).join('/');
+  return baseUrl ? `${baseUrl}/storage/v1/object/public/products/${encodedPath}` : imageName;
+};
+
 // --- Product Import Processing ---
 const processProductImportData = async (parsedData) => {
+  const missingNameRow = parsedData.findIndex((item) => !String(item.itname || item.name || '').trim());
+  if (missingNameRow !== -1) {
+    throw new Error(`Excel row ${missingNameRow + 2} में itname खाली है। Product name required है।`);
+  }
+
   // --- CHECK FOR DUPLICATES IN EXCEL (User Requirement) ---
   const nameSet = new Set();
   for (const item of parsedData) {
@@ -66,6 +81,8 @@ const processProductImportData = async (parsedData) => {
     const statusCode = isActive ? 1 : 0;
     
     // Map both old and new column names for backward compatibility
+    const productImage = resolveProductImageUrl(item.picture || item.image_url || item.imagename);
+
     return {
       itname: String(item.itname || item.name || "").trim(),
       name: String(item.itname || item.name || "").trim(),
@@ -77,8 +94,8 @@ const processProductImportData = async (parsedData) => {
       description: String(item.itemdescription || item.description || "").trim() || null,
       hsncode: String(item.hsncode || item.hsn_code || "").trim() || null,
       hsn_code: String(item.hsncode || item.hsn_code || "").trim() || null,
-      picture: String(item.picture || item.image_url || "").trim() || null,
-      image_url: String(item.picture || item.image_url || "").trim() || null,
+      picture: productImage,
+      image_url: productImage,
       takerate: parseFloat(item.takerate || item.take_rate) || 0,
       take_rate: parseFloat(item.takerate || item.take_rate) || 0,
       restrate: parseFloat(item.restrate || item.retail_rate) || 0,
@@ -387,7 +404,7 @@ export default function ProductsView({ products, categories, brands, subcategori
       delete finalData.unit;
       
       if (finalData.main_image_file) {
-        const { url, error: uploadError } = await uploadImage(finalData.main_image_file, 'product-images');
+        const { url, error: uploadError } = await uploadImage(finalData.main_image_file, 'products');
         if (uploadError) throw new Error(`Product Image Upload Failed: ${uploadError}`);
         if (url) {
           finalData.image_url = url;
@@ -404,42 +421,47 @@ export default function ProductsView({ products, categories, brands, subcategori
 
       let res;
       let insertedProduct = null;
+
       if (editingProduct) {
         res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, { id: editingProduct.id, ...finalData });
-        
+
         // Add Log if stock changed
         const oldStock = editingProduct.opstock ?? editingProduct.stock ?? 0;
         const newStock = finalData.opstock ?? finalData.stock ?? 0;
         if (parseFloat(oldStock) !== parseFloat(newStock)) {
-          await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-            id: generateNumericId(),
-            product_id: editingProduct.id,
-            old_stock: parseFloat(oldStock) || 0,
-            new_stock: parseFloat(newStock) || 0,
-            change_type: 'manual',
-            reference_id: 'Manual Update'
-          });
+          try {
+            await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
+              id: generateNumericId(),
+              product_id: editingProduct.id,
+              old_stock: parseFloat(oldStock) || 0,
+              new_stock: parseFloat(newStock) || 0,
+              change_type: 'manual',
+              reference_id: 'Manual Update'
+            });
+          } catch (invErr) { console.warn('Inventory log skipped:', invErr.message); }
         }
       } else {
         // DON'T set id - let Supabase auto-generate!
         res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.INSERT, finalData);
-        
+
         // Get the inserted product from the response!
-        if (res.success && res.data && res.data.length > 0) {
-          insertedProduct = res.data[0];
+        if (res.success && res.data && (Array.isArray(res.data) ? res.data.length > 0 : res.data)) {
+          insertedProduct = Array.isArray(res.data) ? res.data[0] : res.data;
         }
 
         // Add Log for new product
         const newStock = finalData.opstock ?? finalData.stock ?? 0;
         if (insertedProduct && insertedProduct.id) {
-          await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-            id: generateNumericId(),
-            product_id: insertedProduct.id,
-            old_stock: 0,
-            new_stock: parseFloat(newStock) || 0,
-            change_type: 'manual',
-            reference_id: 'New Product'
-          });
+          try {
+            await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
+              id: generateNumericId(),
+              product_id: insertedProduct.id,
+              old_stock: 0,
+              new_stock: parseFloat(newStock) || 0,
+              change_type: 'manual',
+              reference_id: 'New Product'
+            });
+          } catch (invErr) { console.warn('Inventory log skipped:', invErr.message); }
         }
       }
 
@@ -456,8 +478,11 @@ export default function ProductsView({ products, categories, brands, subcategori
       setCurrentPage(1);
       setGstError('');
       setCessError('');
-      await fetchInitialData(true, true, { productsIncludeDeleted: showTrash });
-      alert("Product saved successfully!");
+
+      // Force fetch taaki Supabase waala data 100% UI me aa jaye — Realtime ke aane se bhi pehle
+      try { await fetchInitialData(true, true, { productsIncludeDeleted: showTrash }); } catch (e) { console.warn('post-save refresh:', e); }
+
+      toast?.success ? toast.success("Product saved successfully!") : alert("Product saved successfully!");
     } catch (error) {
       console.error("Product Save Error:", error);
       alert(`Product Operation Failed!\n\nReason: ${error.message}`);
@@ -563,8 +588,18 @@ export default function ProductsView({ products, categories, brands, subcategori
                 setLoading(true);
                 const res = await dbSync.deleteAll(DB_SCHEMA.PRODUCTS.table);
                 if (res.success) {
-                  alert("Sare products delete ho gaye hain!");
-                  window.location.reload();
+                  const count = res.count ?? 0;
+                  if (count === 0) {
+                    alert("0 products delete hue. Ya to pehle se hi recycle bin me hain ya tenant/company_code mismatch hai.");
+                  } else {
+                    alert(`Aapke ${count} products ko recycle bin me bhej diya gaya hai.`);
+                    try {
+                      await fetchInitialData(true, false, { productsIncludeDeleted: showTrash });
+                    } catch (e) {
+                      console.warn('deleteAll refresh fallback to reload:', e);
+                      window.location.reload();
+                    }
+                  }
                 } else {
                   alert("Delete failed: " + res.error);
                 }
@@ -581,8 +616,15 @@ export default function ProductsView({ products, categories, brands, subcategori
             buttonText="IMPORT ITEM"
             uniqueField="barcode"
             processData={processProductImportData}
-            onSuccess={() => {
-              window.location.reload();
+            onSuccess={async (_data, msg) => {
+              try {
+                // Force refresh from Supabase (pura data fir se load)
+                await fetchInitialData(true, false, { productsIncludeDeleted: showTrash });
+              } catch (e) {
+                console.warn('post-import refresh fallback to reload:', e);
+                window.location.reload();
+              }
+              toast?.success ? toast.success(msg || "Import complete") : null;
             }}
           />
           <button 
@@ -708,9 +750,15 @@ export default function ProductsView({ products, categories, brands, subcategori
                         <>
                           <button 
                             onClick={async () => {
-                              if (window.confirm(`Restore ${productName}?`)) {
+                              if (!window.confirm(`Restore ${productName}?`)) return;
+                              try {
                                 await dbSync.update(DB_SCHEMA.PRODUCTS.table, product.id, { is_active: true });
-                                fetchInitialData();
+                                // Force re-fetch with includeDeleted because we're in Trash view
+                                await fetchInitialData(true, false, { productsIncludeDeleted: true });
+                                toast?.success ? toast.success(`${productName} restored!`) : null;
+                              } catch (e) {
+                                console.error('Restore failed:', e);
+                                alert(`Restore failed: ${e.message}`);
                               }
                             }}
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded-md transition-all"
@@ -720,9 +768,15 @@ export default function ProductsView({ products, categories, brands, subcategori
                           </button>
                           <button 
                             onClick={async () => {
-                              if (window.confirm(`PERMANENTLY DELETE ${productName}? Yeh wapas nahi aayega!`)) {
+                              if (!window.confirm(`PERMANENTLY DELETE ${productName}? Yeh wapas nahi aayega!`)) return;
+                              try {
                                 await dbSync.delete(DB_SCHEMA.PRODUCTS.table, product.id, true);
-                                fetchInitialData();
+                                // Hard delete ke baad bhi re-fetch taaki dusre deleted items ki list sahi rahe
+                                await fetchInitialData(true, false, { productsIncludeDeleted: true });
+                                toast?.success ? toast.success(`${productName} permanently deleted`) : null;
+                              } catch (e) {
+                                console.error('Permanent delete failed:', e);
+                                alert(`Delete failed: ${e.message}`);
                               }
                             }}
                             className="p-1.5 text-red-700 hover:bg-red-50 rounded-md transition-all"
@@ -776,13 +830,20 @@ export default function ProductsView({ products, categories, brands, subcategori
                           </button>
                           <button 
                             onClick={async () => {
-                              if (window.confirm(`Delete ${productName}?`)) {
-                                await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.DELETE, { id: product.id });
-                                fetchInitialData();
+                              if (!window.confirm(`Delete ${productName}? (yaha se delete = Supabase me soft delete, Recycle Bin se restore kar sakte ho)`)) return;
+                              try {
+                                const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.DELETE, { id: product.id });
+                                if (!res.success) throw new Error(res.error || 'Unknown delete error');
+                                // Force = true, silent=false, includeDeleted as per current showTrash
+                                await fetchInitialData(true, false, { productsIncludeDeleted: showTrash });
+                                toast?.success ? toast.success(`${productName} moved to Recycle Bin`) : null;
+                              } catch (e) {
+                                console.error('Product delete failed:', e);
+                                alert(`Delete failed: ${e.message}`);
                               }
                             }}
                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-all"
-                            title="Delete"
+                            title="Delete (soft delete, can restore)"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -1008,7 +1069,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                               type="button"
                               onClick={async () => {
                                 if (!formData.main_image_file) return alert("Please choose a file first");
-                                const { url, error } = await uploadImage(formData.main_image_file, 'product-images');
+                                const { url, error } = await uploadImage(formData.main_image_file, 'products');
                                 if (url) {
                                   setFormData({ ...formData, image_url: url, picture: url, main_image_file: null });
                                   alert("Image Uploaded Successfully!");

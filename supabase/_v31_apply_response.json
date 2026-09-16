@@ -1,8 +1,8 @@
 {
   "ok": false,
-  "error": "HTTP 400: {\"message\":\"Failed to run sql query: ERROR:  42P01: relation \\\"public.wallet_master\\\" does not exist\\n\"}",
-  "status": 400,
+  "error": "HTTP 401: {\"message\":\"JWT could not be decoded\"}",
+  "status": 401,
   "body": {
-    "message": "Failed to run sql query: ERROR:  42P01: relation \"public.wallet_master\" does not exist\n"
+    "message": "JWT could not be decoded"
   }
 }

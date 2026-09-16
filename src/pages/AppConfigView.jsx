@@ -87,7 +87,7 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
 
       // Only add logo_url if it exists in appConfig or we just uploaded one
       if (logoFile) {
-        const { url, error: uploadError } = await uploadImage(logoFile, 'product-images');
+        const { url, error: uploadError } = await uploadImage(logoFile, 'images');
         if (uploadError) {
           console.warn('Logo upload failed, keeping existing logo');
         } else {

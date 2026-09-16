@@ -1586,7 +1586,8 @@ VALUES
   (1, 'NMM001', 'Can',          'can',    'can',  14, TRUE)
 ON CONFLICT DO NOTHING;
 
--- 16.4  Popular / Seed Categories  (v3.1 EXPANDED = 24 rows)
+-- 16.4  Popular / Seed Categories  (v3.1 EXPANDED = 24 rows, 100% UI Aligned)
+-- Superset of: modules/pos/data/categories.js + CategoryFilter.tsx + LeftSidebar All Items tabs
 INSERT INTO public.categories
     (tenant_id, company_code, name, description, sort_order, is_active)
 VALUES

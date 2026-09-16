@@ -240,37 +240,90 @@ export const GlobalProvider = ({ children }) => {
   // --- Realtime Updates ---
   const handleRealtimeUpdate = useCallback((tableName, payload) => {
     const { eventType, new: newRecord, old: oldRecord } = payload;
-    const updateState = (setter) => {
+
+    if (import.meta.env.DEV) {
+      console.log(`%c🔌 [Realtime] ${eventType} on ${tableName}`, 'color:#8b5cf6;font-weight:bold', {
+        newId: newRecord?.id, oldId: oldRecord?.id,
+        is_active_new: newRecord?.is_active
+      });
+    }
+
+    const updateState = (setter, label) => {
       setter(prev => {
         if (!Array.isArray(prev)) return prev;
         if (eventType === 'INSERT' && newRecord) {
-          if (prev.find(item => item.id === newRecord.id)) return prev;
+          if (prev.find(item => String(item.id) === String(newRecord.id))) {
+            if (label === DB_SCHEMA.PRODUCTS.table) {
+              console.log(`🔌 [Realtime] Product already in list, replacing in-place (id=${newRecord.id})`);
+              return prev.map(item => String(item.id) === String(newRecord.id) ? { ...item, ...newRecord } : item);
+            }
+            return prev;
+          }
           return [newRecord, ...prev];
         }
         if (eventType === 'UPDATE' && newRecord) {
-          if (newRecord.is_active === false) return prev.filter(item => item.id !== newRecord.id);
-          return prev.map(item => item.id === newRecord.id ? newRecord : item);
+          const exists = prev.some(item => String(item.id) === String(newRecord.id));
+          if (exists) {
+            // is_active=false वाले को default listing से हटा दो (Recycle Bin अलग से includeDeleted फ़ेच करता है)
+            if (newRecord.is_active === false || newRecord.is_active === 0) {
+              if (import.meta.env.DEV) console.log(`🔌 [Realtime] Soft-delete: removing id=${newRecord.id} from ${label} list`);
+              return prev.filter(item => String(item.id) !== String(newRecord.id));
+            }
+            return prev.map(item => String(item.id) === String(newRecord.id) ? { ...item, ...newRecord } : item);
+          }
+          // नया record जो अभी list में नहीं था (e.g. restore from trash, या दूसरे client ने बनाया)
+          if (newRecord.is_active !== false && newRecord.is_active !== 0) {
+            return [newRecord, ...prev];
+          }
+          return prev;
         }
         if (eventType === 'DELETE' && oldRecord) {
-          return prev.filter(item => item.id !== oldRecord.id);
+          return prev.filter(item => String(item.id) !== String(oldRecord.id));
         }
         return prev;
       });
     };
 
+    // Products table के लिए stats भी update करो
+    const refreshStatsAfterProducts = () => {
+      setProducts(prev => {
+        const count = Array.isArray(prev) ? prev.filter(p => p.is_active !== false && p.is_active !== 0).length : 0;
+        setStats(s => ({ ...s, products: count }));
+        return prev;
+      });
+    };
+
     switch (tableName) {
-      case DB_SCHEMA.ORDERS.table: updateState(setOrders); break;
-      case DB_SCHEMA.PRODUCTS.table: updateState(setProducts); break;
-      case DB_SCHEMA.NOTIFICATIONS.table: updateState(setNotifications); break;
-      case DB_SCHEMA.BANNERS.table: updateState(setBanners); break;
-      case DB_SCHEMA.CATEGORIES.table: updateState(setCategories); break;
-      case DB_SCHEMA.SUBCATEGORIES.table: updateState(setSubcategories); break;
-      case DB_SCHEMA.BRANDS.table: updateState(setBrands); break;
-      case DB_SCHEMA.COUPONS.table: updateState(setCoupons); break;
-      case DB_SCHEMA.WALLET_MASTER.table: updateState(setUsers); break;
+      case DB_SCHEMA.ORDERS.table:
+        updateState(setOrders, DB_SCHEMA.ORDERS.table);
+        setStats(s => ({ ...s, orders: Array.isArray(orders) ? orders.length : s.orders }));
+        break;
+      case DB_SCHEMA.PRODUCTS.table:
+        updateState(setProducts, DB_SCHEMA.PRODUCTS.table);
+        refreshStatsAfterProducts();
+        break;
+      case DB_SCHEMA.NOTIFICATIONS.table: updateState(setNotifications, DB_SCHEMA.NOTIFICATIONS.table); break;
+      case DB_SCHEMA.BANNERS.table: updateState(setBanners, DB_SCHEMA.BANNERS.table); break;
+      case DB_SCHEMA.CATEGORIES.table:
+        updateState(setCategories, DB_SCHEMA.CATEGORIES.table);
+        setStats(s => ({ ...s, categories: Array.isArray(categories) ? categories.length : s.categories }));
+        break;
+      case DB_SCHEMA.SUBCATEGORIES.table: updateState(setSubcategories, DB_SCHEMA.SUBCATEGORIES.table); break;
+      case DB_SCHEMA.BRANDS.table: updateState(setBrands, DB_SCHEMA.BRANDS.table); break;
+      case DB_SCHEMA.COUPONS.table: updateState(setCoupons, DB_SCHEMA.COUPONS.table); break;
+      case DB_SCHEMA.WALLET_MASTER.table:
+        updateState(setUsers, DB_SCHEMA.WALLET_MASTER.table);
+        setStats(s => ({ ...s, users: Array.isArray(users) ? users.length : s.users }));
+        break;
+      case DB_SCHEMA.PURCHASES.table: updateState(setPurchases, DB_SCHEMA.PURCHASES.table); break;
+      case DB_SCHEMA.EXPENSES.table: updateState(setExpenses, DB_SCHEMA.EXPENSES.table); break;
+      case DB_SCHEMA.INVENTORY_LOGS.table: updateState(setInventoryLogs, DB_SCHEMA.INVENTORY_LOGS.table); break;
+      case DB_SCHEMA.ADMIN_USERS.table: updateState(setAdminUsers, DB_SCHEMA.ADMIN_USERS.table); break;
+      case DB_SCHEMA.OFFERS.table: updateState(setOffers, DB_SCHEMA.OFFERS.table); break;
+      case DB_SCHEMA.ADDRESSES.table: updateState(setAddresses, DB_SCHEMA.ADDRESSES.table); break;
       default: break;
     }
-  }, []);
+  }, [orders, categories, users]);
 
   useEffect(() => {
     fetchInitialData();

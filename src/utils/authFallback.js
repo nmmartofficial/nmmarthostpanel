@@ -6,9 +6,9 @@ const DEMO_CREDENTIALS = {
 };
 
 export const getDemoAuthResult = (email, password) => {
-  const { allowDemoAuth } = getAppEnv();
+  const { allowDemoAuth, hasRealSupabaseConfig } = getAppEnv();
 
-  if (!allowDemoAuth) {
+  if (!allowDemoAuth || hasRealSupabaseConfig) {
     return null;
   }
 
@@ -38,13 +38,13 @@ export const getDemoAuthResult = (email, password) => {
       name: 'Demo User',
       role: 'super_admin',
       status: 'active',
-      company_code: 'DEMO001'
+      company_code: 'NMM001'
     },
     companyData: {
-      id: 'demo-company-id',
-      company_code: 'DEMO001',
-      company_slug: 'demo-company',
-      name: 'Demo Company',
+      id: '1',
+      company_code: 'NMM001',
+      company_slug: 'nm-mart',
+      name: 'NM MART',
       status: 'active'
     }
   };

@@ -27,7 +27,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
     if (!src) return null;
     if (src.startsWith('http')) return src;
     const baseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-    return `${baseUrl}/storage/v1/object/public/category-images/${src}`;
+    return `${baseUrl}/storage/v1/object/public/${bucket || 'images'}/${src}`;
   };
   
   // Pagination State
@@ -255,7 +255,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
       for (const field of fields) {
         if (field.type === 'image') {
           if (finalData[`${field.name}_file`]) {
-            const { url, error: uploadError } = await uploadImage(finalData[`${field.name}_file`], bucket || 'category-images');
+            const { url, error: uploadError } = await uploadImage(finalData[`${field.name}_file`], bucket || 'images');
             if (uploadError) throw new Error(`Image Upload Failed: ${uploadError}`);
             if (url) {
               finalData[field.name] = url;
@@ -375,9 +375,6 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                   }
                 }
                 
-                console.log('[MasterListView Delete All] All items processed, calling fetchInitialData');
-                await fetchInitialData();
-                
                 if (hasError) {
                   if (firstErrorMsg && firstErrorMsg.startsWith('409_CONFLICT:')) {
                     const errorMsg = firstErrorMsg.replace('409_CONFLICT:', '');
@@ -386,6 +383,8 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                     alert(`Delete All Failed!\n\n${firstErrorMsg}`);
                   }
                 } else {
+                  console.log('[MasterListView Delete All] All items processed, refreshing from Supabase');
+                  await fetchInitialData(true, true);
                   alert(`सभी ${title} सफलतापूर्वक DELETE कर दिए गए!`);
                 }
               }}
@@ -600,20 +599,8 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                           const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
 
                           if (res.success) {
-                            toast.success(`${title.slice(0, -1)} deleted`, {
-                              action: {
-                                label: 'Undo',
-                                onClick: async () => {
-                                  const restoreRes = await handleERPAction(table, ACTION_TYPES.UPDATE, { id: item.id, is_active: true });
-                                  if (restoreRes.success) {
-                                    toast.success('Restored successfully!');
-                                    fetchInitialData();
-                                  }
-                                }
-                              },
-                              duration: 5000
-                            });
-                            await fetchInitialData();
+                            toast.success(`${title.slice(0, -1)} permanently deleted`);
+                            await fetchInitialData(true, true);
                           } else {
                             if (res.error && res.error.startsWith('409_CONFLICT:')) {
                               alert(`⚠️ DELETE नहीं हो पाया!\n\n${res.error.replace('409_CONFLICT:', '')}`);

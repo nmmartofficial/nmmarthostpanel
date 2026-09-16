@@ -20,8 +20,15 @@ export const getAppEnv = () => {
     supabaseAnonKey.length > 20
   );
 
+  const allowDemoAuth = !hasRealSupabaseConfig && (
+    env.VITE_ALLOW_DEMO_AUTH === 'true' ||
+    processEnv.VITE_ALLOW_DEMO_AUTH === 'true' ||
+    (env.DEV === true || isNodeTest || (isNodeRuntime && processEnv.NODE_ENV !== 'production'))
+  );
+
   return {
-    allowDemoAuth: env.VITE_ALLOW_DEMO_AUTH === 'true' || processEnv.VITE_ALLOW_DEMO_AUTH === 'true' || (!hasRealSupabaseConfig && (env.DEV === true || isNodeTest || (isNodeRuntime && processEnv.NODE_ENV !== 'production'))),
+    allowDemoAuth,
+    hasRealSupabaseConfig,
     supabaseUrl,
     supabaseAnonKey
   };

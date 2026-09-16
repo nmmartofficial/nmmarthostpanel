@@ -167,23 +167,6 @@ export default function DashboardView(props) {
 
   return (
     <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-      {/* Active Festival Banner */}
-      {activeFestival && (
-        <div className="rounded-xl p-3 text-white shadow-sm overflow-hidden relative bg-gradient-to-r from-indigo-700 to-blue-600 flex-shrink-0">
-          <div className="absolute top-0 right-0 w-32 h-full bg-white/5 skew-x-[-20deg] translate-x-16" />
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-white/20 rounded-lg"><PartyPopper size={20} /></div>
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-wider leading-none">{activeFestival.name}</h3>
-                <p className="text-[10px] font-bold opacity-90 mt-0.5">{activeFestival.description}</p>
-              </div>
-            </div>
-            <button onClick={() => setActiveTab('FestivalManager')} className="text-[8px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 rounded-full transition-all">Configure Theme</button>
-          </div>
-        </div>
-      )}
-
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2 flex-shrink-0">
         {[

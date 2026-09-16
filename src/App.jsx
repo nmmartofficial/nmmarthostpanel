@@ -62,7 +62,6 @@ const PurchaseView = lazy(() => import('./features/inventory/PurchaseView'));
 const SelfCheckoutView = lazy(() => import('./pages/SelfCheckoutView'));
 const LoyaltyManagementView = lazy(() => import('./pages/LoyaltyManagementView'));
 const CompanyManagement = lazy(() => import('./pages/SuperAdmin/CompanyManagement'));
-const ArchitectureDemo = lazy(() => import('./features/pos/pages/ArchitectureDemo'));
 
 import DashboardView from './features/dashboard/DashboardView';
 import { useAuthContext } from './context';
@@ -671,8 +670,14 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   // Real-time subscriptions are now handled by GlobalContext to prevent duplicate callback errors
   // with Supabase Realtime. App.jsx will receive updates via fetchInitialData or shared state.
-  // REMOVED: No longer fetch all data on mount to improve initial load performance!
-  // Components should fetch data only when required for their specific use case.
+
+  // --- CRITICAL: Initial Data Load on Auth/Mount ---
+  // User ne bola products show nahi ho rahe: root cause yahin tha — fetchInitialData mount par call hi nahi hota!
+  useEffect(() => {
+    if (!isAuthorized) return;
+    if (!currentUser) return;
+    fetchInitialData(true, false);
+  }, [isAuthorized, currentUser, fetchInitialData]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -787,7 +792,7 @@ export default function App({ company, isTenantMode, companySlug }) {
     { id: 'DeliveryBoys', label: 'Delivery Boy Master', icon: <Truck size={14} /> },
     { id: 'DeliveryCustomers', label: 'Delivery Customer Master', icon: <Users size={14} /> },
     { id: 'Coupons', label: 'Coupon Master', icon: <Tag size={14} /> },
-    {id: 'Offers', label: 'Offers Master', icon: <Zap size={14} /> },
+    { id: 'Offers', label: 'Offers Master', icon: <Zap size={14} /> },
     { id: 'Pincodes', label: 'Pincode Master', icon: <MapPin size={14} /> },
     { id: 'Addresses', label: 'Address Master', icon: <MapPin size={14} /> },
     { id: 'WalletMaster', label: 'Wallet Master', icon: <Wallet size={14} /> },
@@ -803,61 +808,22 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   const reportItemsNav = [
     { id: 'CustomerAnalytics', label: 'Customer Analytics', icon: <Users size={14} /> },
-    { id: 'SaleSummary', label: 'Sale Summary', icon: <FileText size={14} /> },
-    { id: 'SaleReportBill', label: 'Sale Bill Report', icon: <FileText size={14} /> },
-    { id: 'SaleReportItem', label: 'Sale Item Report', icon: <FileText size={14} /> },
-    { id: 'SaleReportItemSummary', label: 'Sale Item Summary', icon: <FileText size={14} /> },
-    { id: 'SaleTrashBill', label: 'Trash Bill Report', icon: <Trash size={14} /> },
-    { id: 'SaleCancelledBill', label: 'Cancelled Bill Report', icon: <XCircle size={14} /> },
-    { id: 'PurchaseReport', label: 'Purchase Report', icon: <FileText size={14} /> },
-    { id: 'StockReport', label: 'Stock Report', icon: <History size={14} /> },
-    { id: 'ItemStatement', label: 'Item Statement', icon: <FileText size={14} /> },
-    { id: 'Logbook', label: 'Log Book', icon: <Book size={14} /> },
-    { id: 'LedgerView', label: 'Ledger View', icon: <Book size={14} /> },
-    { id: 'PaymentReportDB', label: 'Delivery Payment', icon: <CreditCard size={14} /> },
-    { id: 'CreditReport', label: 'Credit Report', icon: <FileText size={14} /> },
-    { id: 'PaymentReminder', label: 'Payment Reminder', icon: <RefreshCw size={14} /> },
     { id: 'ProfitLoss', label: 'Profit & Loss Analysis', icon: <TrendingUp size={14} /> },
     { id: 'Expenses', label: 'Expense Management', icon: <Receipt size={14} /> },
   ].filter(item => isAllowed(item.id));
 
   const viewItems = [
-    { id: 'Orders', label: 'Self-Checkout Tracker', icon: <QrCode size={14} />, shortcut: 'F9' },
-    { id: 'OnlineOrder', label: 'Online Order', icon: <Monitor size={14} /> },
-    { id: 'BillView', label: 'Bill View', icon: <Database size={14} /> },
-    { id: 'BillViewDelivery', label: 'Bill View (Delivery)', icon: <Database size={14} /> },
-    { id: 'BranchBill', label: 'Branch Bill', icon: <GitBranch size={14} /> },
-    { id: 'PaymentMobile', label: 'Payment (Mobile No)', icon: <IndianRupee size={14} /> },
-    { id: 'WalletRecharge', label: 'Wallet recharge', icon: <IndianRupee size={14} /> },
+    { id: 'Orders', label: 'Orders', icon: <QrCode size={14} />, shortcut: 'F9' },
+    { id: 'POS', label: 'Point of Sale', icon: <ShoppingCart size={14} /> },
+    { id: 'SelfCheckout', label: 'Self Checkout', icon: <Monitor size={14} /> },
   ].filter(item => isAllowed(item.id));
 
-  const storeItems = [
-    { id: 'BOM', label: 'Bill of Materials (BOM)', icon: <Settings size={14} /> },
-    { id: 'ProductionEntry', label: 'Production Entry', icon: <GitBranch size={14} /> },
-    { id: 'CostingReport', label: 'Costing Report', icon: <BarChart3 size={14} /> },
-    { id: 'StockTransfer', label: 'Stock Transfer', icon: <RefreshCw size={14} /> },
-    { id: 'StockTransferReport', label: 'Stock Transfer Report', icon: <RefreshCw size={14} /> },
-    { id: 'WastageEntry', label: 'Wastage Entry', icon: <Trash2 size={14} /> },
-    { id: 'WastageReport', label: 'Wastage Report', icon: <Trash2 size={14} /> },
-    { id: 'PurchaseOrderPO', label: '(PO) Purchase order', icon: <FileText size={14} /> },
-    { id: 'PurchaseReportRO', label: '(RO) Purchase Report', icon: <FileText size={14} /> },
-    { id: 'RequisitionReportRO', label: '(RO) Requisition Order Report', icon: <FileText size={14} /> },
-  ].filter(item => isAllowed(item.id));
+  const storeItems = [];
 
   const toolsItems = [
-    { id: 'AppBuilderAI', label: 'AI APP BUILDER', icon: <Bot size={14} /> },
-    { id: 'FestivalManager', label: 'FESTIVAL MANAGER', icon: <PartyPopper size={14} /> },
-    { id: 'LoyaltyPoints', label: 'LOYALTY POINTS', icon: <Trophy size={14} /> },
-    { id: 'BarcodeLabels', label: 'BARCODE LABELS', icon: <Package size={14} /> },
-    { id: 'MultiStore', label: 'MULTI STORE', icon: <Building2 size={14} /> },
-    { id: 'AppConfig', label: 'CONFIGURATION', icon: <Settings size={14} /> },
-    { id: 'GuardVerification', label: 'GUARD VERIFICATION', icon: <ShieldCheck size={14} />, hidden: !appConfig?.enable_guard_verification },
-    { id: 'StoreItemDisplay', label: 'STORE ITEM DISPLAY', icon: <ArrowLeftRight size={14} /> },
-    { id: 'StoreSubCatDisplay', label: 'STORE SUB-CAT DISPLAY', icon: <ArrowLeftRight size={14} /> },
-    { id: 'StoreMainCatDisplay', label: 'STORE MAIN-CAT DISPLAY', icon: <ArrowLeftRight size={14} /> },
-    { id: 'TestBluetooth', label: 'TEST BLUETOOTH', icon: <ArrowLeftRight size={14} /> },
-    ...(!isTenantMode ? [{ id: 'CompanyManagement', label: 'COMPANY MANAGEMENT', icon: <Building2 size={14} /> }] : []),
-  ].filter(item => isAllowed(item.id) && !item.hidden);
+    { id: 'AppConfig', label: 'Configuration', icon: <Settings size={14} /> },
+    ...(!isTenantMode ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }] : []),
+  ].filter(item => isAllowed(item.id));
 
   return (
     customerMode ? (
@@ -5585,7 +5551,7 @@ function UnderDevelopmentView({ title }) {
 const CategoriesView = (props) => (
   <MasterListView
     {...props}
-    bucket="category-images"
+    bucket="categories"
     customColumnMapping={{
       'dtname': 'name',
       'imagename': 'image_url',
@@ -5602,7 +5568,7 @@ const CategoriesView = (props) => (
 const SubcategoriesView = (props) => (
   <MasterListView
     {...props}
-    bucket="subcategory-images"
+    bucket="subcategories"
     customColumnMapping={{
       'dtname': 'name',
       'imagename': 'image_url',
@@ -5620,7 +5586,7 @@ const SubcategoriesView = (props) => (
 const BrandsView = (props) => (
   <MasterListView
     {...props}
-    bucket="brand-images"
+    bucket="brands"
     fields={[
       { name: 'name', label: 'Brand Name', type: 'text', required: true },
       { name: 'image_url', label: 'Image', type: 'image' },
@@ -5690,7 +5656,7 @@ const UsersView = (props) => (
 const BannersView = (props) => (
   <MasterListView
     {...props}
-    bucket="banner-images"
+    bucket="banners"
     fields={[
       { name: 'title', label: 'Banner Title', type: 'text' },
       { name: 'image_url', label: 'Banner Image', type: 'image', required: true },
@@ -6924,12 +6890,7 @@ const SaleCancelledBillView = (props) => <UnderDevelopmentView title="Sale Cance
 // --- Tab Content Renderer ---
 function renderTabContent(activeTab, props) {
   switch (activeTab) {
-    // Core Views (Moved to Separate Files)
-    case 'AppBuilderAI': return <NMMartAppBuilderAI {...props} />;
-    case 'FestivalManager': return <FestivalManager {...props} />;
-    case 'LoyaltyPoints': return <LoyaltyManagementView orders={props.orders} fetchInitialData={props.fetchInitialData} />;
-    case 'BarcodeLabels': return <BarcodeLabelGenerator {...props} />;
-    case 'MultiStore': return <MultiStoreManager {...props} />;
+    // Essential admin-management views only
     case 'CompanyManagement': return <CompanyManagement />;
     case 'Dashboard': return <DashboardView orderItems={props.orderItems || []} {...props} />;
     case 'Products': return <ProductsView {...props} />;
@@ -6942,16 +6903,13 @@ function renderTabContent(activeTab, props) {
     case 'POS': return <POSView orders={props.orders} {...props} />;
     case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} customerMode={props.customerMode} setCustomerMode={props.setCustomerMode} />;
     case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
-    case 'ArchitectureDemo': return <ArchitectureDemo {...props} />;
 
-    // Inventory Views
+    // Inventory and master management
     case 'StockAlerts': return <StockAlertsView products={props.products} fetchInitialData={props.fetchInitialData} />;
     case 'Suppliers': return <EnhancedSuppliersView accounts={props.accounts} purchases={props.purchases} fetchInitialData={props.fetchInitialData} />;
     case 'PurchaseEntry': return <PurchaseEntryView products={props.products} accounts={props.accounts} {...props} />;
     case 'StockLogs': return <StockLogsView inventoryLogs={props.inventoryLogs} products={props.products} {...props} />;
     case 'Expenses': return <ExpensesView expenses={props.expenses} fetchInitialData={props.fetchInitialData} />;
-
-    // Master Dropdown Cases
     case 'Categories': return <CategoriesView title="Item Main Category" table={DB_SCHEMA.CATEGORIES.table} data={props.categories} {...props} />;
     case 'Subcategories': return <SubcategoriesView title="Sub Categories" table={DB_SCHEMA.SUBCATEGORIES.table} data={props.subcategories} categories={props.categories} {...props} />;
     case 'Brands': return <BrandsView title="Brand Master" table={DB_SCHEMA.BRANDS.table} data={props.brands} {...props} />;
@@ -6970,56 +6928,8 @@ function renderTabContent(activeTab, props) {
     case 'Departments': return <DepartmentsView title="Department Master" table={DB_SCHEMA.DEPARTMENTS.table} data={props.departments} {...props} />;
     case 'Units': return <UnitsView title="Unit Master" table={DB_SCHEMA.UNITS.table} data={props.units} {...props} />;
     case 'Accounts': return <AccountsView title="Account Master" table={DB_SCHEMA.ACCOUNTS.table} data={props.accounts} {...props} />;
-
-    // Store Dropdown Cases
-    case 'StoreMainCat': return <StoreMainCatDisplayView categories={props.categories} departments={props.departments} />;
-    case 'StoreMainCatDisplay': return <StoreMainCatDisplayView categories={props.categories} departments={props.departments} />;
-    case 'StoreSubCat': return <StoreSubCatDisplayView subcategories={props.subcategories} departments={props.departments} />;
-    case 'StoreSubCatDisplay': return <StoreSubCatDisplayView subcategories={props.subcategories} departments={props.departments} />;
-    case 'StoreItem': return <StoreItemDisplayView products={props.products} departments={props.departments} />;
-    case 'StoreItemDisplay': return <StoreItemDisplayView products={props.products} departments={props.departments} />;
-    case 'StockTransferReport': return <StockTransferReportView {...props} />;
-    case 'WastageReport': return <WastageReportView {...props} />;
-    case 'PurchaseReportRO': return <PurchaseReportROView {...props} />;
-    case 'RequisitionReportRO': return <RequisitionReportROView {...props} />;
-    case 'BOM': return <BOMView {...props} />;
-
-    // Process Cases
-    case 'ProductionEntry': return <ProductionEntryView {...props} />;
-    case 'CostingReport': return <CostingReportView {...props} />;
-    case 'StockTransfer': return <StockTransferView {...props} />;
-    case 'WastageEntry': return <WastageEntryView {...props} />;
-    case 'PurchaseOrderPO': return <PurchaseOrderView {...props} />;
     case 'Purchase': return <PurchaseView title="Purchase" table={DB_SCHEMA.PURCHASES.table} data={props.purchases} products={props.products} departments={props.departments} {...props} />;
-
-    // View Dropdown Cases
-    case 'OnlineOrder': return <OnlineOrderView {...props} />;
-    case 'BillView': return <BillView {...props} />;
-    case 'BillViewDelivery': return <BillViewDeliveryView {...props} />;
-    case 'BranchBill': return <BranchBillView {...props} />;
-    case 'PaymentMobile': return <PaymentMobileView {...props} />;
-    case 'WalletRecharge': return <WalletRechargeView {...props} />;
     case 'Transaction': return <TransactionView {...props} />;
-
-    // Report Dropdown Cases
-    case 'SaleSummary': return <SaleSummaryView {...props} />;
-    case 'SaleReportBill': return <SaleReportBillView {...props} />;
-    case 'SaleReportItem': return <SaleReportItemView {...props} />;
-    case 'SaleReportItemSummary': return <SaleReportItemSummaryView {...props} />;
-    case 'SaleTrashBill': return <SaleTrashBillView {...props} />;
-    case 'SaleCancelledBill': return <SaleCancelledBillView {...props} />;
-    case 'PurchaseReport': return <PurchaseReportView {...props} />;
-    case 'StockReport': return <StockReportView {...props} />;
-    case 'ItemStatement': return <ItemStatementReportView {...props} />;
-    case 'Logbook': return <LogbookView {...props} />;
-    case 'GuardVerification': return <GuardVerificationView orders={props.orders} {...props} />;
-    case 'LedgerView': return <LedgerView {...props} />;
-    case 'PaymentReportDB': return <DeliveryBoyPaymentReportView {...props} />;
-    case 'CreditReport': return <CreditReportView {...props} />;
-    case 'PaymentReminder': return <PaymentReminderView {...props} />;
-
-    // Tools Dropdown Cases
-    case 'TestBluetooth': return <TestBluetoothView />;
 
     default: return <DashboardView {...props} />;
   }

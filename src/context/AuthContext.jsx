@@ -13,6 +13,7 @@ import {
   detectSuspiciousActivity
 } from '../utils/securityHelper';
 import { normalizeAdminUserProfile, buildFallbackAdminProfile, getAdminUserLookupValue } from '../utils/adminUser';
+import { getAppEnv } from '../utils/env';
 
 const AuthContext = createContext();
 const SUPABASE_NETWORK_TIMEOUT_MS = Number(import.meta.env.VITE_SUPABASE_TIMEOUT_MS || 15000);
@@ -118,6 +119,7 @@ export const AuthProvider = ({ children }) => {
 
   const restoreStoredAuthState = useCallback(() => {
     try {
+      const { hasRealSupabaseConfig } = getAppEnv();
       const storedSession = secureStorage.getItem('nm_auth_session');
       const storedUser = secureStorage.getItem('nm_user_data');
       const storedCompany = secureStorage.getItem('nm_current_company');
@@ -125,6 +127,12 @@ export const AuthProvider = ({ children }) => {
       if (storedSession && storedUser) {
         const now = Math.floor(Date.now() / 1000);
         const isSyntheticSession = storedSession?.provider === 'admin_table_fallback' || storedSession?.provider === 'demo' || String(storedSession?.access_token || '').startsWith('fb_');
+
+        if (hasRealSupabaseConfig && isSyntheticSession) {
+          clearAuthState();
+          return false;
+        }
+
         if (storedSession.expires_at && storedSession.expires_at < now && !isSyntheticSession) {
           try {
             logSecurityEvent('stored_session_expired', {
@@ -160,8 +168,13 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const hydrateAuthState = useCallback(async (supabaseSession) => {
+    const { hasRealSupabaseConfig } = getAppEnv();
     const localAuth = secureStorage.getItem('nm_auth_session');
-      const isLocalSynthetic = localAuth?.provider === 'admin_table_fallback' || String(localAuth?.access_token || '').startsWith('fb_');
+      const isLocalSynthetic = localAuth?.provider === 'admin_table_fallback' || localAuth?.provider === 'demo' || String(localAuth?.access_token || '').startsWith('fb_');
+      if (hasRealSupabaseConfig && isLocalSynthetic) {
+        clearAuthState();
+        return null;
+      }
       if (!supabaseSession?.user) {
         if (isLocalSynthetic) {
           return null; // Don't wipe fallback admin login on refresh
@@ -216,13 +229,11 @@ export const AuthProvider = ({ children }) => {
 
       let companyData = null;
       if (userData && userData.company_code) {
-        const { data: companiesList, error: companyError } = await supabase
+        let { data: companyResult, error: companyError } = await supabase
           .from(DB_SCHEMA.COMPANIES.table)
             .select('*')
             .eq('company_code', userData.company_code)
-            .limit(1);
-
-        let companyResult = companiesList?.[0] ?? null;
+            .maybeSingle();
 
           if (!companyResult) {
             companyResult = {
@@ -659,14 +670,11 @@ export const AuthProvider = ({ children }) => {
         if (userData.company_code) {
           let companyResult = await withRetry(
             () => withTimeout(
-              (async () => {
-                const { data: companiesList, error } = await supabase
-                  .from(DB_SCHEMA.COMPANIES.table)
-                    .select('*')
-                    .eq('company_code', userData.company_code)
-                    .limit(1);
-                return { data: companiesList?.[0] ?? null, error };
-              })(),
+              supabase
+                .from(DB_SCHEMA.COMPANIES.table)
+                  .select('*')
+                  .eq('company_code', userData.company_code)
+                  .maybeSingle(),
               SUPABASE_NETWORK_TIMEOUT_MS,
               { data: null, error: { message: 'Unable to load company details.' } }
             ),
