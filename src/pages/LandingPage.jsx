@@ -1,790 +1,164 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  ShoppingBag,
-  Phone,
-  ArrowRight,
-  ShieldCheck,
-  Sparkles,
-  Zap,
-  Layers,
-  MessageCircle,
-  BarChart3,
-  Box,
-  CheckCircle2,
-  Lock,
-  ChevronDown,
-  Globe,
-  Cloud,
-  Database,
-  Receipt,
-  Users,
-  Store,
-  Tag,
-  Printer,
-  Wifi,
-  Cpu,
-  Play,
-  Check,
-  Star,
-  ChevronRight,
-  Menu,
-  X,
-  Target,
-  Eye,
-  Mail,
-  Clock,
-  MapPin,
-  Facebook,
-  Instagram,
-  Linkedin,
-  Youtube,
-  ArrowUpRight,
+  ArrowRight, BarChart3, Bell, Box, Building2, Check, CheckCircle2,
+  ChevronDown, ClipboardList, Cloud, CreditCard, Database, FileBarChart,
+  Globe2, LayoutDashboard, LineChart, LockKeyhole, Menu, MessageCircle,
+  Package, Percent, Phone, Play, Receipt, ScanBarcode, Settings2, ShieldCheck,
+  ShoppingBag, ShoppingCart, Sparkles, Store, Tag, Truck, Users, Wallet, X,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
-const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+const contactNumber = '918282827240';
+const displayPhone = '+91 82828 27240';
+const whatsappLink = `https://wa.me/${contactNumber}?text=Hello%20NM%20MART%20ULTRA,%20I%27d%20like%20a%20demo.`;
+
+const reveal = {
+  hidden: { opacity: 0, y: 22 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut' } }
 };
 
-const stagger = {
-  visible: { transition: { staggerChildren: 0.1 } },
-};
+const features = [
+  { title: 'Smart POS & Billing', desc: 'Fast barcode billing, discounts, GST, payments, and print-ready receipts.', icon: Receipt, tone: 'indigo' },
+  { title: 'Inventory Management', desc: 'Know current stock, low-stock risks, valuation, and movement at a glance.', icon: Box, tone: 'emerald' },
+  { title: 'Purchase Management', desc: 'Keep suppliers, purchase entries, and costs organized in one flow.', icon: ClipboardList, tone: 'amber' },
+  { title: 'Customer Management', desc: 'Build profiles, purchase history, insights, and repeat buying habits.', icon: Users, tone: 'sky' },
+  { title: 'Offers & Coupons', desc: 'Launch targeted offers and coupon campaigns without spreadsheet work.', icon: Tag, tone: 'rose' },
+  { title: 'Online Orders', desc: 'Bring online and store orders into a single operational view.', icon: ShoppingCart, tone: 'violet' },
+  { title: 'Business Reports', desc: 'Turn sales, profit, products, and branches into clear decisions.', icon: FileBarChart, tone: 'blue' },
+  { title: 'Multi-Branch Management', desc: 'Scale across locations with shared visibility and tenant-safe data.', icon: Building2, tone: 'teal' }
+];
 
-export default function LandingPage() {
-  const contactNumber = "917081154604";
-  const displayPhone = "+91 7081154604";
-  const secondPhone = "+918090102034";
-  const secondDisplayPhone = "+91 80901 02034";
-  const whatsappLink1 = `https://wa.me/${contactNumber}?text=Hello%20NM%20MART,%20I'm%20interested%20in%20your%20Management%20Solutions.`;
-  const whatsappLink2 = `https://wa.me/918090102034?text=Hello%20NM%20MART,%20I'm%20interested%20in%20your%20Management%20Solutions.`;
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeFaq, setActiveFaq] = useState(null);
+const modules = [
+  ['Sales & POS', Receipt], ['Purchase', ClipboardList], ['Inventory', Box], ['Products', Package],
+  ['Brands', Tag], ['Customers', Users], ['Suppliers', Truck], ['Offers', Sparkles],
+  ['Coupons', Percent], ['Delivery', Truck], ['Payments', CreditCard], ['Wallet', Wallet],
+  ['Reports', FileBarChart], ['Analytics', LineChart], ['Branches', Store], ['Users', ShieldCheck],
+  ['Accounts', Database]
+];
 
-  const scrollToSection = (id) => {
-    setMobileMenuOpen(false);
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
+const trustItems = [
+  ['Retail Stores', Store], ['Supermarkets', ShoppingBag], ['Grocery Businesses', Package],
+  ['Multi-Branch Retail', Building2], ['Growing Businesses', Zap]
+];
 
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+const faqItems = [
+  ['What is NM MART ULTRA?', 'NM MART ULTRA is an enterprise retail ERP that connects billing, inventory, purchases, customers, orders, and reports in one workspace.'],
+  ['Can I manage inventory and billing together?', 'Yes. POS billing, stock movement, purchase costs, and product data are designed to stay connected.'],
+  ['Does it support multiple branches?', 'Yes. Multi-branch operations can be managed with company-aware access and consolidated visibility.'],
+  ['Can I manage customers?', 'You can manage profiles, purchase history, offers, coupons, loyalty, and customer insights.'],
+  ['Can I create offers and coupons?', 'Yes. Offers and coupons have dedicated management flows so campaigns stay easy to control.'],
+  ['Can I view sales reports?', 'Yes. Sales, purchase, inventory, product, customer, profit, and branch reporting are part of the platform.'],
+  ['Is there a free trial?', 'Start with a guided conversation and we will recommend the right setup for your business.'],
+  ['Can I request a demo?', 'Yes. Use the Request Demo button or contact us at 82828 27240.']
+];
 
-  const features = [
-    { title: 'Inventory', icon: Box, desc: 'Real-time stock management' },
-    { title: 'POS Billing', icon: Receipt, desc: 'Ultra-fast checkout system' },
-    { title: 'Purchase', icon: ShoppingBag, desc: 'Streamlined procurement' },
-    { title: 'Sales', icon: Tag, desc: 'Omnichannel sales tracking' },
-    { title: 'CRM', icon: Users, desc: 'Customer relationship tools' },
-    { title: 'GST', icon: Globe, desc: 'Automated tax compliance' },
-    { title: 'Reports', icon: BarChart3, desc: 'Advanced analytics' },
-    { title: 'Analytics', icon: Zap, desc: 'AI-powered insights' },
-    { title: 'Multi Store', icon: Store, desc: 'Unified store management' },
-    { title: 'Barcode', icon: Printer, desc: 'Seamless label printing' },
-    { title: 'Loyalty', icon: Star, desc: 'Reward program engine' },
-    { title: 'WhatsApp', icon: MessageCircle, desc: 'Integrated messaging' },
-    { title: 'Cloud Backup', icon: Cloud, desc: 'Secure data sync' },
-    { title: 'Multi Tenant', icon: Layers, desc: 'Enterprise architecture' },
-    { title: 'AI Ready', icon: Cpu, desc: 'Future-proof platform' },
-  ];
-
-  const stats = [
-    { label: 'Rating', value: '4.9', icon: Star },
-    { label: 'Retail Stores', value: '1200+', icon: Store },
-    { label: 'Transactions', value: '2M+', icon: Receipt },
-    { label: 'Uptime', value: '99.99%', icon: ShieldCheck },
-    { label: 'Support', value: '24×7', icon: Phone },
-  ];
-
-  const logos = ['Supabase', 'Google Cloud', 'Vercel', 'WhatsApp', 'Razorpay', 'Barcode', 'GST', 'Cloud'];
-  const whyChoose = [
-    { title: 'Fast', desc: 'Lightning fast performance', icon: Zap },
-    { title: 'Secure', desc: 'Enterprise-grade security', icon: ShieldCheck },
-    { title: 'Cloud', desc: 'Always available', icon: Cloud },
-    { title: 'Offline Sync', desc: 'Work without internet', icon: Wifi },
-    { title: 'Multi Tenant', desc: 'Built for scale', icon: Layers },
-    { title: 'Enterprise Ready', desc: 'Production-grade', icon: CheckCircle2 },
-  ];
-  const steps = [
-    { step: '1', title: 'Register', desc: 'Create your account in seconds' },
-    { step: '2', title: 'Setup Store', desc: 'Configure your retail operations' },
-    { step: '3', title: 'Start Selling', desc: 'Begin processing transactions' },
-    { step: '4', title: 'Track Growth', desc: 'Monitor your business success' },
-  ];
-  const testimonials = [
-    {
-      name: 'Rajesh Kumar',
-      business: 'SuperMart India',
-      text: 'NM MART transformed our retail operations completely. We saw 40% growth in first month.',
-      rating: 5,
-    },
-    {
-      name: 'Priya Sharma',
-      business: 'Fashion Hub',
-      text: 'The best ERP solution for retail businesses. Intuitive, fast and reliable.',
-      rating: 5,
-    },
-    {
-      name: 'Amit Patel',
-      business: 'Fresh Grocers',
-      text: '24/7 support and seamless updates keep our business running smoothly.',
-      rating: 5,
-    },
-  ];
-  const pricing = [
-    { name: 'Starter', price: '₹999', period: '/month', features: ['1 Store', '1000 Products', 'Basic Reports', 'Email Support'] },
-    { name: 'Business', price: '₹2,999', period: '/month', features: ['5 Stores', 'Unlimited Products', 'Advanced Analytics', 'Priority Support', 'WhatsApp Integration'], featured: true },
-    { name: 'Enterprise', price: 'Custom', period: '', features: ['Unlimited Stores', 'White Label', 'Dedicated Manager', 'SLA Guarantee', 'Custom Integrations'] },
-  ];
-  const faqs = [
-    { q: 'Is NM MART suitable for small businesses?', a: 'Absolutely! Our platform is designed for businesses of all sizes, from single stores to large chains.' },
-    { q: 'Can I use NM MART offline?', a: 'Yes, our offline sync feature allows you to continue working even without internet connectivity.' },
-    { q: 'How secure is my data?', a: 'We use enterprise-grade encryption and cloud backup to ensure your data is always safe and accessible.' },
-    { q: 'Do you provide training?', a: 'Yes, we offer comprehensive onboarding and 24/7 support to help you get started quickly.' },
-  ];
-
+function SectionHeading({ eyebrow, title, description, light = false }) {
   return (
-    <div className="min-h-screen w-full bg-white text-slate-900 flex flex-col relative selection:bg-blue-600 selection:text-white antialiased">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-      `}</style>
+    <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={reveal} className="mx-auto mb-14 max-w-2xl text-center">
+      {eyebrow && <p className={`mb-3 text-xs font-black uppercase tracking-[0.22em] ${light ? 'text-emerald-300' : 'text-indigo-600'}`}>{eyebrow}</p>}
+      <h2 className={`text-3xl font-black tracking-tight sm:text-4xl ${light ? 'text-white' : 'text-slate-950'}`}>{title}</h2>
+      {description && <p className={`mt-4 text-base leading-7 ${light ? 'text-slate-300' : 'text-slate-600'}`}>{description}</p>}
+    </motion.div>
+  );
+}
 
-      {/* Background */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full" style={{
-          backgroundImage: 'radial-gradient(60% 50% at 50% 0%, rgba(37, 99, 235, 0.08) 0%, rgba(255, 255, 255, 0) 100%), radial-gradient(40% 40% at 90% 10%, rgba(79, 70, 229, 0.06) 0%, rgba(255, 255, 255, 0) 100%)'
-        }} />
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'linear-gradient(to right, rgba(15, 23, 42, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(15, 23, 42, 0.03) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }} />
-      </div>
-
-      {/* Header */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-xl shadow-sm border-b border-slate-100' : 'bg-transparent'}`}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <ShoppingBag className="text-white" size={22} fill="white" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">NM MART</span>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-8">
-            {[
-              { name: 'Features', id: 'features' },
-              { name: 'Modules', id: 'features' },
-              { name: 'Solutions', id: 'solutions' },
-              { name: 'Pricing', id: 'pricing' },
-              { name: 'About', id: 'about' },
-              { name: 'Contact', id: 'contact' }
-            ].map((item) => (
-              <button
-                key={item.name}
-                onClick={() => scrollToSection(item.id)}
-                className="text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
-              >
-                {item.name}
-              </button>
-            ))}
-          </nav>
-
-          <div className="hidden md:flex items-center gap-4">
-            <Link to="/nm-mart" className="px-5 py-2.5 text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors">Login</Link>
-            <a href={whatsappLink1} target="_blank" rel="noopener noreferrer" className="px-5 py-2.5 text-sm font-medium text-slate-700 border border-slate-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all">
-              Request Demo
-            </a>
-            <a href={whatsappLink1} target="_blank" rel="noopener noreferrer" className="px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/30 transition-all">
-              Start Free Trial
-            </a>
-          </div>
-
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 text-slate-700">
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+function DashboardPreview() {
+  const metrics = [
+    ['Today\'s Sales', '₹84,260', '+18.4%', BarChart3, 'text-indigo-700', 'bg-indigo-100'],
+    ['Orders', '1,284', '+12.8%', Receipt, 'text-sky-700', 'bg-sky-100'],
+    ['Stock Health', '94.6%', 'Healthy', Box, 'text-emerald-700', 'bg-emerald-100'],
+    ['Customers', '8,492', '+9.2%', Users, 'text-amber-700', 'bg-amber-100']
+  ];
+  return (
+    <div className="relative mx-auto w-full max-w-[610px]">
+      <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white shadow-[0_28px_90px_rgba(49,46,129,0.2)]">
+        <div className="flex items-center justify-between bg-slate-950 px-5 py-3 text-white">
+          <div className="flex items-center gap-2 text-xs font-black tracking-tight"><span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400"><ShoppingBag size={13} /></span> NM MART <span className="text-emerald-400">ULTRA</span></div>
+          <div className="hidden gap-4 text-[9px] font-semibold text-slate-400 sm:flex"><span className="text-white">Dashboard</span><span>Sales</span><span>Inventory</span><span>Reports</span></div>
+          <div className="flex gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-rose-400" /><i className="h-2.5 w-2.5 rounded-full bg-amber-400" /><i className="h-2.5 w-2.5 rounded-full bg-emerald-400" /></div>
         </div>
-
-        <AnimatePresence>
-            {mobileMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="md:hidden bg-white border-t border-slate-100 overflow-hidden"
-              >
-                <div className="px-6 py-6 flex flex-col gap-4">
-                  {[
-                    { name: 'Features', id: 'features' },
-                    { name: 'Modules', id: 'features' },
-                    { name: 'Solutions', id: 'solutions' },
-                    { name: 'Pricing', id: 'pricing' },
-                    { name: 'About', id: 'about' },
-                    { name: 'Contact', id: 'contact' }
-                  ].map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => scrollToSection(item.id)}
-                      className="text-left text-lg font-medium text-slate-700"
-                    >
-                      {item.name}
-                    </button>
-                  ))}
-                  <div className="h-px bg-slate-100 my-2" />
-                  <Link to="/nm-mart" className="text-lg font-medium text-blue-600">Login</Link>
-                  <a href={whatsappLink1} target="_blank" rel="noopener noreferrer" className="w-full py-3 text-center font-semibold text-white bg-blue-600 rounded-xl">
-                    Start Free Trial
-                  </a>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-      </header>
-
-      <main className="relative z-10 pt-24">
-        {/* Hero Section */}
-        <section className="relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-6 py-20 md:py-32">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <motion.div initial="hidden" animate="visible" variants={stagger} className="space-y-8">
-                <motion.div variants={fadeIn} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-full">
-                  <Sparkles size={16} className="text-blue-600" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-blue-700">Enterprise Retail ERP</span>
-                </motion.div>
-
-                <motion.h1 variants={fadeIn} className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-slate-900">
-                  Powering Modern <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Retail Businesses</span>
-                </motion.h1>
-
-                <motion.p variants={fadeIn} className="text-lg md:text-xl text-slate-600 leading-relaxed">
-                  NM MART is the enterprise-grade retail management platform trusted by thousands of businesses. Streamline operations, boost sales, and scale with confidence.
-                </motion.p>
-
-                <motion.div variants={fadeIn} className="flex flex-wrap gap-4">
-                  <a href={whatsappLink1} target="_blank" rel="noopener noreferrer" className="group px-8 py-4 bg-blue-600 text-white font-semibold rounded-2xl hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-500/30 transition-all flex items-center gap-2">
-                    Start Free Trial
-                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                  </a>
-                  <a href="#demo" className="group px-8 py-4 bg-white text-slate-700 font-semibold rounded-2xl border border-slate-200 hover:border-blue-200 hover:bg-blue-50 transition-all flex items-center gap-2">
-                    <Play size={20} className="text-blue-600" />
-                    Watch Demo
-                  </a>
-                </motion.div>
-
-                <motion.div variants={fadeIn} className="pt-4">
-                  <p className="text-sm text-slate-500 flex items-center gap-2">
-                    <Check size={16} className="text-green-500" />
-                    Trusted by Retail Businesses Across India
-                  </p>
-                </motion.div>
-              </motion.div>
-
-              <motion.div initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, delay: 0.2 }} className="relative">
-                <div className="relative bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-                  <div className="bg-slate-900 px-4 py-3 flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                  </div>
-                  <div className="p-6 bg-gradient-to-br from-slate-50 to-white">
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      {[1, 2, 3, 4].map((i) => (
-                        <motion.div key={i} animate={{ y: [0, -10, 0] }} transition={{ duration: 3 + i, repeat: Infinity, ease: "easeInOut" }} className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
-                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mb-2">
-                            <BarChart3 size={16} className="text-blue-600" />
-                          </div>
-                          <div className="text-sm font-semibold text-slate-900">Sales Growth</div>
-                          <div className="text-2xl font-bold text-blue-600">+24%</div>
-                        </motion.div>
-                      ))}
-                    </div>
-                    <div className="h-40 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-sm text-slate-500">Dashboard Preview</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
+        <div className="bg-gradient-to-br from-indigo-50 via-white to-emerald-50 p-4 sm:p-6">
+          <div className="mb-4 flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Live command center</p><h3 className="mt-1 text-lg font-black text-slate-950">Good morning, retail team</h3></div><span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[9px] font-black text-emerald-700"><i className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> SYNCED</span></div>
+          <div className="grid grid-cols-2 gap-3">
+            {metrics.map(([label, value, change, Icon, color, bg]) => <div key={label} className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm"><div className={`mb-2 flex h-7 w-7 items-center justify-center rounded-lg ${bg}`}><Icon size={14} className={color} /></div><p className="text-[10px] font-bold text-slate-500">{label}</p><p className="mt-0.5 text-lg font-black text-slate-950">{value}</p><p className="text-[9px] font-black text-emerald-600">{change}</p></div>)}
           </div>
-        </section>
-
-        {/* Trust Section */}
-        <section className="py-16 border-y border-slate-100 bg-slate-50/50">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex flex-wrap justify-between items-center gap-8">
-              <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => <Star key={i} size={20} className="text-yellow-500" fill="currentColor" />)}
-                <span className="ml-2 text-sm font-semibold text-slate-700">4.9 Rating</span>
-              </div>
-              {stats.slice(1).map((stat, i) => (
-                <div key={i} className="text-center">
-                  <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-                  <div className="text-sm text-slate-500">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Brand Logos */}
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex flex-wrap justify-center items-center gap-12 opacity-60 grayscale">
-              {logos.map((logo, i) => (
-                <div key={i} className="text-xl font-bold tracking-tight text-slate-400">
-                  {logo}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* About Section */}
-        <section id="about" className="py-24 bg-slate-50">
-          <div className="max-w-7xl mx-auto px-6">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-16">
-              <motion.h2 variants={fadeIn} className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">About NM MART</motion.h2>
-              <motion.p variants={fadeIn} className="text-lg text-blue-600 font-medium mb-8">Enterprise Retail ERP Platform</motion.p>
-              <motion.p variants={fadeIn} className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed mb-12">
-                NM MART is a modern cloud-based Retail ERP platform designed for grocery stores, supermarkets, pharmacies, wholesalers and multi-store retail businesses.
-              </motion.p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-              {[
-                "Billing & POS",
-                "Inventory",
-                "Purchase",
-                "Sales",
-                "Accounts",
-                "CRM",
-                "Reports",
-                "Multi-Store Management",
-                "Multi-Tenant SaaS",
-                "Customer App",
-                "Analytics"
-              ].map((feature, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-center gap-3 p-4 bg-white rounded-xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all"
-                >
-                  <CheckCircle2 size={20} className="text-blue-600 flex-shrink-0" />
-                  <span className="text-slate-700 font-medium">{feature}</span>
-                </motion.div>
-              ))}
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8 mb-16">
-              {[
-                { icon: Target, title: "Our Mission", text: "Helping every retailer digitize their business using enterprise-grade technology." },
-                { icon: Eye, title: "Our Vision", text: "To become India's most trusted cloud retail ERP platform." }
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.15 }}
-                  className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl border border-blue-100"
-                >
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mb-6">
-                    <item.icon size={32} className="text-white" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4">{item.title}</h3>
-                  <p className="text-slate-600 text-lg leading-relaxed">{item.text}</p>
-                </motion.div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {[
-                { number: "500+", label: "Retail Stores", icon: Store },
-                { number: "50K+", label: "Orders Processed", icon: Receipt },
-                { number: "99.9%", label: "System Uptime", icon: ShieldCheck },
-                { number: "24x7", label: "Support", icon: Phone }
-              ].map((stat, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="text-center p-6 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-lg transition-all"
-                >
-                  <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <stat.icon size={28} className="text-blue-600" />
-                  </div>
-                  <div className="text-3xl font-bold text-slate-900 mb-2">{stat.number}</div>
-                  <div className="text-slate-600 font-medium">{stat.label}</div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section id="features" className="py-24">
-          <div className="max-w-7xl mx-auto px-6">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-16">
-              <motion.h2 variants={fadeIn} className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Everything You Need</motion.h2>
-              <motion.p variants={fadeIn} className="text-lg text-slate-600 max-w-2xl mx-auto">
-                Comprehensive retail management features designed to grow with your business.
-              </motion.p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6">
-              {features.map((feature, i) => (
-                <motion.div key={i} initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeIn} whileHover={{ y: -4 }} className="p-6 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-lg transition-all">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl flex items-center justify-center mb-4">
-                    <feature.icon size={24} className="text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold text-slate-900 mb-2">{feature.title}</h3>
-                  <p className="text-sm text-slate-500">{feature.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Why Choose */}
-        <section id="solutions" className="py-24 bg-slate-50">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Why Choose NM MART</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">Built for performance, security, and reliability.</p>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {whyChoose.map((item, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="p-8 bg-white rounded-2xl shadow-sm border border-slate-100">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6">
-                    <item.icon size={28} className="text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">{item.title}</h3>
-                  <p className="text-slate-600">{item.desc}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* How It Works */}
-        <section className="py-24">
-          <div className="max-w-4xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">How It Works</h2>
-            </div>
-            <div className="relative">
-              <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-slate-200 -translate-x-1/2 hidden md:block" />
-              {steps.map((step, i) => (
-                <motion.div key={i} initial={{ opacity: 0, x: i % 2 === 0 ? -30 : 30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.15 }} className={`relative flex items-center gap-8 mb-12 ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}>
-                  <div className="hidden md:flex w-1/2" />
-                  <div className="absolute left-1/2 -translate-x-1/2 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold z-10 hidden md:flex">
-                    {step.step}
-                  </div>
-                  <div className="flex-1 bg-white p-8 rounded-2xl border border-slate-100 shadow-sm">
-                    <div className="md:hidden mb-4 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {step.step}
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">{step.title}</h3>
-                    <p className="text-slate-600">{step.desc}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials */}
-        <section className="py-24 bg-slate-50">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">What Our Users Say</h2>
-            </div>
-            <div className="grid md:grid-cols-3 gap-8">
-              {testimonials.map((t, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="p-8 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                  <div className="flex gap-1 mb-6">
-                    {[...Array(t.rating)].map((_, j) => <Star key={j} size={20} className="text-yellow-500" fill="currentColor" />)}
-                  </div>
-                  <p className="text-slate-600 mb-6 leading-relaxed">"{t.text}"</p>
-                  <div>
-                    <div className="font-semibold text-slate-900">{t.name}</div>
-                    <div className="text-sm text-slate-500">{t.business}</div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing */}
-        <section id="pricing" className="py-24">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Simple, Transparent Pricing</h2>
-              <p className="text-lg text-slate-600">Choose the plan that's right for your business.</p>
-            </div>
-            <div className="grid md:grid-cols-3 gap-8">
-              {pricing.map((plan, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.15 }} className={`relative p-8 rounded-3xl border transition-all ${plan.featured ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-transparent shadow-xl shadow-blue-500/30' : 'bg-white border-slate-100 hover:border-blue-200'}`}>
-                  {plan.featured && <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-yellow-900 px-4 py-1 rounded-full text-xs font-bold">Most Popular</div>}
-                  <h3 className={`text-xl font-bold mb-2 ${plan.featured ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
-                  <div className="flex items-baseline gap-1 mb-8">
-                    <span className={`text-4xl font-bold ${plan.featured ? 'text-white' : 'text-slate-900'}`}>{plan.price}</span>
-                    <span className={`${plan.featured ? 'text-blue-200' : 'text-slate-500'}`}>{plan.period}</span>
-                  </div>
-                  <ul className="space-y-4 mb-8">
-                    {plan.features.map((f, j) => (
-                      <li key={j} className="flex items-center gap-3">
-                        <Check size={18} className={plan.featured ? 'text-green-300' : 'text-green-500'} />
-                        <span className={plan.featured ? 'text-blue-100' : 'text-slate-600'}>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <a href={whatsappLink1} target="_blank" rel="noopener noreferrer" className={`block w-full py-3 text-center font-semibold rounded-xl transition-all ${plan.featured ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
-                    Get Started
-                  </a>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* FAQ */}
-        <section className="py-24 bg-slate-50">
-          <div className="max-w-3xl mx-auto px-6">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">Frequently Asked Questions</h2>
-            </div>
-            <div className="space-y-4">
-              {faqs.map((faq, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-                  <button onClick={() => setActiveFaq(activeFaq === i ? null : i)} className="w-full px-6 py-5 flex justify-between items-center text-left">
-                    <span className="font-semibold text-slate-900">{faq.q}</span>
-                    <ChevronDown size={20} className={`text-slate-400 transition-transform ${activeFaq === i ? 'rotate-180' : ''}`} />
-                  </button>
-                  <AnimatePresence>
-                    {activeFaq === i && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="px-6 pb-5">
-                        <p className="text-slate-600">{faq.a}</p>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Contact Section */}
-        <section id="contact" className="py-24">
-          <div className="max-w-7xl mx-auto px-6">
-            <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={stagger} className="text-center mb-16">
-              <motion.h2 variants={fadeIn} className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Contact Us</motion.h2>
-              <motion.p variants={fadeIn} className="text-lg text-slate-600">We would love to hear from you.</motion.p>
-            </motion.div>
-
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                {[
-                  { icon: Phone, title: "Phone", value: displayPhone, tel: `tel:${contactNumber}`, wa: whatsappLink1 },
-                  { icon: Phone, title: "Phone", value: secondDisplayPhone, tel: `tel:${secondPhone}`, wa: whatsappLink2 },
-                  { icon: Mail, title: "Email", value: "support@nmmart.in", href: "mailto:support@nmmart.in" },
-                  { icon: Clock, title: "Business Hours", value: "Monday - Saturday\n9:00 AM - 8:00 PM" },
-                  { icon: MapPin, title: "Address", value: "India" },
-                ].map((item, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.1 }}
-                    className="p-6 bg-white rounded-2xl border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <item.icon size={24} className="text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-2">{item.title}</h4>
-                        {item.tel ? (
-                          <div className="flex flex-wrap items-center gap-3">
-                            <a href={item.tel} className="text-slate-700 font-medium hover:text-blue-600 transition-colors whitespace-pre-line">
-                              {item.value}
-                            </a>
-                            <a href={item.wa} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors">
-                              <MessageCircle size={16} />
-                              WhatsApp
-                            </a>
-                          </div>
-                        ) : item.href ? (
-                          <a href={item.href} className="text-slate-700 font-medium hover:text-blue-600 transition-colors">
-                            {item.value}
-                          </a>
-                        ) : (
-                          <p className="text-slate-700 whitespace-pre-line">{item.value}</p>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-3xl border border-slate-200 p-8 flex flex-col items-center justify-center"
-              >
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                  <MapPin size={40} className="text-blue-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Our Office Location</h3>
-                <p className="text-slate-600 text-lg">Coming Soon</p>
-              </motion.div>
-            </div>
-          </div>
-        </section>
-
-        {/* Final CTA */}
-        <section className="py-24">
-          <div className="max-w-4xl mx-auto px-6">
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-12 text-center">
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Ready to Transform Your Retail Business?</h2>
-              <p className="text-blue-100 text-lg mb-8 max-w-2xl mx-auto">Join thousands of retailers who trust NM MART to power their growth.</p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <a href={whatsappLink1} target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-white text-blue-600 font-semibold rounded-2xl hover:bg-blue-50 transition-all">
-                  Start Free Trial
-                </a>
-                <a href={whatsappLink1} target="_blank" rel="noopener noreferrer" className="px-8 py-4 bg-blue-700/50 text-white font-semibold rounded-2xl border border-white/20 hover:bg-blue-700/70 transition-all">
-                  Book Demo
-                </a>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-slate-900 text-slate-300">
-        <div className="max-w-7xl mx-auto px-6 py-16">
-          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
-            <div className="lg:col-span-2">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <ShoppingBag className="text-white" size={22} fill="white" />
-                </div>
-                <span className="text-xl font-bold tracking-tight text-white">NM MART</span>
-              </div>
-              <p className="text-slate-400 mb-6">Enterprise-grade retail management platform for modern businesses.</p>
-              <div className="flex items-center gap-4">
-                {[
-                  { icon: Facebook, name: "Facebook" },
-                  { icon: Instagram, name: "Instagram" },
-                  { icon: Linkedin, name: "LinkedIn" },
-                  { icon: Youtube, name: "YouTube" },
-                ].map((social, i) => (
-                  <a
-                    key={i}
-                    href="#"
-                    className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors"
-                    aria-label={social.name}
-                  >
-                    <social.icon size={20} className="text-slate-300 hover:text-white" />
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Product</h4>
-              <ul className="space-y-3">
-                {['Features', 'Modules', 'Pricing', 'Solutions'].map((item, i) => (
-                  <li key={i}>
-                    <button
-                      onClick={() => scrollToSection(item === 'Features' ? 'features' : item === 'Solutions' ? 'solutions' : item === 'Pricing' ? 'pricing' : 'features')}
-                      className="hover:text-blue-400 transition-colors text-left"
-                    >
-                      {item}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Company</h4>
-              <ul className="space-y-3">
-                {[
-                  { name: 'About', id: 'about' },
-                  { name: 'Contact', id: 'contact' },
-                  { name: 'Privacy Policy', id: null },
-                  { name: 'Terms', id: null }
-                ].map((item, i) => (
-                  <li key={i}>
-                    {item.id ? (
-                      <button
-                        onClick={() => scrollToSection(item.id)}
-                        className="hover:text-blue-400 transition-colors text-left"
-                      >
-                        {item.name}
-                      </button>
-                    ) : (
-                      <a href="#" className="hover:text-blue-400 transition-colors">{item.name}</a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-white font-semibold mb-4">Support</h4>
-              <ul className="space-y-3">
-                {['Documentation', 'Help Center', 'Contact'].map((item, i) => (
-                  <li key={i}>
-                    {item === 'Contact' ? (
-                      <button
-                        onClick={() => scrollToSection('contact')}
-                        className="hover:text-blue-400 transition-colors text-left"
-                      >
-                        {item}
-                      </button>
-                    ) : (
-                      <a href="#" className="hover:text-blue-400 transition-colors">{item}</a>
-                    )}
-                  </li>
-                ))}
-                <li>
-                  <Link to="/nm-mart" className="hover:text-blue-400 transition-colors">Staff Portal</Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-slate-500 text-sm">© 2026 NM MART Ultra Retail ERP. All Rights Reserved.</p>
-            <div className="flex items-center gap-4">
-              <a href={`tel:${contactNumber}`} className="flex items-center gap-2 text-sm text-slate-400 hover:text-blue-400 transition-colors">
-                <Phone size={16} /> {displayPhone}
-              </a>
-            </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-[1.25fr_0.75fr]">
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><div className="mb-3 flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Weekly revenue</p><p className="text-sm font-black text-slate-900">₹3.42L <span className="text-[9px] text-emerald-600">+24.8%</span></p></div><LineChart size={16} className="text-indigo-500" /></div><div className="flex h-20 items-end gap-1.5">{[30,44,38,60,52,72,58,82,68,92,78,100].map((height, index) => <div key={index} className="flex-1 rounded-t bg-gradient-to-t from-indigo-600 to-emerald-400" style={{ height: `${height}%` }} />)}</div><div className="mt-2 flex justify-between text-[8px] font-bold text-slate-400"><span>Mon</span><span>Wed</span><span>Fri</span><span>Sun</span></div></div>
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fast movers</p><div className="mt-3 space-y-3">{[['Milk 1L', '86 sold'], ['Atta 5kg', '64 sold'], ['Rice 10kg', '51 sold']].map(([name, value], index) => <div key={name} className="flex items-center gap-2"><span className={`flex h-6 w-6 items-center justify-center rounded-md text-[9px] font-black ${index === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{index + 1}</span><div className="min-w-0"><p className="truncate text-[10px] font-black text-slate-700">{name}</p><p className="text-[9px] font-bold text-emerald-600">{value}</p></div></div>)}</div></div>
           </div>
         </div>
-      </footer>
+      </motion.div>
+      <div className="absolute -left-6 top-24 hidden w-40 rounded-2xl border border-white bg-white/95 p-3 shadow-xl sm:block"><div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100"><CreditCard size={13} className="text-emerald-700" /></span><div><p className="text-[9px] font-black text-slate-900">Payment received</p><p className="text-[9px] font-bold text-emerald-600">₹2,480 · just now</p></div></div></div>
+      <div className="absolute -right-5 bottom-16 hidden w-44 rounded-2xl border border-white bg-white/95 p-3 shadow-xl sm:block"><div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100"><Bell size={13} className="text-amber-700" /></span><div><p className="text-[9px] font-black text-slate-900">Low stock alert</p><p className="text-[9px] font-bold text-amber-700">Sugar 1kg · 8 left</p></div></div></div>
     </div>
   );
+}
+
+function FeatureCard({ feature, index }) {
+  const Icon = feature.icon;
+  const tone = { indigo: 'bg-indigo-100 text-indigo-700', emerald: 'bg-emerald-100 text-emerald-700', amber: 'bg-amber-100 text-amber-700', sky: 'bg-sky-100 text-sky-700', rose: 'bg-rose-100 text-rose-700', violet: 'bg-violet-100 text-violet-700', blue: 'bg-blue-100 text-blue-700', teal: 'bg-teal-100 text-teal-700' }[feature.tone];
+  return <motion.article initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { delay: index * 0.04 } } }} whileHover={{ y: -5 }} className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100/50"><div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${tone}`}><Icon size={22} /></div><h3 className="text-lg font-black text-slate-950">{feature.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{feature.desc}</p><ArrowRight size={17} className="mt-5 text-slate-300 transition-all group-hover:translate-x-1 group-hover:text-indigo-600" /></motion.article>;
+}
+
+function DataPanel({ type }) {
+  if (type === 'pos') return <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl"><div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><ScanBarcode size={18} className="text-indigo-600" /><span className="text-sm font-black">Quick billing</span></div><span className="rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700">REGISTER 04</span></div><div className="mb-3 flex gap-2"><div className="flex-1 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-400">Search product or scan barcode</div><button className="rounded-xl bg-indigo-700 px-3 text-white"><ScanBarcode size={15} /></button></div>{[['Milk 1L', '₹64'], ['Atta 5kg', '₹286'], ['Rice 10kg', '₹624']].map(([name, price]) => <div key={name} className="flex items-center justify-between border-b border-slate-100 py-3 text-sm"><span className="font-bold text-slate-700">{name}</span><span className="font-black text-slate-950">{price}</span></div>)}<div className="mt-4 flex items-center justify-between rounded-xl bg-indigo-50 p-3"><span className="text-xs font-bold text-slate-600">Total incl. GST</span><span className="text-xl font-black text-indigo-700">₹974</span></div></div>;
+  return <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl"><div className="mb-4 flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Stock valuation</p><p className="mt-1 text-2xl font-black text-slate-950">₹18.64L</p></div><span className="rounded-xl bg-emerald-100 p-2 text-emerald-700"><Box size={18} /></span></div><div className="space-y-3">{[['Fast-moving', '68%', 'bg-emerald-500'], ['Healthy stock', '24%', 'bg-indigo-500'], ['Low stock', '8%', 'bg-amber-500']].map(([label, value, bar]) => <div key={label}><div className="mb-1 flex justify-between text-[10px] font-bold text-slate-500"><span>{label}</span><span>{value}</span></div><div className="h-2 rounded-full bg-slate-100"><div className={`h-2 rounded-full ${bar}`} style={{ width: value }} /></div></div>)}</div><div className="mt-5 rounded-2xl bg-amber-50 p-3"><div className="flex items-center gap-2 text-xs font-black text-amber-800"><Bell size={14} /> 12 items need attention</div><p className="mt-1 text-[10px] font-semibold text-amber-700">Reorder before the next sales peak.</p></div></div>;
+}
+
+export default function LandingPage() {
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState(null);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const scrollTo = (id) => {
+    setMobileOpen(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const nav = [['Features', 'features'], ['Modules', 'modules'], ['Solutions', 'solutions'], ['Pricing', 'pricing'], ['About', 'about'], ['Contact', 'contact']];
+  return <div className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 selection:bg-indigo-700 selection:text-white">
+    <style>{`@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }`}</style>
+    <header className={`fixed inset-x-0 top-0 z-50 border-b transition-all ${scrolled ? 'border-slate-200/80 bg-white/85 shadow-sm backdrop-blur-xl' : 'border-transparent bg-white/60 backdrop-blur-md'}`}>
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8"><Link to="/" className="flex items-center gap-2.5"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-700 to-emerald-500 text-white shadow-lg shadow-indigo-300/30"><ShoppingBag size={18} /></span><span className="text-base font-black tracking-tight text-slate-950">NM MART <span className="text-emerald-600">ULTRA</span></span></Link><nav className="hidden items-center gap-7 lg:flex">{nav.map(([label, id]) => <button key={label} onClick={() => scrollTo(id)} className="text-xs font-bold text-slate-600 transition-colors hover:text-indigo-700">{label}</button>)}</nav><div className="hidden items-center gap-3 lg:flex"><Link to="/nm-mart" className="px-3 py-2 text-xs font-bold text-slate-700 hover:text-indigo-700">Login</Link><a href={whatsappLink} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50">Request Demo</a><a href={whatsappLink} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-indigo-300/30 transition hover:bg-indigo-800">Start Free Trial</a></div><button onClick={() => setMobileOpen(!mobileOpen)} className="rounded-xl p-2 text-slate-700 lg:hidden" aria-label="Toggle navigation">{mobileOpen ? <X size={22} /> : <Menu size={22} />}</button></div>
+      <AnimatePresence>{mobileOpen && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="border-t border-slate-200 bg-white lg:hidden"><div className="flex flex-col gap-4 px-5 py-5">{nav.map(([label, id]) => <button key={label} onClick={() => scrollTo(id)} className="text-left text-sm font-bold text-slate-700">{label}</button>)}<Link to="/nm-mart" className="text-sm font-bold text-indigo-700">Login</Link><a href={whatsappLink} className="rounded-xl bg-indigo-700 px-4 py-3 text-center text-sm font-black text-white">Start Free Trial</a></div></motion.div>}</AnimatePresence>
+    </header>
+
+    <main className="relative pt-16">
+      <section className="relative overflow-hidden"><div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_12%,rgba(99,102,241,0.17),transparent_30%),radial-gradient(circle_at_88%_55%,rgba(16,185,129,0.1),transparent_28%)]" /><div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(15,23,42,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.045)_1px,transparent_1px)] [background-size:44px_44px]" /><div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 lg:grid-cols-[0.86fr_1.14fr] lg:px-8 lg:py-24"><motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.08 } } }} className="max-w-xl"><motion.div variants={reveal} className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700"><Sparkles size={13} /> Enterprise Retail ERP</motion.div><motion.h1 variants={reveal} className="text-5xl font-black leading-[0.98] tracking-[-0.04em] text-slate-950 sm:text-6xl lg:text-[5.25rem]">Powering Modern<br /><span className="bg-gradient-to-r from-indigo-700 via-blue-600 to-teal-500 bg-clip-text text-transparent">Retail &amp; Supermarket</span><br />Businesses</motion.h1><motion.p variants={reveal} className="mt-7 max-w-lg text-base leading-7 text-slate-600 sm:text-lg">Complete retail management, billing, inventory control, customer marketing, and analytics in one calm, connected workspace.</motion.p><motion.div variants={reveal} className="mt-8 flex flex-wrap gap-3"><a href={whatsappLink} className="group inline-flex items-center gap-2 rounded-2xl bg-indigo-700 px-6 py-4 text-sm font-black text-white shadow-xl shadow-indigo-300/30 transition hover:-translate-y-0.5 hover:bg-indigo-800">Start Free Trial <ArrowRight size={17} className="transition group-hover:translate-x-1" /></a><button onClick={() => scrollTo('demo')} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50"><Play size={16} className="text-indigo-600" /> Watch Demo</button></motion.div><motion.div variants={reveal} className="mt-6 flex items-center gap-2 text-xs font-bold text-slate-500"><CheckCircle2 size={15} className="text-emerald-500" /> Built for serious retail operations</motion.div></motion.div><motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, delay: 0.18 }}><DashboardPreview /></motion.div></div></section>
+
+      <section className="border-y border-slate-200 bg-white py-8"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 lg:px-8"><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Built for modern retail businesses</p>{trustItems.map(([label, Icon]) => <div key={label} className="flex items-center gap-2 text-xs font-bold text-slate-600"><Icon size={16} className="text-indigo-500" /> {label}</div>)}</div></section>
+
+      <section id="features" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><SectionHeading eyebrow="Core capabilities" title="Everything Your Retail Business Needs" description="One connected platform to manage your entire retail operation." /><div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{features.map((feature, index) => <FeatureCard key={feature.title} feature={feature} index={index} />)}</div></section>
+
+      <section id="modules" className="bg-slate-950 px-5 py-24 text-white lg:px-8"><div className="mx-auto max-w-7xl"><SectionHeading light eyebrow="Connected operations" title="One ERP. Every Retail Operation." description="Bring every moving part of your business into one reliable command center." /><div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-[0.75fr_1fr_0.75fr]"><div className="grid grid-cols-2 gap-3">{modules.slice(0, 6).map(([label, Icon]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-center text-xs font-bold text-slate-300"><Icon size={17} className="mx-auto mb-2 text-emerald-400" />{label}</div>)}</div><div className="relative flex aspect-square items-center justify-center rounded-full border border-indigo-400/30 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-emerald-500/20 shadow-[0_0_100px_rgba(99,102,241,0.18)]"><div className="absolute inset-8 rounded-full border border-dashed border-white/15" /><div className="relative z-10 text-center"><span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-emerald-400 shadow-xl"><LayoutDashboard size={30} /></span><p className="text-lg font-black">NM MART</p><p className="font-black text-emerald-400">ULTRA PLATFORM</p><p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">One source of truth</p></div></div><div className="grid grid-cols-2 gap-3">{modules.slice(6).map(([label, Icon]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-center text-xs font-bold text-slate-300"><Icon size={17} className="mx-auto mb-2 text-indigo-300" />{label}</div>)}</div></div></div></section>
+
+      <section id="solutions" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><div className="grid items-center gap-12 lg:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Decision intelligence</p><h2 className="max-w-lg text-4xl font-black tracking-tight text-slate-950">Know Your Business. Make Better Decisions.</h2><p className="mt-5 max-w-lg text-base leading-7 text-slate-600">NM MART ULTRA gives your team real-time visibility into sales, revenue, stock, customers, orders, product performance, and branches.</p><div className="mt-7 grid grid-cols-2 gap-3">{['Sales & revenue', 'Stock health', 'Customer growth', 'Branch performance'].map((item) => <div key={item} className="flex items-center gap-2 rounded-xl bg-white p-3 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200"><Check size={14} className="text-emerald-600" />{item}</div>)}</div></div><div className="rounded-[28px] border border-slate-200 bg-slate-950 p-4 shadow-2xl"><div className="rounded-2xl bg-white p-5"><div className="flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Demo data · Revenue</p><p className="mt-1 text-3xl font-black text-slate-950">₹12.8L</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black text-emerald-700">+18.6%</span></div><div className="mt-6 flex h-40 items-end gap-2 border-b border-slate-100 pb-1">{[35,48,42,65,58,74,68,88,76,96,84,100].map((height, index) => <div key={index} className="flex-1 rounded-t-md bg-gradient-to-t from-indigo-600 to-teal-400" style={{ height: `${height}%` }} />)}</div><div className="mt-4 grid grid-cols-3 gap-3">{[['Top products', 'Milk 1L'], ['Orders', '4,829'], ['Customers', '+12.4%']].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 p-3"><p className="text-[9px] font-bold text-slate-400">{label}</p><p className="mt-1 text-xs font-black text-slate-800">{value}</p></div>)}</div></div></div></div></section>
+
+      <section className="bg-white px-5 py-24 lg:px-8"><div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2"><div className="order-2 lg:order-1"><DataPanel type="inventory" /></div><div className="order-1 lg:order-2"><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Inventory control</p><h2 className="text-4xl font-black tracking-tight text-slate-950">Never Lose Track of Your Stock</h2><p className="mt-5 text-base leading-7 text-slate-600">From fast movers to purchase history, keep your inventory healthy before it becomes a sales problem.</p><div className="mt-7 flex flex-wrap gap-2">{['Current stock', 'Low-stock alerts', 'Fast-moving products', 'Stock valuation'].map((item) => <span key={item} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">{item}</span>)}</div></div></div></section>
+
+      <section id="demo" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><div className="grid items-center gap-12 lg:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Point of sale</p><h2 className="text-4xl font-black tracking-tight text-slate-950">Billing That Keeps Your Store Moving</h2><p className="mt-5 text-base leading-7 text-slate-600">Search products, scan barcodes, apply discount and tax, take payment, and print a bill without slowing down the queue.</p><div className="mt-7 flex flex-wrap gap-2">{['Product search', 'Barcode scanning', 'Discount & tax', 'Customer', 'Payment', 'Print bill'].map((item) => <span key={item} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800">{item}</span>)}</div></div><DataPanel type="pos" /></div></section>
+
+      <section className="bg-indigo-50/70 px-5 py-24 lg:px-8"><div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Customer intelligence</p><h2 className="text-4xl font-black tracking-tight text-slate-950">Turn Every Purchase Into a Relationship</h2><p className="mt-5 text-base leading-7 text-slate-600">Give your team the context to serve customers better and create more reasons for them to return.</p></div><div className="grid grid-cols-2 gap-4">{[['Profiles', Users], ['Purchase history', ClipboardList], ['Offers & coupons', Tag], ['Loyalty & insights', Sparkles]].map(([label, Icon]) => <div key={label} className="rounded-3xl border border-white bg-white p-5 shadow-sm"><Icon size={22} className="text-indigo-600" /><p className="mt-5 text-sm font-black text-slate-900">{label}</p><p className="mt-1 text-xs leading-5 text-slate-500">Connected to every sale and interaction.</p></div>)}</div></div></section>
+
+      <section className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><SectionHeading eyebrow="Clear reporting" title="Your Business, Clearly Explained." description="Daily sales, monthly sales, profit, purchase, inventory, customer, product, and branch reports in one place." /><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{['Daily Sales', 'Monthly Sales', 'Profit', 'Purchase', 'Inventory', 'Customer', 'Product', 'Branch'].map((label, index) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center justify-between"><p className="text-xs font-black text-slate-700">{label}</p><BarChart3 size={15} className="text-indigo-500" /></div><div className="flex h-10 items-end gap-1">{[35 + index * 3, 54, 42, 70, 60, 82].map((height, i) => <div key={i} className="flex-1 rounded-t bg-indigo-100" style={{ height: `${Math.min(height, 90)}%` }} />)}</div><p className="mt-3 text-[10px] font-bold text-slate-400">Updated just now · Demo view</p></div>)}</div></section>
+
+      <section id="about" className="bg-slate-100/70 px-5 py-24 lg:px-8"><SectionHeading eyebrow="Simple rollout" title="From Setup to Smarter Growth" description="A calm operating rhythm for teams at every stage." /><div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">{[['01', 'Set Up Your Store', 'Configure products, users, pricing, and branches.'], ['02', 'Manage Your Business', 'Run billing, inventory, purchases, customers, and orders.'], ['03', 'Grow With Better Insights', 'Use live reports to improve every decision.']].map(([number, title, desc]) => <div key={number} className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><span className="text-4xl font-black text-indigo-200">{number}</span><h3 className="mt-7 text-lg font-black text-slate-950">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{desc}</p></div>)}</div></section>
+
+      <section id="pricing" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><SectionHeading eyebrow="Flexible growth" title="Simple Pricing for Growing Retail Businesses" description="Start with the setup that matches your operation. Contact sales for a tailored plan." /><div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">{[['Free Trial', 'Explore the platform', 'Get started with a guided setup.'], ['Professional', 'Contact Sales', 'For growing stores and teams.'], ['Enterprise', 'Contact Sales', 'For multi-branch operations and custom needs.']].map(([name, price, desc], index) => <div key={name} className={`rounded-3xl border p-7 ${index === 2 ? 'border-indigo-500 bg-slate-950 text-white shadow-xl shadow-indigo-200' : 'border-slate-200 bg-white'}`}><p className={`text-xs font-black uppercase tracking-widest ${index === 2 ? 'text-emerald-300' : 'text-indigo-600'}`}>{name}</p><h3 className="mt-5 text-2xl font-black">{price}</h3><p className={`mt-2 text-sm ${index === 2 ? 'text-slate-300' : 'text-slate-600'}`}>{desc}</p><div className="my-7 space-y-3">{['Billing & POS', 'Inventory control', 'Reports & analytics', 'Customer management'].map((item) => <p key={item} className={`flex items-center gap-2 text-xs font-bold ${index === 2 ? 'text-slate-300' : 'text-slate-600'}`}><Check size={14} className="text-emerald-500" />{item}</p>)}</div><a href={whatsappLink} className={`block rounded-xl px-4 py-3 text-center text-xs font-black ${index === 2 ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300' : 'bg-indigo-700 text-white hover:bg-indigo-800'}`}>{name === 'Free Trial' ? 'Start Free Trial' : 'Contact Sales'}</a></div>)}</div></section>
+
+      <section className="bg-white px-5 py-24 lg:px-8"><SectionHeading eyebrow="Answers" title="Frequently Asked Questions" /><div className="mx-auto max-w-3xl divide-y divide-slate-200 rounded-3xl border border-slate-200 bg-white px-6">{faqItems.map(([question, answer], index) => <div key={question}><button onClick={() => setOpenFaq(openFaq === index ? null : index)} className="flex w-full items-center justify-between gap-4 py-5 text-left text-sm font-black text-slate-800"><span>{question}</span><ChevronDown size={17} className={`flex-shrink-0 text-indigo-600 transition-transform ${openFaq === index ? 'rotate-180' : ''}`} /></button><AnimatePresence>{openFaq === index && <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="pb-5 text-sm leading-6 text-slate-600">{answer}</motion.p>}</AnimatePresence></div>)}</div></section>
+
+      <section id="contact" className="px-5 pb-24 lg:px-8"><div className="relative mx-auto max-w-7xl overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-800 px-6 py-16 text-center shadow-2xl shadow-indigo-200 sm:px-12"><div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" /><div className="relative"><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Ready when you are</p><h2 className="mx-auto max-w-2xl text-3xl font-black tracking-tight text-white sm:text-5xl">Ready to Modernize Your Retail Business?</h2><p className="mx-auto mt-5 max-w-xl text-base leading-7 text-slate-300">Bring billing, inventory, customers, orders, and analytics together with NM MART ULTRA.</p><div className="mt-8 flex flex-wrap justify-center gap-3"><a href={whatsappLink} className="rounded-2xl bg-emerald-400 px-6 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-300">Start Free Trial <ArrowRight size={16} className="ml-1 inline" /></a><a href={whatsappLink} className="rounded-2xl border border-white/20 bg-white/10 px-6 py-4 text-sm font-black text-white transition hover:bg-white/15">Request a Demo</a></div></div></div></section>
+    </main>
+
+    <footer className="bg-slate-950 px-5 py-12 text-slate-400 lg:px-8"><div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]"><div><div className="flex items-center gap-2 text-white"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-emerald-400"><ShoppingBag size={17} /></span><span className="font-black">NM MART <span className="text-emerald-400">ULTRA</span></span></div><p className="mt-5 max-w-xs text-sm leading-6">Powering Modern Retail &amp; Supermarket Businesses.</p><a href={`tel:${contactNumber}`} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-white hover:text-emerald-300"><Phone size={15} /> {displayPhone}</a></div>{[['Product', 'Features', 'Modules', 'Pricing', 'Solutions'], ['Company', 'About', 'Contact', 'Request Demo', 'Support'], ['Resources', 'Documentation', 'Help Center', 'FAQs', 'Privacy Policy']].map(([title, ...items]) => <div key={title}><h3 className="text-xs font-black uppercase tracking-widest text-white">{title}</h3><div className="mt-5 space-y-3">{items.map((item) => <a key={item} href={item === 'Contact' || item === 'Request Demo' ? whatsappLink : '#'} className="block text-sm transition hover:text-white">{item}</a>)}</div></div>)}</div><div className="mx-auto mt-10 flex max-w-7xl flex-col gap-3 border-t border-white/10 pt-6 text-xs font-semibold sm:flex-row sm:items-center sm:justify-between"><span>© 2026 NM MART ULTRA. All rights reserved.</span><span className="flex items-center gap-2"><LockKeyhole size={13} /> Enterprise-ready retail operations</span></div></footer>
+  </div>;
 }

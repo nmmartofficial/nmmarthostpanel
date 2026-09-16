@@ -693,7 +693,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                 const productName = getVal('itname', 'name');
                 
                 return (
-                <tr key={product.id} className="hover:bg-blue-50/30 transition-colors group">
+                <tr key={product.id} className="odd:bg-white even:bg-slate-100 hover:bg-blue-50/30 transition-colors group">
                   <td className="px-4 py-3 text-[10px] font-bold text-slate-500">
                     {(currentPage - 1) * rowsPerPage + idx + 1}
                   </td>

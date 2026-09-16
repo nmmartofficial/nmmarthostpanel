@@ -499,7 +499,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
                 <tr
                   key={item.id}
                   className={cn(
-                    "hover:bg-primary-50 transition-colors group",
+                    "odd:bg-white even:bg-slate-100 hover:bg-primary-50 transition-colors group",
                     selectedIds.includes(item.id) && "bg-blue-50/50"
                   )}
                 >
