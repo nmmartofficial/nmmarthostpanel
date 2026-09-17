@@ -107,7 +107,7 @@ export const GlobalProvider = ({ children }) => {
   ]);
   const [festivals, setFestivals] = useState(() => {
     const saved = secureStorage.getItem('nm_festivals');
-    return saved ? saved : INITIAL_FESTIVALS;
+    return Array.isArray(saved) ? saved : INITIAL_FESTIVALS;
   });
   const [activeFestival, setActiveFestival] = useState(null);
   const [loading, setLoading] = useState(false);
