@@ -6,6 +6,9 @@ import {
   filterProductsBySearch, filterProducts
 } from '../utils/pos';
 import { handleERPAction, ACTION_TYPES, ERP_MODULES } from '../erpController';
+import { supabase } from '../supabase';
+import { DB_SCHEMA } from '../dbSchema';
+import { buildAtomicCheckoutPayload } from '../utils/pos/atomicCheckout';
 
 import {
   POSErrorBoundary
@@ -287,59 +290,51 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
   }, [clearCart, barcodeInputRef]);
 
   const handleCheckout = useCallback(async (pMethod = 'Cash') => {
+    if (isProcessing) return;
     if (cart.length === 0) return toast.error("Cart is empty!");
     if (!isPaymentValid) return setPaymentError(`Insufficient Payment: ₹${remainingAmount.toFixed(2)} remaining`);
     setIsProcessing(true); setCheckoutStep('processing');
     try {
-      const lastOrderNo = orders.reduce((max, o) => isNaN(parseInt(o.order_number)) ? max : Math.max(max, parseInt(o.order_number)), 0);
-      const orderData = {
-        order_number: (lastOrderNo + 1).toString(),
-        user_id: selectedUser?.id || 'POS-CUST',
-        customer_name: selectedUser?.name || 'Walk-in Customer',
-        user_mobile: selectedUser?.mobile || '',
-        address: selectedUser?.address || '',
+      const checkoutPayload = buildAtomicCheckoutPayload({
+        cart,
+        selectedUser,
+        customerInfo,
         subtotal: subTotal,
-        total_amount: finalTotal,
-        payment_method: pMethod,
-        payment_status: 'paid',
-        order_status: 'completed',
+        totalAmount: finalTotal,
         discount: manualDiscount,
-        delivery_charge: deliveryChargeAmount
-      };
-      const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.INSERT, orderData);
+        deliveryCharge: deliveryChargeAmount,
+        paymentMethod: pMethod,
+        paidAmount: paidTotal
+      });
+      const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.ATOMIC_ORDER, checkoutPayload);
       if (!orderRes.success) throw new Error(orderRes.error);
-      const createdOrder = orderRes.data[0];
+      const orderId = Number(orderRes.data);
+      const { data: fetchedOrder } = await supabase
+        .from(DB_SCHEMA.ORDERS.table)
+        .select('*')
+        .eq('id', orderId)
+        .single();
+      const createdOrder = fetchedOrder || {
+        ...checkoutPayload.order_header,
+        id: orderId,
+        order_number: `POS-${orderId}`,
+        total_amount: finalTotal
+      };
       setLastOrderData(createdOrder);
       setSessionOrders(prev => [...prev, createdOrder]);
       addSessionActivity('Sale Completed', `Bill #${createdOrder.order_number} - ₹${createdOrder.total_amount}`, 'Sales', 'success');
       addHardwareLog('Order Saved', 'Cash Drawer', 'success');
       setLastHardwareAction(prev => ({ ...prev, checkout: formatTime(new Date()) }));
-      for (const item of cart) {
-        await handleERPAction(ERP_MODULES.ORDER_ITEMS, ACTION_TYPES.INSERT, {
-          order_id: createdOrder.id,
-          product_id: item.id,
-          product_name: item.itname || item.name,
-          quantity: item.quantity,
-          rate: item.sale_rate,
-          total: item.sale_rate * item.quantity
-        });
-        const product = products.find(p => p.id === item.id);
-        if (product) {
-          const newStock = toFloat(product.opstock ?? product.stock) - item.quantity;
-          await handleERPAction(ERP_MODULES.ITEM_MASTER, ACTION_TYPES.UPDATE, { id: product.id, stock: newStock, opstock: newStock });
-        }
-      }
       setCheckoutStep('success');
       setShowReceiptDialog(true);
       setShowPaymentModal(false);
-      setIsProcessing(false);
       fetchInitialData();
     } catch (error) {
       toast.error(error.message);
       setIsProcessing(false);
       setCheckoutStep('idle');
     }
-  }, [cart, isPaymentValid, remainingAmount, orders, selectedUser, subTotal, finalTotal, manualDiscount, deliveryChargeAmount, products, addSessionActivity, addHardwareLog, setLastHardwareAction, setSessionOrders, fetchInitialData]);
+  }, [cart, customerInfo, isProcessing, isPaymentValid, remainingAmount, selectedUser, subTotal, finalTotal, manualDiscount, deliveryChargeAmount, paidTotal, addSessionActivity, addHardwareLog, setLastHardwareAction, setSessionOrders, fetchInitialData]);
 
   const handleCompletePayment = useCallback(() => handleCheckout(getPaymentMethod(paymentAmounts)), [handleCheckout, paymentAmounts]);
 

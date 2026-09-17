@@ -18,6 +18,13 @@ const AuthContext = createContext();
 const SUPABASE_NETWORK_TIMEOUT_MS = Number(import.meta.env.VITE_SUPABASE_TIMEOUT_MS || 15000);
 const DEFAULT_COMPANY_SLUG = 'nm-mart';
 
+const authLoginDebug = (message, startedAt) => {
+  if (import.meta.env.DEV) {
+    const elapsed = Math.round(performance.now() - startedAt);
+    console.debug(`[AUTH LOGIN] ${message} (${elapsed}ms)`);
+  }
+};
+
 const withTimeout = async (promise, timeoutMs = SUPABASE_NETWORK_TIMEOUT_MS, fallback = null) => {
   const timeoutPromise = new Promise((resolve) => {
     setTimeout(() => resolve(fallback), timeoutMs);
@@ -351,8 +358,14 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (event === 'SIGNED_IN') {
-          await hydrateAuthState(authSession);
-          setAuthLoading(false);
+          // Do not make nested Supabase requests inside the auth callback.
+          // Deferring avoids blocking signInWithPassword's internal auth lock.
+          setTimeout(() => {
+            if (isMounted) {
+              void hydrateAuthState(authSession);
+              setAuthLoading(false);
+            }
+          }, 0);
           return;
         }
 
@@ -419,6 +432,8 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(async (email, password, rememberMe = false, options = {}) => {
     setAuthLoading(true);
     setSessionExpired(false);
+    const loginStartedAt = performance.now();
+    authLoginDebug('started', loginStartedAt);
     try {
       // Log login attempt
       logSecurityEvent('login_attempt', {
@@ -431,15 +446,12 @@ export const AuthProvider = ({ children }) => {
       let userData = null;
       let company = null;
 
+      authLoginDebug('signInWithPassword started', loginStartedAt);
       const authResult = await withRetry(
-        () => withTimeout(
-          supabase.auth.signInWithPassword({
-            email,
-            password
-          }),
-          SUPABASE_NETWORK_TIMEOUT_MS,
-          { data: null, error: { message: 'Login request is taking longer than expected. Please check your internet connection or try again in a moment.' } }
-        ),
+        () => supabase.auth.signInWithPassword({
+          email,
+          password
+        }),
         {
           retries: 1,
           delayMs: 300,
@@ -447,8 +459,10 @@ export const AuthProvider = ({ children }) => {
         }
       );
       let { data: authData, error: authError } = authResult || {};
+      authLoginDebug('signInWithPassword resolved', loginStartedAt);
 
       if (authError) {
+        authLoginDebug('auth error received', loginStartedAt);
         logSecurityEvent('login_failed', {
           email: email,
           reason: authError.message
@@ -465,11 +479,14 @@ export const AuthProvider = ({ children }) => {
       }
 
       authSession = authData.session;
+      authLoginDebug(`session present: ${Boolean(authData.session)}`, loginStartedAt);
+      authLoginDebug(`user present: ${Boolean(authData.user)}`, loginStartedAt);
 
       const lookupValue = getAdminUserLookupValue(email);
       let fetchedUserData = null;
       let userError = null;
 
+      authLoginDebug('profile lookup started', loginStartedAt);
       const userResult = await withRetry(
         () => withTimeout(
           supabase
@@ -486,10 +503,12 @@ export const AuthProvider = ({ children }) => {
           shouldRetry: (error) => !String(error?.message || '').includes('User profile not found')
         }
       );
+      authLoginDebug('profile lookup resolved', loginStartedAt);
       fetchedUserData = userResult?.data;
       userError = userResult?.error;
 
       if (!fetchedUserData) {
+        authLoginDebug('profile lookup by username returned no profile', loginStartedAt);
         const emailUserResult = await withRetry(
           () => withTimeout(
             supabase
@@ -505,6 +524,8 @@ export const AuthProvider = ({ children }) => {
         fetchedUserData = fetchedUserData || emailUserResult?.data;
         userError = fetchedUserData ? null : (userError || emailUserResult?.error);
       }
+
+      authLoginDebug(`admin_users profile present: ${Boolean(fetchedUserData)}`, loginStartedAt);
 
       if (userError || !fetchedUserData) {
         userData = buildFallbackAdminProfile(authSession?.user || { email }, email);
@@ -545,6 +566,7 @@ export const AuthProvider = ({ children }) => {
             }
           );
           const { data: companyData, error: companyError } = companyResult || {};
+          authLoginDebug(`company profile present: ${Boolean(companyData)}`, loginStartedAt);
 
           if (!companyError && companyData) {
             // Check if company is suspended

@@ -16,6 +16,10 @@ const BRAND_NAME = "NM MART";
 const DEFAULT_COMPANY_SLUG = "nm-mart";
 const loginRateLimiter = new LoginRateLimiter(5, 5);
 
+const loginUiDebug = (message) => {
+  if (import.meta.env.DEV) console.debug(`[LOGIN UI] ${message}`);
+};
+
 export default function LoginView({ isTenantMode = false }) {
   const { login, sessionExpiryWarning, refreshSession, sessionExpired } = useAuthContext();
   const navigate = useNavigate();
@@ -66,8 +70,10 @@ export default function LoginView({ isTenantMode = false }) {
   };
 
   const handleLogin = async (e) => {
+    loginUiDebug('form submitted');
     if (e) e.preventDefault();
     setLoginError('');
+    loginUiDebug('validation started');
 
     const lockout = loginRateLimiter.isLockedOut();
     if (lockout.locked) {
@@ -80,9 +86,11 @@ export default function LoginView({ isTenantMode = false }) {
     if (!validateEmail(cleanEmail)) return setLoginError('Invalid email format');
     if (!password) return setLoginError('Password is required');
     const cleanPassword = sanitizeText(password);
+    loginUiDebug('validation passed');
 
     setIsProcessing(true);
     try {
+      loginUiDebug('calling AuthContext.login');
       const result = await login(cleanEmail, cleanPassword, rememberMe, {
         expectedCompanySlug: isTenantMode ? companySlug : null
       });
@@ -253,6 +261,7 @@ export default function LoginView({ isTenantMode = false }) {
 
             <button
               type="submit"
+              onClick={() => loginUiDebug('button clicked')}
               disabled={isProcessing}
               className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-sm tracking-[0.15em] rounded-2xl shadow-card shadow-blue-100 hover:opacity-95 hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
             >

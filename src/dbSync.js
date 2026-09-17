@@ -912,6 +912,28 @@ export const dbSync = {
     }
   },
 
+  executeAtomic: async (functionName, payload, tableName = 'orders', action = 'ATOMIC_OPERATION') => {
+    if (functionName !== 'place_order_atomic') {
+      throw new Error(`Unsupported atomic function: ${functionName}`);
+    }
+
+    try {
+      const { data, error } = await supabase.rpc(functionName, { p_payload: payload });
+      if (error) {
+        const atomicError = new Error(error.message || `${action} failed`);
+        atomicError.code = error.code;
+        atomicError.details = error.details;
+        atomicError.hint = error.hint;
+        throw atomicError;
+      }
+
+      return data;
+    } catch (err) {
+      console.error(`[dbSync.${action} FAIL]`, tableName, err.message);
+      throw err;
+    }
+  },
+
   delete: async (tableName, id, isHard = false) => {
     try {
       const pkColumn = dbSync.getPkColumn(tableName);
