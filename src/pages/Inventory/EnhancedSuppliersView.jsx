@@ -85,7 +85,6 @@ export default function EnhancedSuppliersView({ accounts, purchases, fetchInitia
       if (editingSupplier) {
         res = await handleERPAction(DB_SCHEMA.ACCOUNTS.table, ACTION_TYPES.UPDATE, { id: editingSupplier.id, ...finalData });
       } else {
-        finalData.id = finalData.id || generateUUID();
         res = await handleERPAction(DB_SCHEMA.ACCOUNTS.table, ACTION_TYPES.INSERT, finalData);
       }
 

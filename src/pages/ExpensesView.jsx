@@ -16,7 +16,7 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
     category: 'Electricity', 
     date: new Date().toISOString().split('T')[0],
     amount: '',
-    remarks: '',
+    description: '',
     payment_method: 'Cash'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +34,7 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
   const filteredExpenses = useMemo(() => {
     return (expenses || []).filter(e => 
       e.category?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      e.remarks?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.description || e.remarks)?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       e.amount?.toString().includes(searchTerm)
     ).sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [expenses, searchTerm]);
@@ -49,11 +49,14 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
     setIsSubmitting(true);
     try {
       let res;
+      const normalizedPayload = {
+        ...formData,
+        description: formData.description || formData.remarks
+      };
       if (editingExpense) {
-        res = await handleERPAction(DB_SCHEMA.EXPENSES.table, ACTION_TYPES.UPDATE, { id: editingExpense.id, ...formData });
+        res = await handleERPAction(DB_SCHEMA.EXPENSES.table, ACTION_TYPES.UPDATE, { id: editingExpense.id, ...normalizedPayload });
       } else {
-        const payload = { ...formData, id: generateUUID() };
-        res = await handleERPAction(DB_SCHEMA.EXPENSES.table, ACTION_TYPES.INSERT, payload);
+        res = await handleERPAction(DB_SCHEMA.EXPENSES.table, ACTION_TYPES.INSERT, normalizedPayload);
       }
 
       if (res && !res.success) throw new Error(res.error);
@@ -64,7 +67,7 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
         category: 'Electricity', 
         date: new Date().toISOString().split('T')[0],
         amount: '',
-        remarks: '',
+        description: '',
         payment_method: 'Cash'
       });
       fetchInitialData();
@@ -107,7 +110,7 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
       "Sr No": i + 1,
       "Date": new Date(item.date).toLocaleDateString(),
       "Category": item.category,
-      "Remarks": item.remarks || '-',
+      "Description": item.description || item.remarks || '-',
       "Amount": parseFloat(item.amount),
       "Payment Method": item.payment_method || 'Cash'
     })));
@@ -124,12 +127,12 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
     doc.text("Expenses Report", 14, 15);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
     
-    const tableColumn = ["Sr No", "Date", "Category", "Remarks", "Amount", "Payment Method"];
+    const tableColumn = ["Sr No", "Date", "Category", "Description", "Amount", "Payment Method"];
     const tableRows = filteredExpenses.map((item, i) => [
       i + 1,
       new Date(item.date).toLocaleDateString(),
       item.category,
-      item.remarks || '-',
+      item.description || item.remarks || '-',
       parseFloat(item.amount),
       item.payment_method || 'Cash'
     ]);
@@ -211,7 +214,7 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           <input 
             type="text"
-            placeholder="Search by category or remarks..."
+            placeholder="Search by category or description..."
             className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-red-500/20"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -227,7 +230,7 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Date</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Category</th>
-                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Remarks</th>
+                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Description</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Amount</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest text-right">Actions</th>
               </tr>
@@ -244,7 +247,7 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-[10px] font-medium text-slate-500 max-w-[200px] truncate">
-                    {expense.remarks || '-'}
+                    {expense.description || expense.remarks || '-'}
                   </td>
                   <td className="px-4 py-3 text-[11px] font-black text-red-600">
                     ₹{parseFloat(expense.amount).toLocaleString()}
@@ -370,12 +373,12 @@ export default function ExpensesView({ expenses, fetchInitialData }) {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Remarks / Note</label>
+                    <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Description / Note</label>
                     <textarea 
                       placeholder="What was this expense for?"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none h-24 resize-none"
-                      value={formData.remarks}
-                      onChange={e => setFormData({...formData, remarks: e.target.value})}
+                      value={formData.description || formData.remarks}
+                      onChange={e => setFormData({...formData, description: e.target.value})}
                     />
                   </div>
                 </div>

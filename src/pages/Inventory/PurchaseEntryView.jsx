@@ -13,13 +13,14 @@ import {
 
 export default function PurchaseEntryView({ products, accounts, fetchInitialData }) {
   const [formData, setFormData] = useState({
-    invoice_no: '',
+    invoice_number: '',
     supplier_id: '',
-    purchase_date: new Date().toISOString().split('T')[0],
+    invoice_date: new Date().toISOString().split('T')[0],
     total_amount: 0,
     paid_amount: 0,
-    balance_amount: 0,
-    remarks: ''
+    balance_due: 0,
+    notes: '',
+    tax_type: 'Exclude'
   });
 
   const [items, setItems] = useState([]);
@@ -32,7 +33,7 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return [];
     return products.filter(p => 
-      p.item_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (p.itname || p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
       p.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [products, searchTerm]);
@@ -46,7 +47,7 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
       return {
         ...prev,
         total_amount: total,
-        balance_amount: Math.max(0, total - paid)
+        balance_due: Math.max(0, total - paid)
       };
     });
   }, [items]);
@@ -104,24 +105,47 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
 
     setIsSubmitting(true);
     try {
-      // 1. Create Purchase Record
-      const purchaseId = generateUUID();
+      const totals = calcPurchaseTotals(items);
+      const total = totals.finalBillAmt || totals.subTotal || sumField(items, 'total');
+      const paid = toFloat(formData.paid_amount);
+
+      // 1. Create Purchase Record (DB generates BIGSERIAL id)
       const purchaseRes = await handleERPAction(DB_SCHEMA.PURCHASES.table, ACTION_TYPES.INSERT, {
-        id: purchaseId,
-        ...formData
+        supplier_id: formData.supplier_id,
+        invoice_number: formData.invoice_number,
+        invoice_date: formData.invoice_date,
+        subtotal: totals.subTotal || 0,
+        gst_amount: totals.gstTotal || 0,
+        discount_amount: totals.discountTotal || 0,
+        round_off: totals.roundOff || 0,
+        total_amount: total,
+        paid_amount: paid,
+        balance_due: Math.max(0, total - paid),
+        tax_type: formData.tax_type || 'Exclude',
+        notes: formData.notes || formData.remarks,
+        status: 'completed',
+        payment_status: paid >= total ? 'paid' : (paid > 0 ? 'partial' : 'unpaid')
       });
 
       if (!purchaseRes.success) throw new Error(purchaseRes.error);
+
+      const purchaseRecord = Array.isArray(purchaseRes.data) ? purchaseRes.data[0] : purchaseRes.data;
+      const purchaseId = purchaseRecord.id;
+      if (!purchaseId) throw new Error("Purchase insert did not return an id.");
 
       // 2. Create Purchase Items & Update Stock
       for (const item of items) {
         // Add Purchase Item
         await handleERPAction(DB_SCHEMA.PURCHASE_ITEMS.table, ACTION_TYPES.INSERT, {
-          id: generateUUID(),
           purchase_id: purchaseId,
           product_id: item.product_id,
+          product_name_snapshot: item.item_name || item.itname || item.name,
           quantity: item.quantity,
           rate: item.rate,
+          gst_percent: item.gst_percent || 0,
+          gst_amount: item.gst_amount || 0,
+          discount_percent: item.discount_percent || 0,
+          discount_amount: item.discount_amount || 0,
           total: item.total
         });
 
@@ -137,25 +161,28 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
 
         // Add Inventory Log
         await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-          id: generateUUID(),
           product_id: item.product_id,
           old_stock: oldStock,
           new_stock: newStock,
+          change_qty: Math.round(parseFloat(item.quantity) || 0),
           change_type: 'purchase',
-          reference_id: formData.invoice_no || purchaseId
+          reference_id: Number(purchaseId) || null,
+          reference_number: formData.invoice_number || String(purchaseId),
+          narration: formData.notes || `Purchase #${purchaseId}`
         });
       }
 
       alert("Purchase recorded successfully! Stock updated.");
       setItems([]);
       setFormData({
-        invoice_no: '',
+        invoice_number: '',
         supplier_id: '',
-        purchase_date: new Date().toISOString().split('T')[0],
+        invoice_date: new Date().toISOString().split('T')[0],
         total_amount: 0,
         paid_amount: 0,
-        balance_amount: 0,
-        remarks: ''
+        balance_due: 0,
+        notes: '',
+        tax_type: 'Exclude'
       });
       fetchInitialData();
     } catch (error) {
@@ -206,8 +233,8 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
                     type="text" 
                     placeholder="INV-001"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none"
-                    value={formData.invoice_no}
-                    onChange={e => setFormData({...formData, invoice_no: e.target.value})}
+                    value={formData.invoice_number}
+                    onChange={e => setFormData({...formData, invoice_number: e.target.value})}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -215,19 +242,19 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
                   <input 
                     type="date" 
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none"
-                    value={formData.purchase_date}
-                    onChange={e => setFormData({...formData, purchase_date: e.target.value})}
+                    value={formData.invoice_date}
+                    onChange={e => setFormData({...formData, invoice_date: e.target.value})}
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Remarks</label>
+                <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Notes</label>
                 <textarea 
                   placeholder="Extra notes..."
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none h-20 resize-none"
-                  value={formData.remarks}
-                  onChange={e => setFormData({...formData, remarks: e.target.value})}
+                  value={formData.notes}
+                  onChange={e => setFormData({...formData, notes: e.target.value})}
                 />
               </div>
             </div>
@@ -254,7 +281,7 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-white/10">
                 <span className="text-xs font-bold opacity-80">Balance Dues:</span>
-                <span className="text-lg font-black text-red-100">₹{formData.balance_amount.toLocaleString()}</span>
+                <span className="text-lg font-black text-red-100">₹{formData.balance_due.toLocaleString()}</span>
               </div>
             </div>
             

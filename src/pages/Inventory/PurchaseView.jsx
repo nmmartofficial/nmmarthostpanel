@@ -57,12 +57,11 @@ export default function PurchaseView({ title, table, data, products, departments
     if (formData.items.length === 0) return alert("Add at least one item");
     setIsSubmitting(true);
     try {
-      const purchaseId = editingItem?.id || generateUUID();
-      const payload = { ...formData, id: purchaseId, bill_amount: finalBillAmt };
+      const payload = { ...formData, bill_amount: finalBillAmt };
       
       let res;
       if (editingItem) {
-        res = await handleERPAction(table, ACTION_TYPES.UPDATE, payload);
+        res = await handleERPAction(table, ACTION_TYPES.UPDATE, { id: editingItem.id, ...payload });
       } else {
         res = await handleERPAction(table, ACTION_TYPES.INSERT, payload);
       }

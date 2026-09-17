@@ -194,12 +194,15 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         const userData = secureStorage.getItem('nm_user_data');
         const shopId = userData?.shop_id;
 
-        const recordsToInsert = processedData.map(item => ({
-          ...item,
-          id: item.id || generateUUID(),
-          shop_id: shopId, // MANDATORY TENANT ID
-          is_active: item.is_active !== undefined ? item.is_active : true
-        }));
+        const recordsToInsert = processedData.map(item => {
+          const { id, ...rest } = item;
+          return {
+            ...rest,
+            ...(Number.isInteger(id) ? { id } : {}),
+            shop_id: shopId,
+            is_active: item.is_active !== undefined ? item.is_active : true
+          };
+        });
 
         console.log("Processed records to insert:", recordsToInsert);
 

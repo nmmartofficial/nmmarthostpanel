@@ -11,7 +11,21 @@ interface ProductCardProps {
   isFocused?: boolean;
   isDisabled?: boolean;
   product?: Product;
+  brands?: Array<{ id: number | string; name?: string }>;
 }
+
+const safeBrandName = (product?: Product, brands?: Array<{ id: number | string; name?: string }>) => {
+  if (!product) return null;
+  if (product.brand_id != null && product.brand_id !== '' && Array.isArray(brands) && brands.length > 0) {
+    const match = brands.find(b => Number(b.id) === Number(product.brand_id));
+    if (match?.name) return match.name;
+  }
+  const rawBrand = product?.brand;
+  if (!rawBrand) return null;
+  const trimmed = String(rawBrand).trim();
+  if (/^\d+$/.test(trimmed)) return null;
+  return trimmed;
+};
 
 const ProductCard: React.FC<ProductCardProps> = ({ 
   className, 
@@ -19,10 +33,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
   isSelected = false, 
   isFocused = false, 
   isDisabled = false,
-  product
+  product,
+  brands
 }) => {
   const { addItem } = useCart();
   const productName = product?.productName || "Product Name";
+  const brandDisplay = safeBrandName(product, brands);
 
   const handleClick = () => {
     if (product && !isDisabled) {
@@ -95,9 +111,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <Hash size={8} /> {product.barcode}
               </div>
             )}
-            {product?.brand && (
+            {brandDisplay && (
               <div className="flex items-center gap-1 font-bold text-slate-400 uppercase tracking-widest text-[8px]">
-                <Tag size={8} /> {product.brand}
+                <Tag size={8} /> {brandDisplay}
               </div>
             )}
             {product?.category && (

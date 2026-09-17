@@ -57,22 +57,46 @@ const resolveProductImageUrl = (rawValue) => {
 };
 
 // --- Product Import Processing ---
-const processProductImportData = async (parsedData) => {
-  const missingNameRow = parsedData.findIndex((item) => !String(item.itname || item.name || '').trim());
+const processProductImportData = async (parsedData, brands = []) => {
+  const safeBrands = Array.isArray(brands) ? brands : [];
+  const safeParsed = Array.isArray(parsedData) ? parsedData : [];
+  const missingNameRow = safeParsed.findIndex((item) => !String(item?.itname || item?.name || '').trim());
   if (missingNameRow !== -1) {
     throw new Error(`Excel row ${missingNameRow + 2} में itname खाली है। Product name required है।`);
   }
 
   // --- CHECK FOR DUPLICATES IN EXCEL (User Requirement) ---
   const nameSet = new Set();
-  for (const item of parsedData) {
-    const name = String(item.itname || item.name || "").trim();
+  for (const item of safeParsed) {
+    const name = String(item?.itname || item?.name || "").trim();
     if (!name) continue;
     if (nameSet.has(name)) {
       throw new Error(`Duplicate product name found in Excel: "${name}", please fix and re-upload`);
     }
     nameSet.add(name);
   }
+
+  // --- Brand name resolver: safely resolve name from ID or string value ---
+  const resolveBrandFromRow = (row) => {
+    // 1) if explicit brand_id, look up from brands table
+    if (row?.brand_id != null && row?.brand_id !== '') {
+      const byId = safeBrands.find(b => Number(b?.id) === Number(row.brand_id));
+      if (byId?.name) return { name: byId.name, id: byId.id };
+    }
+    // 2) if brandcode / brand_name looks like a pure number, treat as brand ID
+    const rawBrandVal = String(row?.brandcode || row?.brand_name || "").trim();
+    if (/^\d+$/.test(rawBrandVal)) {
+      const byNumericCode = safeBrands.find(b => Number(b?.id) === Number(rawBrandVal));
+      if (byNumericCode?.name) return { name: byNumericCode.name, id: byNumericCode.id };
+    }
+    // 3) try matching by NAME against brands table
+    if (rawBrandVal) {
+      const byName = safeBrands.find(b => String(b?.name || "").toLowerCase() === rawBrandVal.toLowerCase());
+      if (byName?.name) return { name: byName.name, id: byName.id };
+    }
+    // 4) fallback: keep raw string if present, otherwise empty
+    return { name: rawBrandVal || null, id: row?.brand_id ? row.brand_id : null };
+  };
 
   // --- VALIDATE AND PREPARE PRODUCTS ---
   return parsedData.map((item) => {
@@ -83,6 +107,11 @@ const processProductImportData = async (parsedData) => {
     
     // Map both old and new column names for backward compatibility
     const productImage = resolveProductImageUrl(item.picture || item.image_url || item.imagename);
+
+    // Safe brand resolution (ID -> name + id)
+    const resolvedBrand = resolveBrandFromRow(item);
+    const finalBrandName = resolvedBrand.name;
+    const finalBrandId = resolvedBrand.id ?? item.brand_id ?? null;
 
     return {
       itname: String(item.itname || item.name || "").trim(),
@@ -120,8 +149,9 @@ const processProductImportData = async (parsedData) => {
       itc: String(item.itc || "").trim() || null,
       dtcode: String(item.dtcode || "").trim() || null,
       kcode: String(item.kcode || "").trim() || null,
-      brandcode: String(item.brandcode || item.brand_name || "").trim() || null,
-      brand_name: String(item.brandcode || item.brand_name || "").trim() || null,
+      brandcode: finalBrandName,
+      brand_name: finalBrandName,
+      brand_id: finalBrandId,
       isdiscountable: String(item.isdiscountable || item.is_discountable || "Yes").trim() !== 'false' && String(item.isdiscountable || item.is_discountable || "Yes").trim().toLowerCase() !== 'no' && String(item.isdiscountable || item.is_discountable || "Yes").trim() !== '0',
       is_discountable: String(item.isdiscountable || item.is_discountable || "Yes").trim() !== 'false' && String(item.isdiscountable || item.is_discountable || "Yes").trim().toLowerCase() !== 'no' && String(item.isdiscountable || item.is_discountable || "Yes").trim() !== '0',
       gst: parseFloat(item.gst || item.gst_percent) || 0,
@@ -139,7 +169,7 @@ const processProductImportData = async (parsedData) => {
   });
 };
 
-export default function ProductsView({ products, categories, brands, subcategories, filter, uploadImage, fetchInitialData, setLoading }) {
+export default function ProductsView({ products = [], categories = [], brands = [], subcategories = [], filter, uploadImage, fetchInitialData, setLoading }) {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({});
@@ -158,6 +188,20 @@ export default function ProductsView({ products, categories, brands, subcategori
   const [barcodeToPrint, setBarcodeToPrint] = useState(null);
   const [labelQuantity, setLabelQuantity] = useState(1);
   const barcodeRef = useRef(null);
+
+  // --- Brand name resolver: NEVER render raw numeric brand_id as brand label ---
+  const resolveBrandName = useCallback((product) => {
+    if (!product) return '-';
+    // 1) FK lookup from brands master table (always authoritative)
+    if (product.brand_id != null && product.brand_id !== '') {
+      const match = Array.isArray(brands) && brands.find(b => Number(b.id) === Number(product.brand_id));
+      if (match?.name) return match.name;
+    }
+    // 2) Denormalized text columns — but skip if they're pure digits (raw IDs)
+    const textFallback = product.brand_name || product.brandcode || '';
+    if (textFallback && !/^\d+$/.test(String(textFallback).trim())) return textFallback;
+    return '-';
+  }, [brands]);
 
   // Filtered subcategories based on selected category
   const availableSubcategories = useMemo(() => {
@@ -290,12 +334,16 @@ export default function ProductsView({ products, categories, brands, subcategori
     }
 
     // --- DUPLICATE ENTRY PREVENTION CHECK ---
-    const finalCategoryId = formData.category_id;
-    const finalSubcategoryId = formData.subcategory_id;
-    const finalBrandId = formData.brand_id;
+    // Normalize IDs to numbers — HTML select values are strings, DB columns are numbers.
+    // Strict === with mixed types would BOTH skip self-exclude AND miss real duplicates.
+    const checkCategoryId = formData.category_id ? Number(formData.category_id) : null;
+    const checkSubcategoryId = (formData.subcategory_id != null && formData.subcategory_id !== '')
+      ? String(formData.subcategory_id)
+      : '';
+    const checkBrandId = formData.brand_id ? Number(formData.brand_id) : null;
 
     // Check if all required fields are selected
-    if (!finalCategoryId || !finalBrandId) {
+    if (!checkCategoryId || !checkBrandId) {
       alert("Please select both Category and Brand!");
       setIsSubmitting(false);
       return;
@@ -303,14 +351,13 @@ export default function ProductsView({ products, categories, brands, subcategori
 
     // Check for existing product with same brand + category + subcategory combination
     const isDuplicate = products.some(product => {
-      // If editing, skip the current product itself
-      if (editingProduct && product.id === editingProduct.id) {
-        return false;
-      }
+      // If editing, skip the current product itself (String-safe comparison)
+      const sameId = editingProduct && (String(product.id) === String(editingProduct.id));
+      if (sameId) return false;
       return (
-        product.brand_id === finalBrandId &&
-        product.category_id === finalCategoryId &&
-        product.subcategory_id === finalSubcategoryId
+        Number(product.brand_id) === checkBrandId &&
+        Number(product.category_id) === checkCategoryId &&
+        String(product.subcategory_id || '') === checkSubcategoryId
       );
     });
 
@@ -323,13 +370,13 @@ export default function ProductsView({ products, categories, brands, subcategori
     setIsSubmitting(true);
     try {
       // Only use existing Category, Brand, Subcategory from master tables
-      let finalCategoryId = formData.category_id;
-      let finalSubcategoryId = formData.subcategory_id;
-      let finalBrandId = formData.brand_id;
-      
+      let finalCategoryId = checkCategoryId; // already normalized Number
+      let finalSubcategoryId = formData.subcategory_id; // keep original for DB
+      let finalBrandId = checkBrandId; // already normalized Number
+
       // Get category/brand names from existing records for backward compatibility
-      const categoryNameToUse = categories.find(c => c.id === finalCategoryId)?.name || formData.category_name || formData.itc || '';
-      const brandNameToUse = brands.find(b => b.id === finalBrandId)?.name || formData.brand_name || formData.brandcode || '';
+      const categoryNameToUse = categories.find(c => Number(c.id) === finalCategoryId)?.name || formData.category_name || formData.itc || '';
+      const brandNameToUse = brands.find(b => Number(b.id) === finalBrandId)?.name || formData.brand_name || formData.brandcode || '';
 
       // Build final data with both new and old column names for backward compatibility
       const finalData = { 
@@ -486,7 +533,15 @@ export default function ProductsView({ products, categories, brands, subcategori
       toast?.success ? toast.success("Product saved successfully!") : alert("Product saved successfully!");
     } catch (error) {
       console.error("Product Save Error:", error);
-      alert(`Product Operation Failed!\n\nReason: ${error.message}`);
+      const errMsg = String(error?.message || error || 'Unknown error');
+      // Postgres unique violation (SQLSTATE 23505) — typically barcode collision
+      if (errMsg.includes('23505') || /duplicate.*key.*violates/i.test(errMsg) || /uq_products_barcode/i.test(errMsg)) {
+        const bcValMatch = errMsg.match(/barcode[^\w]*=?[^\w]*["']?([^"'\)]+)/i);
+        const bcHint = bcValMatch ? ` (barcode: ${bcValMatch[1]})` : '';
+        alert(`❌ Duplicate Barcode${bcHint}!\n\nThis barcode is already in use by another product. Please choose a different barcode or edit the existing product instead.`);
+      } else {
+        alert(`Product Operation Failed!\n\nReason: ${errMsg}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -616,7 +671,7 @@ export default function ProductsView({ products, categories, brands, subcategori
             tableKey="PRODUCTS" 
             buttonText="IMPORT ITEM"
             uniqueField="barcode"
-            processData={processProductImportData}
+            processData={(data) => processProductImportData(data, brands || [])}
             onSuccess={async (_data, msg) => {
               try {
                 // Force refresh from Supabase (pura data fir se load)
@@ -709,7 +764,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                     <p className="text-[8px] font-bold text-slate-400 uppercase">HSN: {getVal('hsncode', 'hsn_code') || '-'}</p>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <p className="text-[10px] font-bold text-slate-600 uppercase">{getVal('brandcode', 'brand_name') || '-'}</p>
+                    <p className="text-[10px] font-bold text-slate-600 uppercase">{resolveBrandName(product)}</p>
                     <p className="text-[8px] font-bold text-slate-400 uppercase">{product.counter_name || '-'}</p>
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -803,7 +858,7 @@ export default function ProductsView({ products, categories, brands, subcategori
                                 ...product,
                                 category: getVal('itc', 'category_name') || '',
                                 subcategory: product.subcategory_name || '',
-                                brand: getVal('brandcode', 'brand_name') || '',
+                                brand: resolveBrandName(product),
                                 unit: getVal('unitcode', 'unit_name') || 'Nos'
                               };
                               // If we have category_name but no category_id, try to find it
@@ -816,10 +871,21 @@ export default function ProductsView({ products, categories, brands, subcategori
                                 const foundSubCat = subcategories.find(s => s.name === prefilledData.subcategory_name);
                                 if (foundSubCat) prefilledData.subcategory_id = foundSubCat.id;
                               }
-                              // Same for brand
+                              // Same for brand — try exact name match AND numeric-id match
                               if ((prefilledData.brand_name || prefilledData.brandcode) && !prefilledData.brand_id) {
-                                const foundBrand = brands.find(b => b.name === (prefilledData.brand_name || prefilledData.brandcode));
-                                if (foundBrand) prefilledData.brand_id = foundBrand.id;
+                                const rawBrandVal = String(prefilledData.brand_name || prefilledData.brandcode || '').trim();
+                                let foundBrand = null;
+                                if (/^\d+$/.test(rawBrandVal)) {
+                                  foundBrand = brands.find(b => Number(b.id) === Number(rawBrandVal));
+                                }
+                                if (!foundBrand) {
+                                  foundBrand = brands.find(b => String(b.name || '').toLowerCase() === rawBrandVal.toLowerCase());
+                                }
+                                if (foundBrand) {
+                                  prefilledData.brand_id = foundBrand.id;
+                                  prefilledData.brand_name = foundBrand.name;
+                                  prefilledData.brandcode = foundBrand.name;
+                                }
                               }
                               setFormData(prefilledData);
                               setShowForm(true); 

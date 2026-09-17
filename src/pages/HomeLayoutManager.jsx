@@ -222,7 +222,7 @@ export default function HomeLayoutManager({ homeConfig, banners, categories, fet
                     key={type.type}
                     onClick={async () => {
                       const newSection = {
-                        id: generateUUID(),
+                        id: Date.now(),
                         type: type.type,
                         section_title: `New ${type.label}`,
                         is_active: true,

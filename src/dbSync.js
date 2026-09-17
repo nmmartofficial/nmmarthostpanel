@@ -20,12 +20,28 @@ import { normalizeActiveFlag, filterActiveRecords } from './utils/activeFilter';
 //       cess_percent, shop_id, is_package, item_status, is_active, subcategory_name,
 //       stock_status — denormalized aliases, NOT persisted on write)
 const PRODUCT_WHITELIST = [
-  'id', 'company_code', 'tenant_id',
-  'itname', 'itnameprint', 'barcode', 'imagename', 'itemdescription',
-  'hsncode', 'picture', 'takerate', 'restrate', 'dlvrate', 'onlinerate',
-  'purcrate', 'mrp', 'opstock', 'discperc', 'isfav', 'unitcode',
-  'itg', 'itc', 'dtcode', 'kcode', 'brandcode', 'isdiscountable',
-  'gst', 'cess', 'shopid', 'ispackage', 'narration', 'narration2', 'itemstatus',
+  'id', 'tenant_id', 'company_code',
+  'name', 'itname', 'print_name', 'itnameprint',
+  'description', 'itemdescription', 'item_description', 'barcode',
+  'hsn_code', 'hsncode', 'image_url', 'imagename', 'picture',
+  'category_id', 'subcategory_id', 'brand_id', 'unit_id',
+  'purchase_rate', 'purcrate', 'mrp', 'cost_price',
+  'retail_rate', 'restrate', 'take_rate', 'takerate',
+  'delivery_rate', 'dlvrate', 'sale_rate', 'onlinerate', 'online_rate', 'selling_price',
+  'stock', 'opstock', 'opening_stock', 'low_stock_threshold',
+  'unitcode', 'unit_name', 'category_name', 'brand_name',
+  'gst_percent', 'gst', 'gst_pct', 'cess_percent', 'cess', 'cess_pct',
+  'discount_percent', 'discperc', 'discount_pct', 'discount', 'discount_type',
+  'discount_amount', 'max_discount', 'min_selling_price',
+  'is_discountable', 'isdiscountable',
+  'is_favourite', 'isfav', 'is_package', 'ispackage',
+  'item_status', 'itemstatus', 'is_active', 'is_deleted',
+  'narration', 'narration2', 'shop_id', 'shopid',
+  'itg', 'itc', 'dtcode', 'kcode', 'brandcode',
+  'brand_code', 'department_code', 'category_code',
+  'sub_category_code', 'item_name', 'item_group_name', 'sub_category_name',
+  'item_group', 'item_category', 'subcategory_name', 'admin_user_id',
+  'batch_no', 'expiry_date', 'manufactured_date', 'opening_stock_date',
   'created_at', 'updated_at'
 ];
 
@@ -33,10 +49,15 @@ const PRODUCT_WHITELIST = [
 // NOTE: Orders table does NOT have `is_active` column in production schema, so we've removed it.
 // Only tables that actually have an `is_active` column are listed here.
 const TABLES_WITH_IS_ACTIVE = [
-  'categories', 'subcategories', 'brands', 'suppliers',
+  'companies',
+  'categories', 'subcategories', 'brands', 'account_master',
   'users', 'admin_users', 'delivery_boy_master',
-  'delivery_customer_master', 'wallet_master', 'expenses',
+  'delivery_customer_master', 'wallet_master',
+  'expenses', 'expense_categories',
+  'addresses', 'pincode_master',
   'banners', 'coupons', 'offers_master',
+  'home_config', 'app_config',
+  'customer_loyalty', 'loyalty_tiers',
   'products'
 ];
 
@@ -883,6 +904,10 @@ export const dbSync = {
         '\n  message:', err.message,
         err.code ? `\n  code:${err.code}` : '',
         err.details ? `\n  details:${err.details}` : '');
+      // Clarify Postgres unique_violation (23505) so caller can show user-friendly message
+      if (err.code === '23505' || (typeof err.message === 'string' && err.message.includes('23505'))) {
+        err.message = `${err.message} (Unique constraint violated — likely duplicate barcode or another unique column. Check the data and try again, or change the field that must be unique.)`;
+      }
       throw err;
     }
   },

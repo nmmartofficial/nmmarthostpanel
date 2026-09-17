@@ -17,7 +17,7 @@ export default function StockLogsView({ inventoryLogs, products }) {
       const product = products.find(p => p.id === log.product_id);
       return {
         ...log,
-        product_name: product?.item_name || 'Unknown Product',
+        product_name: product?.itname || product?.name || product?.item_name || 'Unknown Product',
         barcode: product?.barcode || 'N/A',
         image_url: product?.image_url
       };

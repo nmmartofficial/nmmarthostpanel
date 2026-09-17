@@ -5962,7 +5962,7 @@ const FestivalManager = ({ festivals, setFestivals, setAppConfig, fetchInitialDa
     if (!newFestival.name.trim()) return;
     const festival = {
       ...newFestival,
-      id: generateUUID()
+      id: Date.now()
     };
     setFestivals([...festivals, festival]);
     setShowAddModal(false);
@@ -6702,7 +6702,7 @@ const MultiStoreManager = (props) => {
   }, [stores]);
 
   const handleAdd = () => {
-    const store = { ...newStore, id: generateUUID() };
+    const store = { ...newStore, id: Date.now() };
     setStores([...stores, store]);
     setShowAddModal(false);
     setNewStore({ name: '', address: '', phone: '', isActive: true });
