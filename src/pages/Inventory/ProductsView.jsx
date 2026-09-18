@@ -333,55 +333,43 @@ export default function ProductsView({ products = [], categories = [], brands = 
       return;
     }
 
-    // --- DUPLICATE ENTRY PREVENTION CHECK ---
-    // Normalize IDs to numbers — HTML select values are strings, DB columns are numbers.
-    // Strict === with mixed types would BOTH skip self-exclude AND miss real duplicates.
-    const checkCategoryId = formData.category_id ? Number(formData.category_id) : null;
-    const checkSubcategoryId = (formData.subcategory_id != null && formData.subcategory_id !== '')
-      ? String(formData.subcategory_id)
-      : '';
-    const checkBrandId = formData.brand_id ? Number(formData.brand_id) : null;
+    // --- REFERENCE VALIDATION ONLY ---
+    // Product/Item master must not enforce duplicate validation by item name, barcode, brand, category or subcategory.
+    // Only master records (Brand, Main Category, Sub Category) are uniqueness-checked elsewhere.
+    const currentBrandId = formData.brand_id != null && formData.brand_id !== '' ? Number(formData.brand_id) : null;
+    const currentCategoryId = formData.category_id != null && formData.category_id !== '' ? Number(formData.category_id) : null;
+    const currentSubCategoryId = formData.subcategory_id != null && formData.subcategory_id !== '' ? Number(formData.subcategory_id) : null;
 
-    // Check if all required fields are selected
-    if (!checkCategoryId || !checkBrandId) {
-      alert("Please select both Category and Brand!");
+    if (currentBrandId == null || Number.isNaN(currentBrandId) || !brands.some((brand) => Number(brand?.id) === Number(currentBrandId))) {
+      alert('Brand not found.');
       setIsSubmitting(false);
       return;
     }
 
-    // Check for existing product with same brand + category + subcategory combination.
-    // This must NOT block editing the same product. It should block only a different product
-    // with the same master combination.
-    const normalizeDuplicateKey = (value) => String(value ?? '').trim();
-    const isDuplicate = products.some(product => {
-      const sameId = editingProduct && (String(product.id) === String(editingProduct.id));
-      if (sameId) return false;
-      if (!product || !product.brand_id || !product.category_id) return false;
+    if (currentCategoryId == null || Number.isNaN(currentCategoryId) || !categories.some((category) => Number(category?.id) === Number(currentCategoryId))) {
+      alert('Main Category not found.');
+      setIsSubmitting(false);
+      return;
+    }
 
-      const productBrandId = Number(product.brand_id);
-      const productCategoryId = Number(product.category_id);
-      const productSubcategoryId = normalizeDuplicateKey(product.subcategory_id);
-      const currentSubcategoryId = normalizeDuplicateKey(checkSubcategoryId);
+    if (currentSubCategoryId == null || Number.isNaN(currentSubCategoryId) || !subcategories.some((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId))) {
+      alert('Sub Category not found.');
+      setIsSubmitting(false);
+      return;
+    }
 
-      return (
-        productBrandId === checkBrandId &&
-        productCategoryId === checkCategoryId &&
-        productSubcategoryId === currentSubcategoryId
-      );
-    });
-
-    if (isDuplicate) {
-      alert("⚠️ Duplicate Entry! This Brand + Category + Subcategory combination already exists for another product. Edit the existing product instead of creating a duplicate.");
+    const selectedSubcategory = subcategories.find((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId));
+    if (selectedSubcategory && Number(selectedSubcategory.category_id) !== Number(currentCategoryId)) {
+      alert('Sub Category does not belong to the selected Main Category.');
       setIsSubmitting(false);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Only use existing Category, Brand, Subcategory from master tables
-      let finalCategoryId = checkCategoryId; // already normalized Number
-      let finalSubcategoryId = formData.subcategory_id; // keep original for DB
-      let finalBrandId = checkBrandId; // already normalized Number
+      const finalCategoryId = currentCategoryId;
+      const finalSubcategoryId = formData.subcategory_id;
+      const finalBrandId = currentBrandId;
 
       // Get category/brand names from existing records for backward compatibility
       const categoryNameToUse = categories.find(c => Number(c.id) === finalCategoryId)?.name || formData.category_name || formData.itc || '';

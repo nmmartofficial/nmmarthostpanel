@@ -1,61 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js';
+import { getSupabaseConfig } from './utils/supabaseConfig.js';
 
-// Get environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const realtimeEnabled = import.meta.env.VITE_SUPABASE_REALTIME_ENABLED !== 'false'
+const env = import.meta.env || {};
+const realtimeEnabled = env.VITE_SUPABASE_REALTIME_ENABLED !== 'false';
+const config = getSupabaseConfig(env);
 
-let supabaseInstance = null
-
-// Lenient validation: accept any non-empty string that doesn't look like a placeholder
-const hasValidUrl = supabaseUrl && String(supabaseUrl).trim().length > 0 &&
-  !String(supabaseUrl).toLowerCase().includes('your-project') &&
-  !String(supabaseUrl).toLowerCase().includes('example') &&
-  !String(supabaseUrl).toLowerCase().includes('replace')
-
-const hasValidKey = supabaseAnonKey && String(supabaseAnonKey).trim().length > 0 &&
-  !String(supabaseAnonKey).toLowerCase().includes('your-anon') &&
-  !String(supabaseAnonKey).toLowerCase().includes('example') &&
-  !String(supabaseAnonKey).toLowerCase().includes('replace')
-
-if (hasValidUrl && hasValidKey) {
-  try {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          autoRefreshToken: true,
-          persistSession: true,
-          detectSessionInUrl: true,
-          flowType: 'pkce',
-          storage: typeof window !== 'undefined' ? window.localStorage : undefined
-        },
-        realtime: {
-          enabled: realtimeEnabled
-        },
-        global: {
-          fetch: (...args) => fetch(...args)
-        }
-      });
-
-    console.log('%c✅ [Supabase Init] LIVE client created — REAL database connection ACTIVE', 'color:#10b981;font-weight:bold')
-    console.log('   URL :', supabaseUrl)
-    console.log('   Key :', (supabaseAnonKey || '').slice(0, 12) + '...')
-    console.log('   Realtime:', realtimeEnabled ? 'ENABLED' : 'disabled')
-  } catch (error) {
-    console.error('❌ [Supabase Init] FATAL — createClient threw:', error.message)
-    if (import.meta.env.DEV) console.error('❌ [Supabase Init] Full error:', error)
-    // VITE_USE_MOCK=false par bhi mock mat lo — crash-through behaviour taaki user ko pata chale
-  }
-} else {
-  // VITE_USE_MOCK explicit false hai to mock mat chalao, console pe dikhao ki missing hai
-  console.error('❌ [Supabase Init] Credentials MISSING or INVALID. WILL NOT fall back to mock.')
-  console.error('   VITE_SUPABASE_URL :', supabaseUrl ? `set (len=${String(supabaseUrl).length})` : 'NOT SET')
-  console.error('   VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `set (len=${String(supabaseAnonKey).length})` : 'NOT SET')
-}
-
-// --- Final Export Guard ---
-// Agar VITE_USE_MOCK=false hai aur real client nahi bana, to "explosive" client banao
-// jo har operation pe clear error throw kare — taaki silent failure na ho aur user
-// ko turant pata chale ki Supabase connect nahi ho pa raha.
 const createExplosiveClient = (reason) => new Proxy({}, {
   get(_target, prop) {
     if (prop === 'auth' || prop === 'storage' || prop === 'from' || prop === 'channel' || prop === 'rpc' || prop === 'removeChannel') {
@@ -76,22 +25,89 @@ const createExplosiveClient = (reason) => new Proxy({}, {
   }
 });
 
-let finalClient;
-const finalIsMock = false;
+let supabaseInstance = null;
 
-if (supabaseInstance) {
-  finalClient = supabaseInstance;
+if (config.isConfigured) {
+  try {
+    supabaseInstance = createClient(config.url, config.anonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined
+      },
+      realtime: {
+        enabled: realtimeEnabled
+      },
+      global: {
+        fetch: (...args) => fetch(...args)
+      }
+    });
+
+    console.log('%c✅ [Supabase Init] LIVE client created — REAL database connection ACTIVE', 'color:#10b981;font-weight:bold');
+    console.log('   URL :', config.url);
+    console.log('   Key :', (config.anonKey || '').slice(0, 12) + '...');
+    console.log('   Realtime:', realtimeEnabled ? 'ENABLED' : 'disabled');
+  } catch (error) {
+    console.error('❌ [Supabase Init] FATAL — createClient threw:', error?.message || error);
+    if (import.meta.env.DEV) console.error('❌ [Supabase Init] Full error:', error);
+  }
 } else {
-  const reason = !hasValidUrl ? 'VITE_SUPABASE_URL missing/placeholder'
-    : !hasValidKey ? 'VITE_SUPABASE_ANON_KEY missing/placeholder'
-    : 'createClient() threw during init (check console above)';
-  finalClient = createExplosiveClient(reason);
-  console.error(`%c🔥 [Supabase Init] LIVE mode requested but FALLBACK BLOCKED (${reason}). No DB calls will succeed until this is fixed.`,
-    'background:#7f1d1d;color:#fecaca;font-weight:bold;padding:4px 8px;border-radius:4px');
+  console.error('❌ [Supabase Init] Credentials MISSING or INVALID. WILL NOT fall back to mock.');
+  console.error('   VITE_SUPABASE_URL :', config.hasUrl ? `set (len=${config.url.length})` : 'NOT SET');
+  console.error('   VITE_SUPABASE_ANON_KEY:', config.hasKey ? `set (len=${config.anonKey.length})` : 'NOT SET');
+  console.error('   Reason:', config.reason);
 }
 
-console.log('%c🔍 [Supabase Final State]', 'font-weight:bold',
-  finalIsMock ? 'isMockClient=TRUE (offline mode)' : 'isMockClient=FALSE (LIVE Supabase mode)');
+const finalClient = supabaseInstance || createExplosiveClient(config.reason || 'Supabase is not configured');
 
-export const supabase = finalClient
-export const isSupabaseMock = finalIsMock
+export const supabase = finalClient;
+export const isSupabaseMock = false;
+export const supabaseConfig = config;
+
+export const getSupabaseDiagnostics = async () => {
+  if (!config.isConfigured) {
+    return {
+      configured: false,
+      message: config.reason,
+      connected: false,
+      authReachable: false,
+      restReachable: false
+    };
+  }
+
+  try {
+    const authCheck = await fetch(`${config.url}/auth/v1/health`, {
+      method: 'GET',
+      headers: {
+        'apikey': config.anonKey
+      }
+    }).then((response) => ({ ok: response.ok, status: response.status })).catch(() => ({ ok: false, status: 0 }));
+
+    const restCheck = await fetch(`${config.url}/rest/v1/`, {
+      method: 'GET',
+      headers: {
+        'apikey': config.anonKey,
+        'Authorization': `Bearer ${config.anonKey}`
+      }
+    }).then((response) => ({ ok: response.ok, status: response.status })).catch(() => ({ ok: false, status: 0 }));
+
+    return {
+      configured: true,
+      connected: authCheck.ok || restCheck.ok,
+      authReachable: authCheck.ok,
+      restReachable: restCheck.ok,
+      authStatus: authCheck.status,
+      restStatus: restCheck.status
+    };
+  } catch (error) {
+    return {
+      configured: true,
+      connected: false,
+      authReachable: false,
+      restReachable: false,
+      message: error?.message || 'Supabase diagnostics check failed'
+    };
+  }
+};

@@ -250,11 +250,10 @@ CREATE INDEX IF NOT EXISTS idx_products_active ON public.products (tenant_id, is
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON public.products (tenant_id, barcode);
 CREATE INDEX IF NOT EXISTS idx_products_category ON public.products (category_id);
 CREATE INDEX IF NOT EXISTS idx_products_name ON public.products (tenant_id, name);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_products_barcode_tenant
-    ON public.products (tenant_id, barcode) WHERE barcode IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS uq_products_tenant_brand_category_subcategory
-    ON public.products (tenant_id, company_code, brand_id, category_id, subcategory_id)
-    WHERE brand_id IS NOT NULL AND category_id IS NOT NULL AND subcategory_id IS NOT NULL;
+
+-- Product/Item master intentionally does NOT enforce duplicate validation by name, barcode,
+-- brand, category, or subcategory. Multiple products with the same values are allowed.
+-- Only master names (brand/category/subcategory) are uniqueness-checked.
 
 -- ---------------------------------------------------------------------
 -- 2.7  `stock_alerts`

@@ -239,32 +239,6 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         toast.error("Sale Rate cannot be higher than MRP!");
         return;
       }
-      // Check for duplicate barcode in local state first (Performance win)
-      const duplicate = data.find(p => p.barcode === formData.barcode && p.id !== editingItem?.id);
-      if (duplicate && formData.barcode) {
-        toast.error(`Barcode ${formData.barcode} is already assigned to ${duplicate.name}!`);
-        return;
-      }
-
-      const brandId = formData.brand_id ? Number(formData.brand_id) : null;
-      const categoryId = formData.category_id ? Number(formData.category_id) : null;
-      const subcategoryId = formData.subcategory_id != null && formData.subcategory_id !== '' ? String(formData.subcategory_id).trim() : '';
-      if (brandId && categoryId) {
-        const duplicateProduct = data.find((product) => {
-          if (editingItem && String(product.id) === String(editingItem.id)) return false;
-          if (!product || !product.brand_id || !product.category_id) return false;
-          return (
-            Number(product.brand_id) === brandId &&
-            Number(product.category_id) === categoryId &&
-            String(product.subcategory_id ?? '') === subcategoryId
-          );
-        });
-
-        if (duplicateProduct) {
-          toast.error("⚠️ Duplicate Entry! This Brand + Category + Subcategory combination already exists for another product.");
-          return;
-        }
-      }
     }
 
     if (table === DB_SCHEMA.CATEGORIES.table) {

@@ -3,16 +3,12 @@ import { supabase } from '../supabase';
 import { DB_SCHEMA } from '../dbSchema';
 import { secureStorage } from '../utils/security';
 import { withRetry } from '../utils/retry';
-import { 
-  logSecurityEvent, 
-  validateSession, 
-  getCurrentTenantId, 
-  getCurrentCompanyCode,
-  handleSecurityError,
+import {
+  logSecurityEvent,
   detectSuspiciousActivity
 } from '../utils/securityHelper';
 import { normalizeAdminUserProfile, buildFallbackAdminProfile, getAdminUserLookupValue } from '../utils/adminUser';
-import { getAppEnv } from '../utils/env';
+import { hasValidStoredAuthState, isSessionExpired } from '../utils/authState';
 
 const AuthContext = createContext();
 const SUPABASE_NETWORK_TIMEOUT_MS = Number(import.meta.env.VITE_SUPABASE_TIMEOUT_MS || 15000);
@@ -29,7 +25,6 @@ const withTimeout = async (promise, timeoutMs = SUPABASE_NETWORK_TIMEOUT_MS, fal
   const timeoutPromise = new Promise((resolve) => {
     setTimeout(() => resolve(fallback), timeoutMs);
   });
-
   return Promise.race([promise, timeoutPromise]);
 };
 
@@ -42,16 +37,6 @@ export const useAuthContext = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const refreshSession = useCallback(async () => {
-    try {
-      const { data, error } = await supabase.auth.refreshSession();
-      if (error) throw error;
-      setSession(data.session);
-      return data.session;
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
-  }, []);
   const [currentUser, setCurrentUser] = useState(null);
   const [currentCompany, setCurrentCompany] = useState(null);
   const [session, setSession] = useState(null);
@@ -60,7 +45,7 @@ export const AuthProvider = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(true);
   const [sessionExpiryWarning, setSessionExpiryWarning] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
-  const hasHydratedSessionRef = useRef(false);
+
   const currentUserRef = useRef(currentUser);
   const currentCompanyRef = useRef(currentCompany);
   const sessionRef = useRef(session);
@@ -82,18 +67,6 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     isAuthenticatedRef.current = isAuthenticated;
   }, [isAuthenticated]);
-
-  // Multi-tab synchronization using storage events
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'nm_logout_event' && e.newValue === 'true') {
-        performLogoutRef.current?.();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
 
   const clearAuthState = useCallback(() => {
     setCurrentUser(null);
@@ -119,374 +92,53 @@ export const AuthProvider = ({ children }) => {
       const storedUser = secureStorage.getItem('nm_user_data');
       const storedCompany = secureStorage.getItem('nm_current_company');
 
-      if (storedSession && storedUser) {
-        const now = Math.floor(Date.now() / 1000);
-
-        if (storedSession.expires_at && storedSession.expires_at < now) {
-          try {
-            logSecurityEvent('stored_session_expired', {
-              user_id: storedUser.id,
-              email: storedUser.email
-            });
-          } catch {}
-          return false;
-        }
-
-        if (!storedUser.id || !storedUser.email) {
-          return false;
-        }
-
-        setSession(storedSession);
-        setCurrentUser(storedUser);
-        setCurrentCompany(storedCompany || null);
-        setTenant(storedCompany || null);
-        setIsAuthenticated(true);
-          try {
-            if (typeof isAuthenticatedRef !== 'undefined') isAuthenticatedRef.current = true;
-            if (typeof sessionRef !== 'undefined') sessionRef.current = storedSession;
-            if (typeof currentUserRef !== 'undefined') currentUserRef.current = storedUser;
-            if (typeof currentCompanyRef !== 'undefined') currentCompanyRef.current = storedCompany || null;
-          } catch (refErr) {}
-        setSessionExpired(false);
-        setSessionExpiryWarning(false);
-        return true;
+      if (!hasValidStoredAuthState(storedSession, storedUser)) {
+        return false;
       }
-    } catch {}
 
-    return false;
+      setSession(storedSession);
+      setCurrentUser(storedUser);
+      setCurrentCompany(storedCompany || null);
+      setTenant(storedCompany || null);
+      setIsAuthenticated(true);
+      setSessionExpired(false);
+      setSessionExpiryWarning(false);
+      sessionRef.current = storedSession;
+      currentUserRef.current = storedUser;
+      currentCompanyRef.current = storedCompany || null;
+      isAuthenticatedRef.current = true;
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const hydrateAuthState = useCallback(async (supabaseSession) => {
-      if (!supabaseSession?.user) {
-        clearAuthState();
-        return null;
-      }
+    if (!supabaseSession?.user) {
+      clearAuthState();
+      return null;
+    }
 
-    const now = Math.floor(Date.now() / 1000);
-    if (supabaseSession.expires_at && supabaseSession.expires_at < now) {
+    if (isSessionExpired(supabaseSession)) {
       await supabase.auth.signOut().catch(() => {});
       clearAuthState();
       setSessionExpired(true);
       return null;
     }
 
+    const email = supabaseSession.user.email || currentUserRef.current?.email;
+    if (!email) {
+      clearAuthState();
+      return null;
+    }
+
     setSession(supabaseSession);
     setIsAuthenticated(true);
-          try {
-            if (typeof isAuthenticatedRef !== 'undefined') isAuthenticatedRef.current = true;
-            if (typeof sessionRef !== 'undefined') sessionRef.current = storedSession;
-            if (typeof currentUserRef !== 'undefined') currentUserRef.current = storedUser;
-            if (typeof currentCompanyRef !== 'undefined') currentCompanyRef.current = storedCompany || null;
-          } catch (refErr) {}
     setSessionExpired(false);
     setSessionExpiryWarning(false);
 
     try {
-      const lookupValue = getAdminUserLookupValue(supabaseSession.user.email);
-      const { data: userData, error: userError } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('username', lookupValue)
-        .single();
-
-      const normalizedUser = (userData && !userError)
-        ? normalizeAdminUserProfile(userData, supabaseSession.user.email)
-        : buildFallbackAdminProfile(supabaseSession.user, supabaseSession.user.email);
-
-      if (!normalizedUser) {
-        clearAuthState();
-        return null;
-      }
-      if (normalizedUser.status === 'disabled') {
-        await supabase.auth.signOut().catch(() => {});
-        clearAuthState();
-        setSessionExpired(true);
-        return null;
-      }
-
-      setCurrentUser(normalizedUser);
-
-      let companyData = null;
-      if (userData && userData.company_code) {
-        let { data: companyResult, error: companyError } = await supabase
-          .from(DB_SCHEMA.COMPANIES.table)
-            .select('*')
-            .eq('company_code', userData.company_code)
-            .maybeSingle();
-
-          if (!companyResult) {
-            companyResult = {
-              id: 'comp_nm_mart_01',
-              name: 'NM MART',
-              company_code: userData.company_code || 'NMM001',
-              company_slug: 'nm-mart',
-              status: 'active'
-            };
-          }
-
-        if (!companyError && companyResult) {
-          if (companyResult.status === 'suspended') {
-            await supabase.auth.signOut().catch(() => {});
-            clearAuthState();
-            setSessionExpired(true);
-            return null;
-          }
-
-          companyData = companyResult;
-          setCurrentCompany(companyResult);
-          setTenant(companyResult);
-          try {
-            secureStorage.setItem('nm_current_company', companyResult);
-          } catch {}
-        }
-      } else {
-        setCurrentCompany(null);
-        setTenant(null);
-      }
-
-      try {
-        secureStorage.setItem('nm_user_data', {
-          id: normalizedUser.id,
-          email: normalizedUser.email,
-          name: normalizedUser.name,
-          role: normalizedUser.role,
-          company_code: normalizedUser.company_code,
-          tenant_id: companyData?.id
-        });
-      } catch {}
-
-      return { userData, companyData };
-    } catch (err) {
-      if (import.meta.env.DEV) console.error('hydrateAuthState error:', err);
-      clearAuthState();
-      return null;
-    }
-  }, [clearAuthState]);
-
-  // Check for existing session on mount
-  useEffect(() => {
-    let isMounted = true;
-
-    const initAuth = async () => {
-      try {
-        const restoredFromStorage = restoreStoredAuthState();
-        if (restoredFromStorage) {
-          hasHydratedSessionRef.current = true;
-          if (isMounted) {
-            setAuthLoading(false);
-          }
-          return;
-        }
-
-        const timeoutPromise = new Promise((resolve) => {
-          setTimeout(() => resolve({ data: { session: null }, error: null }), 2500);
-        });
-
-        try {
-          logSecurityEvent('login_attempt', {
-            timestamp: new Date().toISOString()
-          });
-        } catch (e) {
-          if (import.meta.env.DEV) console.error('initAuth: logSecurityEvent failed', e);
-        }
-
-        let suspicious = { suspicious: false };
-        try {
-          suspicious = detectSuspiciousActivity();
-          if (suspicious.suspicious) {
-            try {
-              logSecurityEvent('suspicious_activity_prevented', {
-                reason: suspicious.reason
-              });
-            } catch {}
-          }
-        } catch (e) {
-          if (import.meta.env.DEV) console.error('initAuth: detectSuspiciousActivity failed', e);
-        }
-
-        const { data: { session: restoredSession }, error: sessionError } = await Promise.race([
-          supabase.auth.getSession(),
-          timeoutPromise
-        ]).catch(() => ({ data: { session: null }, error: null }));
-
-        if (!isMounted) return;
-
-        hasHydratedSessionRef.current = true;
-
-        if (sessionError) {
-          if (import.meta.env.DEV) console.warn('initAuth: session lookup returned an error', sessionError);
-          clearAuthState();
-        } else if (restoredSession) {
-          await hydrateAuthState(restoredSession);
-        } else {
-          clearAuthState();
-        }
-      } catch (err) {
-        if (import.meta.env.DEV) console.error('initAuth: top level error:', err);
-        try {
-          logSecurityEvent('auth_init_error', {
-            error: err.message
-          });
-        } catch {}
-      } finally {
-        if (isMounted) {
-          setAuthLoading(false);
-        }
-      }
-    };
-
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, authSession) => {
-        if (!isMounted) return;
-
-        if (event === 'INITIAL_SESSION') {
-          hasHydratedSessionRef.current = true;
-          // Only clear auth state if we don't already have a valid session from storage
-          if (authSession) {
-            await hydrateAuthState(authSession);
-          } else {
-              const localUser = secureStorage.getItem('nm_user_data');
-              const localSession = secureStorage.getItem('nm_auth_session');
-              if (!localUser && !localSession) {
-                clearAuthState();
-              }
-            }
-                    setAuthLoading(false);
-          return;
-        }
-
-        if (event === 'SIGNED_IN') {
-          // Do not make nested Supabase requests inside the auth callback.
-          // Deferring avoids blocking signInWithPassword's internal auth lock.
-          setTimeout(() => {
-            if (isMounted) {
-              void hydrateAuthState(authSession);
-              setAuthLoading(false);
-            }
-          }, 0);
-          return;
-        }
-
-        if (event === 'USER_UPDATED') {
-          if (authSession) {
-            await hydrateAuthState(authSession);
-          }
-          return;
-        }
-
-        if (event === 'TOKEN_REFRESHED') {
-          if (authSession) {
-            setSession(authSession);
-            setSessionExpiryWarning(false);
-            setSessionExpired(false);
-          }
-          return;
-        }
-
-        if (event === 'SIGNED_OUT') {
-          const storedAuth = secureStorage.getItem('nm_auth_session');
-          const hasPersistentSession = !!storedAuth;
-          if (!hasPersistentSession && hasHydratedSessionRef.current && (sessionRef.current || currentUserRef.current || isAuthenticatedRef.current)) {
-            clearAuthState();
-          }
-          setAuthLoading(false);
-        }
-      }
-    );
-
-    return () => {
-      isMounted = false;
-      subscription.unsubscribe();
-    };
-  }, [clearAuthState, hydrateAuthState]);
-
-  // Session expiry check
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const checkSessionExpiry = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const expiresAt = session.expires_at;
-        const now = Math.floor(Date.now() / 1000);
-        const timeUntilExpiry = expiresAt - now;
-
-        if (timeUntilExpiry < 300 && timeUntilExpiry > 0) {
-          setSessionExpiryWarning(true);
-        }
-
-        if (timeUntilExpiry <= 0) {
-          await performLogoutRef.current?.();
-          setSessionExpired(true);
-        }
-      }
-    };
-
-    const interval = setInterval(checkSessionExpiry, 60000);
-    return () => clearInterval(interval);
-  }, [isAuthenticated, refreshSession]);
-
-  // Login function with proper Supabase Auth
-  const login = useCallback(async (email, password, rememberMe = false, options = {}) => {
-    setAuthLoading(true);
-    setSessionExpired(false);
-    const loginStartedAt = performance.now();
-    authLoginDebug('started', loginStartedAt);
-    try {
-      // Log login attempt
-      logSecurityEvent('login_attempt', {
-        email: email,
-        remember_me: rememberMe,
-        expected_company: options.expectedCompanySlug
-      });
-
-      let authSession = null;
-      let userData = null;
-      let company = null;
-
-      authLoginDebug('signInWithPassword started', loginStartedAt);
-      const authResult = await withRetry(
-        () => supabase.auth.signInWithPassword({
-          email,
-          password
-        }),
-        {
-          retries: 1,
-          delayMs: 300,
-          shouldRetry: (error) => !String(error?.message || '').includes('Invalid login credentials')
-        }
-      );
-      let { data: authData, error: authError } = authResult || {};
-      authLoginDebug('signInWithPassword resolved', loginStartedAt);
-
-      if (authError) {
-        authLoginDebug('auth error received', loginStartedAt);
-        logSecurityEvent('login_failed', {
-          email: email,
-          reason: authError.message
-        });
-        throw new Error(authError.message);
-      }
-
-      if (!authData?.session || !authData?.user) {
-        logSecurityEvent('login_failed', {
-          email: email,
-          reason: 'Supabase Auth failed to return session'
-        });
-        throw new Error('Authentication failed. Please try again.');
-      }
-
-      authSession = authData.session;
-      authLoginDebug(`session present: ${Boolean(authData.session)}`, loginStartedAt);
-      authLoginDebug(`user present: ${Boolean(authData.user)}`, loginStartedAt);
-
       const lookupValue = getAdminUserLookupValue(email);
-      let fetchedUserData = null;
-      let userError = null;
-
-      authLoginDebug('profile lookup started', loginStartedAt);
       const userResult = await withRetry(
         () => withTimeout(
           supabase
@@ -497,112 +149,299 @@ export const AuthProvider = ({ children }) => {
           SUPABASE_NETWORK_TIMEOUT_MS,
           { data: null, error: { message: 'Unable to load your account profile. Please try again.' } }
         ),
+        { retries: 1, delayMs: 300, shouldRetry: () => true }
+      );
+
+      const fetchedUserData = userResult?.data || null;
+      const userError = userResult?.error || null;
+
+      let normalizedUser = null;
+      if (fetchedUserData && !userError) {
+        normalizedUser = normalizeAdminUserProfile(fetchedUserData, email);
+      } else {
+        normalizedUser = buildFallbackAdminProfile(supabaseSession.user, email);
+      }
+
+      if (!normalizedUser) {
+        clearAuthState();
+        return null;
+      }
+
+      if (normalizedUser.status === 'disabled') {
+        await supabase.auth.signOut().catch(() => {});
+        clearAuthState();
+        setSessionExpired(true);
+        return null;
+      }
+
+      let companyData = null;
+      if (normalizedUser.company_code) {
+        const companyResult = await withRetry(
+          () => withTimeout(
+            supabase
+              .from(DB_SCHEMA.COMPANIES.table)
+              .select('*')
+              .eq('company_code', normalizedUser.company_code)
+              .maybeSingle(),
+            SUPABASE_NETWORK_TIMEOUT_MS,
+            { data: null, error: { message: 'Unable to load company details.' } }
+          ),
+          { retries: 1, delayMs: 300, shouldRetry: () => true }
+        );
+
+        const maybeCompany = companyResult?.data || null;
+        const companyError = companyResult?.error || null;
+
+        if (!companyError && maybeCompany) {
+          if (maybeCompany.status === 'suspended') {
+            await supabase.auth.signOut().catch(() => {});
+            clearAuthState();
+            setSessionExpired(true);
+            return null;
+          }
+          companyData = maybeCompany;
+        }
+      }
+
+      setCurrentUser(normalizedUser);
+      setCurrentCompany(companyData || null);
+      setTenant(companyData || null);
+      currentUserRef.current = normalizedUser;
+      currentCompanyRef.current = companyData || null;
+      isAuthenticatedRef.current = true;
+      sessionRef.current = supabaseSession;
+
+      try {
+        secureStorage.setItem('nm_user_data', {
+          id: normalizedUser.id,
+          email: normalizedUser.email,
+          name: normalizedUser.name,
+          role: normalizedUser.role,
+          company_code: normalizedUser.company_code,
+          tenant_id: companyData?.id,
+          status: normalizedUser.status
+        });
+        secureStorage.setItem('nm_auth_session', {
+          access_token: supabaseSession?.access_token || null,
+          expires_at: supabaseSession?.expires_at || Math.floor(Date.now() / 1000) + 3600,
+          refresh_token: supabaseSession?.refresh_token || null,
+          user: supabaseSession?.user || { id: normalizedUser.id, email: normalizedUser.email },
+          provider: supabaseSession?.provider || 'supabase'
+        });
+        if (companyData) {
+          secureStorage.setItem('nm_current_company', companyData);
+        }
+      } catch {}
+
+      return { userData: normalizedUser, companyData };
+    } catch (error) {
+      if (import.meta.env.DEV) console.error('hydrateAuthState error:', error);
+      clearAuthState();
+      return null;
+    }
+  }, [clearAuthState]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initAuth = async () => {
+      try {
+        const restoredFromStorage = restoreStoredAuthState();
+        if (restoredFromStorage) {
+          setAuthLoading(false);
+          return;
+        }
+
+        const { data: { session: restoredSession }, error } = await withTimeout(
+          supabase.auth.getSession(),
+          2500,
+          { data: { session: null }, error: null }
+        );
+
+        if (!isMounted) return;
+
+        if (error) {
+          if (import.meta.env.DEV) console.warn('initAuth: session lookup returned an error', error);
+          clearAuthState();
+        } else if (restoredSession) {
+          await hydrateAuthState(restoredSession);
+        } else {
+          clearAuthState();
+        }
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('initAuth: top level error:', err);
+      } finally {
+        if (isMounted) {
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, authSession) => {
+      if (!isMounted) return;
+
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        if (authSession) {
+          await hydrateAuthState(authSession);
+        }
+        setAuthLoading(false);
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED' && authSession) {
+        setSession(authSession);
+        setSessionExpiryWarning(false);
+        setSessionExpired(false);
+        return;
+      }
+
+      if (event === 'SIGNED_OUT') {
+        clearAuthState();
+        setAuthLoading(false);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [clearAuthState, hydrateAuthState, restoreStoredAuthState]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkSessionExpiry = async () => {
+      const { data: { session: activeSession } } = await supabase.auth.getSession();
+      if (!activeSession) {
+        clearAuthState();
+        return;
+      }
+
+      const expiresAt = activeSession.expires_at;
+      const now = Math.floor(Date.now() / 1000);
+      const timeUntilExpiry = expiresAt - now;
+
+      if (timeUntilExpiry < 300 && timeUntilExpiry > 0) {
+        setSessionExpiryWarning(true);
+      }
+
+      if (timeUntilExpiry <= 0) {
+        setSessionExpired(true);
+        await performLogoutRef.current?.();
+      }
+    };
+
+    const interval = setInterval(checkSessionExpiry, 60000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, clearAuthState]);
+
+  const refreshSession = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) throw error;
+      if (data?.session) {
+        setSession(data.session);
+        await hydrateAuthState(data.session);
+      }
+      return data?.session || null;
+    } catch (err) {
+      return null;
+    }
+  }, [hydrateAuthState]);
+
+  const login = useCallback(async (email, password, rememberMe = false, options = {}) => {
+    setAuthLoading(true);
+    setSessionExpired(false);
+    const loginStartedAt = performance.now();
+    authLoginDebug('started', loginStartedAt);
+
+    try {
+      logSecurityEvent('login_attempt', {
+        email,
+        remember_me: rememberMe,
+        expected_company: options.expectedCompanySlug
+      });
+
+      const authResult = await withRetry(
+        () => supabase.auth.signInWithPassword({ email, password }),
         {
           retries: 1,
           delayMs: 300,
-          shouldRetry: (error) => !String(error?.message || '').includes('User profile not found')
+          shouldRetry: (error) => !String(error?.message || '').includes('Invalid login credentials')
         }
       );
-      authLoginDebug('profile lookup resolved', loginStartedAt);
-      fetchedUserData = userResult?.data;
-      userError = userResult?.error;
 
-      if (!fetchedUserData) {
-        authLoginDebug('profile lookup by username returned no profile', loginStartedAt);
-        const emailUserResult = await withRetry(
+      const { data: authData, error: authError } = authResult || {};
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      if (!authData?.session || !authData?.user) {
+        throw new Error('Authentication failed. Please try again.');
+      }
+
+      const sessionData = authData.session;
+      const lookupValue = getAdminUserLookupValue(email);
+      const userResult = await withRetry(
+        () => withTimeout(
+          supabase
+            .from('admin_users')
+            .select('*')
+            .eq('username', lookupValue)
+            .single(),
+          SUPABASE_NETWORK_TIMEOUT_MS,
+          { data: null, error: { message: 'Unable to load your account profile. Please try again.' } }
+        ),
+        { retries: 1, delayMs: 300, shouldRetry: () => true }
+      );
+
+      const fetchedUserData = userResult?.data || null;
+      const userError = userResult?.error || null;
+      const userData = fetchedUserData && !userError
+        ? normalizeAdminUserProfile(fetchedUserData, email)
+        : buildFallbackAdminProfile(sessionData.user, email);
+
+      if (userData.status === 'disabled') {
+        await supabase.auth.signOut().catch(() => {});
+        throw new Error('Your account has been disabled. Please contact administrator.');
+      }
+
+      let company = null;
+      if (userData.company_code) {
+        const companyResult = await withRetry(
           () => withTimeout(
             supabase
-              .from('admin_users')
+              .from(DB_SCHEMA.COMPANIES.table)
               .select('*')
-              .eq('email', email)
-              .single(),
+              .eq('company_code', userData.company_code)
+              .maybeSingle(),
             SUPABASE_NETWORK_TIMEOUT_MS,
-            { data: null, error: null }
+            { data: null, error: { message: 'Unable to load company details.' } }
           ),
-          { retries: 1, delayMs: 300, shouldRetry: () => false }
+          { retries: 1, delayMs: 300, shouldRetry: () => true }
         );
-        fetchedUserData = fetchedUserData || emailUserResult?.data;
-        userError = fetchedUserData ? null : (userError || emailUserResult?.error);
-      }
 
-      authLoginDebug(`admin_users profile present: ${Boolean(fetchedUserData)}`, loginStartedAt);
-
-      if (userError || !fetchedUserData) {
-        userData = buildFallbackAdminProfile(authSession?.user || { email }, email);
-        logSecurityEvent('login_failed', {
-          email: email,
-          reason: 'Using fallback profile because admin_users lookup failed'
-        });
-      } else {
-        userData = normalizeAdminUserProfile(fetchedUserData, email);
-      }
-
-        // Check if user is disabled
-        if (userData.status === 'disabled') {
-          await supabase.auth.signOut();
-          logSecurityEvent('disabled_user_login_attempt', {
-            user_id: userData.id,
-            email: email
-          });
-          throw new Error('Your account has been disabled. Please contact administrator.');
-        }
-
-        // Handle company detection
-        if (userData.company_code) {
-          let companyResult = await withRetry(
-            () => withTimeout(
-              supabase
-                .from(DB_SCHEMA.COMPANIES.table)
-                  .select('*')
-                  .eq('company_code', userData.company_code)
-                  .maybeSingle(),
-              SUPABASE_NETWORK_TIMEOUT_MS,
-              { data: null, error: { message: 'Unable to load company details.' } }
-            ),
-            {
-              retries: 1,
-              delayMs: 300,
-              shouldRetry: (error) => true
-            }
-          );
-          const { data: companyData, error: companyError } = companyResult || {};
-          authLoginDebug(`company profile present: ${Boolean(companyData)}`, loginStartedAt);
-
-          if (!companyError && companyData) {
-            // Check if company is suspended
-            if (companyData.status === 'suspended') {
-              await supabase.auth.signOut();
-              logSecurityEvent('suspended_company_login_attempt', {
-                user_id: userData.id,
-                company_id: companyData.id,
-                company_code: companyData.company_code
-              });
-              throw new Error('Your company account has been suspended. Please contact administrator.');
-            }
-            company = companyData;
+        const companyData = companyResult?.data || null;
+        if (companyData) {
+          if (companyData.status === 'suspended') {
+            await supabase.auth.signOut().catch(() => {});
+            throw new Error('Your company account has been suspended. Please contact administrator.');
           }
+          company = companyData;
         }
+      }
 
       if (options.expectedCompanySlug) {
         if (!company) {
-          logSecurityEvent('login_failed', {
-            email: email,
-            reason: 'Account not linked to any company'
-          });
           throw new Error('Account not linked to any company');
         }
-
         if (company.company_slug !== options.expectedCompanySlug) {
-          logSecurityEvent('wrong_tenant_login_attempt', {
-            email: email,
-            expected_slug: options.expectedCompanySlug,
-            actual_slug: company.company_slug
-          });
           throw new Error('You are not authorized to access this company workspace');
         }
       }
 
-      // Store minimal session data in secure storage
       secureStorage.setItem('nm_user_data', {
         id: userData.id,
         email: userData.email,
@@ -614,23 +453,19 @@ export const AuthProvider = ({ children }) => {
       });
 
       secureStorage.setItem('nm_auth_session', {
-        access_token: authSession?.access_token || null,
-        expires_at: authSession?.expires_at || Math.floor(Date.now() / 1000) + 3600,
-        refresh_token: authSession?.refresh_token || null,
-        user: authSession?.user || {
-          id: userData.id,
-          email: userData.email
-        },
-        provider: authSession?.provider || 'supabase'
+        access_token: sessionData.access_token || null,
+        expires_at: sessionData.expires_at || Math.floor(Date.now() / 1000) + 3600,
+        refresh_token: sessionData.refresh_token || null,
+        user: sessionData.user || { id: userData.id, email: userData.email },
+        provider: sessionData.provider || 'supabase'
       });
-      
+
       if (company) {
         secureStorage.setItem('nm_current_company', company);
       }
-      
+
       if (rememberMe) {
         secureStorage.setItem('nm_remembered_email', email);
-        // Supabase automatically handles persistent sessions when Remember Me is enabled
       } else {
         secureStorage.removeItem('nm_remembered_email');
       }
@@ -638,20 +473,18 @@ export const AuthProvider = ({ children }) => {
       setCurrentUser(userData);
       setCurrentCompany(company);
       setTenant(company);
-      setSession(authSession);
+      setSession(sessionData);
       setIsAuthenticated(true);
-          try {
-            if (typeof isAuthenticatedRef !== 'undefined') isAuthenticatedRef.current = true;
-            if (typeof sessionRef !== 'undefined') sessionRef.current = storedSession;
-            if (typeof currentUserRef !== 'undefined') currentUserRef.current = storedUser;
-            if (typeof currentCompanyRef !== 'undefined') currentCompanyRef.current = storedCompany || null;
-          } catch (refErr) {}
+      setSessionExpired(false);
       setSessionExpiryWarning(false);
+      currentUserRef.current = userData;
+      currentCompanyRef.current = company;
+      sessionRef.current = sessionData;
+      isAuthenticatedRef.current = true;
 
-      // Log successful login
       logSecurityEvent('login_success', {
         user_id: userData.id,
-        email: email,
+        email,
         role: userData.role,
         company_id: company?.id,
         company_slug: company?.company_slug
@@ -664,40 +497,22 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setAuthLoading(false);
     }
-  }, [refreshSession]);
-
-  // Internal logout function
-  // Refresh session
-  
+  }, []);
 
   const performLogout = useCallback(async () => {
     try {
-      logSecurityEvent('logout', {
-        user_id: currentUser?.id,
-        email: currentUser?.email,
-        company_id: currentCompany?.id
-      });
-
       await supabase.auth.signOut();
     } catch (err) {
       if (import.meta.env.DEV) console.error('Supabase logout error:', err);
-      try {
-        logSecurityEvent('logout_error', {
-          error: err.message
-        });
-      } catch {}
     }
-
     clearAuthState();
-  }, [currentUser, currentCompany, clearAuthState]);
+  }, [clearAuthState]);
 
   useEffect(() => {
     performLogoutRef.current = performLogout;
   }, [performLogout]);
 
-  // Logout function
-  async function logout() {
-    // Trigger logout event for other tabs
+  const logout = useCallback(async (companySlugOverride) => {
     try {
       localStorage.setItem('nm_logout_event', 'true');
       setTimeout(() => localStorage.removeItem('nm_logout_event'), 100);
@@ -705,29 +520,13 @@ export const AuthProvider = ({ children }) => {
 
     await performLogout();
 
-    // Redirect to appropriate page
-    if (companySlug) {
-      window.location.href = `/${companySlug}/login`;
-    } else {
-      const storedCompany = secureStorage.getItem('nm_current_company');
-      const fallbackSlug = storedCompany?.company_slug || DEFAULT_COMPANY_SLUG;
-      setTimeout(() => { window.location.replace(`/${fallbackSlug}/login`); }, 50);
+    const targetSlug = companySlugOverride || currentCompanyRef.current?.company_slug || secureStorage.getItem('nm_current_company')?.company_slug || DEFAULT_COMPANY_SLUG;
+    const redirectUrl = `/${targetSlug}/login`;
+    if (typeof window !== 'undefined') {
+      setTimeout(() => window.location.replace(redirectUrl), 50);
     }
-  }
+  }, [performLogout]);
 
-  // Function to set company (for super admin switching)
-  const setCompany = useCallback((company) => {
-    setCurrentCompany(company);
-    if (company) {
-      try { secureStorage.setItem('nm_current_company', company); } catch {}
-    } else {
-      try { secureStorage.removeItem('nm_current_company'); } catch {}
-    }
-  }, []);
-
-  
-
-  
   const forgotPassword = useCallback(async (email) => {
     try {
       const companySlug = currentCompanyRef.current?.company_slug || DEFAULT_COMPANY_SLUG;
@@ -739,6 +538,20 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       if (import.meta.env.DEV) console.error('Forgot password error:', err);
       throw err;
+    }
+  }, []);
+
+  const setCompany = useCallback((company) => {
+    setCurrentCompany(company);
+    setTenant(company);
+    if (company) {
+      try {
+        secureStorage.setItem('nm_current_company', company);
+      } catch {}
+    } else {
+      try {
+        secureStorage.removeItem('nm_current_company');
+      } catch {}
     }
   }, []);
 
