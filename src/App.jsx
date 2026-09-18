@@ -58,6 +58,8 @@ const PurchaseEntryView = lazy(() => import('./features/inventory/PurchaseEntryV
 const StockLogsView = lazy(() => import('./pages/Inventory/StockLogsView'));
 const StockAlertsView = lazy(() => import('./pages/Inventory/StockAlertsView'));
 const CustomerAnalyticsView = lazy(() => import('./pages/CustomerAnalyticsView'));
+const StockReductionView = lazy(() => import('./pages/Inventory/StockReductionView'));
+const InventoryReconciliationView = lazy(() => import('./pages/Inventory/InventoryReconciliationView'));
 const ExpensesView = lazy(() => import('./features/analytics/ExpensesView'));
 const PurchaseView = lazy(() => import('./features/inventory/PurchaseView'));
 const SelfCheckoutView = lazy(() => import('./pages/SelfCheckoutView'));
@@ -810,10 +812,12 @@ export default function App({ company, isTenantMode, companySlug }) {
   ].filter(item => isAllowed(item.id));
 
   const inventoryItems = [
-    { id: 'StockAlerts', label: 'Stock Alerts', icon: <AlertTriangle size={14} /> },
-    { id: 'PurchaseEntry', label: 'Purchase Entry', icon: <ShoppingBag size={14} /> },
-    { id: 'StockLogs', label: 'Stock Movement Logs', icon: <History size={14} /> },
-    { id: 'Products', label: 'Current Stock', icon: <Package size={14} /> },
+    { id: 'Products', label: 'Current Stock & Inventory', icon: <Package size={14} />, shortcut: 'F1' },
+    { id: 'StockAlerts', label: 'Low Stock & Expiry Alerts', icon: <AlertTriangle size={14} /> },
+    { id: 'StockReduction', label: 'Damage / Expiry / Wastage', icon: <Trash2 size={14} /> },
+    { id: 'PurchaseEntry', label: 'Purchase Entry (Stock In)', icon: <ShoppingBag size={14} /> },
+    { id: 'StockLogs', label: 'Stock Movement History', icon: <History size={14} /> },
+    { id: 'InventoryReconciliation', label: 'Inventory Reconciliation', icon: <RefreshCw size={14} /> },
   ].filter(item => isAllowed(item.id));
 
   const reportItemsNav = [
@@ -6964,6 +6968,8 @@ function renderTabContent(activeTab, props) {
 
     // Inventory and master management
     case 'StockAlerts': return <StockAlertsView products={props.products} fetchInitialData={props.fetchInitialData} />;
+    case 'StockReduction': return <StockReductionView products={props.products} fetchInitialData={props.fetchInitialData} />;
+    case 'InventoryReconciliation': return <InventoryReconciliationView products={props.products} />;
     case 'Suppliers': return <EnhancedSuppliersView accounts={props.accounts} purchases={props.purchases} fetchInitialData={props.fetchInitialData} />;
     case 'PurchaseEntry': return <PurchaseEntryView products={props.products} accounts={props.accounts} {...props} />;
     case 'StockLogs': return <StockLogsView inventoryLogs={props.inventoryLogs} products={props.products} {...props} />;

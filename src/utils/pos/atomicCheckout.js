@@ -46,7 +46,8 @@ export const buildAtomicCheckoutPayload = ({
   totalGst = 0,
   roundOff = 0,
   referenceNo = null,
-  transactionId = null // For idempotency
+  transactionId = null, // For idempotency
+  orderType = 'pos_counter'
 }) => {
   const normalizedPaymentMethod = validateAtomicCheckoutInput({
     cart,
@@ -58,7 +59,7 @@ export const buildAtomicCheckoutPayload = ({
   return {
     transaction_id: transactionId || `tx_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     order_header: {
-      order_type: 'pos_counter',
+      order_type: orderType,
       user_id: selectedUser?.id ?? null,
       customer_name: selectedUser?.name || customerInfo?.name || 'Walk-in Customer',
       user_mobile: selectedUser?.mobile || customerInfo?.mob || '',

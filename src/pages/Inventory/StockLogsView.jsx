@@ -69,7 +69,7 @@ export default function StockLogsView({ inventoryLogs, products }) {
 
           <div className="flex items-center gap-2">
             <Filter size={14} className="text-slate-400" />
-            {['All', 'Sale', 'Purchase', 'Manual', 'Return'].map(f => (
+            {['All', 'Sale', 'Purchase', 'Manual', 'Adjustment', 'Damage', 'Expiry', 'Wastage', 'Opening'].map(f => (
               <button
                 key={f}
                 onClick={() => setTypeFilter(f)}
@@ -118,7 +118,10 @@ export default function StockLogsView({ inventoryLogs, products }) {
                     <span className={cn(
                       "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
                       log.change_type === 'purchase' ? 'bg-emerald-100 text-emerald-600' : 
-                      log.change_type === 'sale' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                      log.change_type === 'sale' || log.change_type === 'sold' ? 'bg-blue-100 text-blue-600' :
+                      log.change_type === 'opening' ? 'bg-indigo-100 text-indigo-600' :
+                      ['damage', 'expiry', 'wastage'].includes(log.change_type) ? 'bg-red-100 text-red-600' :
+                      'bg-amber-100 text-amber-600'
                     )}>
                       {log.change_type}
                     </span>

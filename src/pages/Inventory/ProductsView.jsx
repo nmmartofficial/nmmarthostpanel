@@ -10,6 +10,8 @@ import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
 import PaginationFooter from '../../components/PaginationFooter';
 import { ExcelUpload } from '../../components/common';
+import StockAdjustmentDialog from '../../components/StockAdjustmentDialog';
+import PhysicalCountDialog from '../../components/PhysicalCountDialog';
 
 // --- Validation Helpers
 const validatePercent = (value) => {
@@ -187,6 +189,9 @@ export default function ProductsView({ products = [], categories = [], brands = 
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [barcodeToPrint, setBarcodeToPrint] = useState(null);
   const [labelQuantity, setLabelQuantity] = useState(1);
+  const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [showCountDialog, setShowCountDialog] = useState(false);
+  const [productToAdjust, setProductToAdjust] = useState(null);
   const barcodeRef = useRef(null);
 
   // --- Brand name resolver: NEVER render raw numeric brand_id as brand label ---
@@ -671,22 +676,29 @@ export default function ProductsView({ products = [], categories = [], brands = 
       let insertedProduct = null;
 
       if (editingProduct) {
-        res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, { id: editingProduct.id, ...finalData });
+        // Bariki: Stock update must be atomic via RPC if it changed
+        const oldStock = parseFloat(editingProduct.opstock ?? editingProduct.stock ?? 0);
+        const newStock = parseFloat(finalData.opstock ?? finalData.stock ?? 0);
 
-        // Add Log if stock changed
-        const oldStock = editingProduct.opstock ?? editingProduct.stock ?? 0;
-        const newStock = finalData.opstock ?? finalData.stock ?? 0;
-        if (parseFloat(oldStock) !== parseFloat(newStock)) {
+        // Update product master data (excluding stock from direct update)
+        const masterUpdateData = { ...finalData };
+        delete masterUpdateData.stock;
+        delete masterUpdateData.opstock;
+
+        res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, { id: editingProduct.id, ...masterUpdateData });
+
+        if (oldStock !== newStock) {
           try {
-            await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-              id: generateNumericId(),
+            await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.ADJUST_STOCK, {
               product_id: editingProduct.id,
-              old_stock: parseFloat(oldStock) || 0,
-              new_stock: parseFloat(newStock) || 0,
+              change_qty: newStock - oldStock,
               change_type: 'manual',
-              reference_id: 'Manual Update'
+              narration: 'Manual update from Product Master'
             });
-          } catch (invErr) { console.warn('Inventory log skipped:', invErr.message); }
+          } catch (invErr) {
+            console.warn('Atomic stock adjustment failed:', invErr.message);
+            toast.error("Stock could not be updated atomically");
+          }
         }
       } else {
         // DON'T set id - let Supabase auto-generate!
@@ -697,19 +709,22 @@ export default function ProductsView({ products = [], categories = [], brands = 
           insertedProduct = Array.isArray(res.data) ? res.data[0] : res.data;
         }
 
-        // Add Log for new product
-        const newStock = finalData.opstock ?? finalData.stock ?? 0;
-        if (insertedProduct && insertedProduct.id) {
+        // Inventory log for new product happens automatically if opstock > 0 and we used an atomic path?
+        // Wait, for NEW products, we just INSERT. We should probably adjust stock atomically if opstock > 0?
+        // Actually, the initial INSERT is fine for a new row. But to be safe and consistent with audit logs:
+        const initialStock = parseFloat(finalData.opstock ?? finalData.stock ?? 0);
+        if (insertedProduct && insertedProduct.id && initialStock > 0) {
           try {
+            // Log the initial opening stock
             await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-              id: generateNumericId(),
               product_id: insertedProduct.id,
               old_stock: 0,
-              new_stock: parseFloat(newStock) || 0,
-              change_type: 'manual',
-              reference_id: 'New Product'
+              new_stock: initialStock,
+              change_qty: initialStock,
+              change_type: 'opening',
+              narration: 'Initial stock on creation'
             });
-          } catch (invErr) { console.warn('Inventory log skipped:', invErr.message); }
+          } catch (invErr) { console.warn('Opening inventory log skipped:', invErr.message); }
         }
       }
 
@@ -1050,6 +1065,26 @@ export default function ProductsView({ products = [], categories = [], brands = 
                           >
                             <QrCode size={14} />
                           </button>
+                          <button
+                            onClick={() => {
+                              setProductToAdjust(product);
+                              setShowCountDialog(true);
+                            }}
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition-all"
+                            title="Physical Count"
+                          >
+                            <Calculator size={14} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setProductToAdjust(product);
+                              setShowAdjustDialog(true);
+                            }}
+                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-md transition-all"
+                            title="Adjust Stock"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
                           <button 
                             onClick={() => { 
                               setEditingProduct(product); 
@@ -1132,6 +1167,54 @@ export default function ProductsView({ products = [], categories = [], brands = 
             </tbody>
           </table>
         </div>
+
+        {/* Stock Valuation Summary Footer */}
+        {!showTrash && (
+          <div className="bg-slate-900 px-6 py-4 flex flex-wrap justify-between items-center gap-6 border-t border-slate-800">
+            <div className="flex gap-10">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Total Inventory Items</p>
+                <p className="text-xl font-black text-white">{filteredProducts.length}</p>
+              </div>
+              <div className="space-y-1 border-l border-slate-800 pl-10">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Total Stock Quantity</p>
+                <p className="text-xl font-black text-emerald-400">
+                  {filteredProducts.reduce((sum, p) => sum + (parseFloat(p.stock) || 0), 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="space-y-1 border-l border-slate-800 pl-10">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Inventory Value (Purchase)</p>
+                <p className="text-xl font-black text-amber-400">
+                  ₹{filteredProducts.reduce((sum, p) => sum + ((parseFloat(p.stock) || 0) * (parseFloat(p.purcrate || p.purchase_rate) || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="space-y-1 border-l border-slate-800 pl-10">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Inventory Value (Sale)</p>
+                <p className="text-xl font-black text-blue-400">
+                  ₹{filteredProducts.reduce((sum, p) => sum + ((parseFloat(p.stock) || 0) * (parseFloat(p.onlinerate || p.sale_rate) || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const data = filteredProducts.map(p => ({
+                  'Item Name': p.itname || p.name,
+                  'Barcode': p.barcode,
+                  'Stock': p.stock,
+                  'Unit': p.unit_name,
+                  'Purchase Rate': p.purcrate || p.purchase_rate,
+                  'Sale Rate': p.onlinerate || p.sale_rate,
+                  'Purchase Value': (parseFloat(p.stock) || 0) * (parseFloat(p.purcrate || p.purchase_rate) || 0),
+                  'Sale Value': (parseFloat(p.stock) || 0) * (parseFloat(p.onlinerate || p.sale_rate) || 0)
+                }));
+                import('../../erpController').then(m => m.exportToExcel(data, `Inventory_Valuation_${new Date().toISOString().split('T')[0]}`));
+              }}
+              className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10"
+            >
+              <RefreshCw size={14} /> Export Valuation
+            </button>
+          </div>
+        )}
 
         <div className="flex-shrink-0">
           <PaginationFooter
@@ -1452,6 +1535,25 @@ export default function ProductsView({ products = [], categories = [], brands = 
           </div>
         )}
       </AnimatePresence>
+
+      <StockAdjustmentDialog
+        isOpen={showAdjustDialog}
+        onClose={() => {
+          setShowAdjustDialog(false);
+          setProductToAdjust(null);
+        }}
+        product={productToAdjust}
+        fetchInitialData={fetchInitialData}
+      />
+      <PhysicalCountDialog
+        isOpen={showCountDialog}
+        onClose={() => {
+          setShowCountDialog(false);
+          setProductToAdjust(null);
+        }}
+        product={productToAdjust}
+        fetchInitialData={fetchInitialData}
+      />
     </div>
   );
 }

@@ -1,14 +1,19 @@
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect, Suspense } from 'react';
 import { 
-  ShoppingCart, X, Plus, Minus, Camera, CheckCircle2, IndianRupee, QrCode, Smartphone, ShoppingBag, ArrowLeft, Maximize2, Minimize2 } from 'lucide-react';
+  ShoppingCart, X, Plus, Minus, Camera, CheckCircle2, IndianRupee, QrCode, Smartphone, ShoppingBag, ArrowLeft, Maximize2, Minimize2, RefreshCw, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { handleERPAction, ACTION_TYPES, ERP_MODULES } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
 import { cn } from '../utils/helpers';
 import { toast } from 'sonner';
+import { supabase } from '../supabase';
+import { buildAtomicCheckoutPayload } from '../utils/pos/atomicCheckout';
+import { isLocalPosTestMode } from '../utils/localPosTestMode';
+import { ThermalReceipt } from '../components';
 
 export default function SelfCheckoutView({ products, fetchInitialData, appConfig, orders, customerMode, setCustomerMode }) {
   const [cart, setCart] = useState([]);
+  const [receiptCart, setReceiptCart] = useState([]);
   const [showScanner, setShowScanner] = useState(false);
   const [ScannerComponent, setScannerComponent] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('UPI');
@@ -17,6 +22,9 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   const [showBarcodeInput, setShowBarcodeInput] = useState('');
   const [currentStep, setCurrentStep] = useState(1); // 1: Scan Items, 2: Payment, 3: Complete
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [checkoutSessionId, setCheckoutSessionId] = useState(null);
+
+  const barcodeInputRef = useRef(null);
 
   // Full screen toggle
   const toggleFullscreen = useCallback(() => {
@@ -40,10 +48,22 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Auto-focus barcode input on mount and when on step 1
+  useEffect(() => {
+    if (currentStep === 1) {
+      const timer = setTimeout(() => {
+        barcodeInputRef.current?.focus();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep]);
+
   const barcodeMap = useMemo(() => {
     const map = new Map();
     (products || []).forEach(p => {
       if (p.barcode) map.set(p.barcode.trim(), p);
+      if (p.hsn_code) map.set(p.hsn_code.trim(), p);
+      if (p.hsncode) map.set(p.hsncode.trim(), p);
     });
     return map;
   }, [products]);
@@ -55,6 +75,9 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
     return sum + (itemTotal * itemTaxRate) / 100;
   }, 0);
   const finalTotal = Math.round(subTotal + tax);
+  const totalGst = tax;
+  const rawTotal = subTotal + tax;
+  const roundOff = finalTotal - rawTotal;
 
   const addToCart = useCallback((product) => {
     console.log('[SelfCheckout] addToCart called with product:', product);
@@ -164,12 +187,16 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   }, [showScanner, ScannerComponent]);
 
   const completePayment = async () => {
-    console.log('[SelfCheckout] completePayment called, cart:', cart);
-    if (cart.length === 0) {
-      console.warn('[SelfCheckout] completePayment: Cart is empty!');
+    if (cart.length === 0) return;
+    if (isLocalPosTestMode) {
+      toast.error('Local POS Test Mode - Live checkout is disabled.');
       return;
     }
+
     setIsProcessing(true);
+    const currentTxId = checkoutSessionId || `tx_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    if (!checkoutSessionId) setCheckoutSessionId(currentTxId);
+
     try {
       const checkoutPayload = buildAtomicCheckoutPayload({
         cart,
@@ -179,12 +206,15 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
         totalAmount: finalTotal,
         discount: 0,
         deliveryCharge: 0,
-        paymentMethod,
+        paymentMethod: paymentMethod.toLowerCase(),
         paidAmount: finalTotal,
+        totalGst,
+        roundOff,
+        transactionId: currentTxId,
+        orderType: 'self_checkout'
       });
 
       const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.ATOMIC_ORDER, checkoutPayload);
-      console.log('[SelfCheckout] Atomic order response:', orderRes);
       if (!orderRes.success) throw new Error(orderRes.error);
 
       const orderId = Number(orderRes.data);
@@ -202,23 +232,25 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
       };
 
       setLastOrder(createdOrder);
+      setReceiptCart([...cart]);
       setCart([]);
+      setCheckoutSessionId(null);
       setCurrentStep(3);
       fetchInitialData();
       toast.success('Payment successful! Thank you for shopping!');
     } catch (error) {
       console.error('[SelfCheckout] Payment error:', error);
-      toast.error('Payment failed!');
+      toast.error(error.message || 'Payment failed!');
     } finally {
       setIsProcessing(false);
     }
   };
 
   const clearCart = () => {
-    console.log('[SelfCheckout] clearCart called');
     if (cart.length === 0) return;
     if (window.confirm('Are you sure you want to clear the cart?')) {
       setCart([]);
+      setCheckoutSessionId(null);
       toast.success('Cart cleared!');
     }
   };
@@ -226,6 +258,9 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
   const reset = () => {
     setCurrentStep(1);
     setLastOrder(null);
+    setCheckoutSessionId(null);
+    setShowReceipt(false);
+    setTimeout(() => barcodeInputRef.current?.focus(), 100);
   };
 
   return (
@@ -340,6 +375,7 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
               <h3 className="font-black text-slate-800 mb-4">Scan Products</h3>
               <div className="flex gap-3">
                 <input
+                  ref={barcodeInputRef}
                   type="text"
                   value={showBarcodeInput}
                   onChange={(e) => setShowBarcodeInput(e.target.value)}
@@ -450,17 +486,31 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
             <h2 className="text-3xl font-black text-slate-800 mb-3">Thank You!</h2>
             <p className="text-slate-500 font-bold mb-8">Your payment was successful</p>
             {lastOrder && (
-              <div className="bg-slate-50 rounded-2xl p-6 mb-8">
-                <p className="text-xs font-black text-slate-600">Order #</p>
-                <p className="text-2xl font-black text-slate-800">{lastOrder.order_number}</p>
+              <div className="bg-slate-50 rounded-2xl p-6 mb-8 text-left">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs font-black text-slate-600 uppercase">Order Number</p>
+                  <p className="text-sm font-black text-slate-800">#{lastOrder.order_number}</p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-black text-slate-600 uppercase">Total Paid</p>
+                  <p className="text-lg font-black text-indigo-600">₹{lastOrder.total_amount}</p>
+                </div>
               </div>
             )}
-            <button
-              onClick={reset}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl font-black text-lg hover:from-indigo-700 hover:to-purple-700 transition-all"
-            >
-              Start New Order
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => window.print()}
+                className="w-full bg-slate-100 text-slate-700 py-4 rounded-2xl font-black text-lg hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+              >
+                <Printer size={20} /> Print Receipt
+              </button>
+              <button
+                onClick={reset}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 rounded-2xl font-black text-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-xl shadow-indigo-500/20"
+              >
+                Start New Order
+              </button>
+            </div>
           </motion.div>
         </div>
       )}
@@ -492,6 +542,21 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
           </div>
         )}
       </AnimatePresence>
+
+      <div className="hidden print:block">
+        {lastOrder && (
+          <ThermalReceipt
+            orderData={lastOrder}
+            cart={receiptCart}
+            subTotal={lastOrder.subtotal}
+            discountAmount={lastOrder.discount}
+            deliveryChargeAmount={lastOrder.delivery_charge}
+            finalTotal={lastOrder.total_amount}
+            roundOff={lastOrder.round_off}
+            appConfig={appConfig}
+          />
+        )}
+      </div>
     </div>
   );
 }

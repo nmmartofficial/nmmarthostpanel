@@ -568,17 +568,17 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                     });
 
                     await Promise.all(orderItems.map(async (item) => {
-                      // Update product stock
-                      const product = await dbSync.fetch(DB_SCHEMA.PRODUCTS.table, { 
-                        eq: { column: 'id', value: item.product_id } 
-                      });
-                      if (product && product.length > 0) {
-                        const currentStock = parseFloat(product[0].stock || 0);
-                        const returnedQty = parseFloat(item.quantity || 0);
-                        await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, { 
-                          id: item.product_id, 
-                          stock: (currentStock + returnedQty).toString() 
+                      // Update product stock atomically
+                      try {
+                        await handleERPAction(null, ACTION_TYPES.ADJUST_STOCK, {
+                          product_id: item.product_id,
+                          change_qty: parseFloat(item.quantity || 0),
+                          change_type: 'return',
+                          narration: `Return from Order #${selectedOrder.order_number}`,
+                          reference_number: selectedOrder.order_number
                         });
+                      } catch (adjErr) {
+                        console.error('Stock adjustment for return failed:', adjErr);
                       }
                     }));
 

@@ -62,6 +62,7 @@ export const ACTION_TYPES = {
   FETCH: 'FETCH',
   ATOMIC_ORDER: 'ATOMIC_ORDER',
   ATOMIC_PURCHASE: 'ATOMIC_PURCHASE',
+  ADJUST_STOCK: 'ADJUST_STOCK',
   UPLOAD_IMAGE: 'UPLOAD_IMAGE',
   WALLET_ADJUST: 'WALLET_ADJUST',
   MAINTENANCE_EXPORT: 'MAINTENANCE_EXPORT',
@@ -240,6 +241,10 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
 
       case ACTION_TYPES.ATOMIC_PURCHASE:
         data = await dbSync.executeAtomic('create_purchase_atomic', payload, DB_SCHEMA.PURCHASES.table, 'ATOMIC_CREATE_PURCHASE');
+        break;
+
+      case ACTION_TYPES.ADJUST_STOCK:
+        data = await dbSync.executeAtomic('adjust_stock_atomic', payload, DB_SCHEMA.PRODUCTS.table, 'ATOMIC_ADJUST_STOCK');
         break;
 
       case ACTION_TYPES.WALLET_ADJUST:

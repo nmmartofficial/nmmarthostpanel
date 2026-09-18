@@ -20,6 +20,9 @@ export default function StockAlertsView({ products, fetchInitialData, setActiveT
     if ((parseFloat(product.stock) || 0) <= threshold) {
       return { type: 'low_stock', label: 'Low Stock', color: 'text-orange-600', bg: 'bg-orange-50', icon: AlertTriangle };
     }
+    if ((parseFloat(product.stock) || 0) <= 0) {
+      return { type: 'out_of_stock', label: 'Out of Stock', color: 'text-red-600', bg: 'bg-red-50', icon: XCircle };
+    }
     return { type: 'ok', label: 'OK', color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle };
   };
 
@@ -27,8 +30,13 @@ export default function StockAlertsView({ products, fetchInitialData, setActiveT
     let list = products.filter(p => p.is_active !== false);
 
     if (activeFilter === 'low_stock') {
-      const threshold = p => p.low_stock_threshold || p.min_qty || 10;
-      list = list.filter(p => (parseFloat(p.stock) || 0) <= threshold(p));
+      list = list.filter(p => {
+        const threshold = p.low_stock_threshold || p.min_qty || 10;
+        const stock = parseFloat(p.stock) || 0;
+        return stock > 0 && stock <= threshold;
+      });
+    } else if (activeFilter === 'out_of_stock') {
+      list = list.filter(p => (parseFloat(p.stock) || 0) <= 0);
     } else if (activeFilter === 'expiring') {
       list = list.filter(p => p.expiry_date && new Date(p.expiry_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
     } else if (activeFilter === 'expired') {
@@ -42,7 +50,7 @@ export default function StockAlertsView({ products, fetchInitialData, setActiveT
   }, [products, activeFilter, searchTerm]);
 
   const alertCounts = useMemo(() => {
-    const counts = { all: 0, low_stock: 0, expiring: 0, expired: 0 };
+    const counts = { all: 0, low_stock: 0, out_of_stock: 0, expiring: 0, expired: 0 };
     products.filter(p => p.is_active !== false).forEach(p => {
       const alert = getAlertType(p);
       if (alert.type !== 'ok') counts.all++;
@@ -85,8 +93,8 @@ export default function StockAlertsView({ products, fetchInitialData, setActiveT
             <AlertTriangle size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-800 uppercase tracking-widest">Stock Alerts</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Manage Low Stock & Expiry</p>
+            <h2 className="text-base font-black text-slate-800 uppercase tracking-widest">Inventory Alerts</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Manage Stock Levels & Expiry Lifecycle</p>
           </div>
         </div>
 
@@ -112,12 +120,13 @@ export default function StockAlertsView({ products, fetchInitialData, setActiveT
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 flex-shrink-0">
         {[
           { id: 'all', label: 'Total Alerts', value: alertCounts.all, color: 'slate', icon: AlertTriangle },
+          { id: 'out_of_stock', label: 'Out of Stock', value: alertCounts.out_of_stock, color: 'red', icon: XCircle },
           { id: 'low_stock', label: 'Low Stock', value: alertCounts.low_stock, color: 'orange', icon: Package },
           { id: 'expiring', label: 'Expiring Soon', value: alertCounts.expiring, color: 'amber', icon: Clock },
-          { id: 'expired', label: 'Expired', value: alertCounts.expired, color: 'red', icon: AlertCircle }
+          { id: 'expired', label: 'Expired', value: alertCounts.expired, color: 'rose', icon: AlertCircle }
         ].map(filter => (
           <button
             key={filter.id}

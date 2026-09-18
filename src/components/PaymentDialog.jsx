@@ -77,6 +77,20 @@ const PaymentDialog = memo(() => {
                         }}
                       />
                     </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase">Card Payment</label>
+                      <input
+                        type="number"
+                        className="w-full bg-slate-50 border-2 rounded-2xl p-4 text-2xl font-black outline-none focus:border-indigo-500"
+                        value={paymentAmounts.Card || ''}
+                        onChange={(e) => setPaymentAmounts({...paymentAmounts, Card: e.target.value})}
+                        onClick={() => {
+                          if (isTouchMode) {
+                            openKeypad("Enter Card Amount", paymentAmounts.Card, (val) => setPaymentAmounts({...paymentAmounts, Card: val}));
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col gap-4">
                     <div className={cn("rounded-3xl text-center", changeReturn > 0 ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400", isTouchMode ? "p-10" : "p-6")}>
