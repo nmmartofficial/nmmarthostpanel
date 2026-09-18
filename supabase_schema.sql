@@ -110,6 +110,8 @@ CREATE TABLE IF NOT EXISTS public.categories (
 );
 CREATE INDEX IF NOT EXISTS idx_categories_tenant ON public.categories (tenant_id, company_code);
 CREATE INDEX IF NOT EXISTS idx_categories_active ON public.categories (tenant_id, is_active);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_categories_tenant_company_name
+    ON public.categories (tenant_id, company_code, lower(name));
 
 -- ---------------------------------------------------------------------
 -- 2.3  `subcategories`
@@ -130,6 +132,8 @@ CREATE TABLE IF NOT EXISTS public.subcategories (
 );
 CREATE INDEX IF NOT EXISTS idx_subcategories_tenant ON public.subcategories (tenant_id, company_code);
 CREATE INDEX IF NOT EXISTS idx_subcategories_cat ON public.subcategories (category_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_subcategories_tenant_category_name
+    ON public.subcategories (tenant_id, company_code, category_id, lower(name));
 
 -- ---------------------------------------------------------------------
 -- 2.4  `brands`
@@ -147,6 +151,8 @@ CREATE TABLE IF NOT EXISTS public.brands (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_brands_tenant ON public.brands (tenant_id, company_code);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_brands_tenant_company_name
+    ON public.brands (tenant_id, company_code, lower(name));
 
 -- ---------------------------------------------------------------------
 -- 2.5  `department_master` (Store Floors / Sections — optional)
@@ -246,6 +252,9 @@ CREATE INDEX IF NOT EXISTS idx_products_category ON public.products (category_id
 CREATE INDEX IF NOT EXISTS idx_products_name ON public.products (tenant_id, name);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_products_barcode_tenant
     ON public.products (tenant_id, barcode) WHERE barcode IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_products_tenant_brand_category_subcategory
+    ON public.products (tenant_id, company_code, brand_id, category_id, subcategory_id)
+    WHERE brand_id IS NOT NULL AND category_id IS NOT NULL AND subcategory_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------
 -- 2.7  `stock_alerts`

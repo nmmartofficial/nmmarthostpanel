@@ -349,20 +349,29 @@ export default function ProductsView({ products = [], categories = [], brands = 
       return;
     }
 
-    // Check for existing product with same brand + category + subcategory combination
+    // Check for existing product with same brand + category + subcategory combination.
+    // This must NOT block editing the same product. It should block only a different product
+    // with the same master combination.
+    const normalizeDuplicateKey = (value) => String(value ?? '').trim();
     const isDuplicate = products.some(product => {
-      // If editing, skip the current product itself (String-safe comparison)
       const sameId = editingProduct && (String(product.id) === String(editingProduct.id));
       if (sameId) return false;
+      if (!product || !product.brand_id || !product.category_id) return false;
+
+      const productBrandId = Number(product.brand_id);
+      const productCategoryId = Number(product.category_id);
+      const productSubcategoryId = normalizeDuplicateKey(product.subcategory_id);
+      const currentSubcategoryId = normalizeDuplicateKey(checkSubcategoryId);
+
       return (
-        Number(product.brand_id) === checkBrandId &&
-        Number(product.category_id) === checkCategoryId &&
-        String(product.subcategory_id || '') === checkSubcategoryId
+        productBrandId === checkBrandId &&
+        productCategoryId === checkCategoryId &&
+        productSubcategoryId === currentSubcategoryId
       );
     });
 
     if (isDuplicate) {
-      alert("⚠️ Duplicate Entry! This Brand + Category + Subcategory combination already exists for another product.");
+      alert("⚠️ Duplicate Entry! This Brand + Category + Subcategory combination already exists for another product. Edit the existing product instead of creating a duplicate.");
       setIsSubmitting(false);
       return;
     }

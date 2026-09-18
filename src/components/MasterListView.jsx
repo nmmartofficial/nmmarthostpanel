@@ -245,6 +245,67 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
         toast.error(`Barcode ${formData.barcode} is already assigned to ${duplicate.name}!`);
         return;
       }
+
+      const brandId = formData.brand_id ? Number(formData.brand_id) : null;
+      const categoryId = formData.category_id ? Number(formData.category_id) : null;
+      const subcategoryId = formData.subcategory_id != null && formData.subcategory_id !== '' ? String(formData.subcategory_id).trim() : '';
+      if (brandId && categoryId) {
+        const duplicateProduct = data.find((product) => {
+          if (editingItem && String(product.id) === String(editingItem.id)) return false;
+          if (!product || !product.brand_id || !product.category_id) return false;
+          return (
+            Number(product.brand_id) === brandId &&
+            Number(product.category_id) === categoryId &&
+            String(product.subcategory_id ?? '') === subcategoryId
+          );
+        });
+
+        if (duplicateProduct) {
+          toast.error("⚠️ Duplicate Entry! This Brand + Category + Subcategory combination already exists for another product.");
+          return;
+        }
+      }
+    }
+
+    if (table === DB_SCHEMA.CATEGORIES.table) {
+      const name = String(formData.name || '').trim();
+      if (name) {
+        const duplicateCategory = (data || []).find((item) => item && String(item.name || '').trim().toLowerCase() === name.toLowerCase() && String(item.id) !== String(editingItem?.id || ''));
+        if (duplicateCategory) {
+          toast.error(`Category "${name}" already exists. Please use the existing category or edit it instead.`);
+          return;
+        }
+      }
+    }
+
+    if (table === DB_SCHEMA.SUBCATEGORIES.table) {
+      const name = String(formData.name || '').trim();
+      const categoryId = formData.category_id ? Number(formData.category_id) : null;
+      if (name && categoryId) {
+        const duplicateSubcategory = (data || []).find((item) => {
+          if (!item || String(item.id) === String(editingItem?.id || '')) return false;
+          return (
+            String(item.name || '').trim().toLowerCase() === name.toLowerCase() &&
+            Number(item.category_id) === categoryId
+          );
+        });
+
+        if (duplicateSubcategory) {
+          toast.error(`Subcategory "${name}" already exists under this category. Duplicate subcategories are not allowed.`);
+          return;
+        }
+      }
+    }
+
+    if (table === DB_SCHEMA.BRANDS.table) {
+      const name = String(formData.name || '').trim();
+      if (name) {
+        const duplicateBrand = (data || []).find((item) => item && String(item.name || '').trim().toLowerCase() === name.toLowerCase() && String(item.id) !== String(editingItem?.id || ''));
+        if (duplicateBrand) {
+          toast.error(`Brand "${name}" already exists. Please reuse the existing brand instead of creating a duplicate.`);
+          return;
+        }
+      }
     }
 
     if (table === DB_SCHEMA.USERS.table || table === DB_SCHEMA.DELIVERY_CUSTOMERS.table) {
