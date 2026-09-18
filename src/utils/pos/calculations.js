@@ -146,6 +146,7 @@ export const calcPurchaseTotals = (items = []) => {
   const safeItems = Array.isArray(items) ? items : [];
   const totalQty = safeItems.reduce((s, i) => s + toFloat(i.qty ?? i.quantity), 0);
   const totalGst = safeItems.reduce((s, i) => s + toFloat(i.gst_amt ?? i.gst_amount), 0);
+  const discountTotal = safeItems.reduce((s, i) => s + toFloat(i.disc_amt ?? i.discount_amount), 0);
   const subTotal = safeItems.reduce((s, i) => s + toFloat(i.amount ?? i.total ?? i.lineTotal), 0);
   const finalBillAmt = Math.round(subTotal);
   const roundOff = roundTo(subTotal - finalBillAmt, 2);
@@ -153,6 +154,7 @@ export const calcPurchaseTotals = (items = []) => {
   return {
     totalQty: roundTo(totalQty, 2),
     totalGst: roundTo(totalGst, 2),
+    discountTotal: roundTo(discountTotal, 2),
     subTotal: roundTo(subTotal, 2),
     finalBillAmt,
     roundOff
@@ -293,14 +295,16 @@ export const calcShiftStats = (sessionOrders) => {
  * Determines payment method based on amounts
  */
 export const getPaymentMethod = (paymentAmounts) => {
-  const { Cash, UPI, Card } = paymentAmounts || {};
+  const { Cash, UPI, Card, Credit } = paymentAmounts || {};
   const hasCash = toFloat(Cash) > 0;
   const hasUPI = toFloat(UPI) > 0;
   const hasCard = toFloat(Card) > 0;
+  const hasCredit = toFloat(Credit) > 0;
 
-  const count = [hasCash, hasUPI, hasCard].filter(Boolean).length;
-  if (count > 1) return 'Split';
-  if (hasUPI) return 'UPI';
-  if (hasCard) return 'Card';
-  return 'Cash';
+  const count = [hasCash, hasUPI, hasCard, hasCredit].filter(Boolean).length;
+  if (count > 1) return 'mixed';
+  if (hasUPI) return 'upi';
+  if (hasCard) return 'card';
+  if (hasCredit) return 'credit';
+  return 'cash';
 };

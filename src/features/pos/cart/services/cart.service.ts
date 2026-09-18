@@ -174,6 +174,46 @@ export const CartService = {
   },
 
   validate: (cart: Cart): CartValidation => {
-    throw new Error("Not Implemented");
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!cart || !Array.isArray(cart.items) || cart.items.length === 0) {
+      errors.push('Cart is empty');
+      return { isValid: false, errors, warnings };
+    }
+
+    cart.items.forEach((item) => {
+      if (!item?.product) {
+        errors.push('One or more cart items are missing product data');
+        return;
+      }
+
+      if (!item.product.id) {
+        errors.push('Cart item is missing a valid product id');
+      }
+
+      if (!Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0) {
+        errors.push(`Invalid quantity for ${item.product.name || 'item'}`);
+      }
+
+      const productPrice = Number(item.product.price ?? item.product.sale_rate ?? item.product.mrp ?? 0);
+      if (!Number.isFinite(productPrice) || productPrice < 0) {
+        errors.push(`Invalid price for ${item.product.name || 'item'}`);
+      }
+
+      if (Number(item.product.stock ?? 0) < Number(item.quantity)) {
+        errors.push(`Insufficient stock for ${item.product.name || 'item'}`);
+      }
+    });
+
+    if (cart.items.length > 0 && cart.payableAmount <= 0 && cart.subtotal > 0) {
+      warnings.push('Cart total is below payable threshold');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    };
   },
 };

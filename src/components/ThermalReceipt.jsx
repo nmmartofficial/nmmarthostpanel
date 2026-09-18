@@ -8,11 +8,13 @@ export default function ThermalReceipt({ orderData, cart, subTotal, discountAmou
   
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   
-  // Dynamic Tax Calculation (Assuming 5% GST total)
-  const taxRate = parseFloat(appConfig?.tax_rate || 5); // Default 5%
-  const totalTax = (finalTotal * (taxRate / 105) * 5); // Assuming inclusive tax
-  const cgst = (totalTax / 2).toFixed(2);
-  const sgst = (totalTax / 2).toFixed(2);
+  // Use stored tax values if available, else fallback to calculation
+  const cgst = orderData?.cgst_amount ? parseFloat(orderData.cgst_amount).toFixed(2) : '0.00';
+  const sgst = orderData?.sgst_amount ? parseFloat(orderData.sgst_amount).toFixed(2) : '0.00';
+  const totalTax = (parseFloat(cgst) + parseFloat(sgst)).toFixed(2);
+  const totalDiscount = (parseFloat(orderData?.discount || discountAmount || 0)).toFixed(2);
+  const finalBillTotal = parseFloat(orderData?.total_amount || finalTotal).toFixed(2);
+  const billRoundOff = parseFloat(orderData?.round_off || roundOff || 0).toFixed(2);
 
   return (
     <div className="bg-white p-2 w-[76mm] mx-auto text-black font-mono text-[10px] print-receipt">
@@ -72,20 +74,26 @@ export default function ThermalReceipt({ orderData, cart, subTotal, discountAmou
         </div>
         <div className="flex justify-between text-[12px] border-y border-black py-0.5 my-0.5">
           <span>NET AMOUNT</span>
-          <span>₹{finalTotal}</span>
+          <span>₹{finalBillTotal}</span>
         </div>
         <div className="flex justify-between text-[9px] font-bold">
-          <span>CGST (2.5%)</span>
+          <span>CGST</span>
           <span>{cgst}</span>
         </div>
         <div className="flex justify-between text-[9px] font-bold">
-          <span>SGST (2.5%)</span>
+          <span>SGST</span>
           <span>{sgst}</span>
         </div>
-        {discountAmount > 0 && (
+        {parseFloat(totalDiscount) > 0 && (
           <div className="flex justify-between text-[9px] font-bold text-red-600">
             <span>DISCOUNT</span>
-            <span>-{discountAmount.toFixed(0)}</span>
+            <span>-{totalDiscount}</span>
+          </div>
+        )}
+        {parseFloat(billRoundOff) !== 0 && (
+          <div className="flex justify-between text-[9px] font-bold italic">
+            <span>ROUND OFF</span>
+            <span>{billRoundOff}</span>
           </div>
         )}
       </div>

@@ -10,5 +10,5 @@ export type { CheckoutStatus, CheckoutSummary, CheckoutResult, CheckoutState, Ch
 export { initialCheckoutState } from './store/checkout.state';
 export { checkoutActions } from './store/checkout.actions';
 export { checkoutSelectors } from './store/checkout.selectors';
-export { CheckoutService } from './services/checkout.service';
+export { CheckoutService, completeCheckoutAsync } from './services/checkout.service';
 export { generateSnapshotId, createCheckoutSnapshot, cloneCheckoutSnapshot, freezeCheckoutSnapshot, validateCartReference, validateCustomerReference, validatePaymentReference, validateSnapshot, validateCheckout, generateOrderSnapshotId, createOrderSnapshot, cloneOrderSnapshot, freezeOrderSnapshot } from './utils/checkout.utils';

@@ -35,6 +35,7 @@ import {
 import { processImageForUpload } from './utils/imageHandler';
 import { loadSupabaseTables } from './utils/supabaseDataLoader';
 import { shouldSkipGlobalFetch } from './utils/fetchControl';
+import { isLocalPosReadOnlyMode, isLocalPosTestMode } from './utils/localPosTestMode';
 
 import MasterListView from './components/MasterListView';
 import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
@@ -276,6 +277,7 @@ export default function App({ company, isTenantMode, companySlug }) {
   const [pincodes, setPincodes] = useState([]);
   const [homeConfig, setHomeConfig] = useState([]);
   const [walletTx, setWalletTx] = useState([]);
+  const [wallets, setWallets] = useState([]);
   const [addresses, setAddresses] = useState([]);
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
@@ -499,6 +501,11 @@ export default function App({ company, isTenantMode, companySlug }) {
   // to avoid redundant Supabase Realtime subscriptions.
 
   const fetchInitialData = useCallback(async (force = false, silent = false, options = {}) => {
+    if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
+      setLoading(false);
+      return;
+    }
+
     const now = Date.now();
     if (shouldSkipGlobalFetch({
       isFetching: isFetchingRef.current,
@@ -563,7 +570,8 @@ export default function App({ company, isTenantMode, companySlug }) {
         dbSync.fetch(DB_SCHEMA.INVENTORY_LOGS.table, { order: { column: 'created_at', ascending: false }, limit: 100 }),
         dbSync.fetch(DB_SCHEMA.EXPENSES.table, { order: { column: 'date', ascending: false } }),
         // Fetch last 30 days of order items
-        supabase.from(DB_SCHEMA.ORDER_ITEMS.table).select('*').gte('created_at', dateStr)
+        supabase.from(DB_SCHEMA.ORDER_ITEMS.table).select('*').gte('created_at', dateStr),
+        dbSync.fetch(DB_SCHEMA.USERS.table)
       ]);
 
       const getData = (index, fallback = []) => {
@@ -584,11 +592,12 @@ export default function App({ company, isTenantMode, companySlug }) {
       const brandsData = getData(6);
       const couponsData = getData(7);
       const notificationsData = getData(8);
-      const usersData = getData(9);
+      const usersData = getData(28);
       const homeConfigData = getData(10);
       const offersData = getData(11);
       const pincodesData = getData(12);
       const walletTxData = getData(13);
+      const walletData = getData(9);
       const addressesData = getData(14);
       const cartData = getData(15);
       const wishlistData = getData(16);
@@ -630,6 +639,7 @@ export default function App({ company, isTenantMode, companySlug }) {
       setOffers(offersData);
       setPincodes(pincodesData);
       setWalletTx(walletTxData);
+      setWallets(walletData);
       setAddresses(addressesData);
       setCart(cartData);
       setWishlist(wishlistData);
@@ -940,7 +950,7 @@ export default function App({ company, isTenantMode, companySlug }) {
                   )}
                 >
                   <Package size={14} className="text-slate-500" />
-                  <span>Purchase</span>
+                  <span>Purchase History</span>
                 </button>
               )}
 
@@ -1130,7 +1140,7 @@ export default function App({ company, isTenantMode, companySlug }) {
                       onClick={() => { setActiveTab('Purchase'); setShowMobileMenu(false); }}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-sm transition-all"
                     >
-                      <Package size={18} /> Purchase
+                      <Package size={18} /> Purchase History
                     </button>
                   </div>
                 </div>
@@ -1465,7 +1475,7 @@ export default function App({ company, isTenantMode, companySlug }) {
               {renderTabContent(activeTab, {
                   activeTab, setActiveTab,
                   stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons,
-                  offers, pincodes, homeConfig, walletTx, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
+                  offers, pincodes, homeConfig, walletTx, wallets, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                   purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
                   loyaltyPoints, loyaltyTransactions, loyaltyTiers,
                   setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems: setOrderItems || (() => {}), setUsers, setCoupons,
@@ -5634,8 +5644,7 @@ const AdminUsersView = (props) => (
     {...props}
     fields={[
       { name: 'username', label: 'Username', type: 'text', required: true },
-      { name: 'password', label: 'Password', type: 'password', required: !props.editingItem },
-      { name: 'full_name', label: 'Full Name', type: 'text' },
+      { name: 'name', label: 'Full Name', type: 'text' },
       { name: 'role', label: 'Role', type: 'select', options: [{value: 'admin', label: 'Admin'}, {value: 'manager', label: 'Manager'}] }
     ]}
   />
@@ -5689,7 +5698,7 @@ const CouponsView = (props) => (
       { name: 'code', label: 'Coupon Code', type: 'text', required: true },
       { name: 'discount_type', label: 'Type', type: 'select', options: [{value: 'percentage', label: 'Percentage'}, {value: 'flat', label: 'Flat Amount'}] },
       { name: 'discount_value', label: 'Value', type: 'number', required: true },
-      { name: 'min_order_value', label: 'Min Order', type: 'number' },
+      { name: 'min_order_amount', label: 'Min Order', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
@@ -5723,23 +5732,73 @@ const AddressesView = (props) => (
   <MasterListView
     {...props}
     fields={[
-      { name: 'full_name', label: 'Name', type: 'text', required: true },
-      { name: 'mobile', label: 'Mobile', type: 'text', required: true },
+      { name: 'user_id', label: 'Customer', type: 'select', options: props.users?.map(u => ({ value: u.id, label: u.name || u.phone })), required: true },
+      { name: 'name', label: 'Name', type: 'text', required: true },
+      { name: 'phone', label: 'Phone', type: 'text', required: true },
       { name: 'address_line1', label: 'Address Line 1', type: 'text', required: true },
       { name: 'pincode', label: 'Pincode', type: 'text', required: true }
     ]}
   />
 );
 
-const WalletView = (props) => (
-  <MasterListView
-    {...props}
-    fields={[
-      { name: 'user_id', label: 'User ID', type: 'text', required: true },
-      { name: 'balance', label: 'Balance', type: 'number', required: true }
-    ]}
-  />
-);
+const WalletView = ({ wallets = [], users = [], fetchInitialData }) => {
+  const [selectedWallet, setSelectedWallet] = useState(null);
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [type, setType] = useState('credit');
+  const [saving, setSaving] = useState(false);
+
+  const adjustWallet = async () => {
+    const numericAmount = Number(amount);
+    if (!selectedWallet?.user_id || !Number.isFinite(numericAmount) || numericAmount <= 0 || !reason.trim()) {
+      toast.error('Select a wallet and enter a positive amount with a reason');
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await handleERPAction(DB_SCHEMA.WALLET_MASTER.table, ACTION_TYPES.WALLET_ADJUST, {
+        user_id: selectedWallet.user_id,
+        amount: numericAmount,
+        type,
+        reason: reason.trim(),
+      });
+      if (!result.success || result.data !== true) throw new Error(result.error || 'Wallet adjustment failed');
+      toast.success('Wallet transaction completed');
+      setAmount('');
+      setReason('');
+      await fetchInitialData?.(true, true);
+    } catch (error) {
+      toast.error(error.message || 'Wallet adjustment failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h2 className="text-base font-black uppercase tracking-widest text-slate-800">Wallet Master</h2>
+        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Balance is read-only; use atomic credit/debit transactions.</p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
+          <table className="w-full text-left"><thead className="bg-slate-50"><tr><th className="p-3 text-[10px] font-black uppercase">Customer</th><th className="p-3 text-[10px] font-black uppercase">Balance</th><th className="p-3 text-[10px] font-black uppercase">Action</th></tr></thead><tbody className="divide-y divide-slate-100">
+            {wallets.map((wallet) => <tr key={wallet.id}><td className="p-3 text-xs font-bold">{users.find((user) => String(user.id) === String(wallet.user_id))?.name || `User #${wallet.user_id}`}</td><td className="p-3 text-xs font-black">₹{Number(wallet.balance || 0).toLocaleString('en-IN')}</td><td className="p-3"><button type="button" onClick={() => setSelectedWallet(wallet)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-black uppercase text-white">Adjust</button></td></tr>)}
+            {wallets.length === 0 && <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-slate-400">No wallet records found</td></tr>}
+          </tbody></table>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-700">Atomic Wallet Adjustment</h3>
+          <p className="mt-2 text-[10px] text-slate-400">{selectedWallet ? `Wallet #${selectedWallet.id}` : 'Select a wallet first'}</p>
+          <select value={type} onChange={(event) => setType(event.target.value)} className="mt-4 w-full rounded-lg border border-slate-200 p-2 text-xs"><option value="credit">Credit</option><option value="debit">Debit</option></select>
+          <input type="number" min="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount" className="mt-2 w-full rounded-lg border border-slate-200 p-2 text-xs" />
+          <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason" className="mt-2 w-full rounded-lg border border-slate-200 p-2 text-xs" />
+          <button type="button" disabled={saving || !selectedWallet} onClick={adjustWallet} className="mt-3 w-full rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50">{saving ? 'Saving...' : 'Post Transaction'}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // New Master Views
 
@@ -5749,7 +5808,6 @@ const UserMasterView = (props) => (
     {...props}
     fields={[
       { name: 'username', label: 'Username', type: 'text', required: true },
-      { name: 'password', label: 'Password', type: 'password', required: true },
       { name: 'full_name', label: 'Full Name', type: 'text' },
       { name: 'role', label: 'Role', type: 'select', options: [{value: 'super_admin', label: 'Super Admin'}, {value: 'sales_manager', label: 'Sales Manager'}, {value: 'inventory_head', label: 'Inventory Head'}, {value: 'accountant', label: 'Accountant'}] }
     ]}
@@ -5760,7 +5818,7 @@ const CreditsView = (props) => (
   <MasterListView
     {...props}
     fields={[
-      { name: 'user_id', label: 'User', type: 'select', options: props.users?.map(u => ({ value: u.id, label: u.name || u.mobile })), required: true },
+      { name: 'customer_id', label: 'Customer', type: 'select', options: props.deliveryCustomers?.map(u => ({ value: u.id, label: u.name || u.phone })), required: true },
       { name: 'amount', label: 'Credit Amount', type: 'number', required: true },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
@@ -5772,7 +5830,7 @@ const DeliveryBoysView = (props) => (
     {...props}
     fields={[
       { name: 'name', label: 'Delivery Boy Name', type: 'text', required: true },
-      { name: 'mobile', label: 'Mobile', type: 'text', required: true },
+      { name: 'phone', label: 'Phone', type: 'text', required: true },
       { name: 'vehicle_number', label: 'Vehicle Number', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
@@ -5784,7 +5842,7 @@ const DeliveryCustomersView = (props) => (
     {...props}
     fields={[
       { name: 'name', label: 'Customer Name', type: 'text', required: true },
-      { name: 'mobile', label: 'Mobile', type: 'text', required: true },
+      { name: 'phone', label: 'Phone', type: 'text', required: true },
       { name: 'address', label: 'Address', type: 'text' },
       { name: 'pincode', label: 'Pincode', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
@@ -6924,11 +6982,11 @@ function renderTabContent(activeTab, props) {
     case 'AdminUsers': return <AdminUsersView title="Admin Users" table={DB_SCHEMA.ADMIN_USERS.table} data={props.adminUsers} {...props} />;
     case 'Pincodes': return <PincodesView title="Pincode Master" table={DB_SCHEMA.PINCODES.table} data={props.pincodes} {...props} />;
     case 'Addresses': return <AddressesView title="Address Master" table={DB_SCHEMA.ADDRESSES.table} data={props.addresses} {...props} />;
-    case 'WalletMaster': return <WalletView title="Wallet Master" table={DB_SCHEMA.WALLET_MASTER.table} data={props.credits} {...props} />;
+    case 'WalletMaster': return <WalletView wallets={props.wallets} users={props.users} fetchInitialData={props.fetchInitialData} />;
     case 'Departments': return <DepartmentsView title="Department Master" table={DB_SCHEMA.DEPARTMENTS.table} data={props.departments} {...props} />;
     case 'Units': return <UnitsView title="Unit Master" table={DB_SCHEMA.UNITS.table} data={props.units} {...props} />;
     case 'Accounts': return <AccountsView title="Account Master" table={DB_SCHEMA.ACCOUNTS.table} data={props.accounts} {...props} />;
-    case 'Purchase': return <PurchaseView title="Purchase" table={DB_SCHEMA.PURCHASES.table} data={props.purchases} products={props.products} departments={props.departments} {...props} />;
+    case 'Purchase': return <PurchaseView title="Purchase History" data={props.purchases} accounts={props.accounts} onNewPurchase={() => props.setActiveTab('PurchaseEntry')} />;
     case 'Transaction': return <TransactionView {...props} />;
 
     default: return <DashboardView {...props} />;

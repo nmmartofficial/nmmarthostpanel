@@ -171,69 +171,35 @@ export default function SelfCheckoutView({ products, fetchInitialData, appConfig
     }
     setIsProcessing(true);
     try {
-      const lastOrderNo = orders.reduce((max, o) => {
-        const num = parseInt(o.order_number);
-        return isNaN(num) ? max : Math.max(max, num);
-      }, 0);
-      const nextBillNo = lastOrderNo + 1;
-      console.log('[SelfCheckout] Next bill number:', nextBillNo);
-
-      const orderData = {
-        order_number: nextBillNo.toString(),
-        user_id: 'self-checkout-customer',
-        customer_name: 'Self Checkout Customer',
-        user_mobile: '',
-        address: '',
+      const checkoutPayload = buildAtomicCheckoutPayload({
+        cart,
+        selectedUser: null,
+        customerInfo: { name: 'Self Checkout Customer', mob: '', add: '' },
         subtotal: subTotal,
-        total_amount: finalTotal,
-        payment_method: paymentMethod,
-        payment_status: 'paid',
-        order_status: 'completed',
+        totalAmount: finalTotal,
         discount: 0,
-        delivery_charge: 0
-      };
-      console.log('[SelfCheckout] Order data to insert:', orderData);
+        deliveryCharge: 0,
+        paymentMethod,
+        paidAmount: finalTotal,
+      });
 
-      const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.INSERT, orderData);
-      console.log('[SelfCheckout] Order insert response:', orderRes);
+      const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.ATOMIC_ORDER, checkoutPayload);
+      console.log('[SelfCheckout] Atomic order response:', orderRes);
       if (!orderRes.success) throw new Error(orderRes.error);
 
-      const createdOrder = orderRes.data[0];
-      console.log('[SelfCheckout] Created order:', createdOrder);
+      const orderId = Number(orderRes.data);
+      const { data: fetchedOrder } = await supabase
+        .from(DB_SCHEMA.ORDERS.table)
+        .select('*')
+        .eq('id', orderId)
+        .single();
 
-      for (const item of cart) {
-        console.log('[SelfCheckout] Processing order item:', item);
-        await handleERPAction(ERP_MODULES.ORDER_ITEMS, ACTION_TYPES.INSERT, {
-          order_id: createdOrder.id,
-          product_id: item.id,
-          product_name: item.name,
-          quantity: item.quantity,
-          rate: item.sale_rate,
-          total: item.sale_rate * item.quantity
-        });
-
-        const product = products.find(p => p.id === item.id);
-        console.log('[SelfCheckout] Found product for stock update:', product);
-        if (product) {
-          const productStock = product.opstock || product.stock || 0;
-          const newStock = productStock - item.quantity;
-          console.log('[SelfCheckout] Updating stock:', { productStock, newStock });
-          await handleERPAction(ERP_MODULES.ITEM_MASTER, ACTION_TYPES.UPDATE, {
-            id: product.id,
-            stock: newStock,
-            opstock: newStock
-          });
-
-          await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-            id: crypto.randomUUID(),
-            product_id: product.id,
-            old_stock: productStock,
-            new_stock: newStock,
-            change_type: 'sale',
-            reference_id: createdOrder.order_number
-          });
-        }
-      }
+      const createdOrder = fetchedOrder || {
+        ...checkoutPayload.order_header,
+        id: orderId,
+        order_number: `SELF-${orderId}`,
+        total_amount: finalTotal
+      };
 
       setLastOrder(createdOrder);
       setCart([]);

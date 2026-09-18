@@ -12,11 +12,11 @@ interface ProductGridContainerProps {
 }
 
 const ProductGridContainer: React.FC<ProductGridContainerProps> = ({ className }) => {
-  const { results, loading, mockProducts } = useSearch();
+  const { results, loading, products } = useSearch();
   const isEmpty = results.length === 0;
 
-  const products: Product[] = results
-    .map(result => mockProducts.find(p => p.id === result.id))
+  const displayProducts: Product[] = results
+    .map(result => products.find(p => Number(p.id) === Number(result.id)))
     .filter((p): p is Product => p !== undefined);
 
   return (
@@ -26,7 +26,7 @@ const ProductGridContainer: React.FC<ProductGridContainerProps> = ({ className }
       ) : isEmpty ? (
         <EmptyState />
       ) : (
-        <ProductGrid products={products} />
+        <ProductGrid products={displayProducts} />
       )}
     </div>
   );

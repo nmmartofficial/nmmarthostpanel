@@ -61,6 +61,7 @@ export const ACTION_TYPES = {
   BULK_UPSERT: 'UPSERT',
   FETCH: 'FETCH',
   ATOMIC_ORDER: 'ATOMIC_ORDER',
+  ATOMIC_PURCHASE: 'ATOMIC_PURCHASE',
   UPLOAD_IMAGE: 'UPLOAD_IMAGE',
   WALLET_ADJUST: 'WALLET_ADJUST',
   MAINTENANCE_EXPORT: 'MAINTENANCE_EXPORT',
@@ -90,6 +91,57 @@ const PRODUCT_CANONICAL_COLUMN_MAP = {
   shopid: 'shop_id',
   ispackage: 'is_package',
   itemstatus: 'item_status'
+};
+
+const SENSITIVE_ERP_TABLES = new Set([
+  DB_SCHEMA.ADMIN_USERS.table,
+  DB_SCHEMA.ACCOUNTS.table,
+  DB_SCHEMA.CREDITS.table,
+  DB_SCHEMA.COUPONS.table,
+  DB_SCHEMA.PINCODES.table,
+  DB_SCHEMA.OFFERS.table,
+  DB_SCHEMA.ADDRESSES.table,
+  DB_SCHEMA.WALLET_MASTER.table,
+  DB_SCHEMA.WALLET_TRANSACTIONS.table,
+  DB_SCHEMA.USERS.table,
+  DB_SCHEMA.DELIVERY_BOYS.table,
+  DB_SCHEMA.DELIVERY_CUSTOMERS.table,
+  DB_SCHEMA.PRODUCTS.table,
+  DB_SCHEMA.CATEGORIES.table,
+  DB_SCHEMA.SUBCATEGORIES.table,
+  DB_SCHEMA.BRANDS.table,
+  DB_SCHEMA.BANNERS.table,
+  DB_SCHEMA.ORDERS.table
+]);
+
+const getCurrentERPUser = () => {
+  try {
+    const raw = localStorage.getItem('nm_user_data');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const validateERPWriteAuthorization = (moduleName, actionType) => {
+  const user = getCurrentERPUser();
+  const role = String(user?.role || 'viewer').toLowerCase();
+  const protectedActions = new Set(['INSERT', 'UPDATE', 'DELETE', 'BULK_UPSERT']);
+
+  if (!protectedActions.has(actionType)) {
+    return;
+  }
+
+  if (!SENSITIVE_ERP_TABLES.has(moduleName)) {
+    return;
+  }
+
+  if (['super_admin', 'admin'].includes(role)) {
+    return;
+  }
+
+  throw new Error('Security Error: Insufficient privilege for ERP write operation.');
 };
 
 const normalizeUploadPayloadForTable = (tableKey, payload) => {
@@ -142,6 +194,8 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
       toastId = toast.loading(`Syncing ${moduleName}...`);
     }
 
+    validateERPWriteAuthorization(moduleName, actionType);
+
     switch (actionType) {
       case ACTION_TYPES.FETCH:
         data = await dbSync.fetch(moduleName, payload);
@@ -182,6 +236,19 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
 
       case ACTION_TYPES.ATOMIC_ORDER:
         data = await dbSync.executeAtomic('place_order_atomic', payload, DB_SCHEMA.ORDERS.table, 'ATOMIC_PLACE_ORDER');
+        break;
+
+      case ACTION_TYPES.ATOMIC_PURCHASE:
+        data = await dbSync.executeAtomic('create_purchase_atomic', payload, DB_SCHEMA.PURCHASES.table, 'ATOMIC_CREATE_PURCHASE');
+        break;
+
+      case ACTION_TYPES.WALLET_ADJUST:
+        data = await dbSync.executeAtomic('adjust_wallet_atomic', {
+          p_user_id: payload?.user_id,
+          p_amount: payload?.amount,
+          p_type: payload?.type,
+          p_reason: payload?.reason,
+        }, DB_SCHEMA.WALLET_MASTER.table, 'ATOMIC_WALLET_ADJUST');
         break;
 
       case ACTION_TYPES.MAINTENANCE_EXPORT:

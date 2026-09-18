@@ -4,11 +4,11 @@
  */
 
 import { CustomerState } from '../types/customer.types';
-import { CUSTOMER_STATUS, CUSTOMER_TYPES, MOCK_CUSTOMERS } from '../constants/customer.constants';
+import { CUSTOMER_STATUS, CUSTOMER_TYPES } from '../constants/customer.constants';
 
 export const initialCustomerState: CustomerState = {
   selectedCustomer: null,
-  customers: MOCK_CUSTOMERS,
+  customers: [],
   loading: false,
   error: '',
   searchQuery: '',

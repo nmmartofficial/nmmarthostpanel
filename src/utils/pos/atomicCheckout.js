@@ -43,7 +43,10 @@ export const buildAtomicCheckoutPayload = ({
   deliveryCharge,
   paymentMethod,
   paidAmount,
-  referenceNo = null
+  totalGst = 0,
+  roundOff = 0,
+  referenceNo = null,
+  transactionId = null // For idempotency
 }) => {
   const normalizedPaymentMethod = validateAtomicCheckoutInput({
     cart,
@@ -53,6 +56,7 @@ export const buildAtomicCheckoutPayload = ({
   });
 
   return {
+    transaction_id: transactionId || `tx_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     order_header: {
       order_type: 'pos_counter',
       user_id: selectedUser?.id ?? null,
@@ -63,17 +67,30 @@ export const buildAtomicCheckoutPayload = ({
       discount: Number(discount) || 0,
       delivery_charge: Number(deliveryCharge) || 0,
       total_amount: Number(totalAmount) || 0,
+      total_gst: Number(totalGst) || 0,
+      round_off: Number(roundOff) || 0,
       payment_method: normalizedPaymentMethod,
       payment_status: 'paid',
       order_status: 'delivered'
     },
-    items: cart.map((item) => ({
-      product_id: item.id,
-      product_name: item.itname || item.name || '',
-      quantity: Number(item.quantity),
-      rate: Number(item.sale_rate ?? item.price ?? 0),
-      total: Number(item.sale_rate ?? item.price ?? 0) * Number(item.quantity)
-    })),
+    items: cart.map((item) => {
+      const rate = Number(item.sale_rate ?? item.price ?? 0);
+      const qty = Number(item.quantity);
+      const gstPercent = Number(item.gst || item.gst_percent || 0);
+      const itemTotal = rate * qty;
+      const gstAmount = (itemTotal * gstPercent) / 100;
+
+      return {
+        product_id: item.id,
+        product_name: item.itname || item.name || '',
+        quantity: qty,
+        rate: rate,
+        gst_percent: gstPercent,
+        gst_amount: gstAmount,
+        hsn_code: item.hsn_code || item.hsncode || '',
+        total: itemTotal
+      };
+    }),
     payment: {
       amount: Number(paidAmount),
       method: normalizedPaymentMethod,

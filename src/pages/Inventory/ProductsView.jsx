@@ -206,8 +206,182 @@ export default function ProductsView({ products = [], categories = [], brands = 
   // Filtered subcategories based on selected category
   const availableSubcategories = useMemo(() => {
     if (!selectedCategoryId) return [];
-    return subcategories.filter(s => s.category_id === selectedCategoryId);
+    return subcategories.filter(s => Number(s.category_id) === Number(selectedCategoryId));
   }, [subcategories, selectedCategoryId]);
+
+  const selectedCategoryMatch = useMemo(() => {
+    if (!formData.category_id) return null;
+    return (categories || []).find(c => String(c.id) === String(formData.category_id));
+  }, [categories, formData.category_id]);
+
+  const activeSubcategories = useMemo(() => {
+    const rawCategoryId = formData.category_id ?? formData.categoryId ?? selectedCategoryMatch?.id;
+    if (rawCategoryId === undefined || rawCategoryId === null || rawCategoryId === '') {
+      return [];
+    }
+
+    const targetId = Number(rawCategoryId);
+    return (subcategories || []).filter(s => Number(s.category_id) === targetId);
+  }, [formData.category_id, formData.categoryId, selectedCategoryMatch, subcategories]);
+
+  const resolveFormSubcategory = useCallback((nextFormData) => {
+    const rawCategoryId = nextFormData.category_id || nextFormData.categoryId;
+    if (!rawCategoryId) {
+      return { ...nextFormData, subcategory_id: '', subcategory_name: '', subcategory: '' };
+    }
+
+    const selectedCategoryId = Number(rawCategoryId);
+
+    if (nextFormData.subcategory_id) {
+      const matched = (subcategories || []).find(
+        s => Number(s.id) === Number(nextFormData.subcategory_id)
+          && Number(s.category_id) === selectedCategoryId
+      );
+
+      if (matched) {
+        return {
+          ...nextFormData,
+          subcategory_id: String(matched.id),
+          subcategory_name: matched.name,
+          subcategory: matched.name
+        };
+      }
+    }
+
+    const lookupName = String(nextFormData.subcategory_name || nextFormData.subcategory || '').trim().toLowerCase();
+    if (lookupName) {
+      const matchedByName = (subcategories || []).find(
+        s => Number(s.category_id) === selectedCategoryId
+          && String(s.name || '').trim().toLowerCase() === lookupName
+      );
+
+      if (matchedByName) {
+        return {
+          ...nextFormData,
+          subcategory_id: String(matchedByName.id),
+          subcategory_name: matchedByName.name,
+          subcategory: matchedByName.name
+        };
+      }
+    }
+
+    return { ...nextFormData, subcategory_id: '', subcategory_name: '', subcategory: '' };
+  }, [subcategories]);
+
+  const resolveCategoryId = useCallback((record = {}) => {
+    const idCandidates = [
+      record.category_id,
+      record.categoryId,
+      record.category?.id,
+      record.main_category_id,
+      record.itc_id,
+      record.item_group_id
+    ];
+    const nameCandidates = [
+      record.category_name,
+      record.category,
+      record.itc,
+      record.item_category,
+      record.main_category,
+      record.categoryName,
+      record.category?.name
+    ];
+
+    for (const candidate of idCandidates) {
+      if (candidate !== undefined && candidate !== null && candidate !== '') {
+        const match = (categories || []).find(
+          c => String(c.id).trim() === String(candidate).trim()
+        );
+        if (match) return { id: String(match.id), name: match.name };
+      }
+    }
+
+    for (const candidate of nameCandidates) {
+      if (candidate !== undefined && candidate !== null && candidate !== '') {
+        const normalized = String(candidate).trim().toLowerCase();
+        const match = (categories || []).find(c => String(c.name || '').trim().toLowerCase() === normalized);
+        if (match) return { id: String(match.id), name: match.name };
+      }
+    }
+
+    return null;
+  }, [categories]);
+
+  const resolveSubcategoryId = useCallback((record = {}) => {
+    const idCandidates = [
+      record.subcategory_id,
+      record.subCategoryId,
+      record.subcategory?.id,
+      record.subcategory_id,
+      record.sub_category_id,
+      record.subcat_id
+    ];
+    const nameCandidates = [
+      record.subcategory_name,
+      record.subcategory,
+      record.subcategoryName,
+      record.sub_category_name,
+      record.subcat_name,
+      record.subcategory?.name
+    ];
+
+    const categoryMatch = resolveCategoryId(record);
+    const matchByCategory = (candidate) => {
+      if (!candidate) return null;
+      return (subcategories || []).find(s => {
+        const matchesId = String(s.id).trim() === String(candidate).trim();
+        const matchesName = String(s.name || '').trim().toLowerCase() === String(candidate).trim().toLowerCase();
+        const categoryOk = !categoryMatch || Number(s.category_id) === Number(categoryMatch.id);
+        return (matchesId || matchesName) && categoryOk;
+      });
+    };
+
+    for (const candidate of idCandidates) {
+      if (candidate !== undefined && candidate !== null && candidate !== '') {
+        const match = matchByCategory(candidate);
+        if (match) return { id: String(match.id), name: match.name };
+      }
+    }
+
+    for (const candidate of nameCandidates) {
+      if (candidate !== undefined && candidate !== null && candidate !== '') {
+        const match = (subcategories || []).find(s => {
+          const nameMatches = String(s.name || '').trim().toLowerCase() === String(candidate).trim().toLowerCase();
+          const categoryMatches = !categoryMatch || Number(s.category_id) === Number(categoryMatch.id);
+          return nameMatches && categoryMatches;
+        });
+        if (match) return { id: String(match.id), name: match.name };
+      }
+    }
+
+    if (categoryMatch) {
+      const fallbackMatch = (subcategories || []).find(s => Number(s.category_id) === Number(categoryMatch.id));
+      if (fallbackMatch) return { id: String(fallbackMatch.id), name: fallbackMatch.name };
+    }
+
+    return null;
+  }, [resolveCategoryId, subcategories]);
+
+  const resolveBrandId = useCallback((record = {}) => {
+    const idCandidates = [record.brand_id, record.brandId, record.brand?.id];
+    const nameCandidates = [record.brand_name, record.brand, record.brandcode, record.brand_name, record.brandName];
+
+    for (const candidate of idCandidates) {
+      if (candidate !== undefined && candidate !== null && candidate !== '') {
+        const match = (brands || []).find(b => String(b.id) === String(candidate));
+        if (match) return { id: String(match.id), name: match.name };
+      }
+    }
+
+    for (const candidate of nameCandidates) {
+      if (candidate !== undefined && candidate !== null && candidate !== '') {
+        const match = (brands || []).find(b => String(b.name || '').toLowerCase() === String(candidate).trim().toLowerCase());
+        if (match) return { id: String(match.id), name: match.name };
+      }
+    }
+
+    return null;
+  }, [brands]);
 
   const filteredProducts = useMemo(() => {
     let list = products;
@@ -337,8 +511,8 @@ export default function ProductsView({ products = [], categories = [], brands = 
     // Product/Item master must not enforce duplicate validation by item name, barcode, brand, category or subcategory.
     // Only master records (Brand, Main Category, Sub Category) are uniqueness-checked elsewhere.
     const currentBrandId = formData.brand_id != null && formData.brand_id !== '' ? Number(formData.brand_id) : null;
-    const currentCategoryId = formData.category_id != null && formData.category_id !== '' ? Number(formData.category_id) : null;
-    const currentSubCategoryId = formData.subcategory_id != null && formData.subcategory_id !== '' ? Number(formData.subcategory_id) : null;
+    let currentCategoryId = formData.category_id != null && formData.category_id !== '' ? Number(formData.category_id) : null;
+    let currentSubCategoryId = formData.subcategory_id != null && formData.subcategory_id !== '' ? Number(formData.subcategory_id) : null;
 
     if (currentBrandId == null || Number.isNaN(currentBrandId) || !brands.some((brand) => Number(brand?.id) === Number(currentBrandId))) {
       alert('Brand not found.');
@@ -352,6 +526,19 @@ export default function ProductsView({ products = [], categories = [], brands = 
       return;
     }
 
+    const subCategoryLookupName = String(formData.subcategory_name || formData.subcategory || '').trim();
+    const matchingByNameInSelectedCategory = subCategoryLookupName
+      ? subcategories.find((subcategory) => {
+          const sameName = String(subcategory?.name || '').trim().toLowerCase() === subCategoryLookupName.toLowerCase();
+          const sameCategory = Number(subcategory?.category_id) === Number(currentCategoryId);
+          return sameName && sameCategory;
+        })
+      : null;
+
+    if (matchingByNameInSelectedCategory) {
+      currentSubCategoryId = Number(matchingByNameInSelectedCategory.id);
+    }
+
     if (currentSubCategoryId == null || Number.isNaN(currentSubCategoryId) || !subcategories.some((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId))) {
       alert('Sub Category not found.');
       setIsSubmitting(false);
@@ -360,15 +547,31 @@ export default function ProductsView({ products = [], categories = [], brands = 
 
     const selectedSubcategory = subcategories.find((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId));
     if (selectedSubcategory && Number(selectedSubcategory.category_id) !== Number(currentCategoryId)) {
-      alert('Sub Category does not belong to the selected Main Category.');
-      setIsSubmitting(false);
-      return;
+      const fallbackMatch = subcategories.find((subcategory) => {
+        const subName = String(subcategory?.name || '').trim().toLowerCase();
+        const lookName = subCategoryLookupName.toLowerCase();
+        const sameName = subName === lookName;
+        const sameCategory = Number(subcategory?.category_id) === Number(currentCategoryId);
+        return sameName && sameCategory;
+      });
+
+      if (fallbackMatch) {
+        currentSubCategoryId = Number(fallbackMatch.id);
+      } else {
+        const categoryMatch = categories.find(c => Number(c.id) === Number(currentCategoryId));
+        const subCategoryName = selectedSubcategory?.name || subCategoryLookupName;
+        const categoryName = categoryMatch?.name || 'Selected Category';
+
+        alert(`Sub Category "${subCategoryName}" does not belong to "${categoryName}". Please select a sub category that belongs to the selected main category.`);
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
       const finalCategoryId = currentCategoryId;
-      const finalSubcategoryId = formData.subcategory_id;
+      const finalSubcategoryId = currentSubCategoryId;
       const finalBrandId = currentBrandId;
 
       // Get category/brand names from existing records for backward compatibility
@@ -858,32 +1061,40 @@ export default function ProductsView({ products = [], categories = [], brands = 
                                 brand: resolveBrandName(product),
                                 unit: getVal('unitcode', 'unit_name') || 'Nos'
                               };
-                              // If we have category_name but no category_id, try to find it
-                              if ((prefilledData.category_name || prefilledData.itc) && !prefilledData.category_id) {
-                                const foundCat = categories.find(c => c.name === (prefilledData.category_name || prefilledData.itc));
-                                if (foundCat) prefilledData.category_id = foundCat.id;
+                              const matchingCategory = resolveCategoryId(prefilledData);
+                              if (matchingCategory) {
+                                prefilledData.category_id = matchingCategory.id;
+                                prefilledData.category_name = matchingCategory.name;
+                                prefilledData.category = matchingCategory.name;
+                                prefilledData.itc = matchingCategory.name;
                               }
-                              // Same for subcategory
-                              if (prefilledData.subcategory_name && !prefilledData.subcategory_id) {
-                                const foundSubCat = subcategories.find(s => s.name === prefilledData.subcategory_name);
-                                if (foundSubCat) prefilledData.subcategory_id = foundSubCat.id;
-                              }
-                              // Same for brand — try exact name match AND numeric-id match
-                              if ((prefilledData.brand_name || prefilledData.brandcode) && !prefilledData.brand_id) {
-                                const rawBrandVal = String(prefilledData.brand_name || prefilledData.brandcode || '').trim();
-                                let foundBrand = null;
-                                if (/^\d+$/.test(rawBrandVal)) {
-                                  foundBrand = brands.find(b => Number(b.id) === Number(rawBrandVal));
-                                }
-                                if (!foundBrand) {
-                                  foundBrand = brands.find(b => String(b.name || '').toLowerCase() === rawBrandVal.toLowerCase());
-                                }
-                                if (foundBrand) {
-                                  prefilledData.brand_id = foundBrand.id;
-                                  prefilledData.brand_name = foundBrand.name;
-                                  prefilledData.brandcode = foundBrand.name;
+
+                              const matchingSubCategory = resolveSubcategoryId(prefilledData);
+                              if (matchingSubCategory) {
+                                prefilledData.subcategory_id = matchingSubCategory.id;
+                                prefilledData.subcategory_name = matchingSubCategory.name;
+                                prefilledData.subcategory = matchingSubCategory.name;
+                              } else if (prefilledData.category_id) {
+                                const fallbackSubByCategory = (subcategories || []).find(s => Number(s.category_id) === Number(prefilledData.category_id));
+                                if (fallbackSubByCategory) {
+                                  prefilledData.subcategory_id = String(fallbackSubByCategory.id);
+                                  prefilledData.subcategory_name = fallbackSubByCategory.name;
+                                  prefilledData.subcategory = fallbackSubByCategory.name;
+                                } else {
+                                  prefilledData.subcategory_id = '';
+                                  prefilledData.subcategory_name = '';
+                                  prefilledData.subcategory = '';
                                 }
                               }
+
+                              const matchingBrand = resolveBrandId(prefilledData);
+                              if (matchingBrand) {
+                                prefilledData.brand_id = matchingBrand.id;
+                                prefilledData.brand_name = matchingBrand.name;
+                                prefilledData.brandcode = matchingBrand.name;
+                                prefilledData.brand = matchingBrand.name;
+                              }
+
                               setFormData(prefilledData);
                               setShowForm(true); 
                             }}
@@ -994,14 +1205,17 @@ export default function ProductsView({ products = [], categories = [], brands = 
                     {/* Row 2 */}
                     <div className="md:col-span-3 space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Item Group Name</label>
-                      <select value={formData.category_id || ''} onChange={(e) => {
-                        const selectedCat = categories.find(c => c.id === e.target.value);
-                        setFormData({
+                      <select value={String(formData.category_id ?? '')} onChange={(e) => {
+                        const selectedCat = categories.find(c => String(c.id) === String(e.target.value));
+                        const selectedCategoryId = e.target.value;
+                        const nextFormData = {
                           ...formData,
-                          category_id: e.target.value,
+                          category_id: selectedCategoryId,
                           category_name: selectedCat?.name || '',
                           category: selectedCat?.name || ''
-                        });
+                        };
+
+                        setFormData(resolveFormSubcategory(nextFormData));
                       }} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-blue-500 outline-none">
                         <option value="">Select Group</option>
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1009,8 +1223,8 @@ export default function ProductsView({ products = [], categories = [], brands = 
                     </div>
                     <div className="md:col-span-3 space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Sub Category Name</label>
-                      <select value={formData.subcategory_id || ''} onChange={(e) => {
-                        const selectedSubCat = subcategories.find(s => s.id === e.target.value);
+                      <select value={String(formData.subcategory_id ?? '')} onChange={(e) => {
+                        const selectedSubCat = subcategories.find(s => String(s.id) === String(e.target.value));
                         setFormData({
                           ...formData,
                           subcategory_id: e.target.value,
@@ -1019,13 +1233,13 @@ export default function ProductsView({ products = [], categories = [], brands = 
                         });
                       }} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-blue-500 outline-none">
                         <option value="">Select Sub Category</option>
-                        {subcategories?.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        {activeSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     </div>
                     <div className="md:col-span-3 space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Brand Name</label>
-                      <select value={formData.brand_id || ''} onChange={(e) => {
-                        const selectedBrand = brands.find(b => b.id === e.target.value);
+                      <select value={String(formData.brand_id ?? '')} onChange={(e) => {
+                        const selectedBrand = brands.find(b => String(b.id) === String(e.target.value));
                         setFormData({
                           ...formData,
                           brand_id: e.target.value,

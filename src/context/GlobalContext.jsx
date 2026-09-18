@@ -4,6 +4,7 @@ import { DB_SCHEMA } from '../dbSchema';
 import { dbSync } from '../dbSync';
 import { secureStorage } from '../utils/security';
 import { shouldSkipGlobalFetch } from '../utils/fetchControl';
+import { isLocalPosReadOnlyMode, isLocalPosTestMode } from '../utils/localPosTestMode';
 
 const GlobalContext = createContext();
 
@@ -120,6 +121,11 @@ export const GlobalProvider = ({ children }) => {
   // --- Fetch Logic ---
   if (typeof window !== 'undefined') window.__NM_REFRESH_DATA__ = (s) => fetchInitialData(s);
   const fetchInitialData = useCallback(async (force = false, silent = false, options = {}) => {
+    if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
+      setLoading(false);
+      return;
+    }
+
     const now = Date.now();
     if (shouldSkipGlobalFetch({
       isFetching: isFetchingRef.current,
@@ -326,6 +332,11 @@ export const GlobalProvider = ({ children }) => {
   }, [orders, categories, users]);
 
   useEffect(() => {
+    if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
+      setLoading(false);
+      return undefined;
+    }
+
     fetchInitialData();
     
     const tablesToWatch = [

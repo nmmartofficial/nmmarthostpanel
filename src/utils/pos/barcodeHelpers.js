@@ -38,7 +38,7 @@ export const filterProducts = (products, { searchTerm = '', activeCategory = 'Al
   const term = searchTerm.toLowerCase();
   return (products || []).filter(p => {
     const matchesSearch = (p.itname || p.name || '').toLowerCase().includes(term);
-    const matchesCategory = activeCategory === 'All' || p.category_id === activeCategory || p.itg === activeCategory || p.itc === activeCategory;
+    const matchesCategory = activeCategory === 'All' || String(p.category_id) === String(activeCategory);
 
     if (posFilter === 'TopSale') {
       return matchesSearch && matchesCategory && (parseFloat(p.opstock ?? p.stock ?? 0) > 50);

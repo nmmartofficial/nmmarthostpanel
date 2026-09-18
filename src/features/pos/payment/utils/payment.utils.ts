@@ -54,22 +54,6 @@ export function normalizeUPIId(upiId: string): string {
 }
 
 /**
- * Generate Mock UPI Transaction ID
- * Phase 4 - Step 4
- * Pure function - no side effects
- * 
- * Generates a mock transaction ID for UPI payments
- * This is a placeholder and should be replaced with real transaction generation
- * 
- * @returns Mock transaction ID
- */
-export function generateMockUPITransactionId(): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 9);
-  return `UPI${timestamp}${random}`.toUpperCase();
-}
-
-/**
  * Validate UPI Format
  * Phase 4 - Step 4
  * Pure function - no side effects
@@ -169,21 +153,6 @@ export function isValidCardFormat(cardNumber: string): boolean {
 }
 
 /**
- * Generate Mock Card Transaction ID
- * Phase 4 - Step 5
- * Pure function - no side effects
- * 
- * Generates a mock transaction ID for card payments
- * 
- * @returns Mock transaction ID
- */
-export function generateMockCardTransactionId(): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 9);
-  return `CARD${timestamp}${random}`.toUpperCase();
-}
-
-/**
  * Calculate Split Total
  * Phase 4 - Step 6
  * Pure function - no side effects
@@ -255,17 +224,6 @@ export function validateSplitAmounts(splitPayments: Array<{ method: string; amou
 export function normalizeCustomerReference(reference: string): string {
   if (!reference) return '';
   return reference.trim();
-}
-
-/**
- * Generate Mock Credit Reference
- * Phase 4 - Step 7
- * Pure function - no side effects
- */
-export function generateMockCreditReference(): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 9);
-  return `CREDIT-${timestamp}-${random}`.toUpperCase();
 }
 
 /**

@@ -3,9 +3,8 @@ import {
   ShoppingBag, Search, Plus, Trash2, Save, X, RefreshCw, ChevronDown, Package, CreditCard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn, generateUUID } from '../../utils/helpers';
+import { cn } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../../erpController';
-import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
 import {
   toFloat, calcGst, calcPurchaseTotals, sumField
@@ -109,67 +108,38 @@ export default function PurchaseEntryView({ products, accounts, fetchInitialData
       const total = totals.finalBillAmt || totals.subTotal || sumField(items, 'total');
       const paid = toFloat(formData.paid_amount);
 
-      // 1. Create Purchase Record (DB generates BIGSERIAL id)
-      const purchaseRes = await handleERPAction(DB_SCHEMA.PURCHASES.table, ACTION_TYPES.INSERT, {
-        supplier_id: formData.supplier_id,
-        invoice_number: formData.invoice_number,
-        invoice_date: formData.invoice_date,
-        subtotal: totals.subTotal || 0,
-        gst_amount: totals.gstTotal || 0,
-        discount_amount: totals.discountTotal || 0,
-        round_off: totals.roundOff || 0,
-        total_amount: total,
-        paid_amount: paid,
-        balance_due: Math.max(0, total - paid),
-        tax_type: formData.tax_type || 'Exclude',
-        notes: formData.notes || formData.remarks,
-        status: 'completed',
-        payment_status: paid >= total ? 'paid' : (paid > 0 ? 'partial' : 'unpaid')
+      const purchaseRes = await handleERPAction(DB_SCHEMA.PURCHASES.table, ACTION_TYPES.ATOMIC_PURCHASE, {
+        purchase_header: {
+          supplier_id: formData.supplier_id,
+          invoice_number: formData.invoice_number,
+          invoice_date: formData.invoice_date,
+          subtotal: totals.subTotal || 0,
+          gst_amount: totals.totalGst || 0,
+          discount_amount: totals.discountTotal || 0,
+          round_off: totals.roundOff || 0,
+          total_amount: total,
+          paid_amount: paid,
+          balance_due: Math.max(0, total - paid),
+          tax_type: formData.tax_type || 'Exclude',
+          notes: formData.notes || formData.remarks,
+          status: 'completed',
+          payment_status: paid >= total ? 'paid' : (paid > 0 ? 'partial' : 'unpaid')
+        },
+        items: items.map((item) => ({
+          product_id: item.product_id,
+          product_name: item.item_name || item.itname || item.name,
+          quantity: Number(item.quantity),
+          rate: Number(item.rate),
+          gst_percent: Number(item.gst_percent || 0),
+          gst_amount: Number(item.gst_amount || 0),
+          discount_percent: Number(item.discount_percent || 0),
+          discount_amount: Number(item.discount_amount || 0),
+          total: Number(item.total || 0)
+        }))
       });
 
-      if (!purchaseRes.success) throw new Error(purchaseRes.error);
-
-      const purchaseRecord = Array.isArray(purchaseRes.data) ? purchaseRes.data[0] : purchaseRes.data;
-      const purchaseId = purchaseRecord.id;
-      if (!purchaseId) throw new Error("Purchase insert did not return an id.");
-
-      // 2. Create Purchase Items & Update Stock
-      for (const item of items) {
-        // Add Purchase Item
-        await handleERPAction(DB_SCHEMA.PURCHASE_ITEMS.table, ACTION_TYPES.INSERT, {
-          purchase_id: purchaseId,
-          product_id: item.product_id,
-          product_name_snapshot: item.item_name || item.itname || item.name,
-          quantity: item.quantity,
-          rate: item.rate,
-          gst_percent: item.gst_percent || 0,
-          gst_amount: item.gst_amount || 0,
-          discount_percent: item.discount_percent || 0,
-          discount_amount: item.discount_amount || 0,
-          total: item.total
-        });
-
-        // Update Product Stock
-        const product = products.find(p => p.id === item.product_id);
-        const oldStock = parseFloat(product.stock) || 0;
-        const newStock = oldStock + parseFloat(item.quantity);
-
-        await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, {
-          id: item.product_id,
-          stock: newStock
-        });
-
-        // Add Inventory Log
-        await handleERPAction(DB_SCHEMA.INVENTORY_LOGS.table, ACTION_TYPES.INSERT, {
-          product_id: item.product_id,
-          old_stock: oldStock,
-          new_stock: newStock,
-          change_qty: Math.round(parseFloat(item.quantity) || 0),
-          change_type: 'purchase',
-          reference_id: Number(purchaseId) || null,
-          reference_number: formData.invoice_number || String(purchaseId),
-          narration: formData.notes || `Purchase #${purchaseId}`
-        });
+      if (!purchaseRes.success || !purchaseRes.data?.purchase_id) {
+        throw new Error(purchaseRes.error || 'Atomic purchase transaction failed');
       }
 
       alert("Purchase recorded successfully! Stock updated.");

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { isLocalPosReadOnlyMode, isLocalPosTestMode } from './utils/localPosTestMode';
 import { DB_SCHEMA } from './dbSchema';
 import { secureStorage } from './utils/security';
 import { processImageForUpload } from './utils/imageHandler';
@@ -170,6 +171,10 @@ const compressImage = async (file, maxWidth = IMAGE_OPTIMIZATION.MAX_WIDTH, qual
  * Also persists resolved values back into storage for faster future lookups.
  */
 const resolveTenantContext = async () => {
+  if (isLocalPosReadOnlyMode) {
+    return { tenantId: 1, companyCode: 'NMM001' };
+  }
+
   let userData = null;
   let savedCompany = null;
 
@@ -396,6 +401,10 @@ export const dbSync = {
   },
 
   subscribe: (tableName, callback) => {
+    if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
+      return { unsubscribe: () => {} };
+    }
+
     try {
       const channelName = 'public:' + tableName + '_' + Math.random().toString(36).substring(7);
       const channel = supabase
@@ -422,6 +431,10 @@ export const dbSync = {
   },
 
   fetch: async (tableName, query = {}) => {
+    if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
+      return [];
+    }
+
     try {
       let allData = [];
       let from = 0;
@@ -713,6 +726,10 @@ export const dbSync = {
   },
 
   insert: async (tableName, payload) => {
+    if (isLocalPosTestMode) {
+      throw new Error('Local POS Test Mode - live writes are disabled.');
+    }
+
     try {
       validatePayload(tableName, payload);
       const { tenantId, companyCode } = await resolveTenantContext();
@@ -874,6 +891,10 @@ export const dbSync = {
   },
 
   update: async (tableName, id, payload) => {
+    if (isLocalPosTestMode) {
+      throw new Error('Local POS Test Mode - live writes are disabled.');
+    }
+
     try {
       validatePayload(tableName, payload);
       const pkColumn = dbSync.getPkColumn(tableName);
@@ -913,12 +934,19 @@ export const dbSync = {
   },
 
   executeAtomic: async (functionName, payload, tableName = 'orders', action = 'ATOMIC_OPERATION') => {
-    if (functionName !== 'place_order_atomic') {
+    if (isLocalPosTestMode) {
+      throw new Error('Local POS Test Mode - live atomic mutations are disabled.');
+    }
+
+    if (!['place_order_atomic', 'create_purchase_atomic', 'adjust_wallet_atomic'].includes(functionName)) {
       throw new Error(`Unsupported atomic function: ${functionName}`);
     }
 
     try {
-      const { data, error } = await supabase.rpc(functionName, { p_payload: payload });
+      const rpcArgs = functionName === 'adjust_wallet_atomic'
+        ? payload
+        : { p_payload: payload };
+      const { data, error } = await supabase.rpc(functionName, rpcArgs);
       if (error) {
         const atomicError = new Error(error.message || `${action} failed`);
         atomicError.code = error.code;

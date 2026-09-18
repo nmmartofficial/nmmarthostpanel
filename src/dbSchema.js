@@ -142,7 +142,7 @@ export const TABLE_COLUMN_MAPPINGS = {
   ADMIN_USERS: {
     id: 'id', tenant_id: 'tenant_id', company_code: 'company_code',
     auth_user_id: 'auth_user_id', username: 'username', name: 'name', full_name: 'full_name',
-    email: 'email', phone: 'phone', password: 'password', password_hash: 'password_hash',
+    email: 'email', phone: 'phone', password_hash: 'password_hash',
     role: 'role', permissions: 'permissions', is_active: 'is_active', status: 'status',
     last_login_at: 'last_login_at', last_login_ip: 'last_login_ip',
     created_at: 'created_at', updated_at: 'updated_at'

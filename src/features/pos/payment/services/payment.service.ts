@@ -8,18 +8,15 @@ import {
   calculateRemainingAmount, 
   calculateChangeAmount,
   normalizeUPIId,
-  generateMockUPITransactionId,
   isValidUPIFormat,
   normalizeCardNumber,
   maskCardNumber,
   detectCardType,
   isValidCardFormat,
-  generateMockCardTransactionId,
   calculateSplitTotal,
   mergeTransactionIds,
   validateSplitAmounts,
   normalizeCustomerReference,
-  generateMockCreditReference,
   calculateChangeBreakdown,
   calculateShortageAmount,
   validateCashPayment,
@@ -97,16 +94,22 @@ export class PaymentService {
     const remainingAmount = calculateRemainingAmount(payableAmount, cashAmount);
     const changeAmount = calculateChangeAmount(payableAmount, cashAmount);
 
-    // Determine payment status based on calculations
-    const isFullyPaid = remainingAmount === 0;
-    const isOverpaid = changeAmount > 0;
+    if (remainingAmount === 0) {
+      return {
+        success: false,
+        paidAmount: 0,
+        remainingAmount: payableAmount,
+        changeAmount: 0,
+        error: 'Payment requires the authoritative atomic checkout transaction; browser validation alone is not a completed payment.'
+      };
+    }
 
     return {
-      success: isFullyPaid,
-      paidAmount: cashAmount,
-      remainingAmount,
-      changeAmount,
-      error: !isFullyPaid ? 'Insufficient payment' : undefined
+      success: false,
+      paidAmount: 0,
+      remainingAmount: payableAmount,
+      changeAmount: 0,
+      error: 'Payment requires the authoritative atomic checkout transaction; browser validation alone is not a completed payment.'
     };
   }
 
@@ -170,8 +173,6 @@ export class PaymentService {
     }
 
     // Generate mock transaction ID
-    const transactionId = generateMockUPITransactionId();
-
     // For UPI, paid amount equals payable amount (full payment)
     const paidAmount = payableAmount;
 
@@ -179,16 +180,24 @@ export class PaymentService {
     const remainingAmount = calculateRemainingAmount(payableAmount, paidAmount);
     const changeAmount = calculateChangeAmount(payableAmount, paidAmount);
 
-    // Determine payment status
-    const isFullyPaid = remainingAmount === 0;
+    if (remainingAmount === 0) {
+      return {
+        success: false,
+        paidAmount: 0,
+        remainingAmount: payableAmount,
+        changeAmount: 0,
+        transactionId: '',
+        error: 'Payment requires the authoritative atomic checkout transaction; browser validation alone is not a completed payment.'
+      };
+    }
 
     return {
-      success: isFullyPaid,
-      paidAmount,
-      remainingAmount,
-      changeAmount,
-      transactionId,
-      error: !isFullyPaid ? 'Payment failed' : undefined
+      success: false,
+      paidAmount: 0,
+      remainingAmount: payableAmount,
+      changeAmount: 0,
+      transactionId: '',
+      error: 'Payment requires the authoritative atomic checkout transaction; browser validation alone is not a completed payment.'
     };
   }
 
@@ -285,8 +294,7 @@ export class PaymentService {
     // Detect card type
     const cardType = detectCardType(normalizedCardNumber);
 
-    // Generate mock transaction ID
-    const transactionId = generateMockCardTransactionId();
+    // Card authorization is persisted only by the atomic checkout flow.
 
     // For card, paid amount equals payable amount (full payment)
     const paidAmount = payableAmount;
@@ -295,17 +303,14 @@ export class PaymentService {
     const remainingAmount = calculateRemainingAmount(payableAmount, paidAmount);
     const changeAmount = calculateChangeAmount(payableAmount, paidAmount);
 
-    // Determine payment status
-    const isFullyPaid = remainingAmount === 0;
-
     return {
-      success: isFullyPaid,
-      paidAmount,
-      remainingAmount,
-      changeAmount,
+      success: false,
+      paidAmount: 0,
+      remainingAmount: payableAmount,
+      changeAmount: 0,
       cardType,
-      transactionId,
-      error: !isFullyPaid ? 'Payment failed' : undefined
+      transactionId: '',
+      error: 'Payment requires the authoritative atomic checkout transaction; browser validation alone is not a completed payment.'
     };
   }
 
@@ -451,19 +456,13 @@ export class PaymentService {
   }): CreditPaymentResult {
     const { payableAmount, creditCustomerId, creditCustomerName, creditReference } = input;
 
-    const paidAmount = payableAmount;
-    const remainingAmount = calculateRemainingAmount(payableAmount, paidAmount);
-    const changeAmount = calculateChangeAmount(payableAmount, paidAmount);
-    const transactionId = generateMockCreditReference();
-    const success = remainingAmount === 0;
-
     return {
-      success,
-      paidAmount,
-      remainingAmount,
-      changeAmount,
-      transactionId,
-      error: success ? undefined : 'Payment failed'
+      success: false,
+      paidAmount: 0,
+      remainingAmount: payableAmount,
+      changeAmount: 0,
+      transactionId: '',
+      error: 'Payment requires the authoritative atomic checkout transaction; browser validation alone is not a completed payment.'
     };
   }
 
@@ -501,9 +500,11 @@ export class PaymentService {
    * Phase 4 - Step 10
    * Reuses all existing payment engines
    */
-  static processPayment(input: {
+  static async processPayment(input: {
     method: string;
     payableAmount: number;
+    orderId?: string | number;
+    referenceNo?: string;
     cashAmount?: number;
     upiId?: string;
     cardNumber?: string;
@@ -514,7 +515,20 @@ export class PaymentService {
     creditCustomerId?: string;
     creditCustomerName?: string;
     creditReference?: string;
-  }): PaymentProcessResult {
+  }): Promise<PaymentProcessResult> {
+    if (!input.orderId) {
+      return {
+        success: false,
+        method: input.method,
+        status: 'FAILED',
+        paidAmount: 0,
+        remainingAmount: input.payableAmount,
+        changeAmount: 0,
+        transactionId: '',
+        errors: [{ field: 'orderId', message: 'Payment must be linked to a persisted order' }]
+      };
+    }
+
     // First run validation
     const validationResult = this.validatePayment(input);
 
@@ -531,84 +545,16 @@ export class PaymentService {
       };
     }
 
-    let result: any;
-    let transactionId = '';
-    let status = '';
-
-    switch (input.method) {
-      case 'CASH':
-        result = this.processCashPayment({
-          payableAmount: input.payableAmount,
-          cashAmount: input.cashAmount || 0
-        });
-        transactionId = '';
-        status = result.success ? 'COMPLETED' : 'FAILED';
-        break;
-      case 'UPI':
-        result = this.processUPIPayment({
-          payableAmount: input.payableAmount,
-          upiId: input.upiId || ''
-        });
-        transactionId = result.transactionId;
-        status = result.success ? 'COMPLETED' : 'FAILED';
-        break;
-      case 'CARD':
-        result = this.processCardPayment({
-          payableAmount: input.payableAmount,
-          cardNumber: input.cardNumber || '',
-          cardHolderName: input.cardHolderName || '',
-          expiryDate: input.expiryDate || '',
-          cvv: input.cvv || ''
-        });
-        transactionId = result.transactionId;
-        status = result.success ? 'COMPLETED' : 'FAILED';
-        break;
-      case 'SPLIT':
-        result = this.processSplitPayment({
-          payableAmount: input.payableAmount,
-          splitPayments: input.splitPayments || [],
-          cashAmount: input.cashAmount,
-          upiId: input.upiId,
-          cardNumber: input.cardNumber,
-          cardHolderName: input.cardHolderName,
-          expiryDate: input.expiryDate,
-          cvv: input.cvv
-        });
-        transactionId = result.transactionIds.join(',');
-        status = result.success ? 'COMPLETED' : 'FAILED';
-        break;
-      case 'CREDIT':
-        result = this.processCreditPayment({
-          payableAmount: input.payableAmount,
-          creditCustomerId: input.creditCustomerId || '',
-          creditCustomerName: input.creditCustomerName || '',
-          creditReference: input.creditReference || ''
-        });
-        transactionId = result.transactionId;
-        status = result.success ? 'COMPLETED' : 'FAILED';
-        break;
-      default:
-        return {
-          success: false,
-          method: input.method,
-          status: 'FAILED',
-          paidAmount: 0,
-          remainingAmount: input.payableAmount,
-          changeAmount: 0,
-          transactionId: '',
-          errors: [{ field: 'paymentMethod', message: 'Unsupported payment method' }]
-        };
-    }
-
+    const method = input.method.toUpperCase();
     return {
-      success: result.success,
-      method: input.method,
-      status,
-      paidAmount: result.paidAmount,
-      remainingAmount: result.remainingAmount,
-      changeAmount: result.changeAmount,
-      transactionId,
-      errors: []
+      success: false,
+      method,
+      status: 'FAILED',
+      paidAmount: 0,
+      remainingAmount: input.payableAmount,
+      changeAmount: 0,
+      transactionId: '',
+      errors: [{ field: 'checkout', message: 'Payment must be persisted by the authoritative atomic checkout transaction.' }]
     };
   }
 
@@ -677,6 +623,15 @@ export class PaymentService {
   }
 
   static async refundPayment(paymentId: string): Promise<any> {
-    throw new Error('PaymentService.refundPayment - Not Implemented');
+    if (!paymentId) {
+      return { success: false, error: { code: 'PAYMENT_ID_REQUIRED', message: 'Payment id is required' } };
+    }
+    return {
+      success: false,
+      error: {
+        code: 'REFUND_REQUIRES_ATOMIC_TRANSACTION',
+        message: 'Payment refunds require an authoritative atomic reversal transaction.'
+      }
+    };
   }
 }

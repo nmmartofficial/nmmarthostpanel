@@ -9,6 +9,12 @@ import {
 } from '../utils/securityHelper';
 import { normalizeAdminUserProfile, buildFallbackAdminProfile, getAdminUserLookupValue } from '../utils/adminUser';
 import { hasValidStoredAuthState, isSessionExpired } from '../utils/authState';
+import {
+  isLocalPosTestMode,
+  LOCAL_POS_TEST_COMPANY,
+  LOCAL_POS_TEST_SESSION,
+  LOCAL_POS_TEST_USER
+} from '../utils/localPosTestMode';
 
 const AuthContext = createContext();
 const SUPABASE_NETWORK_TIMEOUT_MS = Number(import.meta.env.VITE_SUPABASE_TIMEOUT_MS || 15000);
@@ -246,6 +252,22 @@ export const AuthProvider = ({ children }) => {
 
     const initAuth = async () => {
       try {
+        if (isLocalPosTestMode) {
+          setSession(LOCAL_POS_TEST_SESSION);
+          setCurrentUser(LOCAL_POS_TEST_USER);
+          setCurrentCompany(LOCAL_POS_TEST_COMPANY);
+          setTenant(LOCAL_POS_TEST_COMPANY);
+          setIsAuthenticated(true);
+          setSessionExpired(false);
+          setSessionExpiryWarning(false);
+          sessionRef.current = LOCAL_POS_TEST_SESSION;
+          currentUserRef.current = LOCAL_POS_TEST_USER;
+          currentCompanyRef.current = LOCAL_POS_TEST_COMPANY;
+          isAuthenticatedRef.current = true;
+          setAuthLoading(false);
+          return;
+        }
+
         const restoredFromStorage = restoreStoredAuthState();
         if (restoredFromStorage) {
           setAuthLoading(false);
@@ -500,6 +522,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const performLogout = useCallback(async () => {
+    if (isLocalPosTestMode) {
+      clearAuthState();
+      return;
+    }
+
     try {
       await supabase.auth.signOut();
     } catch (err) {

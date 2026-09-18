@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
 import { AlertOctagon, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -11,7 +11,16 @@ import { DB_SCHEMA } from '../dbSchema';
 import { buildAtomicCheckoutPayload } from '../utils/pos/atomicCheckout';
 
 import {
-  POSErrorBoundary
+  POSErrorBoundary,
+  ReceiptDialog,
+  HoldQueueDialog,
+  PaymentDialog,
+  ManagerOverrideDialog,
+  DiscountDialog,
+  VoidDialog,
+  ShiftDashboard,
+  AuditTimeline,
+  HardwareDashboard
 } from '../components';
 import POSLayout from '../features/pos/components/POSLayout';
 
@@ -23,6 +32,7 @@ import usePosActions from '../features/pos/hooks/usePosActions';
 
 import { POSProvider } from '../context';
 import { PaymentProvider, usePayment } from '../features/pos/payment';
+import { isLocalPosTestMode } from '../utils/localPosTestMode';
 
 function POSViewContent({ products, categories, fetchInitialData, appConfig, setActiveTab, orders }) {
   // --- Performance Diagnostics ---
@@ -75,6 +85,7 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
   const [isSplitPayment, setIsSplitPayment] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [checkoutSessionId, setCheckoutSessionId] = useState(null);
   const custSearchRef = useRef(null);
 
   const clearCart = useCallback(() => {
@@ -84,6 +95,7 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
     setPaymentAmounts({ Cash: 0, UPI: 0, Card: 0 });
     setBillDiscount(0);
     setFlatDiscount(0);
+    setCheckoutSessionId(null);
   }, []);
 
   const { addToCart } = usePosActions();
@@ -292,8 +304,15 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
   const handleCheckout = useCallback(async (pMethod = 'Cash') => {
     if (isProcessing) return;
     if (cart.length === 0) return toast.error("Cart is empty!");
+    if (isLocalPosTestMode) {
+      toast.error('Local POS Test Mode - Live checkout is disabled.');
+      return;
+    }
     if (!isPaymentValid) return setPaymentError(`Insufficient Payment: ₹${remainingAmount.toFixed(2)} remaining`);
     setIsProcessing(true); setCheckoutStep('processing');
+    const currentTxId = checkoutSessionId || `tx_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+    if (!checkoutSessionId) setCheckoutSessionId(currentTxId);
+
     try {
       const checkoutPayload = buildAtomicCheckoutPayload({
         cart,
@@ -304,7 +323,10 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
         discount: manualDiscount,
         deliveryCharge: deliveryChargeAmount,
         paymentMethod: pMethod,
-        paidAmount: paidTotal
+        paidAmount: paidTotal,
+        totalGst: totalGst,
+        roundOff: roundOff,
+        transactionId: currentTxId
       });
       const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.ATOMIC_ORDER, checkoutPayload);
       if (!orderRes.success) throw new Error(orderRes.error);
@@ -485,7 +507,25 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
   return (
     <PaymentProvider>
       <POSProvider value={contextValue}>
+        {isLocalPosTestMode && (
+          <div className="fixed top-2 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-amber-100 px-4 py-2 text-xs font-bold text-amber-900 shadow-lg">
+            LOCAL POS TEST MODE - LIVE CHECKOUT DISABLED
+          </div>
+        )}
         <POSLayout />
+
+        {/* Global POS Dialogs */}
+        <Suspense fallback={null}>
+          <ReceiptDialog />
+          <HoldQueueDialog />
+          <PaymentDialog />
+          <ManagerOverrideDialog />
+          <DiscountDialog />
+          <VoidDialog />
+          <ShiftDashboard />
+          <AuditTimeline />
+          <HardwareDashboard />
+        </Suspense>
       </POSProvider>
     </PaymentProvider>
   );

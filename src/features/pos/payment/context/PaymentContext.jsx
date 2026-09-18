@@ -448,11 +448,11 @@ export const PaymentProvider = ({ children }) => {
   }, []);
 
   // --- Payment Finalization (Phase 4 Step 10) ---
-  const processPaymentAction = useCallback(() => {
+  const processPaymentAction = useCallback(async () => {
     setLoading(true);
     setError('');
 
-    const result = PaymentService.processPayment({
+    const result = await PaymentService.processPayment({
       method: selectedMethod,
       payableAmount,
       cashAmount,

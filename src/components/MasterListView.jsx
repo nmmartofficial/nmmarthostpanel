@@ -233,6 +233,20 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const requiredField = fields.find((field) => field.required && (
+      formData[field.name] === undefined || formData[field.name] === null || String(formData[field.name]).trim() === ''
+    ));
+    if (requiredField) {
+      toast.error(`${requiredField.label || requiredField.name} is required`);
+      return;
+    }
+
+    const numericError = fields.find((field) => field.type === 'number' && formData[field.name] !== undefined && formData[field.name] !== '' && !Number.isFinite(Number(formData[field.name])));
+    if (numericError) {
+      toast.error(`${numericError.label || numericError.name} must be a valid number`);
+      return;
+    }
+
     // --- Detailed Validation Bariki ---
     if (table === DB_SCHEMA.PRODUCTS.table) {
       if (formData.sale_rate > formData.mrp) {
@@ -255,6 +269,11 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
     if (table === DB_SCHEMA.SUBCATEGORIES.table) {
       const name = String(formData.name || '').trim();
       const categoryId = formData.category_id ? Number(formData.category_id) : null;
+      const parentCategory = (relatedData.categories || []).find((category) => Number(category.id) === categoryId);
+      if (!parentCategory) {
+        toast.error('A valid parent category is required');
+        return;
+      }
       if (name && categoryId) {
         const duplicateSubcategory = (data || []).find((item) => {
           if (!item || String(item.id) === String(editingItem?.id || '')) return false;
@@ -279,6 +298,33 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
           toast.error(`Brand "${name}" already exists. Please reuse the existing brand instead of creating a duplicate.`);
           return;
         }
+      }
+    }
+
+    if ([DB_SCHEMA.UNITS.table, DB_SCHEMA.DEPARTMENTS.table].includes(table)) {
+      const name = String(formData.name || '').trim().toLowerCase();
+      const code = String(formData.code || '').trim().toLowerCase();
+      const duplicate = (data || []).find((item) => {
+        if (String(item.id) === String(editingItem?.id || '')) return false;
+        return (name && String(item.name || '').trim().toLowerCase() === name)
+          || (code && String(item.code || '').trim().toLowerCase() === code);
+      });
+      if (duplicate) {
+        toast.error('A record with the same name or code already exists');
+        return;
+      }
+    }
+
+    if (table === DB_SCHEMA.COUPONS.table) {
+      const code = String(formData.code || '').trim().toUpperCase();
+      const duplicate = (data || []).find((item) => String(item.id) !== String(editingItem?.id || '') && String(item.code || '').trim().toUpperCase() === code);
+      if (duplicate) {
+        toast.error(`Coupon code "${code}" already exists`);
+        return;
+      }
+      if (Number(formData.discount_value) < 0 || Number(formData.min_order_amount || 0) < 0) {
+        toast.error('Coupon amounts cannot be negative');
+        return;
       }
     }
 

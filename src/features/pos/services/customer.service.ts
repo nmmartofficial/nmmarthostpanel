@@ -1,8 +1,12 @@
+import { CustomerService as DatabaseCustomerService } from '../customer/services/customer.service';
+
 export const CustomerService = {
-  getCustomers: () => {
-    throw new Error("Not Implemented");
+  getCustomers: async () => DatabaseCustomerService.search(''),
+  getCustomerById: async (id: string | number) => {
+    const customers = await DatabaseCustomerService.search('');
+    return customers.find((customer) => customer.id === String(id)) || null;
   },
-  getCustomerById: (id: string | number) => {
-    throw new Error("Not Implemented");
-  }
+  create: (customer: any) => DatabaseCustomerService.create(customer),
+  update: (id: string, customer: any) => DatabaseCustomerService.update(id, customer),
+  remove: (id: string) => DatabaseCustomerService.remove(id),
 };

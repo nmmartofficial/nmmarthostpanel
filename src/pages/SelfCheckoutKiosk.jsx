@@ -290,66 +290,34 @@ export default function SelfCheckoutKiosk() {
     if (cart.length === 0) return;
     setIsProcessing(true);
     try {
-      const lastOrderNo = orders.reduce((max, o) => {
-        const num = parseInt(o.order_number);
-        return isNaN(num) ? max : Math.max(max, num);
-      }, 0);
-      const nextBillNo = lastOrderNo + 1;
-
-      const orderData = {
-        order_number: nextBillNo.toString(),
-        user_id: 'self-checkout-kiosk',
-        customer_name: 'Kiosk Customer',
-        user_mobile: '',
-        address: '',
+      const checkoutPayload = buildAtomicCheckoutPayload({
+        cart,
+        selectedUser: null,
+        customerInfo: { name: 'Kiosk Customer', mob: '', add: '' },
         subtotal: subTotal,
-        tax: totalTax,
-        total_amount: finalTotal,
-        payment_method: 'UPI',
-        payment_status: 'paid',
-        order_status: 'completed',
+        totalAmount: finalTotal,
         discount: 0,
-        delivery_charge: 0
+        deliveryCharge: 0,
+        paymentMethod: 'upi',
+        paidAmount: finalTotal
+      });
+
+      const orderRes = await handleERPAction(ERP_MODULES.ORDER_MASTER, ACTION_TYPES.ATOMIC_ORDER, checkoutPayload);
+      if (!orderRes.success) throw new Error(orderRes.error);
+
+      const orderId = Number(orderRes.data);
+      const { data: fetchedOrder } = await supabase
+        .from(DB_SCHEMA.ORDERS.table)
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      const order = fetchedOrder || {
+        ...checkoutPayload.order_header,
+        id: orderId,
+        order_number: `KIOSK-${orderId}`,
+        total_amount: finalTotal
       };
-
-      const { data: createdOrder, error: orderError } = await supabase
-        .from('orders')
-        .insert([orderData])
-        .select();
-      
-      if (orderError) throw orderError;
-
-      const order = createdOrder[0];
-
-      for (const item of cart) {
-        await supabase.from('order_items').insert([{
-          order_id: order.id,
-          product_id: item.id,
-          product_name: item.name,
-          quantity: item.quantity,
-          rate: item.sale_rate,
-          total: item.sale_rate * item.quantity
-        }]);
-
-        const product = products.find(p => p.id === item.id);
-        if (product) {
-          const productStock = product.opstock || product.stock || 0;
-          const newStock = productStock - item.quantity;
-          await supabase.from('products').update({
-            stock: newStock,
-            opstock: newStock
-          }).eq('id', product.id);
-
-          await supabase.from('inventory_logs').insert([{
-            id: crypto.randomUUID(),
-            product_id: product.id,
-            old_stock: productStock,
-            new_stock: newStock,
-            change_type: 'sale',
-            reference_id: order.order_number
-          }]);
-        }
-      }
 
       setLastOrder(order);
       setCart([]);

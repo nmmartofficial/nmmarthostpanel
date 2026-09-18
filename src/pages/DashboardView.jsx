@@ -1,405 +1,354 @@
 import React, { useMemo } from 'react';
 import { toast } from 'sonner';
-import LoadingState from '../components/LoadingState';
 import {
-  Package, ShoppingCart, Users, Zap, DollarSign,
-  PlusCircle, Download, Bot, Sparkles, PartyPopper, UserCheck, TrendingUp, Globe
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  CheckCircle2,
+  ClipboardList,
+  Copy,
+  DollarSign,
+  FilePlus2,
+  Globe,
+  Package,
+  PlusCircle,
+  ShoppingCart,
+  TrendingUp,
+  Users,
+  WalletCards,
+  XCircle,
 } from 'lucide-react';
-import { cn } from '../utils/helpers';
-import { handleERPAction, ACTION_TYPES } from '../erpController';
-import { DB_SCHEMA } from '../dbSchema';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
+import { cn } from '../utils/helpers';
+
+const PAYMENT_COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#64748b'];
+const KPI_TONES = {
+  blue: 'bg-blue-50 text-blue-600',
+  cyan: 'bg-cyan-50 text-cyan-600',
+  violet: 'bg-violet-50 text-violet-600',
+  emerald: 'bg-emerald-50 text-emerald-600',
+  amber: 'bg-amber-50 text-amber-600',
+};
+const currency = (value) => `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`;
+const numeric = (value) => Number(value) || 0;
+const dateKey = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+};
+
+const EmptyState = ({ children }) => (
+  <div className="flex min-h-[150px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-[11px] font-bold text-slate-400">
+    {children}
+  </div>
+);
+
+const DashboardSkeleton = () => (
+  <div className="space-y-4 pb-4" aria-label="Loading dashboard">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      {Array.from({ length: 5 }, (_, index) => <div key={index} className="h-28 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />)}
+    </div>
+    <div className="h-24 animate-pulse rounded-xl bg-slate-200" />
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="h-64 animate-pulse rounded-xl bg-slate-100 xl:col-span-2" />
+      <div className="h-64 animate-pulse rounded-xl bg-slate-100" />
+    </div>
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="h-56 animate-pulse rounded-xl bg-slate-100" />
+      <div className="h-56 animate-pulse rounded-xl bg-slate-100" />
+    </div>
+  </div>
+);
+
+const SectionHeader = ({ icon: Icon, title, detail }) => (
+  <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="flex items-center gap-2">
+      <Icon size={16} className="text-blue-600" />
+      <h2 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-800">{title}</h2>
+    </div>
+    {detail && <span className="text-[10px] font-semibold text-slate-400">{detail}</span>}
+  </div>
+);
 
 export default function DashboardView(props) {
-  const { stats, orders, products, setActiveTab, festivals, activeFestival, loading, currentUser } = props;
-  const orderItems = props.orderItems || [];
+  const {
+    stats = {},
+    orders = [],
+    products = [],
+    orderItems = [],
+    purchases = [],
+    inventoryLogs = [],
+    categories = [],
+    deliveryCustomers = [],
+    users = [],
+    setActiveTab,
+    loading,
+    dashboardError,
+    fetchInitialData,
+    currentUser,
+  } = props;
 
-  // --- Multi-Tenant Store Link Logic ---
-  const shopSlug = currentUser?.store_slug || currentUser?.shop_id || 'default';
-  const storeUrl = `https://nmmart.in/store/${shopSlug}`;
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeProducts = Array.isArray(products) ? products : [];
+  const safeOrderItems = Array.isArray(orderItems) ? orderItems : [];
+  const safePurchases = Array.isArray(purchases) ? purchases : [];
+  const safeInventoryLogs = Array.isArray(inventoryLogs) ? inventoryLogs : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  const customerRows = Array.isArray(deliveryCustomers) ? deliveryCustomers : [];
+  const safeCustomers = customerRows.length > 0 ? customerRows : (Array.isArray(users) ? users : []);
 
-  const copyStoreLink = () => {
-    navigator.clipboard.writeText(storeUrl);
-    toast.success("Store Link Copied to Clipboard!");
-  };
+  const storeSlug = currentUser?.store_slug || currentUser?.shop_id;
+  const storeBaseUrl = import.meta.env.VITE_STORE_BASE_URL || 'https://nmmart.in';
+  const storeUrl = storeSlug
+    ? `${storeBaseUrl.replace(/\/$/, '')}/store/${encodeURIComponent(storeSlug)}`
+    : '';
 
-  if (loading) {
-    return <LoadingState title="Loading dashboard" subtitle="Preparing your insights and latest activity." />;
-  }
-
-  // --- Chart Data Preparation ---
-
-  // 1. Weekly Sales Trend
-  const salesTrendData = useMemo(() => {
-    const last7Days = [...Array(7)].map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split('T')[0];
-    }).reverse();
-
-    return last7Days.map(date => {
-      const dailyTotal = orders
-        .filter(o => new Date(o.created_at).toISOString().split('T')[0] === date)
-        .reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-
-      const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'short' });
-      return { day: dayName, amount: dailyTotal };
-    });
-  }, [orders]);
-
-  // 2. Payment Distribution (Pie Chart)
-  const paymentChartData = useMemo(() => {
-    const counts = {};
-    orders.forEach(o => {
-      const method = o.payment_method || 'CASH';
-      const cleanMethod = method.toUpperCase().split(' ')[0];
-      counts[cleanMethod] = (counts[cleanMethod] || 0) + 1;
-    });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [orders]);
-
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EF4444'];
-
-  // 3. Category Performance
-  const categoryChartData = useMemo(() => {
-    const catSales = {};
-    orderItems.forEach(item => {
-      const cat = item.category_name || 'General';
-      catSales[cat] = (catSales[cat] || 0) + (parseFloat(item.total) || 0);
-    });
-    return Object.entries(catSales)
-      .map(([name, amount]) => ({ name, amount }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
-  }, [orderItems]);
-
-  const getUpcomingFestivals = () => {
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    return festivals
-      ?.filter(f => f.isActive && new Date(f.date) >= today)
-      .sort((a,b) => new Date(a.date) - new Date(b.date))
-      .slice(0,1) || [];
-  };
-  
-  const upcomingFestivals = getUpcomingFestivals();
-
-  // --- Inventory Intelligence Logic ---
-  const smartInsights = useMemo(() => {
-    const today = new Date();
-    const fifteenDaysFromNow = new Date();
-    fifteenDaysFromNow.setDate(today.getDate() + 15);
-
-    const salesMap = {};
-    (orderItems || []).forEach(item => {
-      const pId = item.product_id;
-      salesMap[pId] = (salesMap[pId] || 0) + (parseFloat(item.quantity) || 0);
-    });
-
-    const runOutRisk = products
-      .map(p => {
-        const totalSold = salesMap[p.id] || 0;
-        const avgDailySales = totalSold / 30;
-        const currentStock = parseFloat(p.stock || p.opstock || 0);
-
-        if (avgDailySales === 0) return null;
-
-        const daysRemaining = currentStock / avgDailySales;
-        if (daysRemaining <= 5 && currentStock > 0) {
-          return { ...p, daysRemaining: Math.round(daysRemaining), type: 'RUN_OUT' };
-        }
-        return null;
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.daysRemaining - b.daysRemaining);
-
-    const urgentExpiry = products
-      .filter(p => {
-        if (!p.expiry_date) return false;
-        const expDate = new Date(p.expiry_date);
-        return expDate >= today && expDate <= fifteenDaysFromNow;
-      })
-      .map(p => ({ ...p, type: 'EXPIRY', daysToExpiry: Math.ceil((new Date(p.expiry_date) - today) / (1000 * 60 * 60 * 24)) }))
-      .sort((a, b) => a.daysToExpiry - b.daysToExpiry);
-
-    return { runOutRisk, urgentExpiry };
-  }, [products, orderItems]);
-
-  const revenue = useMemo(() => {
-    return orders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-  }, [orders]);
-
-  const todaysSales = useMemo(() => {
-    const today = new Date().toDateString();
-    return orders
-      .filter(o => new Date(o.created_at).toDateString() === today)
-      .reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
-  }, [orders]);
-
-  const handleQuickReorder = (product) => {
-    const itemsToOrder = [{
-      product_id: product.id,
-      name: product.name || product.itname,
-      barcode: product.barcode,
-      qty: (product.low_stock_threshold || 10) * 3,
-      rate: product.purchase_rate || 0
-    }];
-    localStorage.setItem('nm_po_draft', JSON.stringify(itemsToOrder));
-    toast.success(`Reorder draft created for ${product.name || product.itname}`);
-    setActiveTab('PurchaseOrderPO');
-  };
-
-  const handleMarkClearance = async (product) => {
-    const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, {
-      id: product.id,
-      restrate: (parseFloat(product.restrate) * 0.8).toFixed(2), // 20% Discount
-      narration: 'CLEARANCE SALE'
-    });
-    if (res.success) {
-      toast.success(`${product.name || product.itname} moved to Clearance Sale!`);
-      props.fetchInitialData(true, true);
+  const copyStoreLink = async () => {
+    if (!storeUrl) {
+      toast.error('Store link is unavailable');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(storeUrl);
+      toast.success('Store link copied');
+    } catch {
+      toast.error('Unable to copy store link');
     }
   };
 
+  const totals = useMemo(() => {
+    const totalRevenue = safeOrders.reduce((sum, order) => sum + numeric(order.total_amount), 0);
+    const today = new Date().toISOString().slice(0, 10);
+    const todaySales = safeOrders
+      .filter((order) => dateKey(order.created_at) === today)
+      .reduce((sum, order) => sum + numeric(order.total_amount), 0);
+    return { totalRevenue, todaySales };
+  }, [safeOrders]);
+
+  const salesTrend = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (6 - index));
+      return date;
+    });
+    return days.map((date) => {
+      const key = date.toISOString().slice(0, 10);
+      const total = safeOrders
+        .filter((order) => dateKey(order.created_at) === key)
+        .reduce((sum, order) => sum + numeric(order.total_amount), 0);
+      return {
+        date: key,
+        label: date.toLocaleDateString('en-IN', { weekday: 'short' }),
+        amount: total,
+      };
+    });
+  }, [safeOrders]);
+
+  const paymentData = useMemo(() => {
+    const totalsByMethod = {};
+    safeOrders.forEach((order) => {
+      const method = String(order.payment_method || '').trim().toUpperCase();
+      if (!method) return;
+      const normalized = method.includes('CASH') ? 'CASH'
+        : method.includes('UPI') ? 'UPI'
+          : method.includes('CARD') ? 'CARD'
+            : method.includes('CREDIT') ? 'CREDIT' : method;
+      totalsByMethod[normalized] = (totalsByMethod[normalized] || 0) + numeric(order.total_amount);
+    });
+    const total = Object.values(totalsByMethod).reduce((sum, value) => sum + value, 0);
+    return Object.entries(totalsByMethod)
+      .map(([name, amount]) => ({ name, amount, percent: total ? Math.round((amount / total) * 100) : 0 }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [safeOrders]);
+
+  const categoryData = useMemo(() => {
+    const productMap = new Map(safeProducts.map((product) => [String(product.id), product]));
+    const categoryMap = new Map(safeCategories.map((category) => [String(category.id), category.name]));
+    const totalsByCategory = {};
+    safeOrderItems.forEach((item) => {
+      const product = productMap.get(String(item.product_id));
+      const category = product?.category_name || categoryMap.get(String(product?.category_id)) || item.category_name;
+      if (!category) return;
+      totalsByCategory[category] = (totalsByCategory[category] || 0) + numeric(item.total || (item.rate * item.quantity));
+    });
+    return Object.entries(totalsByCategory)
+      .map(([name, amount]) => ({ name, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+  }, [safeCategories, safeOrderItems, safeProducts]);
+
+  const inventoryAlerts = useMemo(() => {
+    const lowStock = safeProducts.filter((product) => {
+      const stock = numeric(product.stock ?? product.opstock);
+      const threshold = numeric(product.low_stock_threshold || product.min_qty || 0);
+      return stock > 0 && threshold > 0 && stock <= threshold;
+    });
+    const outOfStock = safeProducts.filter((product) => numeric(product.stock ?? product.opstock) <= 0);
+    return { lowStock, outOfStock };
+  }, [safeProducts]);
+
+  const recentActivity = useMemo(() => {
+    const sales = safeOrders.map((order) => ({
+      id: `sale-${order.id}`,
+      label: `Sale ${order.order_number || `#${order.id}`}`,
+      detail: currency(order.total_amount),
+      date: order.created_at,
+      color: 'bg-blue-500',
+    }));
+    const purchaseRows = safePurchases.map((purchase) => ({
+      id: `purchase-${purchase.id}`,
+      label: `Purchase ${purchase.invoice_number || `#${purchase.id}`}`,
+      detail: currency(purchase.total_amount),
+      date: purchase.created_at || purchase.invoice_date,
+      color: 'bg-amber-500',
+    }));
+    const stockRows = safeInventoryLogs.map((log) => ({
+      id: `stock-${log.id}`,
+      label: `Stock ${log.change_type || 'movement'}`,
+      detail: `Product #${log.product_id}`,
+      date: log.created_at,
+      color: 'bg-emerald-500',
+    }));
+    return [...sales, ...purchaseRows, ...stockRows]
+      .filter((item) => item.date)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 8);
+  }, [safeInventoryLogs, safeOrders, safePurchases]);
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (dashboardError) {
+    return (
+      <div className="flex min-h-[360px] items-center justify-center p-6">
+        <div className="max-w-md rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <XCircle className="mx-auto mb-3 text-red-600" size={28} />
+          <h2 className="text-sm font-black uppercase tracking-widest text-red-800">Unable to load dashboard data</h2>
+          <button onClick={() => fetchInitialData?.(true, true)} className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-xs font-black uppercase text-white">Retry</button>
+        </div>
+      </div>
+    );
+  }
+
+  const kpis = [
+    { label: 'Inventory', value: stats.products ?? safeProducts.length, detail: 'Items in catalog', icon: Package, tone: 'blue' },
+    { label: 'Orders', value: stats.orders ?? safeOrders.length, detail: 'Recorded orders', icon: ShoppingCart, tone: 'cyan' },
+    { label: 'Customers', value: safeCustomers.length, detail: 'Customer records', icon: Users, tone: 'violet' },
+    { label: 'Today Sale', value: currency(totals.todaySales), detail: 'Today', icon: TrendingUp, tone: 'emerald' },
+    { label: 'Total Revenue', value: currency(totals.totalRevenue), detail: 'All recorded orders', icon: DollarSign, tone: 'amber' },
+  ];
+
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2 flex-shrink-0">
-        {[
-          { label: 'Inventory', value: stats.products, icon: <Package size={16} />, color: 'bg-blue-600' },
-          { label: 'Orders', value: stats.orders, icon: <ShoppingCart size={16} />, color: 'bg-cyan-600' },
-          { label: 'Customers', value: stats.users, icon: <Users size={16} />, color: 'bg-purple-600' },
-          { label: 'Today Sale', value: `₹${todaysSales}`, icon: <Zap size={16} />, color: 'bg-emerald-600' },
-          { label: 'Total Revenue', value: `₹${revenue.toLocaleString()}`, icon: <DollarSign size={16} />, color: 'bg-amber-500' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white px-3 py-2.5 rounded-xl border border-neutral-200 shadow-enterprise flex items-center gap-3">
-            <div className={cn("p-2 rounded-lg text-white shadow-sm flex-shrink-0", stat.color)}>{stat.icon}</div>
-            <div className="min-w-0">
-              <p className="text-[8px] font-black text-neutral-400 uppercase tracking-widest leading-none mb-1 truncate">{stat.label}</p>
-              <h3 className="text-xs font-black text-neutral-800 tracking-tighter truncate">{stat.value}</h3>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Multi-Tenant Store Link Section */}
-      <div className="bg-slate-900 rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden flex-shrink-0 border border-white/10 group">
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex items-center gap-6">
-            <div className="p-4 bg-blue-600 rounded-3xl shadow-lg shadow-blue-500/40 group-hover:scale-110 transition-transform">
-              <Globe size={32} className="text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-black uppercase tracking-[0.2em]">Customer Web Portal</h3>
-              <p className="text-[11px] text-slate-400 font-bold mt-1 uppercase tracking-widest leading-relaxed">
-                Connect directly with your customers. Share this unique link for orders.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center gap-4 bg-black/40 p-3 rounded-2xl border border-white/10 w-full md:w-auto">
-            <div className="px-4 py-2 bg-slate-800 rounded-xl">
-              <code className="text-xs font-black text-blue-400 truncate max-w-[200px] block">{storeUrl}</code>
-            </div>
-            <button
-              onClick={copyStoreLink}
-              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95"
-            >
-              <PlusCircle size={16} /> Generate & Copy Link
-            </button>
-          </div>
-        </div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full -mr-48 -mt-48 blur-[100px] pointer-events-none" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {/* Main Charts Area */}
-        <div className="lg:col-span-2 space-y-3">
-          {/* Sales Trend Chart */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-4 shadow-enterprise">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp size={16} className="text-blue-600" />
-                <h3 className="text-[10px] font-black text-neutral-800 uppercase tracking-tighter">7-Day Sales Trend</h3>
-              </div>
-              <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">+12% Growth</span>
-            </div>
-            <div className="h-[180px] w-full min-h-[180px] min-w-[200px]">
-              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={180}>
-                <AreaChart data={salesTrendData}>
-                  <defs>
-                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748B'}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748B'}} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 800 }}
-                    cursor={{ stroke: '#3B82F6', strokeWidth: 2 }}
-                  />
-                  <Area type="monotone" dataKey="amount" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorSales)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {/* Payment Distribution Chart */}
-            <div className="bg-white rounded-xl border border-neutral-200 p-4 shadow-enterprise">
-              <h3 className="text-[10px] font-black text-neutral-800 uppercase tracking-tighter mb-4 text-center">Payment Methods</h3>
-              <div className="h-[150px] w-full relative min-h-[150px] min-w-[150px]">
-                <ResponsiveContainer width="100%" height="100%" minWidth={150} minHeight={150}>
-                  <PieChart>
-                    <Pie
-                      data={paymentChartData}
-                      innerRadius={40}
-                      outerRadius={60}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {paymentChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Custom Legend */}
-                <div className="flex flex-wrap justify-center gap-3 mt-2">
-                  {paymentChartData.map((entry, index) => (
-                    <div key={index} className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full" style={{backgroundColor: COLORS[index % COLORS.length]}} />
-                      <span className="text-[8px] font-black text-neutral-500 uppercase">{entry.name}</span>
-                    </div>
-                  ))}
+    <div className="h-[calc(100vh-12rem)] overflow-y-auto pr-2 custom-scrollbar">
+      <div className="space-y-4 pb-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {kpis.map(({ label, value, detail, icon: Icon, tone }) => (
+            <div key={label} className="min-h-[112px] rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+                  <p className="mt-3 truncate text-xl font-black tracking-tight text-slate-900">{value}</p>
+                  <p className="mt-1 text-[10px] font-semibold text-slate-400">{detail}</p>
                 </div>
+                <div className={cn('rounded-lg p-2', KPI_TONES[tone])}><Icon size={18} /></div>
               </div>
-            </div>
-
-            {/* Category Performance */}
-            <div className="bg-white rounded-xl border border-neutral-200 p-4 shadow-enterprise">
-              <h3 className="text-[10px] font-black text-neutral-800 uppercase tracking-tighter mb-4">Top Categories</h3>
-              <div className="h-[150px] w-full min-h-[150px] min-w-[150px]">
-                <ResponsiveContainer width="100%" height="100%" minWidth={150} minHeight={150}>
-                  <BarChart data={categoryChartData} layout="vertical" margin={{ left: -20 }}>
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 800, fill: '#64748B'}} width={80} />
-                    <Tooltip />
-                    <Bar dataKey="amount" fill="#8B5CF6" radius={[0, 4, 4, 0]} barSize={12} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar Intelligence & Activity */}
-        <div className="space-y-3 flex flex-col">
-          {/* Intelligence Panel */}
-          <div className="bg-white rounded-xl border border-neutral-200 p-4 shadow-enterprise flex-1 min-h-[300px]">
-            <h4 className="text-[9px] font-black text-neutral-400 uppercase tracking-widest mb-4 flex items-center justify-between">
-              Inventory Intelligence
-              <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              </div>
-            </h4>
-
-            <div className="space-y-2 overflow-y-auto max-h-[400px] pr-1 custom-scrollbar">
-              {/* Predictive: Run-out Risk */}
-              {smartInsights.runOutRisk.slice(0, 4).map((p, idx) => (
-                <div key={`runout-${idx}`} className="p-2 bg-red-50 rounded-xl border border-red-100 flex flex-col gap-2 group transition-all hover:shadow-md">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 rounded-lg bg-white flex items-center justify-center text-xs shadow-sm shrink-0">📉</div>
-                      <span className="text-[10px] font-black text-red-900 truncate uppercase">{p.name || p.itname}</span>
-                    </div>
-                    <span className="text-[8px] font-black px-2 py-0.5 bg-red-600 text-white rounded-full">STOCK: {p.stock}</span>
-                  </div>
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-[8px] font-bold text-red-400 uppercase">Ends in {p.daysRemaining} days</p>
-                    <button
-                      onClick={() => handleQuickReorder(p)}
-                      className="bg-white border border-red-200 text-red-600 px-2 py-1 rounded-md text-[8px] font-black uppercase hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                    >
-                      Reorder Now
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {/* Urgent Expiry */}
-              {smartInsights.urgentExpiry.slice(0, 4).map((p, idx) => (
-                <div key={`expiry-${idx}`} className="p-2 bg-amber-50 rounded-xl border border-amber-100 flex flex-col gap-2 group transition-all hover:shadow-md">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 rounded-lg bg-white flex items-center justify-center text-xs shadow-sm shrink-0">⏳</div>
-                      <span className="text-[10px] font-black text-amber-900 truncate uppercase">{p.name || p.itname}</span>
-                    </div>
-                    <span className="text-[8px] font-black px-2 py-0.5 bg-amber-600 text-white rounded-full">EXPIRY</span>
-                  </div>
-                  <div className="flex items-center justify-between px-1">
-                    <p className="text-[8px] font-bold text-amber-600 uppercase">In {p.daysToExpiry} days</p>
-                    <button
-                      onClick={() => handleMarkClearance(p)}
-                      className="bg-white border border-amber-200 text-amber-600 px-2 py-1 rounded-md text-[8px] font-black uppercase hover:bg-amber-600 hover:text-white transition-all shadow-sm"
-                    >
-                      Clearance Sale
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {products.filter(p => (parseFloat(p.stock || 0)) <= 0).slice(0, 3).map((p, idx) => (
-                <div key={`out-${idx}`} className="p-2 bg-neutral-100 rounded-lg border border-neutral-200 flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-6 h-6 rounded bg-white flex items-center justify-center text-xs shadow-sm shrink-0">🚫</div>
-                    <span className="text-[9px] font-black text-neutral-700 truncate">{p.name || p.itname}</span>
-                  </div>
-                  <span className="text-[8px] font-black px-2 py-0.5 bg-neutral-900 text-white rounded-full uppercase">OUT</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-slate-900 rounded-xl p-4 text-white shadow-lg relative overflow-hidden group">
-            <h3 className="text-[9px] font-black uppercase tracking-widest mb-3 text-slate-400">System Ops</h3>
-            <div className="grid grid-cols-2 gap-2 relative z-10">
-              <button onClick={() => setActiveTab('POS')} className="bg-blue-600 hover:bg-blue-700 p-2.5 rounded-lg text-[9px] font-black uppercase flex flex-col items-center gap-1 transition-all">
-                <ShoppingCart size={14} /> New Bill
-              </button>
-              <button onClick={() => setActiveTab('Products')} className="bg-slate-800 hover:bg-slate-700 p-2.5 rounded-lg text-[9px] font-black uppercase flex flex-col items-center gap-1 transition-all border border-white/5">
-                <PlusCircle size={14} /> Add Item
-              </button>
-            </div>
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full -mr-12 -mt-12 blur-2xl" />
-          </div>
-
-          <div className="bg-white border border-neutral-200 rounded-xl p-3 shadow-enterprise flex items-center gap-2">
-            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            <p className="text-[8px] font-black uppercase text-neutral-400 leading-none tracking-widest">Server Live & Sync: Just Now</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity Mini-Row */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-3 shadow-enterprise">
-        <h3 className="text-[9px] font-black text-neutral-800 uppercase tracking-widest mb-2 px-1">Recent Activity</h3>
-        <div className="flex gap-4 overflow-x-auto pb-1 custom-scrollbar">
-          {orders.slice(0, 8).map((order) => (
-            <div key={order.id} className="flex-shrink-0 flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-lg border border-neutral-100">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
-              <span className="text-[9px] font-black text-neutral-800">#{order.order_number || 'New'}</span>
-              <span className="text-[9px] font-bold text-neutral-400">₹{order.total_amount}</span>
             </div>
           ))}
+        </div>
+
+        <section className="rounded-xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-blue-600 p-3"><Globe size={22} /></div>
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-widest">Customer Web Portal</h2>
+                <p className="mt-1 text-xs text-slate-400">Share the live customer storefront for this tenant.</p>
+              </div>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+              <code className="min-w-0 rounded-lg bg-slate-800 px-3 py-2 text-xs text-blue-300">{storeUrl || 'Store link unavailable'}</code>
+              <button onClick={copyStoreLink} disabled={!storeUrl} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black uppercase tracking-wider hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50">
+                <Copy size={14} /> Generate & Copy Link
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <section className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <SectionHeader icon={TrendingUp} title="7-Day Sales Trend" detail="Recorded orders" />
+            {safeOrders.length === 0 ? <EmptyState>No sales trend available yet</EmptyState> : (
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={salesTrend}>
+                    <defs><linearGradient id="dashboardSales" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#2563eb" stopOpacity={0.22} /><stop offset="95%" stopColor="#2563eb" stopOpacity={0} /></linearGradient></defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} tickFormatter={(value) => `₹${value}`} />
+                    <Tooltip formatter={(value) => [currency(value), 'Sales']} labelFormatter={(label) => label} />
+                    <Area type="monotone" dataKey="amount" stroke="#2563eb" strokeWidth={2.5} fill="url(#dashboardSales)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <SectionHeader icon={AlertTriangle} title="Inventory Intelligence" />
+            {inventoryAlerts.lowStock.length === 0 && inventoryAlerts.outOfStock.length === 0 ? <EmptyState>No active inventory alerts</EmptyState> : (
+              <div className="space-y-2">
+                {inventoryAlerts.outOfStock.slice(0, 3).map((product) => <div key={`out-${product.id}`} className="flex items-center justify-between rounded-lg border border-red-100 bg-red-50 p-3"><span className="truncate text-xs font-black text-red-900">{product.name || product.itname}</span><span className="text-[10px] font-black uppercase text-red-600">Out of stock</span></div>)}
+                {inventoryAlerts.lowStock.slice(0, 3).map((product) => <div key={`low-${product.id}`} className="flex items-center justify-between rounded-lg border border-amber-100 bg-amber-50 p-3"><span className="truncate text-xs font-black text-amber-900">{product.name || product.itname}</span><span className="text-[10px] font-black uppercase text-amber-600">Low stock</span></div>)}
+              </div>
+            )}
+          </section>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <SectionHeader icon={WalletCards} title="Payment Methods" />
+            {paymentData.length === 0 ? <EmptyState>No payment data available</EmptyState> : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="h-[170px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={paymentData} dataKey="amount" nameKey="name" innerRadius={42} outerRadius={64} paddingAngle={4}>{paymentData.map((entry, index) => <Cell key={entry.name} fill={PAYMENT_COLORS[index % PAYMENT_COLORS.length]} />)}</Pie><Tooltip formatter={(value) => currency(value)} /></PieChart></ResponsiveContainer></div>
+                <div className="space-y-2">{paymentData.map((entry, index) => <div key={entry.name} className="flex items-center justify-between text-xs"><span className="flex items-center gap-2 font-black text-slate-600"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: PAYMENT_COLORS[index % PAYMENT_COLORS.length] }} />{entry.name}</span><span className="font-black text-slate-900">{currency(entry.amount)} <span className="text-slate-400">({entry.percent}%)</span></span></div>)}</div>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <SectionHeader icon={BarChart3} title="Top Categories" />
+            {categoryData.length === 0 ? <EmptyState>No category sales data yet</EmptyState> : (
+              <div className="h-[190px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={categoryData} layout="vertical" margin={{ left: 10, right: 12 }}><XAxis type="number" hide /><YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={90} tick={{ fontSize: 10, fontWeight: 800, fill: '#475569' }} /><Tooltip formatter={(value) => currency(value)} /><Bar dataKey="amount" fill="#2563eb" radius={[0, 4, 4, 0]} barSize={16} /></BarChart></ResponsiveContainer></div>
+            )}
+          </section>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <section className="rounded-xl bg-slate-900 p-4 text-white shadow-sm">
+            <SectionHeader icon={Activity} title="System Ops" />
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setActiveTab('POS')} className="flex flex-col items-center gap-2 rounded-lg bg-blue-600 p-3 text-[10px] font-black uppercase tracking-wider hover:bg-blue-500"><FilePlus2 size={18} /> New Bill</button>
+              <button onClick={() => setActiveTab('Products')} className="flex flex-col items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 p-3 text-[10px] font-black uppercase tracking-wider hover:bg-slate-700"><PlusCircle size={18} /> Add Item</button>
+            </div>
+          </section>
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
+            <SectionHeader icon={ClipboardList} title="Recent Activity" />
+            {recentActivity.length === 0 ? <EmptyState>No recent activity</EmptyState> : <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{recentActivity.map((item) => <div key={item.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"><span className="flex min-w-0 items-center gap-2"><span className={`h-2 w-2 shrink-0 rounded-full ${item.color}`} /><span className="truncate text-xs font-black text-slate-700">{item.label}</span></span><span className="ml-2 shrink-0 text-xs font-black text-slate-900">{item.detail}</span></div>)}</div>}
+          </section>
         </div>
       </div>
     </div>

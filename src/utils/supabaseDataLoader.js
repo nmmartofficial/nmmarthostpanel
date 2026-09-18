@@ -1,4 +1,5 @@
 import { DB_SCHEMA } from '../dbSchema.js';
+import { isLocalPosReadOnlyMode, isLocalPosTestMode } from './localPosTestMode.js';
 
 let supabaseInstance = null;
 
@@ -37,6 +38,16 @@ export const buildSupabaseLoadPlan = (tableKeys = DEFAULT_TABLE_KEYS) => {
 };
 
 export const loadSupabaseTables = async (tableKeys = DEFAULT_TABLE_KEYS, options = {}) => {
+  if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
+    return buildSupabaseLoadPlan(tableKeys).map((entry) => ({
+      ...entry,
+      data: [],
+      error: null,
+      count: 0,
+      status: 'local-test-mode'
+    }));
+  }
+
   const { limit = 5, onProgress } = options;
   const plan = buildSupabaseLoadPlan(tableKeys);
   const supabase = await initializeSupabase();

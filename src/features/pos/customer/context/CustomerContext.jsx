@@ -52,22 +52,55 @@ export const CustomerProvider = ({ children }) => {
   };
 
   // Placeholder actions
-  const search = (query) => {
+  const search = async (query) => {
     setSearchQuery(query);
-    const results = CustomerService.search(query);
-    setCustomers(results);
+    setLoading(true);
+    try {
+      const results = await CustomerService.search(query);
+      setCustomers(results);
+      setError('');
+      return results;
+    } catch (error) {
+      setError(error?.message || 'Customer lookup failed');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const create = (customer) => {
-    throw new Error('Not Implemented');
+  const create = async (customer) => {
+    setLoading(true);
+    try {
+      const created = await CustomerService.create(customer);
+      setCustomers(prev => [...prev, created]);
+      setSelectedCustomer(created);
+      return created;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const update = (id, customer) => {
-    throw new Error('Not Implemented');
+  const update = async (id, customer) => {
+    setLoading(true);
+    try {
+      const updated = await CustomerService.update(id, customer);
+      setCustomers(prev => prev.map(entry => entry.id === String(id) ? updated : entry));
+      setSelectedCustomer(updated);
+      return updated;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const remove = (id) => {
-    throw new Error('Not Implemented');
+  const remove = async (id) => {
+    setLoading(true);
+    try {
+      await CustomerService.remove(id);
+      setCustomers(prev => prev.filter(entry => entry.id !== String(id)));
+      setSelectedCustomer(prev => prev?.id === String(id) ? null : prev);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const selectCustomer = (customer) => {
