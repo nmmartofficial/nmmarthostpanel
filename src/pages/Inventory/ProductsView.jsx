@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { 
   GitBranch, Search, Trash2, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle
