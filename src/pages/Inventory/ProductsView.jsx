@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { 
-  GitBranch, Search, Trash2, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle
+  GitBranch, Search, Trash2, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle, Calculator
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, generateUUID, generateNumericId } from '../../utils/helpers';
