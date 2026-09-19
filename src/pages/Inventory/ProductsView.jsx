@@ -220,23 +220,9 @@ export default function ProductsView({ products = [], categories = [], brands = 
   }, [categories, formData.category_id]);
 
   const activeSubcategories = useMemo(() => {
-    // Bariki: Extract Category ID from any potential field name
-    const rawCategoryId = formData.category_id || formData.categoryId || formData.itg;
-
-    if (!rawCategoryId || String(rawCategoryId).trim() === '') {
-      return [];
-    }
-
-    const targetId = Number(rawCategoryId);
-
-    // Explicitly check for both category_id formats
-    const list = (subcategories || []).filter(s => {
-      const sCatId = Number(s.category_id || s.categoryId || 0);
-      return sCatId === targetId;
-    });
-
-    return list;
-  }, [formData.category_id, formData.categoryId, formData.itg, subcategories]);
+    // User requested to see ALL subcategories to allow free selection
+    return subcategories || [];
+  }, [subcategories]);
 
   const resolveFormSubcategory = useCallback((nextFormData) => {
     const rawCategoryId = nextFormData.category_id || nextFormData.categoryId;
@@ -1336,19 +1322,28 @@ export default function ProductsView({ products = [], categories = [], brands = 
                     </div>
                     <div className="md:col-span-3 space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
-                        Sub Category Name ({activeSubcategories.length})
+                        Sub Category Name ({subcategories.length})
                       </label>
                       <select value={String(formData.subcategory_id ?? '')} onChange={(e) => {
                         const selectedSubCat = subcategories.find(s => String(s.id) === String(e.target.value));
-                        setFormData({
-                          ...formData,
+                        const updates = {
                           subcategory_id: e.target.value,
                           subcategory_name: selectedSubCat?.name || '',
                           subcategory: selectedSubCat?.name || ''
-                        });
+                        };
+
+                        // Smart Auto-Selection: If subcategory has a parent category, update it too
+                        if (selectedSubCat?.category_id) {
+                          const parentCat = categories.find(c => String(c.id) === String(selectedSubCat.category_id));
+                          updates.category_id = String(selectedSubCat.category_id);
+                          updates.category_name = parentCat?.name || '';
+                          updates.category = parentCat?.name || '';
+                        }
+
+                        setFormData({ ...formData, ...updates });
                       }} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="">{activeSubcategories.length > 0 ? "Select Sub Category" : "No Sub Categories Found"}</option>
-                        {activeSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        <option value="">Select Sub Category</option>
+                        {subcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     </div>
                     <div className="md:col-span-3 space-y-1.5">
