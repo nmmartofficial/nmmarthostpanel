@@ -5,6 +5,51 @@ const env = import.meta.env || {};
 const realtimeEnabled = env.VITE_SUPABASE_REALTIME_ENABLED !== 'false';
 const config = getSupabaseConfig(env);
 
+const useMock = env.VITE_USE_MOCK === 'true' || env.VITE_USE_MOCK === '1';
+
+const createSilentMockClient = () => {
+  const mockQueryBuilder = () => new Proxy({}, {
+    get(_t, method) {
+      if (['select', 'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'ilike', 'like',
+           'not', 'is', 'order', 'range', 'limit', 'offset', 'returns',
+           'set', 'upsert', 'insert', 'update', 'delete',
+           'reference', 'onConflict', 'maybeSingle', 'single', 'csv',
+           'abortSignal', 'or', 'filter', 'match', 'gte', 'lte'].includes(String(method))) {
+        return () => mockQueryBuilder();
+      }
+      if (method === 'then') {
+        return (resolve) => resolve({ data: [], error: null, count: 0, status: 200, statusText: 'OK (MOCK)' });
+      }
+      return undefined;
+    }
+  });
+
+  const mockAuth = new Proxy({}, {
+    get(_t, method) {
+      if (['signInWithPassword', 'signInWithOtp', 'signUp', 'signOut',
+           'updateUser', 'resetPasswordForEmail', 'verifyOtp',
+           'getSession', 'setSession', 'refreshSession'].includes(String(method))) {
+        return async () => ({ data: { session: null, user: null }, error: null });
+      }
+      if (String(method) === 'onAuthStateChange') {
+        return () => ({ data: { subscription: { unsubscribe: () => {} } } });
+      }
+      return async () => null;
+    }
+  });
+
+  return new Proxy({}, {
+    get(_t, prop) {
+      if (prop === 'auth') return mockAuth;
+      if (prop === 'storage') return new Proxy({}, { get: () => () => mockQueryBuilder() });
+      if (prop === 'from' || prop === 'channel' || prop === 'removeChannel' || prop === 'rpc') {
+        return () => mockQueryBuilder();
+      }
+      return undefined;
+    }
+  });
+};
+
 const createExplosiveClient = (reason) => new Proxy({}, {
   get(_target, prop) {
     if (prop === 'auth' || prop === 'storage' || prop === 'from' || prop === 'channel' || prop === 'rpc' || prop === 'removeChannel') {
@@ -27,7 +72,10 @@ const createExplosiveClient = (reason) => new Proxy({}, {
 
 let supabaseInstance = null;
 
-if (config.isConfigured) {
+if (useMock) {
+  supabaseInstance = createSilentMockClient();
+  console.log('%c🧪 [Supabase Init] MOCK MODE ENABLED — All Supabase calls return silent empty responses, NO NETWORK TRAFFIC', 'color:#a855f7;font-weight:bold');
+} else if (config.isConfigured) {
   try {
     supabaseInstance = createClient(config.url, config.anonKey, {
       auth: {
@@ -60,13 +108,24 @@ if (config.isConfigured) {
   console.error('   Reason:', config.reason);
 }
 
-const finalClient = supabaseInstance || createExplosiveClient(config.reason || 'Supabase is not configured');
+const finalClient = supabaseInstance || (useMock ? createSilentMockClient() : createExplosiveClient(config.reason || 'Supabase is not configured'));
 
 export const supabase = finalClient;
-export const isSupabaseMock = false;
+export const isSupabaseMock = useMock;
 export const supabaseConfig = config;
 
 export const getSupabaseDiagnostics = async () => {
+  if (useMock) {
+    return {
+      configured: true,
+      mock: true,
+      message: 'Mock Mode ACTIVE — VITE_USE_MOCK=true (bypasses all Supabase endpoints)',
+      connected: true,
+      authReachable: true,
+      restReachable: true
+    };
+  }
+
   if (!config.isConfigured) {
     return {
       configured: false,

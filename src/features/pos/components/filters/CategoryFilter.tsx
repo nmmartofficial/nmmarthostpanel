@@ -1,36 +1,37 @@
 import React from 'react';
 import FilterChip from './FilterChip';
 import { cn } from '../../../../utils/helpers';
-
-// Mock Categories Only
-const MOCK_CATEGORIES = [
-  "All Products",
-  "Grocery",
-  "Snacks",
-  "Beverages",
-  "Personal Care",
-  "Home Care",
-  "Frozen Food"
-];
-
-// Mock Active Index
-const MOCK_ACTIVE_CATEGORY_INDEX = 0;
+import { usePOS } from '../../../../context';
 
 interface CategoryFilterProps {
   className?: string;
 }
 
 const CategoryFilter: React.FC<CategoryFilterProps> = ({ className }) => {
+  const { categories = [], activeCategory = 'All', setActiveCategory } = usePOS();
+
+  const allLabel = "All Products";
+  const chips = [
+    { id: 'All', label: allLabel },
+    ...categories.map(c => ({ id: c.id, label: c.name || c.catname }))
+  ];
+
   return (
     <div className={cn("mb-6", className)}>
-      <h4 className="text-sm font-black text-slate-600 mb-3 uppercase">Categories</h4>
+      <h4 className="text-sm font-black text-slate-600 mb-3 uppercase">Categories ({categories.length})</h4>
       <div className="flex flex-wrap gap-2">
-        {MOCK_CATEGORIES.map((category, idx) => (
-          <FilterChip
-            key={category}
-            label={category}
-            isActive={idx === MOCK_ACTIVE_CATEGORY_INDEX}
-          />
+        {chips.map((chip) => (
+          <button
+            type="button"
+            key={String(chip.id)}
+            onClick={() => setActiveCategory?.(chip.id)}
+            className="cursor-pointer select-none"
+          >
+            <FilterChip
+              label={chip.label}
+              isActive={String(activeCategory) === String(chip.id)}
+            />
+          </button>
         ))}
       </div>
     </div>

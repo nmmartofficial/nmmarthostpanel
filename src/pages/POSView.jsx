@@ -34,7 +34,7 @@ import { POSProvider } from '../context';
 import { PaymentProvider, usePayment } from '../features/pos/payment';
 import { isLocalPosTestMode } from '../utils/localPosTestMode';
 
-function POSViewContent({ products, categories, fetchInitialData, appConfig, setActiveTab, orders }) {
+function POSViewContent({ products, categories, brands, fetchInitialData, appConfig, setActiveTab, orders }) {
   // --- Performance Diagnostics ---
   const renderCount = useRef(0);
   const mountTime = useRef(Date.now());
@@ -415,7 +415,7 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
 
   const contextValue = useMemo(() => ({
     // Basic Data
-    products, categories, appConfig, orders, fetchInitialData, setActiveTab,
+    products, categories, brands, appConfig, orders, fetchInitialData, setActiveTab,
 
     // States
     cart, setCart, customerInfo, setCustomerInfo, searchTerm, setSearchTerm,
@@ -471,7 +471,7 @@ function POSViewContent({ products, categories, fetchInitialData, appConfig, set
     renderCount: renderCount.current,
     uptime: Math.floor((Date.now() - mountTime.current) / 1000)
   }), [
-    products, categories, appConfig, orders, fetchInitialData, setActiveTab,
+    products, categories, brands, appConfig, orders, fetchInitialData, setActiveTab,
     cart, customerInfo, searchTerm, activeCategory, billDiscount,
     deliveryChargePercent, flatDiscount, selectedProduct, showSearchDropdown,
     selectedIndex, selectedCartId, lastAddedId,

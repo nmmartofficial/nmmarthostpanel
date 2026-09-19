@@ -286,6 +286,7 @@ export default function App({ company, isTenantMode, companySlug }) {
   const [notifications, setNotifications] = useState([]);
   const [inventoryLogs, setInventoryLogs] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [hsnMaster, setHsnMaster] = useState([]);
   const [loyaltyPoints, setLoyaltyPoints] = useState([]);
   const [loyaltyTransactions, setLoyaltyTransactions] = useState([]);
   const [loyaltyTiers, setLoyaltyTiers] = useState(() => {
@@ -573,7 +574,8 @@ export default function App({ company, isTenantMode, companySlug }) {
         dbSync.fetch(DB_SCHEMA.EXPENSES.table, { order: { column: 'date', ascending: false } }),
         // Fetch last 30 days of order items
         supabase.from(DB_SCHEMA.ORDER_ITEMS.table).select('*').gte('created_at', dateStr),
-        dbSync.fetch(DB_SCHEMA.USERS.table)
+        dbSync.fetch(DB_SCHEMA.USERS.table),
+        dbSync.fetch(DB_SCHEMA.HSN_MASTER.table)
       ]);
 
       const getData = (index, fallback = []) => {
@@ -614,6 +616,7 @@ export default function App({ company, isTenantMode, companySlug }) {
       const inventoryLogsData = getData(25);
       const expensesData = getData(26);
       const orderItemsData = getData(27);
+      const hsnMasterData = getData(29);
 
       setProducts(productsData);
       setCategories(categoriesData);
@@ -655,6 +658,7 @@ export default function App({ company, isTenantMode, companySlug }) {
       setAccounts(accountsData);
       setInventoryLogs(inventoryLogsData);
       setExpenses(expensesData);
+      setHsnMaster(hsnMasterData);
 
       setStats({
         products: productsData.length,
@@ -796,6 +800,7 @@ export default function App({ company, isTenantMode, companySlug }) {
     { id: 'Categories', label: 'Item Main Category', icon: <Grid size={14} />, shortcut: 'F2' },
     { id: 'Subcategories', label: 'Item Sub Category', icon: <Layers size={14} />, shortcut: 'F3' },
     { id: 'Brands', label: 'Brand Master', icon: <Tag size={14} />, shortcut: 'F4' },
+    { id: 'HSNMaster', label: 'HSN Master', icon: <Hash size={14} /> },
     { id: 'Departments', label: 'Department Master', icon: <GitBranch size={14} /> },
     { id: 'Accounts', label: 'Account Master', icon: <User size={14} /> },
     { id: 'UserMaster', label: 'User Master', icon: <User size={14} /> },
@@ -822,6 +827,7 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   const reportItemsNav = [
     { id: 'CustomerAnalytics', label: 'Customer Analytics', icon: <Users size={14} /> },
+    { id: 'LoyaltyManagement', label: 'Loyalty Management', icon: <Trophy size={14} /> },
     { id: 'ProfitLoss', label: 'Profit & Loss Analysis', icon: <TrendingUp size={14} /> },
     { id: 'Expenses', label: 'Expense Management', icon: <Receipt size={14} /> },
   ].filter(item => isAllowed(item.id));
@@ -1481,7 +1487,7 @@ export default function App({ company, isTenantMode, companySlug }) {
                   stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons,
                   offers, pincodes, homeConfig, walletTx, wallets, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                   purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
-                  loyaltyPoints, loyaltyTransactions, loyaltyTiers,
+                  loyaltyPoints, loyaltyTransactions, loyaltyTiers, hsnMaster,
                   setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems: setOrderItems || (() => {}), setUsers, setCoupons,
                   setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
                   setFestivals, setPreviewFestival, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
@@ -1954,10 +1960,19 @@ function TransactionView({ users, fetchInitialData }) {
     if (formData.items.length === 0) return alert("Add at least one item");
     setIsSubmitting(true);
     try {
-      // In a real scenario, this would create wallet_transactions for each party
-      console.log("Saving Transaction:", formData);
+      // Create wallet transactions for each party
+      for (const item of formData.items) {
+        await handleERPAction(DB_SCHEMA.WALLET_MASTER.table, ACTION_TYPES.WALLET_ADJUST, {
+          user_id: item.party_id,
+          amount: item.amount,
+          type: formData.type === 'Receipt' ? 'credit' : 'debit',
+          reason: item.remarks || `${formData.type} Voucher`
+        });
+      }
+
       alert(isPrint ? "Transaction Saved & Print Triggered!" : "Transaction Saved Successfully!");
       setShowForm(false);
+      fetchInitialData();
     } catch (error) {
       alert("Error: " + error.message);
     } finally {
@@ -5630,6 +5645,18 @@ const DepartmentsView = (props) => (
   />
 );
 
+const HSNMasterView = (props) => (
+  <MasterListView
+    {...props}
+    fields={[
+      { name: 'hsn_code', label: 'HSN Code', type: 'text', required: true },
+      { name: 'description', label: 'Description', type: 'text' },
+      { name: 'gst_percent', label: 'GST %', type: 'number' },
+      { name: 'is_active', label: 'Active', type: 'boolean' }
+    ]}
+  />
+);
+
 const AccountsView = (props) => (
   <MasterListView
     {...props}
@@ -5679,13 +5706,13 @@ const BannersView = (props) => (
         { value: 'category', label: 'Link to Category' }
       ]},
       {
-        name: 'linked_product_id',
+        name: 'link_id',
         label: 'Linked Product',
         type: 'product-search',
         condition: (formData) => formData.link_type === 'product'
       },
       {
-        name: 'linked_category_id',
+        name: 'link_id',
         label: 'Linked Category',
         type: 'category-search',
         condition: (formData) => formData.link_type === 'category'
@@ -5703,6 +5730,8 @@ const CouponsView = (props) => (
       { name: 'discount_type', label: 'Type', type: 'select', options: [{value: 'percentage', label: 'Percentage'}, {value: 'flat', label: 'Flat Amount'}] },
       { name: 'discount_value', label: 'Value', type: 'number', required: true },
       { name: 'min_order_amount', label: 'Min Order', type: 'number' },
+      { name: 'max_discount', label: 'Max Discount', type: 'number' },
+      { name: 'valid_to', label: 'Expiry Date', type: 'date' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
@@ -5711,10 +5740,16 @@ const CouponsView = (props) => (
 const OffersView = (props) => (
   <MasterListView
     {...props}
+    bucket="images"
     fields={[
       { name: 'title', label: 'Offer Title', type: 'text', required: true },
-      { name: 'description', label: 'Description', type: 'textarea' },
-      { name: 'image_url', label: 'Image', type: 'image' },
+      { name: 'description', label: 'Description', type: 'text' },
+      { name: 'offer_type', label: 'Offer Type', type: 'select', options: [{value: 'BOGO', label: 'Buy One Get One'}, {value: 'Discount', label: 'Flat Discount'}, {value: 'Bundle', label: 'Bundle Offer'}] },
+      { name: 'buy_qty', label: 'Buy Qty', type: 'number' },
+      { name: 'get_qty', label: 'Get Qty', type: 'number' },
+      { name: 'discount_value', label: 'Discount Value', type: 'number' },
+      { name: 'min_order_amount', label: 'Min Order Amount', type: 'number' },
+      { name: 'banner_image', label: 'Banner Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
@@ -5727,6 +5762,8 @@ const PincodesView = (props) => (
       { name: 'pincode', label: 'Pincode', type: 'text', required: true },
       { name: 'city', label: 'City', type: 'text' },
       { name: 'delivery_charge', label: 'Delivery Charge', type: 'number' },
+      { name: 'min_order_amount', label: 'Min Order Amount', type: 'number' },
+      { name: 'is_serviceable', label: 'Serviceable', type: 'boolean' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
@@ -5739,7 +5776,9 @@ const AddressesView = (props) => (
       { name: 'user_id', label: 'Customer', type: 'select', options: props.users?.map(u => ({ value: u.id, label: u.name || u.phone })), required: true },
       { name: 'name', label: 'Name', type: 'text', required: true },
       { name: 'phone', label: 'Phone', type: 'text', required: true },
+      { name: 'address_type', label: 'Type', type: 'select', options: [{value: 'Home', label: 'Home'}, {value: 'Work', label: 'Work'}, {value: 'Other', label: 'Other'}] },
       { name: 'address_line1', label: 'Address Line 1', type: 'text', required: true },
+      { name: 'landmark', label: 'Landmark', type: 'text' },
       { name: 'pincode', label: 'Pincode', type: 'text', required: true }
     ]}
   />
@@ -5813,7 +5852,10 @@ const UserMasterView = (props) => (
     fields={[
       { name: 'username', label: 'Username', type: 'text', required: true },
       { name: 'full_name', label: 'Full Name', type: 'text' },
-      { name: 'role', label: 'Role', type: 'select', options: [{value: 'super_admin', label: 'Super Admin'}, {value: 'sales_manager', label: 'Sales Manager'}, {value: 'inventory_head', label: 'Inventory Head'}, {value: 'accountant', label: 'Accountant'}] }
+      { name: 'email', label: 'Email', type: 'text' },
+      { name: 'phone', label: 'Phone', type: 'text' },
+      { name: 'role', label: 'Role', type: 'select', options: [{value: 'super_admin', label: 'Super Admin'}, {value: 'sales_manager', label: 'Sales Manager'}, {value: 'inventory_head', label: 'Inventory Head'}, {value: 'accountant', label: 'Accountant'}] },
+      { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
 );
@@ -5824,7 +5866,7 @@ const CreditsView = (props) => (
     fields={[
       { name: 'customer_id', label: 'Customer', type: 'select', options: props.deliveryCustomers?.map(u => ({ value: u.id, label: u.name || u.phone })), required: true },
       { name: 'amount', label: 'Credit Amount', type: 'number', required: true },
-      { name: 'is_active', label: 'Active', type: 'boolean' }
+      { name: 'reason', label: 'Reason', type: 'text' }
     ]}
   />
 );
@@ -6964,6 +7006,7 @@ function renderTabContent(activeTab, props) {
     case 'CustomerAnalytics': return <CustomerAnalyticsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
     case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} customerMode={props.customerMode} setCustomerMode={props.setCustomerMode} />;
+    case 'LoyaltyManagement': return <LoyaltyManagementView orders={props.orders} fetchInitialData={props.fetchInitialData} />;
     case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
 
     // Inventory and master management
@@ -6990,6 +7033,7 @@ function renderTabContent(activeTab, props) {
     case 'Addresses': return <AddressesView title="Address Master" table={DB_SCHEMA.ADDRESSES.table} data={props.addresses} {...props} />;
     case 'WalletMaster': return <WalletView wallets={props.wallets} users={props.users} fetchInitialData={props.fetchInitialData} />;
     case 'Departments': return <DepartmentsView title="Department Master" table={DB_SCHEMA.DEPARTMENTS.table} data={props.departments} {...props} />;
+    case 'HSNMaster': return <HSNMasterView title="HSN Master" table={DB_SCHEMA.HSN_MASTER.table} data={props.hsnMaster} {...props} />;
     case 'Units': return <UnitsView title="Unit Master" table={DB_SCHEMA.UNITS.table} data={props.units} {...props} />;
     case 'Accounts': return <AccountsView title="Account Master" table={DB_SCHEMA.ACCOUNTS.table} data={props.accounts} {...props} />;
     case 'Purchase': return <PurchaseView title="Purchase History" data={props.purchases} accounts={props.accounts} onNewPurchase={() => props.setActiveTab('PurchaseEntry')} />;

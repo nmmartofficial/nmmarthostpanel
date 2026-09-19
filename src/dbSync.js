@@ -68,15 +68,17 @@ const HARD_DELETE_TABLES = [
 ];
 
 // onConflict keys: only use when the table has a matching UNIQUE constraint in Postgres.
-// NOTE: products table does NOT have a (barcode, tenant_id) unique constraint (production).
-//       So we keep products: 'id' (PK is always unique) and for barcode-merges we use
-//       a different flow (manual select+update, or plain insert).
 const CONFLICT_KEYS = {
-  'brands': 'name',
-  'categories': 'name',
-  'unit_master': 'name',
-  'department_master': 'name',
+  'companies': 'company_code',
+  'unit_master': 'id', // Better to use id if available, or omit for auto-resolve
   'expense_categories': 'name',
+  'loyalty_tiers': 'name',
+  'coupons': 'code',
+  'app_config': 'key',
+  'admin_users': 'username',
+  'orders': 'order_number',
+  'home_config': 'key',
+  'hsn_master': 'hsn_code',
   'products': 'id'
 };
 

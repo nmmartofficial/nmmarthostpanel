@@ -5,6 +5,7 @@ export const getSupabaseConfig = (env = {}) => {
   const anonKey = String(env.VITE_SUPABASE_ANON_KEY || '').trim();
   const isUrlPresent = Boolean(url);
   const isKeyPresent = Boolean(anonKey);
+  const useMock = env.VITE_USE_MOCK === 'true' || env.VITE_USE_MOCK === '1';
   const looksPlaceholder = (value) => {
     const normalized = String(value || '').toLowerCase();
     return INVALID_VALUE_HINTS.some((token) => normalized.includes(token));
@@ -20,11 +21,14 @@ export const getSupabaseConfig = (env = {}) => {
     hasKey: isKeyPresent,
     hasValidUrl,
     hasValidKey,
-    isConfigured: hasValidUrl && hasValidKey,
-    reason: !hasValidUrl
-      ? 'VITE_SUPABASE_URL is missing or invalid'
-      : !hasValidKey
-        ? 'VITE_SUPABASE_ANON_KEY is missing or invalid'
-        : null
+    useMock,
+    isConfigured: useMock || (hasValidUrl && hasValidKey),
+    reason: useMock
+      ? 'VITE_USE_MOCK=true — Silent mock mode enabled (no Supabase calls)'
+      : !hasValidUrl
+        ? 'VITE_SUPABASE_URL is missing or invalid'
+        : !hasValidKey
+          ? 'VITE_SUPABASE_ANON_KEY is missing or invalid'
+          : null
   };
 };

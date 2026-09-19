@@ -1,31 +1,34 @@
-export const isLocalPosTestMode = import.meta.env.DEV && import.meta.env.VITE_LOCAL_POS_TEST_AUTH === 'true';
-export const isLocalPosReadOnlyMode = isLocalPosTestMode && import.meta.env.VITE_LOCAL_POS_TEST_READS === 'true';
+const env = import.meta.env || {};
+const mockMode = env.VITE_USE_MOCK === 'true' || env.VITE_USE_MOCK === '1';
+
+export const isLocalPosTestMode = mockMode || (env.DEV && env.VITE_LOCAL_POS_TEST_AUTH === 'true');
+export const isLocalPosReadOnlyMode = mockMode || (isLocalPosTestMode && (env.VITE_LOCAL_POS_TEST_READS === 'true' || mockMode));
 
 export const LOCAL_POS_TEST_USER = Object.freeze({
   id: 'local-pos-test-user',
   email: 'local-pos-test@nm-mart.invalid',
-  name: 'Local POS Test User',
-  role: 'cashier',
-  company_code: 'LOCAL_POS_TEST',
-  tenant_id: 'local-pos-test-tenant',
+  name: 'Mock Mode User',
+  role: 'super_admin',
+  company_code: 'NMM001',
+  tenant_id: 1,
   status: 'active'
 });
 
 export const LOCAL_POS_TEST_COMPANY = Object.freeze({
-  id: 'local-pos-test-tenant',
-  company_code: 'LOCAL_POS_TEST',
+  id: 1,
+  company_code: 'NMM001',
   company_slug: 'nm-mart',
-  name: 'Local POS Test Workspace',
+  name: 'NM MART (Mock Mode)',
   status: 'active'
 });
 
 export const LOCAL_POS_TEST_SESSION = Object.freeze({
-  access_token: null,
-  refresh_token: null,
+  access_token: 'mock-mode-token',
+  refresh_token: 'mock-mode-refresh',
   expires_at: Math.floor(Date.now() / 1000) + 86400,
   user: Object.freeze({
     id: LOCAL_POS_TEST_USER.id,
     email: LOCAL_POS_TEST_USER.email
   }),
-  provider: 'local-pos-test'
+  provider: 'mock-mode'
 });
