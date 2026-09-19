@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, RefreshCw, Save, Calculator, AlertTriangle } from 'lucide-react';
 import { handleERPAction, ACTION_TYPES } from '../erpController';
+import { DB_SCHEMA } from '../dbSchema';
 import { toast } from 'sonner';
 import { cn } from '../utils/helpers';
 
@@ -27,7 +28,7 @@ export default function PhysicalCountDialog({ isOpen, onClose, product, fetchIni
 
     setIsSubmitting(true);
     try {
-      const res = await handleERPAction(null, ACTION_TYPES.ADJUST_STOCK, {
+      const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.ADJUST_STOCK, {
         product_id: product.id,
         change_qty: difference,
         change_type: 'adjustment',

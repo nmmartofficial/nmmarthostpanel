@@ -938,7 +938,7 @@ export const dbSync = {
       throw new Error('Local POS Test Mode - live atomic mutations are disabled.');
     }
 
-    if (!['place_order_atomic', 'create_purchase_atomic', 'adjust_wallet_atomic'].includes(functionName)) {
+    if (!['place_order_atomic', 'create_purchase_atomic', 'adjust_wallet_atomic', 'adjust_stock_atomic'].includes(functionName)) {
       throw new Error(`Unsupported atomic function: ${functionName}`);
     }
 
