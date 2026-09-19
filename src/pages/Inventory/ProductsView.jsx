@@ -220,14 +220,23 @@ export default function ProductsView({ products = [], categories = [], brands = 
   }, [categories, formData.category_id]);
 
   const activeSubcategories = useMemo(() => {
-    const rawCategoryId = formData.category_id ?? formData.categoryId;
-    if (rawCategoryId === undefined || rawCategoryId === null || rawCategoryId === '') {
+    // Bariki: Extract Category ID from any potential field name
+    const rawCategoryId = formData.category_id || formData.categoryId || formData.itg;
+
+    if (!rawCategoryId || String(rawCategoryId).trim() === '') {
       return [];
     }
 
     const targetId = Number(rawCategoryId);
-    return (subcategories || []).filter(s => Number(s.category_id) === targetId);
-  }, [formData.category_id, formData.categoryId, subcategories]);
+
+    // Explicitly check for both category_id formats
+    const list = (subcategories || []).filter(s => {
+      const sCatId = Number(s.category_id || s.categoryId || 0);
+      return sCatId === targetId;
+    });
+
+    return list;
+  }, [formData.category_id, formData.categoryId, formData.itg, subcategories]);
 
   const resolveFormSubcategory = useCallback((nextFormData) => {
     const rawCategoryId = nextFormData.category_id || nextFormData.categoryId;
@@ -1306,7 +1315,9 @@ export default function ProductsView({ products = [], categories = [], brands = 
 
                     {/* Row 2 */}
                     <div className="md:col-span-3 space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Item Group Name</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                        Item Group Name ({categories.length})
+                      </label>
                       <select value={String(formData.category_id ?? '')} onChange={(e) => {
                         const selectedCat = categories.find(c => String(c.id) === String(e.target.value));
                         const selectedCategoryId = e.target.value;
@@ -1324,7 +1335,9 @@ export default function ProductsView({ products = [], categories = [], brands = 
                       </select>
                     </div>
                     <div className="md:col-span-3 space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Sub Category Name</label>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                        Sub Category Name ({activeSubcategories.length})
+                      </label>
                       <select value={String(formData.subcategory_id ?? '')} onChange={(e) => {
                         const selectedSubCat = subcategories.find(s => String(s.id) === String(e.target.value));
                         setFormData({
@@ -1334,7 +1347,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
                           subcategory: selectedSubCat?.name || ''
                         });
                       }} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="">Select Sub Category</option>
+                        <option value="">{activeSubcategories.length > 0 ? "Select Sub Category" : "No Sub Categories Found"}</option>
                         {activeSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     </div>
