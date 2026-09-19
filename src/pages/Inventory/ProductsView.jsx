@@ -220,14 +220,14 @@ export default function ProductsView({ products = [], categories = [], brands = 
   }, [categories, formData.category_id]);
 
   const activeSubcategories = useMemo(() => {
-    const rawCategoryId = formData.category_id ?? formData.categoryId ?? selectedCategoryMatch?.id;
+    const rawCategoryId = formData.category_id ?? formData.categoryId;
     if (rawCategoryId === undefined || rawCategoryId === null || rawCategoryId === '') {
       return [];
     }
 
     const targetId = Number(rawCategoryId);
     return (subcategories || []).filter(s => Number(s.category_id) === targetId);
-  }, [formData.category_id, formData.categoryId, selectedCategoryMatch, subcategories]);
+  }, [formData.category_id, formData.categoryId, subcategories]);
 
   const resolveFormSubcategory = useCallback((nextFormData) => {
     const rawCategoryId = nextFormData.category_id || nextFormData.categoryId;
@@ -280,7 +280,9 @@ export default function ProductsView({ products = [], categories = [], brands = 
       record.category?.id,
       record.main_category_id,
       record.itc_id,
-      record.item_group_id
+      record.item_group_id,
+      record.itg,
+      record.itg_id
     ];
     const nameCandidates = [
       record.category_name,
@@ -304,6 +306,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
     for (const candidate of nameCandidates) {
       if (candidate !== undefined && candidate !== null && candidate !== '') {
         const normalized = String(candidate).trim().toLowerCase();
+        if (normalized === '' || normalized === 'null' || normalized === 'undefined') continue;
         const match = (categories || []).find(c => String(c.name || '').trim().toLowerCase() === normalized);
         if (match) return { id: String(match.id), name: match.name };
       }
@@ -319,7 +322,11 @@ export default function ProductsView({ products = [], categories = [], brands = 
       record.subcategory?.id,
       record.subcategory_id,
       record.sub_category_id,
-      record.subcat_id
+      record.subcat_id,
+      record.dtcode,
+      record.dtcode_id,
+      record.kcode,
+      record.kcode_id
     ];
     const nameCandidates = [
       record.subcategory_name,
@@ -332,33 +339,45 @@ export default function ProductsView({ products = [], categories = [], brands = 
 
     const categoryMatch = resolveCategoryId(record);
     const matchByCategory = (candidate) => {
-      if (!candidate) return null;
+      if (candidate === undefined || candidate === null || candidate === '') return null;
       return (subcategories || []).find(s => {
         const matchesId = String(s.id).trim() === String(candidate).trim();
         const matchesName = String(s.name || '').trim().toLowerCase() === String(candidate).trim().toLowerCase();
+        // If we have a category match, try to find subcategory WITHIN that category
         const categoryOk = !categoryMatch || Number(s.category_id) === Number(categoryMatch.id);
         return (matchesId || matchesName) && categoryOk;
       });
     };
 
+    // First try strict match (by ID/Name AND Category)
+    for (const candidate of idCandidates) {
+      const match = matchByCategory(candidate);
+      if (match) return { id: String(match.id), name: match.name };
+    }
+
+    for (const candidate of nameCandidates) {
+      const match = matchByCategory(candidate);
+      if (match) return { id: String(match.id), name: match.name };
+    }
+
+    // If no match found within category, try to find by ID/Name across ANY category
     for (const candidate of idCandidates) {
       if (candidate !== undefined && candidate !== null && candidate !== '') {
-        const match = matchByCategory(candidate);
+        const match = (subcategories || []).find(s => String(s.id).trim() === String(candidate).trim());
         if (match) return { id: String(match.id), name: match.name };
       }
     }
 
     for (const candidate of nameCandidates) {
       if (candidate !== undefined && candidate !== null && candidate !== '') {
-        const match = (subcategories || []).find(s => {
-          const nameMatches = String(s.name || '').trim().toLowerCase() === String(candidate).trim().toLowerCase();
-          const categoryMatches = !categoryMatch || Number(s.category_id) === Number(categoryMatch.id);
-          return nameMatches && categoryMatches;
-        });
+        const normalized = String(candidate).trim().toLowerCase();
+        if (normalized === '' || normalized === 'null' || normalized === 'undefined') continue;
+        const match = (subcategories || []).find(s => String(s.name || '').trim().toLowerCase() === normalized);
         if (match) return { id: String(match.id), name: match.name };
       }
     }
 
+    // Finally, if we have a category match, just pick the FIRST subcategory under it if any
     if (categoryMatch) {
       const fallbackMatch = (subcategories || []).find(s => Number(s.category_id) === Number(categoryMatch.id));
       if (fallbackMatch) return { id: String(fallbackMatch.id), name: fallbackMatch.name };
@@ -1089,13 +1108,14 @@ export default function ProductsView({ products = [], categories = [], brands = 
                             onClick={() => { 
                               setEditingProduct(product); 
                               // Pre-fill form data with proper category/subcategory/brand fields
-                              const prefilledData = {
+                              let prefilledData = {
                                 ...product,
-                                category: getVal('itc', 'category_name') || '',
-                                subcategory: product.subcategory_name || '',
+                                category: product.itc || product.category_name || product.category || '',
+                                subcategory: product.subcategory_name || product.subcategory || '',
                                 brand: resolveBrandName(product),
-                                unit: getVal('unitcode', 'unit_name') || 'Nos'
+                                unit: product.unitcode || product.unit_name || 'Nos'
                               };
+
                               const matchingCategory = resolveCategoryId(prefilledData);
                               if (matchingCategory) {
                                 prefilledData.category_id = matchingCategory.id;
@@ -1115,10 +1135,6 @@ export default function ProductsView({ products = [], categories = [], brands = 
                                   prefilledData.subcategory_id = String(fallbackSubByCategory.id);
                                   prefilledData.subcategory_name = fallbackSubByCategory.name;
                                   prefilledData.subcategory = fallbackSubByCategory.name;
-                                } else {
-                                  prefilledData.subcategory_id = '';
-                                  prefilledData.subcategory_name = '';
-                                  prefilledData.subcategory = '';
                                 }
                               }
 
@@ -1129,6 +1145,9 @@ export default function ProductsView({ products = [], categories = [], brands = 
                                 prefilledData.brandcode = matchingBrand.name;
                                 prefilledData.brand = matchingBrand.name;
                               }
+
+                              // Ensure internal state consistency
+                              prefilledData = resolveFormSubcategory(prefilledData);
 
                               setFormData(prefilledData);
                               setShowForm(true); 
