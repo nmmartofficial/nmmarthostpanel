@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { AlertTriangle, AlertCircle, CheckCircle, Clock, Package, Search, ShoppingBag, Plus } from 'lucide-react';
+import { AlertTriangle, AlertCircle, CheckCircle, Clock, Package, Search, ShoppingBag, Plus, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/helpers';
 import { toast } from 'sonner';
