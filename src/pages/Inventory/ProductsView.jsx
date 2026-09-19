@@ -197,16 +197,31 @@ export default function ProductsView({ products = [], categories = [], brands = 
   // --- Brand name resolver: NEVER render raw numeric brand_id as brand label ---
   const resolveBrandName = useCallback((product) => {
     if (!product) return '-';
-    // 1) FK lookup from brands master table (always authoritative)
-    if (product.brand_id != null && product.brand_id !== '') {
-      const match = Array.isArray(brands) && brands.find(b => Number(b.id) === Number(product.brand_id));
+    // Prefer the brand master, including legacy numeric code fields.
+    const brandIdCandidates = [product.brand_id, product.brandId, product.brandcode, product.brand_code]
+      .filter(value => value != null && String(value).trim() !== '' && /^\d+$/.test(String(value).trim()));
+    if (brandIdCandidates.length > 0) {
+      const match = Array.isArray(brands) && brands.find(b => brandIdCandidates.some(value => Number(b.id) === Number(value)));
       if (match?.name) return match.name;
     }
-    // 2) Denormalized text columns — but skip if they're pure digits (raw IDs)
-    const textFallback = product.brand_name || product.brandcode || '';
+    const textFallback = product.brand_name || product.brand || product.brandName || product.brandcode || product.brand_code || '';
     if (textFallback && !/^\d+$/.test(String(textFallback).trim())) return textFallback;
     return '-';
   }, [brands]);
+
+  const resolveCategoryName = useCallback((product) => {
+    if (!product) return '-';
+    const match = (categories || []).find(category => String(category.id) === String(product.category_id));
+    if (match?.name) return match.name;
+    return product.category_name || product.itc || product.item_category || '-';
+  }, [categories]);
+
+  const resolveSubcategoryName = useCallback((product) => {
+    if (!product) return '-';
+    const match = (subcategories || []).find(subcategory => String(subcategory.id) === String(product.subcategory_id));
+    if (match?.name) return match.name;
+    return product.subcategory_name || product.sub_category_name || '-';
+  }, [subcategories]);
 
   // Filtered subcategories based on selected category
   const availableSubcategories = useMemo(() => {
@@ -529,17 +544,24 @@ export default function ProductsView({ products = [], categories = [], brands = 
     // --- REFERENCE VALIDATION ONLY ---
     // Product/Item master must not enforce duplicate validation by item name, barcode, brand, category or subcategory.
     // Only master records (Brand, Main Category, Sub Category) are uniqueness-checked elsewhere.
-    const currentBrandId = formData.brand_id != null && formData.brand_id !== '' ? Number(formData.brand_id) : null;
-    let currentCategoryId = formData.category_id != null && formData.category_id !== '' ? Number(formData.category_id) : null;
-    let currentSubCategoryId = formData.subcategory_id != null && formData.subcategory_id !== '' ? Number(formData.subcategory_id) : null;
+    const resolvedBrand = resolveBrandId(formData) || (editingProduct ? resolveBrandId(editingProduct) : null);
+    const rawBrandId = formData.brand_id || editingProduct?.brand_id || resolvedBrand?.id || null;
+    const currentBrandId = rawBrandId != null && rawBrandId !== '' ? Number(rawBrandId) : null;
+    let currentCategoryId = formData.category_id != null && formData.category_id !== ''
+      ? Number(formData.category_id)
+      : (editingProduct?.category_id != null ? Number(editingProduct.category_id) : null);
+    let currentSubCategoryId = formData.subcategory_id != null && formData.subcategory_id !== ''
+      ? Number(formData.subcategory_id)
+      : (editingProduct?.subcategory_id != null ? Number(editingProduct.subcategory_id) : null);
+    const isEditing = Boolean(editingProduct?.id);
 
-    if (currentBrandId == null || Number.isNaN(currentBrandId) || !brands.some((brand) => Number(brand?.id) === Number(currentBrandId))) {
+    if (!isEditing && (currentBrandId == null || Number.isNaN(currentBrandId) || !brands.some((brand) => Number(brand?.id) === Number(currentBrandId)))) {
       alert('Brand not found.');
       setIsSubmitting(false);
       return;
     }
 
-    if (currentCategoryId == null || Number.isNaN(currentCategoryId) || !categories.some((category) => Number(category?.id) === Number(currentCategoryId))) {
+    if (!isEditing && (currentCategoryId == null || Number.isNaN(currentCategoryId) || !categories.some((category) => Number(category?.id) === Number(currentCategoryId)))) {
       alert('Main Category not found.');
       setIsSubmitting(false);
       return;
@@ -558,7 +580,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
       currentSubCategoryId = Number(matchingByNameInSelectedCategory.id);
     }
 
-    if (currentSubCategoryId == null || Number.isNaN(currentSubCategoryId) || !subcategories.some((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId))) {
+    if (!isEditing && (currentSubCategoryId == null || Number.isNaN(currentSubCategoryId) || !subcategories.some((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId)))) {
       alert('Sub Category not found.');
       setIsSubmitting(false);
       return;
@@ -642,7 +664,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
         dtcode: formData.dtcode || formData.department_code,
         k_code: formData.kcode || formData.k_code,
         kcode: formData.kcode || formData.k_code,
-        brand_code: formData.brandcode || formData.brand_code,
+        brand_code: brandNameToUse,
         brand_name: brandNameToUse,
         brandcode: brandNameToUse,
         is_discountable: formData.isdiscountable || formData.is_discountable || 'Yes',
@@ -742,8 +764,14 @@ export default function ProductsView({ products = [], categories = [], brands = 
         }
       }
 
-      if (res && !res.success) {
-        throw new Error(`Database Error: ${res.error}`);
+      if (!res?.success) {
+        throw new Error(`Database Error: ${res?.error || 'Save request was rejected'}`);
+      }
+      if (editingProduct && !res.data) {
+        throw new Error('Save failed: Supabase updated 0 product rows. Check login permissions and tenant/company context.');
+      }
+      if (!editingProduct && !insertedProduct) {
+        throw new Error('Save failed: Supabase did not return the newly inserted product row.');
       }
 
       setShowForm(false);
@@ -763,6 +791,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
     } catch (error) {
       console.error("Product Save Error:", error);
       const errMsg = String(error?.message || error || 'Unknown error');
+      toast?.error?.(`Product save failed: ${errMsg}`);
       // Postgres unique violation (SQLSTATE 23505) — typically barcode collision
       if (errMsg.includes('23505') || /duplicate.*key.*violates/i.test(errMsg) || /uq_products_barcode/i.test(errMsg)) {
         const bcValMatch = errMsg.match(/barcode[^\w]*=?[^\w]*["']?([^"'\)]+)/i);
@@ -985,7 +1014,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
                   <td className="px-4 py-3">
                     <p className="text-[10px] font-black text-slate-800 uppercase tracking-tighter leading-none">{productName}</p>
                     <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase">
-                      {getVal('itc', 'category_name') || 'No Category'} {product.subcategory_name ? `/ ${product.subcategory_name}` : ''}
+                      {resolveCategoryName(product)} {resolveSubcategoryName(product) !== '-' ? `/ ${resolveSubcategoryName(product)}` : ''}
                     </p>
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -1026,7 +1055,12 @@ export default function ProductsView({ products = [], categories = [], brands = 
                   </td>
                   <td className="px-4 py-3 text-center">
                     <div className="w-10 h-10 mx-auto bg-slate-50 rounded-lg border border-slate-200 overflow-hidden p-1">
-                      <img src={getVal('picture', 'image_url')} alt="" className="w-full h-full object-contain" />
+                      <img
+                        src={resolveProductImageUrl(getVal('picture', 'image_url') || product.imagename) || undefined}
+                        alt={productName}
+                        className="w-full h-full object-contain"
+                        onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                      />
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -1124,13 +1158,6 @@ export default function ProductsView({ products = [], categories = [], brands = 
                                 prefilledData.subcategory_id = matchingSubCategory.id;
                                 prefilledData.subcategory_name = matchingSubCategory.name;
                                 prefilledData.subcategory = matchingSubCategory.name;
-                              } else if (prefilledData.category_id) {
-                                const fallbackSubByCategory = (subcategories || []).find(s => Number(s.category_id) === Number(prefilledData.category_id));
-                                if (fallbackSubByCategory) {
-                                  prefilledData.subcategory_id = String(fallbackSubByCategory.id);
-                                  prefilledData.subcategory_name = fallbackSubByCategory.name;
-                                  prefilledData.subcategory = fallbackSubByCategory.name;
-                                }
                               }
 
                               const matchingBrand = resolveBrandId(prefilledData);
@@ -1459,7 +1486,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
                                 if (!formData.main_image_file) return alert("Please choose a file first");
                                 const { url, error } = await uploadImage(formData.main_image_file, 'products');
                                 if (url) {
-                                  setFormData({ ...formData, image_url: url, picture: url, main_image_file: null });
+                                  setFormData((previous) => ({ ...previous, image_url: url, picture: url, main_image_file: null }));
                                   alert("Image Uploaded Successfully!");
                                 } else {
                                   alert("Upload Failed: " + error);

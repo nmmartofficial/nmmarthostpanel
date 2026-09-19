@@ -199,7 +199,7 @@ const resolveTenantContext = async () => {
 };
 
 const applyTenantFilter = (request, tableName, schemaEntry, tenantId, companyCode) => {
-  if (tableName === 'companies') return request;
+  if (tableName === 'companies' || !schemaEntry?.tenantColumn) return request;
 
   // Agar companyCode hai (jaise NMM001), use first preference dein taaki legacy aur new products dono match hon
   if (companyCode) {
@@ -462,7 +462,8 @@ export const dbSync = {
       } else if (tableName === DB_SCHEMA.CATEGORIES.table && DB_SCHEMA.READABLE_CATEGORIES) {
         effectiveSource = DB_SCHEMA.READABLE_CATEGORIES.table;
       } else if (tableName === DB_SCHEMA.BRANDS.table && DB_SCHEMA.READABLE_BRANDS) {
-        effectiveSource = DB_SCHEMA.READABLE_BRANDS.table;
+        // readable_brands omits image_url; use the authoritative table so Brand Master previews work.
+        effectiveSource = DB_SCHEMA.BRANDS.table;
       } else if (tableName === DB_SCHEMA.BANNERS.table && DB_SCHEMA.READABLE_BANNERS) {
         effectiveSource = DB_SCHEMA.READABLE_BANNERS.table;
       } else if (tableName === DB_SCHEMA.COUPONS.table && DB_SCHEMA.READABLE_COUPONS) {

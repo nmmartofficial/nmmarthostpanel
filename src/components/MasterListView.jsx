@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Search, FileJson, Download, Plus, GitBranch, 
   Edit2, Eye, Trash2, Database, X, Save, RefreshCw, Image as ImageIcon
@@ -226,6 +226,10 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const filteredData = (data || []).filter(item => 
     Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
   const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);

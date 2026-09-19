@@ -28,6 +28,8 @@ import { DB_SCHEMA } from './dbSchema'
 
 import { secureStorage } from './utils/security'
 
+import { Toaster } from 'sonner'
+
 import './index.css'
 
 
@@ -319,6 +321,8 @@ if (!reactRoot) {
 reactRoot.render(
 
   <>
+
+    <Toaster position="top-right" richColors closeButton duration={4500} />
 
     <ErrorBoundary>
 

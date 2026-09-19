@@ -15,7 +15,7 @@ import {
   Monitor, Maximize2, Minimize2, ChevronRight, Circle, FileJson,
   Upload, ExternalLink, ShoppingBag, IndianRupee, Flag, Mail,
   Repeat, Wrench, ArrowLeftRight, Key, QrCode,
-  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Smartphone, AlertCircle, Loader2, CheckCircle
+  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Smartphone, AlertCircle, Loader2, CheckCircle, Hash
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
@@ -742,14 +742,16 @@ export default function App({ company, isTenantMode, companySlug }) {
         return { url: null, error: new Error(errMsg) };
       }
 
-      const fileName = fileToUpload.name;
-      const filePath = `${fileName}`;
+      const originalExtension = fileToUpload.name.includes('.')
+        ? fileToUpload.name.slice(fileToUpload.name.lastIndexOf('.')).toLowerCase()
+        : '';
+      const filePath = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}${originalExtension}`;
 
       const { error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(filePath, fileToUpload, {
           cacheControl: '3600',
-          upsert: false
+          upsert: true
         });
 
       if (uploadError) {
@@ -5618,7 +5620,10 @@ const BrandsView = (props) => (
     bucket="brands"
     fields={[
       { name: 'name', label: 'Brand Name', type: 'text', required: true },
+      { name: 'code', label: 'Brand Code', type: 'text' },
+      { name: 'description', label: 'Description', type: 'text' },
       { name: 'image_url', label: 'Image', type: 'image' },
+      { name: 'logo_url', label: 'Logo URL', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />

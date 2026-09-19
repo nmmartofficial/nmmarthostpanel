@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import { dbSync } from './dbSync';
 import { DB_SCHEMA, TABLE_COLUMN_MAPPINGS } from './dbSchema';
+import { secureStorage } from './utils/security';
 
 /**
  * Generic Export to Excel function
@@ -117,12 +118,36 @@ const SENSITIVE_ERP_TABLES = new Set([
 
 const getCurrentERPUser = () => {
   try {
-    const raw = localStorage.getItem('nm_user_data');
-    if (!raw) return null;
-    return JSON.parse(raw);
+    return secureStorage.getItem('nm_user_data');
   } catch {
     return null;
   }
+};
+
+const ROLE_WRITE_TABLES = {
+  inventory_head: new Set([
+    DB_SCHEMA.PRODUCTS.table,
+    DB_SCHEMA.UNITS.table,
+    DB_SCHEMA.CATEGORIES.table,
+    DB_SCHEMA.SUBCATEGORIES.table,
+    DB_SCHEMA.BRANDS.table,
+    DB_SCHEMA.DEPARTMENTS.table,
+    DB_SCHEMA.ACCOUNTS.table,
+    DB_SCHEMA.PURCHASES.table
+  ]),
+  sales_manager: new Set([
+    DB_SCHEMA.USERS.table,
+    DB_SCHEMA.DELIVERY_CUSTOMERS.table,
+    DB_SCHEMA.ADDRESSES.table,
+    DB_SCHEMA.ORDERS.table
+  ]),
+  accountant: new Set([
+    DB_SCHEMA.ACCOUNTS.table,
+    DB_SCHEMA.CREDITS.table,
+    DB_SCHEMA.EXPENSES.table,
+    DB_SCHEMA.WALLET_MASTER.table,
+    DB_SCHEMA.WALLET_TRANSACTIONS.table
+  ])
 };
 
 const validateERPWriteAuthorization = (moduleName, actionType) => {
@@ -138,7 +163,7 @@ const validateERPWriteAuthorization = (moduleName, actionType) => {
     return;
   }
 
-  if (['super_admin', 'admin'].includes(role)) {
+  if (['super_admin', 'admin'].includes(role) || ROLE_WRITE_TABLES[role]?.has(moduleName)) {
     return;
   }
 

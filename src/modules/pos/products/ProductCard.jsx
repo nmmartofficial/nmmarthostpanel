@@ -5,6 +5,7 @@ import ProductImage from './ProductImage';
 import ProductPrice from './ProductPrice';
 import ProductStock from './ProductStock';
 import { usePOS } from '../context/POSContext';
+import { resolveProductImageUrl } from '../../../utils/productImage';
 
 export default function ProductCard({ product }) {
   const { addToCart, openQuantityDialog } = usePOS();
@@ -22,7 +23,7 @@ export default function ProductCard({ product }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 hover:border-emerald-400 hover:shadow-lg transition-all overflow-hidden flex flex-col">
       <div className="relative">
-        <ProductImage image={product.image} name={product.name} />
+        <ProductImage image={resolveProductImageUrl(product)} name={product.name} />
         <button
           onClick={handleOpenQuantity}
           className="absolute top-2 right-2 bg-white rounded-full p-1.5 shadow-md hover:bg-gray-100 transition-colors"

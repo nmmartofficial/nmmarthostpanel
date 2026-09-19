@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Package, Hash, AlertTriangle, XCircle } from 'lucide-react';
 import { cn } from '../utils/helpers';
+import { resolveProductImageUrl } from '../utils/productImage';
 
 const ProductCard = memo(({ product, addToCart, isSelected, isTouchMode }) => {
   const name = product.itname || product.name || 'Unknown Item';
@@ -8,7 +9,7 @@ const ProductCard = memo(({ product, addToCart, isSelected, isTouchMode }) => {
   const saleRate = parseFloat(product.onlinerate || product.sale_rate || 0);
   const unit = product.unitcode || product.unit_name || product.unit || 'PCS';
   const barcode = product.barcode || '';
-  const imageUrl = product.picture || product.image_url || null;
+  const imageUrl = resolveProductImageUrl(product);
 
   return (
     <button
@@ -26,7 +27,12 @@ const ProductCard = memo(({ product, addToCart, isSelected, isTouchMode }) => {
         isTouchMode ? "p-3" : "p-2"
       )}>
         {imageUrl ? (
-          <img src={imageUrl} alt={name} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300" />
+          <img
+            src={imageUrl}
+            alt={name}
+            className="w-full h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-300"
+            onError={(event) => { event.currentTarget.style.display = 'none'; }}
+          />
         ) : (
           <div className="flex flex-col items-center gap-1 opacity-20">
             <Package size={isTouchMode ? 48 : 32} />

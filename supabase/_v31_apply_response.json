@@ -1,8 +1,0 @@
-{
-  "ok": false,
-  "error": "HTTP 401: {\"message\":\"JWT could not be decoded\"}",
-  "status": 401,
-  "body": {
-    "message": "JWT could not be decoded"
-  }
-}
