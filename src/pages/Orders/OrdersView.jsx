@@ -27,6 +27,7 @@ const getProductRate = (product) => Number(
 export default function OrdersView({ orders, filter, fetchInitialData, appConfig }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
+  const [orderItemSummaries, setOrderItemSummaries] = useState({});
   const [loadingItems, setLoadingItems] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('Today'); // Default to Today as requested
@@ -95,6 +96,46 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       setEditFormData(selectedOrder);
     }
   }, [selectedOrder]);
+
+  useEffect(() => {
+    let active = true;
+    const loadOrderItemSummaries = async () => {
+      const orderEntries = orders.map(order => ({
+        orderId: order.id,
+        items: parseStoredOrderItems(order.items)
+      }));
+      const productIds = [...new Set(orderEntries.flatMap(({ items }) => items
+        .map(item => Number(item.product_id ?? item.productId))
+        .filter(Number.isFinite)))];
+      if (productIds.length === 0) {
+        if (active) setOrderItemSummaries({});
+        return;
+      }
+
+      const products = await dbSync.fetch(DB_SCHEMA.PRODUCTS.table, {
+        in: { column: 'id', values: productIds },
+        includeDeleted: true
+      });
+      const productsById = new Map((products || []).map(product => [Number(product.id), product]));
+      const summaries = Object.fromEntries(orderEntries.map(({ orderId, items }) => [
+        orderId,
+        items.map(item => {
+          const productId = Number(item.product_id ?? item.productId);
+          const product = productsById.get(productId);
+          const name = item.product_name ?? item.name ?? product?.name ?? `Product #${productId}`;
+          const quantity = Number(item.quantity ?? item.qty ?? 1);
+          return quantity > 1 ? `${name} x${quantity}` : name;
+        }).join(', ')
+      ]));
+      if (active) setOrderItemSummaries(summaries);
+    };
+
+    loadOrderItemSummaries().catch(error => {
+      console.error('Error loading order item summaries:', error);
+      if (active) setOrderItemSummaries({});
+    });
+    return () => { active = false; };
+  }, [orders]);
 
   const fetchOrderItems = async (orderId) => {
     setLoadingItems(true);
@@ -240,6 +281,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
               <tr className="border-b border-slate-200">
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Bill #</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Customer / Mobile</th>
+                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Order Items</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Amount</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">Method</th>
                 <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest text-right">Actions</th>
@@ -252,6 +294,11 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                   <td className="px-4 py-2.5">
                     <p className="text-[10px] font-bold text-slate-800 leading-none">{order.user_mobile}</p>
                     <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">{order.customer_name || 'Walk-in'}</p>
+                  </td>
+                  <td className="px-4 py-2.5 max-w-[280px]">
+                    <p className="text-[9px] font-black text-slate-700 uppercase truncate" title={orderItemSummaries[order.id]}>
+                      {orderItemSummaries[order.id] || 'Item details unavailable'}
+                    </p>
                   </td>
                   <td className="px-4 py-2.5 text-[10px] font-black text-slate-800">₹{order.total_amount}</td>
                   <td className="px-4 py-2.5">
@@ -289,7 +336,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="5" className="px-4 py-20 text-center text-slate-400 font-black uppercase text-[10px] tracking-widest">No orders found for this selection</td>
+                  <td colSpan="6" className="px-4 py-20 text-center text-slate-400 font-black uppercase text-[10px] tracking-widest">No orders found for this selection</td>
                 </tr>
               )}
             </tbody>
