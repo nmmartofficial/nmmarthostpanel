@@ -1,12 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Search, Eye, Printer, Trash2, X, Edit2, User, MapPin, CreditCard, Truck, RefreshCw, Undo2
+  Search, Eye, Printer, Trash2, X, Edit2, User, MapPin, CreditCard, Truck, RefreshCw, Undo2, Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../../erpController';
 import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
+
+const parseStoredOrderItems = (items) => {
+  if (Array.isArray(items)) return items;
+  if (typeof items !== 'string') return [];
+  try {
+    const parsed = JSON.parse(items);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+};
+
+const getProductRate = (product) => Number(
+  product?.sale_rate ?? product?.onlinerate ?? product?.online_rate ??
+  product?.retail_rate ?? product?.restrate ?? product?.mrp ?? 0
+);
 
 export default function OrdersView({ orders, filter, fetchInitialData, appConfig }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -83,12 +99,42 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
   const fetchOrderItems = async (orderId) => {
     setLoadingItems(true);
     try {
-      const data = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, {
+      const storedLineItems = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, {
         eq: { column: 'order_id', value: orderId }
       });
-      setOrderItems(data || []);
+      const sourceItems = storedLineItems?.length
+        ? storedLineItems
+        : parseStoredOrderItems(selectedOrder?.items);
+      const productIds = [...new Set(sourceItems
+        .map(item => Number(item.product_id ?? item.productId))
+        .filter(Number.isFinite))];
+      const products = productIds.length > 0
+        ? await dbSync.fetch(DB_SCHEMA.PRODUCTS.table, {
+            in: { column: 'id', values: productIds },
+            includeDeleted: true
+          })
+        : [];
+      const productsById = new Map((products || []).map(product => [Number(product.id), product]));
+      const normalizedItems = sourceItems.map((item, index) => {
+        const productId = Number(item.product_id ?? item.productId);
+        const product = productsById.get(productId);
+        const quantity = Number(item.quantity ?? item.qty ?? 1);
+        const rate = Number(item.rate ?? item.unit_price ?? item.price ?? getProductRate(product));
+        return {
+          ...item,
+          id: item.id ?? `${orderId}-${productId || index}`,
+          product_id: productId,
+          product_name: item.product_name ?? item.name ?? product?.name ?? `Product #${productId}`,
+          quantity,
+          rate,
+          total: Number(item.total ?? item.line_total ?? rate * quantity),
+          image_url: item.image_url ?? item.picture ?? product?.image_url ?? product?.picture
+        };
+      });
+      setOrderItems(normalizedItems);
     } catch (error) {
       console.error("Error fetching order items:", error);
+      setOrderItems([]);
     } finally {
       setLoadingItems(false);
     }
@@ -446,10 +492,20 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                         <tbody className="divide-y divide-slate-50">
                           {loadingItems ? (
                             <tr><td colSpan="4" className="px-4 py-8 text-center"><RefreshCw className="animate-spin mx-auto text-blue-500" size={20} /></td></tr>
+                          ) : orderItems.length === 0 ? (
+                            <tr><td colSpan="4" className="px-4 py-8 text-center text-[10px] font-black text-slate-400 uppercase">No item details found for this order</td></tr>
                           ) : orderItems.map((item) => (
                             <tr key={item.id}>
                               <td className="px-4 py-3 flex items-center gap-3">
-                                <span className="text-[10px] font-bold text-slate-700 uppercase">{item.product_name}</span>
+                                {item.image_url ? (
+                                  <img src={item.image_url} alt={item.product_name} className="w-10 h-10 rounded-lg object-contain border border-slate-100 bg-white" />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-center text-slate-300"><Package size={16} /></div>
+                                )}
+                                <div>
+                                  <span className="text-[10px] font-bold text-slate-700 uppercase">{item.product_name}</span>
+                                  <span className="block text-[8px] font-bold text-slate-400 mt-1">ID: {item.product_id}</span>
+                                </div>
                               </td>
                               <td className="px-4 py-3 text-center text-[10px] font-black text-slate-800">{item.quantity}</td>
                               <td className="px-4 py-3 text-right text-[10px] font-bold text-slate-600">₹{item.rate}</td>
