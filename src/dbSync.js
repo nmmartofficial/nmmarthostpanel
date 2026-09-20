@@ -201,7 +201,12 @@ const resolveTenantContext = async () => {
 const applyTenantFilter = (request, tableName, schemaEntry, tenantId, companyCode) => {
   if (tableName === 'companies' || !schemaEntry?.tenantColumn) return request;
 
-  // Agar companyCode hai (jaise NMM001), use first preference dein taaki legacy aur new products dono match hon
+  // NM MART LIVE FIX: If companyCode is 'NMM001' but DB has null/empty, we prioritize tenant_id = 1
+  // This connects the Admin Panel to the 524 products found in audit.
+  if (tenantId === 1 || String(companyCode) === 'NMM001') {
+    return request.eq('tenant_id', 1);
+  }
+
   if (companyCode) {
     return request.eq('company_code', companyCode);
   }
