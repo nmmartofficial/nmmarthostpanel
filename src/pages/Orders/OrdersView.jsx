@@ -100,9 +100,18 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
   useEffect(() => {
     let active = true;
     const loadOrderItemSummaries = async () => {
+      const orderIds = orders.map(order => order.id).filter(Boolean);
+      const rawOrders = orderIds.length > 0
+        ? await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
+            in: { column: 'id', values: orderIds },
+            select: 'id,items',
+            includeDeleted: true
+          })
+        : [];
+      const rawItemsByOrderId = new Map((rawOrders || []).map(order => [order.id, order.items]));
       const orderEntries = orders.map(order => ({
         orderId: order.id,
-        items: parseStoredOrderItems(order.items)
+        items: parseStoredOrderItems(order.items ?? rawItemsByOrderId.get(order.id))
       }));
       const productIds = [...new Set(orderEntries.flatMap(({ items }) => items
         .map(item => Number(item.product_id ?? item.productId))
@@ -143,9 +152,18 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       const storedLineItems = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, {
         eq: { column: 'order_id', value: orderId }
       });
+      let storedOrderItems = parseStoredOrderItems(selectedOrder?.items);
+      if (storedLineItems?.length === 0 && storedOrderItems.length === 0) {
+        const rawOrder = await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
+          eq: { column: 'id', value: orderId },
+          select: 'id,items',
+          includeDeleted: true
+        });
+        storedOrderItems = parseStoredOrderItems(rawOrder?.[0]?.items);
+      }
       const sourceItems = storedLineItems?.length
         ? storedLineItems
-        : parseStoredOrderItems(selectedOrder?.items);
+        : storedOrderItems;
       const productIds = [...new Set(sourceItems
         .map(item => Number(item.product_id ?? item.productId))
         .filter(Number.isFinite))];
