@@ -7,20 +7,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../../erpController';
 
+const getOrderStatus = (order) => String(order.order_status ?? order.status ?? '').toLowerCase();
+
 export default function OnlineOrderView({ orders, fetchInitialData }) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const liveOrders = useMemo(() => {
     return orders.filter(o =>
-      ['pending', 'confirmed', 'packed', 'out_for_delivery'].includes(o.order_status?.toLowerCase())
+      ['pending', 'confirmed', 'packed', 'out_for_delivery'].includes(getOrderStatus(o))
     ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [orders]);
 
   const stats = useMemo(() => ({
-    pending: liveOrders.filter(o => o.order_status === 'pending').length,
-    confirmed: liveOrders.filter(o => o.order_status === 'confirmed').length,
-    packed: liveOrders.filter(o => o.order_status === 'packed').length,
-    delivery: liveOrders.filter(o => o.order_status === 'out_for_delivery').length,
+    pending: liveOrders.filter(o => getOrderStatus(o) === 'pending').length,
+    confirmed: liveOrders.filter(o => getOrderStatus(o) === 'confirmed').length,
+    packed: liveOrders.filter(o => getOrderStatus(o) === 'packed').length,
+    delivery: liveOrders.filter(o => getOrderStatus(o) === 'out_for_delivery').length,
   }), [liveOrders]);
 
   const updateStatus = async (id, newStatus) => {
@@ -85,7 +87,9 @@ export default function OnlineOrderView({ orders, fetchInitialData }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {liveOrders.map((order) => (
+              {liveOrders.map((order) => {
+                const orderStatus = getOrderStatus(order);
+                return (
                 <motion.div
                   layout
                   key={order.id}
@@ -97,9 +101,9 @@ export default function OnlineOrderView({ orders, fetchInitialData }) {
                         <span className="text-xs font-black text-blue-600">#{order.order_number}</span>
                         <span className={cn(
                           "text-[8px] font-black uppercase px-2 py-0.5 rounded-full border",
-                          order.order_status === 'pending' ? "bg-red-50 text-red-600 border-red-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                          orderStatus === 'pending' ? "bg-red-50 text-red-600 border-red-100" : "bg-blue-50 text-blue-600 border-blue-100"
                         )}>
-                          {order.order_status}
+                          {orderStatus}
                         </span>
                       </div>
                       <p className="text-[10px] font-bold text-slate-800 mt-1 uppercase">{order.customer_name}</p>
@@ -112,13 +116,13 @@ export default function OnlineOrderView({ orders, fetchInitialData }) {
                   </div>
 
                   <div className="flex gap-2">
-                    {order.order_status === 'pending' && (
+                    {orderStatus === 'pending' && (
                       <button onClick={() => updateStatus(order.id, 'confirmed')} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-[9px] font-black uppercase shadow-lg shadow-blue-100">Confirm Order</button>
                     )}
-                    {order.order_status === 'confirmed' && (
+                    {orderStatus === 'confirmed' && (
                       <button onClick={() => updateStatus(order.id, 'packed')} className="flex-1 bg-purple-600 text-white py-2 rounded-lg text-[9px] font-black uppercase shadow-lg shadow-purple-100">Mark as Packed</button>
                     )}
-                    {order.order_status === 'packed' && (
+                    {orderStatus === 'packed' && (
                       <button onClick={() => updateStatus(order.id, 'out_for_delivery')} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg text-[9px] font-black uppercase shadow-lg shadow-emerald-100">Send for Delivery</button>
                     )}
                     <button className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:text-blue-600 transition-colors border border-slate-100">
@@ -132,7 +136,8 @@ export default function OnlineOrderView({ orders, fetchInitialData }) {
                     </button>
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

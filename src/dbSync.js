@@ -911,6 +911,9 @@ export const dbSync = {
 
       const now = new Date().toISOString();
       const updatePayload = { ...payload, updated_at: payload.updated_at || now };
+      if (tableName === DB_SCHEMA.ORDERS?.table && updatePayload.order_status) {
+        updatePayload.status = updatePayload.order_status;
+      }
       const finalPayload = injectTenantIntoRecord(updatePayload, schemaEntry, tenantId, companyCode);
 
       let updateRequest = supabase.from(tableName).update(finalPayload).eq(pkColumn, id);
