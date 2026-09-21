@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { getSupabaseConfig } from './utils/supabaseConfig.js';
 
 const env = import.meta.env || {};
-const realtimeEnabled = env.VITE_SUPABASE_REALTIME_ENABLED !== 'false';
 const config = getSupabaseConfig(env);
+const realtimeEnabled = Boolean(config?.realtimeEnabled ?? false);
 
 const useMock = env.VITE_USE_MOCK === 'true' || env.VITE_USE_MOCK === '1';
 

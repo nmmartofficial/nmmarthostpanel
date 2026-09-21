@@ -24,3 +24,18 @@ test('detects placeholder values', () => {
   });
   assert.equal(config.isConfigured, false);
 });
+
+test('keeps Realtime disabled by default unless explicitly enabled', () => {
+  const defaultConfig = getSupabaseConfig({
+    VITE_SUPABASE_URL: 'https://xyzcompany.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'abcdefghijklmnopqrstuvwxyz1234567890abcd'
+  });
+  assert.equal(defaultConfig.realtimeEnabled, false);
+
+  const enabledConfig = getSupabaseConfig({
+    VITE_SUPABASE_URL: 'https://xyzcompany.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'abcdefghijklmnopqrstuvwxyz1234567890abcd',
+    VITE_SUPABASE_REALTIME_ENABLED: 'true'
+  });
+  assert.equal(enabledConfig.realtimeEnabled, true);
+});
