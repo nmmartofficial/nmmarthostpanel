@@ -237,13 +237,29 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const requiredField = fields.find((field) => field.required && (
-      formData[field.name] === undefined || formData[field.name] === null || String(formData[field.name]).trim() === ''
-    ));
-    if (requiredField) {
-      toast.error(`${requiredField.label || requiredField.name} is required`);
-      return;
-    }
+    const requiredField = fields.find((field) => {
+  if (!field.required) return false;
+
+  // Image field: check uploaded file OR existing image URL
+  if (field.type === 'image') {
+    const imageFile = formData[`${field.name}_file`];
+    const imageUrl = formData[field.name];
+
+    return !imageFile && (!imageUrl || String(imageUrl).trim() === '');
+  }
+
+  // Normal fields
+  return (
+    formData[field.name] === undefined ||
+    formData[field.name] === null ||
+    String(formData[field.name]).trim() === ''
+  );
+});
+
+if (requiredField) {
+  toast.error(`${requiredField.label || requiredField.name} is required`);
+  return;
+}
 
     const numericError = fields.find((field) => field.type === 'number' && formData[field.name] !== undefined && formData[field.name] !== '' && !Number.isFinite(Number(formData[field.name])));
     if (numericError) {
