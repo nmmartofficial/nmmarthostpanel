@@ -680,7 +680,12 @@ export default function ProductsView({ products = [], categories = [], brands = 
         narration: formData.narration,
         narration2: formData.narration2,
         item_status: formData.itemstatus || formData.item_status || 'Active',
-        itemstatus: formData.itemstatus || formData.item_status || 'Active',
+        itemstatus:
+  typeof formData.itemstatus === "number"
+    ? formData.itemstatus
+    : String(formData.itemstatus ?? "").toLowerCase() === "active"
+      ? 1
+      : 0,
         category_id: finalCategoryId,
         subcategory_id: finalSubcategoryId,
         brand_id: finalBrandId
