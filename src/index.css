@@ -132,6 +132,18 @@ body {
   @apply bg-gray-400 dark:bg-gray-600;
 }
 
+/* Hide number input spinners (Up/Down arrows) for clean, text-style numeric input */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Print Styles for Thermal Printer Auto-Cut */
 @media print {
   @page {

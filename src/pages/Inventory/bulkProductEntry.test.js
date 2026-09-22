@@ -31,11 +31,24 @@ test('Unknown barcode scanning logs to unknownBarcodes list without auto-creatin
   assert.match(bulkCode, /reason:\s*'Barcode or item name not found in database'/);
 });
 
-test('Current Stock field is clickable and editable via numeric input', () => {
+test('Product Name is editable in the bulk edit table', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
-  assert.match(bulkCode, /Current Stock \(Clickable & Editable\)/);
+  assert.match(bulkCode, /Product Name \(Editable\)/);
+  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'itname',\s*e\.target\.value\)/);
+});
+
+test('Current Stock and Purchase Rate fields are editable numeric inputs', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /Current Stock \(Clickable & Editable, No Spinners via CSS\)/);
   assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'stock',\s*e\.target\.value\)/);
-  assert.match(bulkCode, /placeholder="0"/);
+  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'purchase_rate',\s*e\.target\.value\)/);
+});
+
+test('CSS rules hide numeric input spinners for Chrome, Edge, Safari and Firefox', () => {
+  const cssCode = read('src/index.css');
+  assert.match(cssCode, /::-webkit-inner-spin-button/);
+  assert.match(cssCode, /-webkit-appearance:\s*none/);
+  assert.match(cssCode, /-moz-appearance:\s*textfield/);
 });
 
 test('Saving stock change uses canonical atomic stock adjustment without direct unsafe overwrite', () => {

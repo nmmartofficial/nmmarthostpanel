@@ -212,7 +212,8 @@ export default function BulkProductEntry({
           category_id: product.category_id || '',
           subcategory_id: product.subcategory_id || '',
           image_url: product.picture || product.image_url || '',
-          stock: stock
+          stock: stock,
+          name: product.itname || product.name || ''
         }
       };
 
@@ -290,6 +291,10 @@ export default function BulkProductEntry({
       const updated = { ...item, [field]: value };
 
       // Sync dual column names
+      if (field === 'itname' || field === 'name') {
+        updated.itname = value;
+        updated.name = value;
+      }
       if (field === 'mrp') updated.mrp = value === '' ? '' : (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
       if (field === 'sale_rate' || field === 'onlinerate') {
         const val = value === '' ? '' : (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
@@ -487,6 +492,7 @@ export default function BulkProductEntry({
     let totalScans = 0;
     let changedCount = 0;
     let imagesChangedCount = 0;
+    let nameChanges = 0;
     let mrpChanges = 0;
     let purchaseChanges = 0;
     let saleChanges = 0;
@@ -502,6 +508,8 @@ export default function BulkProductEntry({
       totalScans += (item.scan_count || 1);
       const orig = item._original || {};
 
+      const currentName = String(item.itname || item.name || '').trim();
+      const origName = String(orig.name || '').trim();
       const currentMrp = parseFloat(item.mrp) || 0;
       const currentSale = parseFloat(item.sale_rate) || 0;
       const currentPurc = parseFloat(item.purchase_rate) || 0;
@@ -510,6 +518,7 @@ export default function BulkProductEntry({
       const currentStock = item.stock === '' ? 0 : (parseFloat(item.stock) || 0);
       const origStock = parseFloat(orig.stock) || 0;
 
+      const isNameChanged = currentName !== origName;
       const isMrpChanged = currentMrp !== (parseFloat(orig.mrp) || 0);
       const isPurchaseChanged = currentPurc !== (parseFloat(orig.purchaseRate) || 0);
       const isSaleChanged = currentSale !== (parseFloat(orig.saleRate) || 0);
@@ -522,6 +531,7 @@ export default function BulkProductEntry({
       const isImageChanged = Boolean(item.new_image_file || (item.image_url !== orig.image_url));
       const isStockChanged = Math.abs(currentStock - origStock) > 0.0001;
 
+      if (isNameChanged) nameChanges++;
       if (isMrpChanged) mrpChanges++;
       if (isPurchaseChanged) purchaseChanges++;
       if (isSaleChanged) saleChanges++;
@@ -532,7 +542,7 @@ export default function BulkProductEntry({
       if (isImageChanged) imagesChangedCount++;
       if (isStockChanged) stockChanges++;
 
-      if (isMrpChanged || isPurchaseChanged || isSaleChanged || isDiscountChanged || isHsnChanged || isGstChanged || isBrandChanged || isCategoryChanged || isSubcategoryChanged || isImageChanged || isStockChanged) {
+      if (isNameChanged || isMrpChanged || isPurchaseChanged || isSaleChanged || isDiscountChanged || isHsnChanged || isGstChanged || isBrandChanged || isCategoryChanged || isSubcategoryChanged || isImageChanged || isStockChanged) {
         changedCount++;
       }
 
@@ -550,6 +560,7 @@ export default function BulkProductEntry({
       totalScans,
       changedCount,
       imagesChangedCount,
+      nameChanges,
       mrpChanges,
       purchaseChanges,
       saleChanges,
@@ -928,7 +939,7 @@ export default function BulkProductEntry({
             <thead className="sticky top-0 z-10 bg-slate-100 shadow-sm">
               <tr className="border-b border-slate-200 text-slate-700">
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-12 text-center">S.No</th>
-                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest min-w-[180px]">Product Name</th>
+                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest min-w-[200px]">Product Name</th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-28">Barcode</th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-36">Brand</th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-36">Category</th>
@@ -983,11 +994,18 @@ export default function BulkProductEntry({
                         {idx + 1}
                       </td>
 
-                      {/* Product Name (Read-Only) */}
-                      <td className="px-3 py-2">
-                        <p className="text-[10px] font-black text-slate-800 uppercase tracking-tight line-clamp-2">
-                          {item.itname || item.name}
-                        </p>
+                      {/* Product Name (Editable) */}
+                      <td className="px-2 py-2">
+                        <input
+                          type="text"
+                          value={item.itname || item.name || ''}
+                          onChange={(e) => {
+                            handleItemFieldChange(item.id, 'itname', e.target.value);
+                            handleItemFieldChange(item.id, 'name', e.target.value);
+                          }}
+                          className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-[10px] font-black uppercase text-slate-800 outline-none focus:border-blue-500 focus:bg-white transition-colors"
+                          placeholder="Product Name"
+                        />
                       </td>
 
                       {/* Barcode (Read-Only) */}
@@ -1128,7 +1146,7 @@ export default function BulkProductEntry({
                         />
                       </td>
 
-                      {/* Current Stock (Clickable & Editable) */}
+                      {/* Current Stock (Clickable & Editable, No Spinners via CSS) */}
                       <td className="px-2 py-2 bg-blue-50/20">
                         <div className="flex items-center gap-1">
                           <input
@@ -1258,6 +1276,7 @@ export default function BulkProductEntry({
                 <div className="bg-slate-50 p-4 rounded-xl space-y-2 border border-slate-200 text-xs">
                   <p className="font-black text-slate-700 uppercase tracking-wider mb-2 text-[10px]">Change Breakdown:</p>
                   <div className="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-600">
+                    <div>• Name Updates: <span className="font-black text-slate-800">{sessionStats.nameChanges}</span></div>
                     <div>• MRP Updates: <span className="font-black text-slate-800">{sessionStats.mrpChanges}</span></div>
                     <div>• Purchase Rate Updates: <span className="font-black text-slate-800">{sessionStats.purchaseChanges}</span></div>
                     <div>• Sale Rate Updates: <span className="font-black text-slate-800">{sessionStats.saleChanges}</span></div>
