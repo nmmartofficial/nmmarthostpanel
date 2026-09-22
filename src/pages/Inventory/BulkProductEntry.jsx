@@ -698,31 +698,69 @@ export default function BulkProductEntry({
               updated_at: new Date().toISOString()
             };
 
-            if (import.meta.env.DEV) {
-              console.log(`[Bulk Entry Save Log] Updating Product Master id=${item.id}:`, {
-                id: item.id,
-                barcode: item.barcode,
-                name: updatePayload.name,
-                purchase_rate: updatePayload.purchase_rate,
-                sale_rate: updatePayload.sale_rate,
-                mrp: updatePayload.mrp,
-                stockDiff
-              });
-            }
+            // STEP 2: LOG ACTUAL WRITE REQUEST
+            console.log(`[BULK SAVE] UPDATE REQUEST`, {
+              productId: item.id,
+              barcode: item.barcode,
+              updatePayload
+            });
 
             const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, updatePayload);
 
+            // STEP 2: LOG SUPABASE UPDATE RESPONSE
+            console.log(`[BULK SAVE] SUPABASE UPDATE RESPONSE`, {
+              status: res?.success ? 200 : 400,
+              statusText: res?.success ? 'OK' : 'Error',
+              error: res?.error || null,
+              returnedRowCount: res?.data ? 1 : 0,
+              returnedData: res?.data || null
+            });
+
             if (!res?.success) {
               const errMsg = res?.error || res?.details || 'Database product master update failed';
-              console.error(`[Bulk Entry Save Error] Master update failed for id=${item.id}:`, res);
+              console.error(`[BULK SAVE ERROR] Master update failed for product ID ${item.id}:`, res);
               throw new Error(`Product Master Update Failed: ${errMsg}`);
             }
 
-            if (!res.data) {
-              console.error(`[Bulk Entry Save Error] Master update returned 0 rows for id=${item.id}:`, res);
-              throw new Error(`Product Master Update Failed: Database updated 0 rows for ID ${item.id}. Check tenant permissions or ID.`);
+            if (!res?.data) {
+              console.error(`[BULK SAVE ERROR] Master update returned 0 rows for product ID ${item.id}:`, res);
+              throw new Error(`Product Master Update Failed: Database updated 0 rows for ID ${item.id}. Check tenant context or ID.`);
             }
 
+            // STEP 3: FRESH DATABASE VERIFICATION (Direct SELECT re-fetch)
+            const freshVerify = await dbSync.fetch(DB_SCHEMA.PRODUCTS.table, {
+              eq: { column: 'id', value: item.id }
+            });
+            const freshProd = Array.isArray(freshVerify) ? freshVerify[0] : freshVerify;
+
+            console.log(`[BULK SAVE] FRESH DATABASE VERIFICATION`, {
+              productId: item.id,
+              savedName: freshProd?.name,
+              savedItname: freshProd?.itname,
+              savedPurchaseRate: freshProd?.purchase_rate,
+              savedSaleRate: freshProd?.sale_rate,
+              savedMrp: freshProd?.mrp,
+              updatedAt: freshProd?.updated_at
+            });
+
+            if (!freshProd) {
+              throw new Error(`Database verification failed: Product ID ${item.id} not found in database after update.`);
+            }
+
+            const isNameVerified = freshProd.name === updatePayload.name && freshProd.itname === updatePayload.itname;
+            const isPurcVerified = Math.abs((freshProd.purchase_rate || 0) - updatePayload.purchase_rate) < 0.001;
+
+            if (!isNameVerified || !isPurcVerified) {
+              console.error('[BULK SAVE VERIFICATION MISMATCH]', {
+                expectedName: updatePayload.name,
+                actualName: freshProd.name,
+                expectedPurc: updatePayload.purchase_rate,
+                actualPurc: freshProd.purchase_rate
+              });
+              throw new Error(`Database verification failed: Product ID ${item.id} in Supabase still contains un-updated values.`);
+            }
+
+            // SUCCESS CONDITION ONLY MET AFTER ACTUAL DATABASE VERIFICATION
             successCount++;
           } catch (itemErr) {
             console.error(`Failed to update barcode ${item.barcode}:`, itemErr);
