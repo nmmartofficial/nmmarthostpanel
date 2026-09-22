@@ -56,6 +56,7 @@ export default function BulkProductEntry({
   const [isSaving, setIsProcessing] = useState(false);
   const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
   const [failedItems, setFailedItems] = useState([]);
+  const [showFailedDrawer, setShowFailedDrawer] = useState(false);
   const [replaceBlankExcelValues, setReplaceBlankValues] = useState(false);
   const [showUnknownDrawer, setShowUnknownDrawer] = useState(false);
   const [showUnmatchedImagesDrawer, setShowUnmatchedImagesDrawer] = useState(false);
@@ -516,7 +517,7 @@ export default function BulkProductEntry({
       const currentDisc = parseFloat(item.discount_percent) || 0;
       const currentGst = parseFloat(item.gst_percent) || 0;
       const currentStock = item.stock === '' ? 0 : (parseFloat(item.stock) || 0);
-      const origStock = parseFloat(orig.stock) || 0;
+      const origStock = (orig.stock !== undefined && orig.stock !== null) ? (parseFloat(orig.stock) || 0) : currentStock;
 
       const isNameChanged = currentName !== origName;
       const isMrpChanged = currentMrp !== (parseFloat(orig.mrp) || 0);
@@ -632,7 +633,10 @@ export default function BulkProductEntry({
             }
 
             // 2) Handle Canonical Atomic Stock Adjustment IF stock value actually changed
-            const origStock = parseFloat(item._original?.stock) || 0;
+            const origStock = (item._original && item._original.stock !== undefined && item._original.stock !== null)
+              ? (parseFloat(item._original.stock) || 0)
+              : (parseFloat(item.stock) || 0);
+
             const currentStock = parseFloat(item.stock) || 0;
             const stockDiff = currentStock - origStock;
 
@@ -646,7 +650,9 @@ export default function BulkProductEntry({
               });
 
               if (!stockRes?.success) {
-                throw new Error(`Stock Adjustment Failed: ${stockRes?.error || 'Atomic stock transaction failed'}`);
+                console.warn(`[Bulk Entry Save Warning] Atomic stock adjustment returned error for product ${item.barcode || item.id}:`, stockRes?.error);
+                // Capture exact RPC error message
+                throw new Error(`Stock Adjustment Failed (RPC): ${stockRes?.error || 'Atomic inventory transaction rejected'}`);
               }
             }
 
@@ -674,10 +680,29 @@ export default function BulkProductEntry({
               updated_at: new Date().toISOString()
             };
 
+            if (import.meta.env.DEV) {
+              console.log(`[Bulk Entry Save Log] Updating Product Master id=${item.id}:`, {
+                id: item.id,
+                barcode: item.barcode,
+                name: updatePayload.name,
+                purchase_rate: updatePayload.purchase_rate,
+                sale_rate: updatePayload.sale_rate,
+                mrp: updatePayload.mrp,
+                stockDiff
+              });
+            }
+
             const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, updatePayload);
 
             if (!res?.success) {
-              throw new Error(res?.error || 'Database product master update failed');
+              const errMsg = res?.error || res?.details || 'Database product master update failed';
+              console.error(`[Bulk Entry Save Error] Master update failed for id=${item.id}:`, res);
+              throw new Error(`Product Master Update Failed: ${errMsg}`);
+            }
+
+            if (!res.data) {
+              console.error(`[Bulk Entry Save Error] Master update returned 0 rows for id=${item.id}:`, res);
+              throw new Error(`Product Master Update Failed: Database updated 0 rows for ID ${item.id}. Check tenant permissions or ID.`);
             }
 
             successCount++;
@@ -686,9 +711,9 @@ export default function BulkProductEntry({
             failedList.push({
               barcode: item.barcode || 'N/A',
               name: item.itname || item.name || 'Unnamed Item',
-              error: itemErr.message || 'Update failed'
+              error: itemErr.message || itemErr.details || String(itemErr)
             });
-          } finally {
+          } fontally: {
             setSaveProgress(prev => ({ ...prev, current: prev.current + 1 }));
           }
         }
@@ -704,6 +729,7 @@ export default function BulkProductEntry({
       } else {
         // Partial Failures
         setFailedItems(failedList);
+        setShowFailedDrawer(true);
         toast.warning(`Updated ${successCount} products. ${failedList.length} products failed.`);
         // Remove succeeded items from session, keep failed items for retry
         const failedBarcodes = new Set(failedList.map(f => f.barcode));
@@ -976,7 +1002,9 @@ export default function BulkProductEntry({
                   const isHighlighted = highlightedBarcodes.has(String(item.barcode).trim());
                   const hasRatesError = item.sale_rate > item.mrp && item.mrp > 0;
                   const currentStockVal = item.stock === '' ? 0 : (parseFloat(item.stock) || 0);
-                  const origStockVal = parseFloat(item._original?.stock) || 0;
+                  const origStockVal = (item._original && item._original.stock !== undefined && item._original.stock !== null)
+                    ? (parseFloat(item._original.stock) || 0)
+                    : currentStockVal;
                   const isStockModified = Math.abs(currentStockVal - origStockVal) > 0.0001;
                   const hasStockError = currentStockVal < 0 || isNaN(currentStockVal);
 
@@ -1323,6 +1351,58 @@ export default function BulkProductEntry({
                 >
                   {isSaving ? <RefreshCw className="animate-spin" size={14} /> : <CheckCircle2 size={16} />}
                   Confirm &amp; Update Database
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Failed Items Drawer */}
+      <AnimatePresence>
+        {showFailedDrawer && failedItems.length > 0 && (
+          <div className="fixed inset-0 z-[400] flex justify-end bg-slate-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              className="w-full max-w-lg bg-white h-full shadow-2xl flex flex-col"
+            >
+              <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-red-50">
+                <h3 className="text-xs font-black text-red-800 uppercase tracking-widest flex items-center gap-2">
+                  <AlertTriangle size={16} className="text-red-600" />
+                  Failed Item Updates Log ({failedItems.length})
+                </h3>
+                <button onClick={() => setShowFailedDrawer(false)} className="p-1 hover:bg-red-100 rounded text-red-700">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex-1 p-4 overflow-y-auto space-y-3 divide-y divide-slate-100">
+                {failedItems.map((item, idx) => (
+                  <div key={idx} className="pt-3 space-y-1">
+                    <div className="flex justify-between items-start">
+                      <p className="text-xs font-black text-slate-800 uppercase">{item.name}</p>
+                      <span className="text-[9px] bg-red-100 text-red-700 font-mono font-black px-2 py-0.5 rounded">
+                        {item.barcode}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-red-600 font-bold bg-red-50 p-2 rounded border border-red-100">
+                      Reason: {item.error}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 border-t border-slate-200 bg-slate-50 space-y-2">
+                <p className="text-[10px] text-slate-500 font-bold">
+                  Note: Failed items remain in your Bulk Entry session. You can review the error reasons, make corrections, and click "SAVE ALL" again to retry.
+                </p>
+                <button
+                  onClick={() => setShowFailedDrawer(false)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  Review &amp; Retry Failed Items
                 </button>
               </div>
             </motion.div>
