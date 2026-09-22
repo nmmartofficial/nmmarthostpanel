@@ -31,6 +31,20 @@ test('Unknown barcode scanning logs to unknownBarcodes list without auto-creatin
   assert.match(bulkCode, /reason:\s*'Barcode or item name not found in database'/);
 });
 
+test('Current Stock field is clickable and editable via numeric input', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /Current Stock \(Clickable & Editable\)/);
+  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'stock',\s*e\.target\.value\)/);
+  assert.match(bulkCode, /placeholder="0"/);
+});
+
+test('Saving stock change uses canonical atomic stock adjustment without direct unsafe overwrite', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /ACTION_TYPES\.ADJUST_STOCK/);
+  assert.match(bulkCode, /change_qty:\s*stockDiff/);
+  assert.match(bulkCode, /Stock Adjustments \(RPC\)/);
+});
+
 test('Bulk image matching matches barcode filenames like 8901030904554.jpg to products in session', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /handleBulkImageMatch/);

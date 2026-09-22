@@ -664,7 +664,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
         itc: categoryNameToUse,
         department_code: formData.dtcode || formData.department_code,
         dtcode: formData.dtcode || formData.department_code,
-        kcode: formData.kcode || formData.k_code,
+        k_code: formData.kcode || formData.k_code,
         kcode: formData.kcode || formData.k_code,
         brand_code: brandNameToUse,
         brand_name: brandNameToUse,

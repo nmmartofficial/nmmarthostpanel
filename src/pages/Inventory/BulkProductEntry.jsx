@@ -211,7 +211,8 @@ export default function BulkProductEntry({
           gst, brand_id: product.brand_id || '',
           category_id: product.category_id || '',
           subcategory_id: product.subcategory_id || '',
-          image_url: product.picture || product.image_url || ''
+          image_url: product.picture || product.image_url || '',
+          stock: stock
         }
       };
 
@@ -289,30 +290,35 @@ export default function BulkProductEntry({
       const updated = { ...item, [field]: value };
 
       // Sync dual column names
-      if (field === 'mrp') updated.mrp = parseFloat(value) || 0;
+      if (field === 'mrp') updated.mrp = value === '' ? '' : (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
       if (field === 'sale_rate' || field === 'onlinerate') {
-        const val = parseFloat(value) || 0;
+        const val = value === '' ? '' : (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
         updated.sale_rate = val;
         updated.onlinerate = val;
       }
       if (field === 'purchase_rate' || field === 'purcrate') {
-        const val = parseFloat(value) || 0;
+        const val = value === '' ? '' : (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
         updated.purchase_rate = val;
         updated.purcrate = val;
       }
       if (field === 'discount_percent' || field === 'discperc') {
-        const val = parseFloat(value) || 0;
+        const val = value === '' ? '' : (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
         updated.discount_percent = val;
         updated.discperc = val;
       }
       if (field === 'gst_percent' || field === 'gst') {
-        const val = parseFloat(value) || 0;
+        const val = value === '' ? '' : (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
         updated.gst_percent = val;
         updated.gst = val;
       }
       if (field === 'hsn_code' || field === 'hsncode') {
         updated.hsn_code = value;
         updated.hsncode = value;
+      }
+      if (field === 'stock' || field === 'opstock') {
+        const val = value === '' ? '' : (isNaN(parseFloat(value)) ? 0 : parseFloat(value));
+        updated.stock = val;
+        updated.opstock = val;
       }
 
       return updated;
@@ -417,7 +423,6 @@ export default function BulkProductEntry({
       }
 
       let updatedCount = 0;
-      let addedCount = 0;
 
       parsedRows.forEach(row => {
         const rowBarcode = String(row.barcode || '').trim();
@@ -490,22 +495,32 @@ export default function BulkProductEntry({
     let gstChanges = 0;
     let categoryChanges = 0;
     let brandChanges = 0;
+    let stockChanges = 0;
     let validationErrors = 0;
 
     sessionItems.forEach(item => {
       totalScans += (item.scan_count || 1);
       const orig = item._original || {};
 
-      const isMrpChanged = item.mrp !== orig.mrp;
-      const isPurchaseChanged = item.purchase_rate !== orig.purchaseRate;
-      const isSaleChanged = item.sale_rate !== orig.saleRate;
-      const isDiscountChanged = item.discount_percent !== orig.discount;
+      const currentMrp = parseFloat(item.mrp) || 0;
+      const currentSale = parseFloat(item.sale_rate) || 0;
+      const currentPurc = parseFloat(item.purchase_rate) || 0;
+      const currentDisc = parseFloat(item.discount_percent) || 0;
+      const currentGst = parseFloat(item.gst_percent) || 0;
+      const currentStock = item.stock === '' ? 0 : (parseFloat(item.stock) || 0);
+      const origStock = parseFloat(orig.stock) || 0;
+
+      const isMrpChanged = currentMrp !== (parseFloat(orig.mrp) || 0);
+      const isPurchaseChanged = currentPurc !== (parseFloat(orig.purchaseRate) || 0);
+      const isSaleChanged = currentSale !== (parseFloat(orig.saleRate) || 0);
+      const isDiscountChanged = currentDisc !== (parseFloat(orig.discount) || 0);
       const isHsnChanged = String(item.hsn_code || '').trim() !== String(orig.hsn || '').trim();
-      const isGstChanged = item.gst_percent !== orig.gst;
+      const isGstChanged = currentGst !== (parseFloat(orig.gst) || 0);
       const isBrandChanged = String(item.brand_id || '') !== String(orig.brand_id || '');
       const isCategoryChanged = String(item.category_id || '') !== String(orig.category_id || '');
       const isSubcategoryChanged = String(item.subcategory_id || '') !== String(orig.subcategory_id || '');
       const isImageChanged = Boolean(item.new_image_file || (item.image_url !== orig.image_url));
+      const isStockChanged = Math.abs(currentStock - origStock) > 0.0001;
 
       if (isMrpChanged) mrpChanges++;
       if (isPurchaseChanged) purchaseChanges++;
@@ -515,16 +530,17 @@ export default function BulkProductEntry({
       if (isGstChanged) gstChanges++;
       if (isBrandChanged || isCategoryChanged || isSubcategoryChanged) categoryChanges++;
       if (isImageChanged) imagesChangedCount++;
+      if (isStockChanged) stockChanges++;
 
-      if (isMrpChanged || isPurchaseChanged || isSaleChanged || isDiscountChanged || isHsnChanged || isGstChanged || isBrandChanged || isCategoryChanged || isSubcategoryChanged || isImageChanged) {
+      if (isMrpChanged || isPurchaseChanged || isSaleChanged || isDiscountChanged || isHsnChanged || isGstChanged || isBrandChanged || isCategoryChanged || isSubcategoryChanged || isImageChanged || isStockChanged) {
         changedCount++;
       }
 
       // Validation Checks
-      if (item.sale_rate > item.mrp && item.mrp > 0) {
+      if (currentSale > currentMrp && currentMrp > 0) {
         validationErrors++;
       }
-      if (item.mrp < 0 || item.sale_rate < 0 || item.purchase_rate < 0) {
+      if (currentMrp < 0 || currentSale < 0 || currentPurc < 0 || currentStock < 0 || isNaN(currentStock)) {
         validationErrors++;
       }
     });
@@ -542,6 +558,7 @@ export default function BulkProductEntry({
       gstChanges,
       categoryChanges,
       brandChanges,
+      stockChanges,
       validationErrors,
       unknownCount: unknownBarcodes.length
     };
@@ -576,7 +593,7 @@ export default function BulkProductEntry({
     }
 
     if (sessionStats.validationErrors > 0) {
-      alert(`Cannot Save: ${sessionStats.validationErrors} product(s) have validation errors (e.g. Sale Rate > MRP or negative prices). Please fix highlighted errors first.`);
+      alert(`Cannot Save: ${sessionStats.validationErrors} product(s) have validation errors (e.g. Sale Rate > MRP, negative price, or negative stock). Please fix highlighted errors first.`);
       setShowSavePreview(false);
       return;
     }
@@ -603,7 +620,26 @@ export default function BulkProductEntry({
               if (url) finalImageUrl = url;
             }
 
-            // 2) Build Update Payload (Only write fields)
+            // 2) Handle Canonical Atomic Stock Adjustment IF stock value actually changed
+            const origStock = parseFloat(item._original?.stock) || 0;
+            const currentStock = parseFloat(item.stock) || 0;
+            const stockDiff = currentStock - origStock;
+
+            if (!isNaN(stockDiff) && Math.abs(stockDiff) > 0.0001) {
+              const stockRes = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.ADJUST_STOCK, {
+                product_id: item.id,
+                change_qty: stockDiff,
+                change_type: 'manual',
+                narration: 'Bulk Product Entry Stock Update',
+                reference_number: `BULK-ENTRY-${item.barcode || item.id}`
+              });
+
+              if (!stockRes?.success) {
+                throw new Error(`Stock Adjustment Failed: ${stockRes?.error || 'Atomic stock transaction failed'}`);
+              }
+            }
+
+            // 3) Build Product Master Update Payload (EXCLUDING stock/opstock to prevent direct unsafe overwrite)
             const updatePayload = {
               id: item.id,
               name: item.itname || item.name,
@@ -630,7 +666,7 @@ export default function BulkProductEntry({
             const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, updatePayload);
 
             if (!res?.success) {
-              throw new Error(res?.error || 'Database update failed');
+              throw new Error(res?.error || 'Database product master update failed');
             }
 
             successCount++;
@@ -687,7 +723,7 @@ export default function BulkProductEntry({
               <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase">Scanner-First Workflow</span>
             </h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-              Continuous Scanner & Search Session • Multi-Product Bulk Edits
+              Continuous Scanner &amp; Search Session • Multi-Product Bulk Edits
             </p>
           </div>
         </div>
@@ -888,7 +924,7 @@ export default function BulkProductEntry({
       {/* Main Bulk Edit Table */}
       <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
         <div className="flex-1 overflow-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[1500px]">
+          <table className="w-full text-left border-collapse min-w-[1550px]">
             <thead className="sticky top-0 z-10 bg-slate-100 shadow-sm">
               <tr className="border-b border-slate-200 text-slate-700">
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-12 text-center">S.No</th>
@@ -903,7 +939,7 @@ export default function BulkProductEntry({
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-20">Disc %</th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-24">HSN Code</th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-20">GST %</th>
-                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-20 text-center">Stock</th>
+                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-28 text-center bg-blue-50/60">Current Stock</th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-28 text-center">Image</th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-16 text-center">Scans</th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-12 text-center">Action</th>
@@ -928,6 +964,10 @@ export default function BulkProductEntry({
                 sessionItems.map((item, idx) => {
                   const isHighlighted = highlightedBarcodes.has(String(item.barcode).trim());
                   const hasRatesError = item.sale_rate > item.mrp && item.mrp > 0;
+                  const currentStockVal = item.stock === '' ? 0 : (parseFloat(item.stock) || 0);
+                  const origStockVal = parseFloat(item._original?.stock) || 0;
+                  const isStockModified = Math.abs(currentStockVal - origStockVal) > 0.0001;
+                  const hasStockError = currentStockVal < 0 || isNaN(currentStockVal);
 
                   return (
                     <tr
@@ -935,7 +975,7 @@ export default function BulkProductEntry({
                       className={cn(
                         "hover:bg-slate-50 transition-colors",
                         isHighlighted && "bg-blue-100/90 transition-all duration-300",
-                        hasRatesError && "bg-red-50/60"
+                        (hasRatesError || hasStockError) && "bg-red-50/60"
                       )}
                     >
                       {/* S.No */}
@@ -1088,11 +1128,30 @@ export default function BulkProductEntry({
                         />
                       </td>
 
-                      {/* Current Stock */}
-                      <td className="px-3 py-2 text-center">
-                        <span className="text-[10px] font-black text-slate-700">
-                          {item.stock || 0} {item.unit_name}
-                        </span>
+                      {/* Current Stock (Clickable & Editable) */}
+                      <td className="px-2 py-2 bg-blue-50/20">
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="0.001"
+                            value={item.stock ?? 0}
+                            onChange={(e) => handleItemFieldChange(item.id, 'stock', e.target.value)}
+                            className={cn(
+                              "w-full border rounded px-2 py-1 text-[10px] font-black outline-none focus:border-blue-500 text-right cursor-text transition-colors",
+                              hasStockError
+                                ? "bg-red-100 border-red-400 text-red-800"
+                                : isStockModified
+                                  ? "bg-amber-100 border-amber-400 text-amber-900 font-black shadow-sm"
+                                  : "bg-white border-slate-200 text-slate-800 hover:border-slate-300"
+                            )}
+                            placeholder="0"
+                            title="Click to edit stock (Updates via canonical atomic inventory transaction on Save All)"
+                          />
+                          <span className="text-[8px] font-bold text-slate-400 uppercase flex-shrink-0">{item.unit_name}</span>
+                        </div>
+                        {hasStockError && (
+                          <p className="text-[7px] font-black text-red-600 uppercase mt-0.5 text-center">Stock &lt; 0</p>
+                        )}
                       </td>
 
                       {/* Image Preview & Upload */}
@@ -1205,6 +1264,7 @@ export default function BulkProductEntry({
                     <div>• Discount % Updates: <span className="font-black text-slate-800">{sessionStats.discountChanges}</span></div>
                     <div>• HSN Code Updates: <span className="font-black text-slate-800">{sessionStats.hsnChanges}</span></div>
                     <div>• GST % Updates: <span className="font-black text-slate-800">{sessionStats.gstChanges}</span></div>
+                    <div>• Stock Adjustments (RPC): <span className="font-black text-amber-700">{sessionStats.stockChanges}</span></div>
                     <div>• Category/Brand Updates: <span className="font-black text-slate-800">{sessionStats.categoryChanges}</span></div>
                     <div>• Unknown Barcodes Logged: <span className="font-black text-red-600">{sessionStats.unknownCount}</span></div>
                   </div>
