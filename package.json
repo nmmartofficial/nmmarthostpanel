@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/utils/security.test.js src/utils/fetchControl.test.js src/utils/activeFilter.test.js src/utils/authState.test.js src/utils/supabaseConfig.test.js src/features/pos/productionAudit.test.js",
+    "test": "node --test src/utils/security.test.js src/utils/fetchControl.test.js src/utils/activeFilter.test.js src/utils/authState.test.js src/utils/supabaseConfig.test.js src/features/pos/productionAudit.test.js src/pages/Inventory/bulkProductEntry.test.js",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

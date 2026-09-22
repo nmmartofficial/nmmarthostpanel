@@ -1,7 +1,7 @@
 const env = import.meta.env || {};
 const mockMode = env.VITE_USE_MOCK === 'true' || env.VITE_USE_MOCK === '1';
 
-export const isLocalPosTestMode = mockMode || (env.DEV && env.VITE_LOCAL_POS_TEST_AUTH === 'true');
+export const isLocalPosTestMode = mockMode || (import.meta.env.DEV && env.VITE_LOCAL_POS_TEST_AUTH === 'true');
 export const isLocalPosReadOnlyMode = mockMode || (isLocalPosTestMode && (env.VITE_LOCAL_POS_TEST_READS === 'true' || mockMode));
 
 export const LOCAL_POS_TEST_USER = Object.freeze({

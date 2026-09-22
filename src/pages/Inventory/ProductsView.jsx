@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { 
-  GitBranch, Search, Trash2, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle, Calculator
+  GitBranch, Search, Trash2, Plus, Edit2, X, Upload, RefreshCw, Save, QrCode, Printer, AlertCircle, Calculator, Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn, generateUUID, generateNumericId } from '../../utils/helpers';
@@ -12,6 +12,7 @@ import PaginationFooter from '../../components/PaginationFooter';
 import { ExcelUpload } from '../../components/common';
 import StockAdjustmentDialog from '../../components/StockAdjustmentDialog';
 import PhysicalCountDialog from '../../components/PhysicalCountDialog';
+import BulkProductEntry from './BulkProductEntry';
 
 // --- Validation Helpers
 const validatePercent = (value) => {
@@ -172,6 +173,7 @@ const processProductImportData = async (parsedData, brands = []) => {
 };
 
 export default function ProductsView({ products = [], categories = [], brands = [], subcategories = [], filter, uploadImage, fetchInitialData, setLoading }) {
+  const [isBulkMode, setIsBulkMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({});
@@ -810,6 +812,20 @@ export default function ProductsView({ products = [], categories = [], brands = 
     }
   };
 
+  if (isBulkMode) {
+    return (
+      <BulkProductEntry
+        products={products}
+        categories={categories}
+        brands={brands}
+        subcategories={subcategories}
+        uploadImage={uploadImage}
+        fetchInitialData={fetchInitialData}
+        onClose={() => setIsBulkMode(false)}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col space-y-4">
       {/* Header matching Screenshot 1 */}
@@ -928,6 +944,14 @@ export default function ProductsView({ products = [], categories = [], brands = 
             className="flex-1 md:flex-none bg-red-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-md border-none"
           >
             <Trash2 size={14} /> DELETE ALL
+          </button>
+
+          <button
+            onClick={() => setIsBulkMode(true)}
+            className="flex-1 md:flex-none bg-blue-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+            title="Open Scanner-First Bulk Entry Mode"
+          >
+            <Zap size={14} /> BULK ENTRY
           </button>
 
           <ExcelUpload 
