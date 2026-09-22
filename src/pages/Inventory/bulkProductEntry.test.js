@@ -44,6 +44,19 @@ test('Current Stock and Purchase Rate fields are editable numeric inputs', () =>
   assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'purchase_rate',\s*e\.target\.value\)/);
 });
 
+test('Subcategory dropdown options load using normalized category ID resolution', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /resolveCatId/);
+  assert.match(bulkCode, /No Subcategories Available/);
+  assert.match(bulkCode, /String\(s\.category_id\)\.trim\(\)\s*===\s*String\(activeCatId\)\.trim\(\)/);
+});
+
+test('Category change clears old invalid subcategory_id and subcategory_name', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /validSubcats/);
+  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'subcategory_id',\s*''\)/);
+});
+
 test('CSS rules hide numeric input spinners for Chrome, Edge, Safari and Firefox', () => {
   const cssCode = read('src/index.css');
   assert.match(cssCode, /::-webkit-inner-spin-button/);

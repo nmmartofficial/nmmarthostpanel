@@ -61,6 +61,24 @@ export default function BulkProductEntry({
   const [showUnknownDrawer, setShowUnknownDrawer] = useState(false);
   const [showUnmatchedImagesDrawer, setShowUnmatchedImagesDrawer] = useState(false);
 
+  // --- Category ID Resolution Helper ---
+  const resolveCatId = useCallback((row) => {
+    if (!row) return '';
+    if (!row.category_id && !row.category_name) return '';
+
+    // Direct ID match
+    const directCat = categories.find(c => String(c.id).trim() === String(row.category_id).trim());
+    if (directCat) return String(directCat.id);
+
+    // Name match (if category_id or category_name stores text name)
+    const nameCat = categories.find(c =>
+      String(c.name || '').trim().toLowerCase() === String(row.category_id || row.category_name || '').trim().toLowerCase()
+    );
+    if (nameCat) return String(nameCat.id);
+
+    return String(row.category_id || '');
+  }, [categories]);
+
   // --- Persist Session to LocalStorage ---
   useEffect(() => {
     try {
@@ -713,7 +731,7 @@ export default function BulkProductEntry({
               name: item.itname || item.name || 'Unnamed Item',
               error: itemErr.message || itemErr.details || String(itemErr)
             });
-          } fontally: {
+          } finally {
             setSaveProgress(prev => ({ ...prev, current: prev.current + 1 }));
           }
         }
@@ -1008,6 +1026,8 @@ export default function BulkProductEntry({
                   const isStockModified = Math.abs(currentStockVal - origStockVal) > 0.0001;
                   const hasStockError = currentStockVal < 0 || isNaN(currentStockVal);
 
+                  const activeCatId = resolveCatId(item);
+
                   return (
                     <tr
                       key={item.id}
@@ -1065,12 +1085,20 @@ export default function BulkProductEntry({
                       {/* Category Select */}
                       <td className="px-2 py-2">
                         <select
-                          value={String(item.category_id || '')}
+                          value={String(activeCatId || '')}
                           onChange={(e) => {
                             const cId = e.target.value;
                             const cName = categories.find(c => String(c.id) === cId)?.name || '';
                             handleItemFieldChange(item.id, 'category_id', cId);
                             handleItemFieldChange(item.id, 'category_name', cName);
+
+                            // Instantly clear subcategory if it does not belong to the newly selected category
+                            const validSubcats = subcategories.filter(s => String(s.category_id).trim() === String(cId).trim());
+                            const isStillValid = validSubcats.some(s => String(s.id).trim() === String(item.subcategory_id).trim());
+                            if (!isStillValid) {
+                              handleItemFieldChange(item.id, 'subcategory_id', '');
+                              handleItemFieldChange(item.id, 'subcategory_name', '');
+                            }
                           }}
                           className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-[10px] font-bold outline-none focus:border-blue-500"
                         >
@@ -1083,24 +1111,36 @@ export default function BulkProductEntry({
 
                       {/* Subcategory Select */}
                       <td className="px-2 py-2">
-                        <select
-                          value={String(item.subcategory_id || '')}
-                          onChange={(e) => {
-                            const scId = e.target.value;
-                            const scName = subcategories.find(s => String(s.id) === scId)?.name || '';
-                            handleItemFieldChange(item.id, 'subcategory_id', scId);
-                            handleItemFieldChange(item.id, 'subcategory_name', scName);
-                          }}
-                          className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-[10px] font-bold outline-none focus:border-blue-500"
-                        >
-                          <option value="">Select Subcat</option>
-                          {(subcategories || [])
-                            .filter(s => !item.category_id || Number(s.category_id) === Number(item.category_id))
-                            .map(s => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))
-                          }
-                        </select>
+                        {(() => {
+                          const rowSubcategories = subcategories.filter(s => {
+                            if (!activeCatId) return true;
+                            return String(s.category_id).trim() === String(activeCatId).trim();
+                          });
+
+                          return (
+                            <select
+                              value={String(item.subcategory_id || '')}
+                              onChange={(e) => {
+                                const scId = e.target.value;
+                                const scMatch = subcategories.find(s => String(s.id) === scId);
+                                handleItemFieldChange(item.id, 'subcategory_id', scId);
+                                handleItemFieldChange(item.id, 'subcategory_name', scMatch?.name || '');
+                              }}
+                              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-[10px] font-bold outline-none focus:border-blue-500"
+                            >
+                              {rowSubcategories.length === 0 ? (
+                                <option value="">No Subcategories Available</option>
+                              ) : (
+                                <>
+                                  <option value="">Select Subcat</option>
+                                  {rowSubcategories.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </>
+                              )}
+                            </select>
+                          );
+                        })()}
                       </td>
 
                       {/* MRP */}
