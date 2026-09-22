@@ -734,8 +734,8 @@ export const dbSync = {
   },
 
   insert: async (tableName, payload) => {
-    if (isLocalPosTestMode) {
-      throw new Error('Local POS Test Mode - live writes are disabled.');
+    if (isLocalPosTestMode && (tableName === DB_SCHEMA.ORDERS?.table || tableName === DB_SCHEMA.ORDER_ITEMS?.table)) {
+      throw new Error('Local POS Test Mode - live writes are disabled for POS checkout orders.');
     }
 
     try {
@@ -899,7 +899,7 @@ export const dbSync = {
   },
 
   update: async (tableName, id, payload) => {
-    if (isLocalPosTestMode) {
+    if (isLocalPosTestMode && tableName === DB_SCHEMA.ORDERS?.table) {
       throw new Error('Local POS Test Mode - live writes are disabled.');
     }
 
@@ -945,7 +945,7 @@ export const dbSync = {
   },
 
   executeAtomic: async (functionName, payload, tableName = 'orders', action = 'ATOMIC_OPERATION') => {
-    if (isLocalPosTestMode) {
+    if (isLocalPosTestMode && functionName === 'place_order_atomic') {
       throw new Error('Local POS Test Mode - live atomic mutations are disabled.');
     }
 
