@@ -193,16 +193,20 @@ export default function BulkProductEntry({
       const gst = parseFloat(product.gst ?? product.gst_percent) || 0;
       const stock = parseFloat(product.opstock ?? product.stock) || 0;
 
+      // Clean image URL from invalid "products/null"
+      const rawImg = String(product.picture || product.image_url || '').trim();
+      const cleanImg = rawImg.includes('/products/null') ? '' : rawImg;
+
       const newItem = {
         id: product.id,
         itname: product.itname || product.name || '',
         name: product.itname || product.name || '',
         barcode: product.barcode || '',
-        brand_id: product.brand_id || '',
+        brand_id: product.brand_id ?? '',
         brand_name: product.brand_name || product.brandcode || '',
-        category_id: product.category_id || '',
+        category_id: product.category_id ?? '',
         category_name: product.category_name || product.itc || '',
-        subcategory_id: product.subcategory_id || '',
+        subcategory_id: product.subcategory_id ?? '',
         subcategory_name: product.subcategory_name || product.dtcode || '',
         mrp: mrp,
         purchase_rate: purchaseRate,
@@ -218,19 +222,20 @@ export default function BulkProductEntry({
         stock: stock,
         opstock: stock,
         unit_name: product.unitcode || product.unit_name || 'Nos',
-        image_url: product.picture || product.image_url || '',
-        picture: product.picture || product.image_url || '',
+        image_url: cleanImg,
+        picture: cleanImg,
         new_image_file: null,
         new_image_preview: null,
         scan_count: 1,
-        // Original references for detecting changes
+        // Original references for detecting changes & preserving unchanged fields
         _original: {
           mrp, purchaseRate, saleRate, discount,
           hsn: product.hsncode || product.hsn_code || '',
-          gst, brand_id: product.brand_id || '',
-          category_id: product.category_id || '',
-          subcategory_id: product.subcategory_id || '',
-          image_url: product.picture || product.image_url || '',
+          gst,
+          brand_id: product.brand_id ?? null,
+          category_id: product.category_id ?? null,
+          subcategory_id: product.subcategory_id ?? null,
+          image_url: cleanImg,
           stock: stock,
           name: product.itname || product.name || ''
         }
@@ -641,14 +646,42 @@ export default function BulkProductEntry({
 
         for (const item of batch) {
           try {
-            let finalImageUrl = item.image_url || item.picture || null;
-
-            // 1) Handle Image Upload if new file is selected
+            // SAFE IMAGE URL RESOLUTION: Preserve original image if unchanged / unedited
+            let finalImageUrl = item._original?.image_url || null;
             if (item.new_image_file) {
               const { url, error: uploadErr } = await uploadImage(item.new_image_file, 'products');
               if (uploadErr) throw new Error(`Image Upload Failed: ${uploadErr}`);
               if (url) finalImageUrl = url;
+            } else if (item.image_url !== undefined && item.image_url !== null) {
+              finalImageUrl = item.image_url;
             }
+            if (typeof finalImageUrl === 'string' && finalImageUrl.includes('/products/null')) {
+              finalImageUrl = item._original?.image_url || null;
+            }
+
+            // SAFE BRAND ID RESOLUTION: Preserve original if unchanged
+            const resolveBrandId = () => {
+              if (item.brand_id === '' || item.brand_id === null || item.brand_id === undefined) {
+                return item._original?.brand_id ? Number(item._original.brand_id) : null;
+              }
+              return Number(item.brand_id) || null;
+            };
+
+            // SAFE CATEGORY ID RESOLUTION: Preserve original if unchanged
+            const resolveCategoryId = () => {
+              if (item.category_id === '' || item.category_id === null || item.category_id === undefined) {
+                return item._original?.category_id ? Number(item._original.category_id) : null;
+              }
+              return Number(item.category_id) || null;
+            };
+
+            // SAFE SUBCATEGORY ID RESOLUTION: Preserve original if unchanged
+            const resolveSubcategoryId = () => {
+              if (item.subcategory_id === '' || item.subcategory_id === null || item.subcategory_id === undefined) {
+                return item._original?.subcategory_id ? Number(item._original.subcategory_id) : null;
+              }
+              return Number(item.subcategory_id) || null;
+            };
 
             // 2) Handle Canonical Atomic Stock Adjustment IF stock value actually changed
             const origStock = (item._original && item._original.stock !== undefined && item._original.stock !== null)
@@ -669,7 +702,6 @@ export default function BulkProductEntry({
 
               if (!stockRes?.success) {
                 console.warn(`[Bulk Entry Save Warning] Atomic stock adjustment returned error for product ${item.barcode || item.id}:`, stockRes?.error);
-                // Capture exact RPC error message
                 throw new Error(`Stock Adjustment Failed (RPC): ${stockRes?.error || 'Atomic inventory transaction rejected'}`);
               }
             }
@@ -690,9 +722,9 @@ export default function BulkProductEntry({
               hsncode: item.hsn_code || item.hsncode || '',
               gst_percent: parseFloat(item.gst_percent) || 0,
               gst: parseFloat(item.gst_percent) || 0,
-              brand_id: item.brand_id ? Number(item.brand_id) : null,
-              category_id: item.category_id ? Number(item.category_id) : null,
-              subcategory_id: item.subcategory_id ? Number(item.subcategory_id) : null,
+              brand_id: resolveBrandId(),
+              category_id: resolveCategoryId(),
+              subcategory_id: resolveSubcategoryId(),
               image_url: finalImageUrl,
               picture: finalImageUrl,
               updated_at: new Date().toISOString()
@@ -740,6 +772,10 @@ export default function BulkProductEntry({
               savedPurchaseRate: freshProd?.purchase_rate,
               savedSaleRate: freshProd?.sale_rate,
               savedMrp: freshProd?.mrp,
+              savedBrandId: freshProd?.brand_id,
+              savedCategoryId: freshProd?.category_id,
+              savedSubcategoryId: freshProd?.subcategory_id,
+              savedImageUrl: freshProd?.image_url,
               updatedAt: freshProd?.updated_at
             });
 
