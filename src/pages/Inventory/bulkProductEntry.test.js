@@ -48,7 +48,8 @@ test('Subcategory dropdown options load using normalized category ID resolution'
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /resolveCatId/);
   assert.match(bulkCode, /No Subcategories Available/);
-  assert.match(bulkCode, /String\(s\.category_id\)\.trim\(\)\s*===\s*String\(activeCatId\)\.trim\(\)/);
+  assert.match(bulkCode, /const bulkSubcategories = useMemo/);
+  assert.match(bulkCode, /const rowSubcategories = bulkSubcategories/);
 });
 
 test('Category change clears old invalid subcategory_id and subcategory_name', () => {

@@ -58,7 +58,18 @@ const fetchStoredOrderItems = async (orderId) => {
     eq: { column: 'order_id', value: orderId },
     includeDeleted: true
   });
-  return Array.isArray(lineItems) ? lineItems : [];
+  if (Array.isArray(lineItems) && lineItems.length > 0) return lineItems;
+
+  const { data: directLineItems, error: directLineItemsError } = await supabase
+    .from(DB_SCHEMA.ORDER_ITEMS.table)
+    .select('*')
+    .eq('order_id', orderId)
+    .order('id', { ascending: true });
+  if (directLineItemsError) {
+    console.error('Direct order line-item fallback failed:', directLineItemsError);
+    return [];
+  }
+  return Array.isArray(directLineItems) ? directLineItems : [];
 };
 
 export default function OrdersView({ orders, filter, fetchInitialData, appConfig }) {
@@ -369,8 +380,8 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                 <tr key={order.id} className="hover:bg-blue-50/30 transition-colors">
                   <td className="px-4 py-2.5 font-black text-blue-700 text-[10px]">#{order.order_number || (orders.length - orders.indexOf(order))}</td>
                   <td className="px-4 py-2.5">
-                    <p className="text-[10px] font-bold text-slate-800 leading-none">{order.user_mobile}</p>
-                    <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">{order.customer_name || 'Walk-in'}</p>
+                    <p className="text-[10px] font-bold text-slate-800 leading-none">{order.user_mobile || order.customer_phone || 'No mobile'}</p>
+                    <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">{order.customer_name || order.user_mobile || order.customer_phone || 'Walk-in'}</p>
                   </td>
                   <td className="px-4 py-2.5 max-w-[280px]">
                     <p className="text-[9px] font-black text-slate-700 uppercase truncate" title={orderItemSummaries[order.id]}>
@@ -550,8 +561,8 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                           <h4 className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-3 flex items-center gap-2">
                             <User size={12} /> Customer Info
                           </h4>
-                          <p className="text-[11px] font-black text-slate-800 uppercase">{selectedOrder.customer_name || 'Walk-in Customer'}</p>
-                          <p className="text-[10px] font-bold text-slate-500 mt-1">Mobile: {selectedOrder.user_mobile}</p>
+                          <p className="text-[11px] font-black text-slate-800 uppercase">{selectedOrder.customer_name || selectedOrder.user_mobile || selectedOrder.customer_phone || 'Walk-in Customer'}</p>
+                          <p className="text-[10px] font-bold text-slate-500 mt-1">Mobile: {selectedOrder.user_mobile || selectedOrder.customer_phone || 'Not provided'}</p>
                         </div>
 
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">

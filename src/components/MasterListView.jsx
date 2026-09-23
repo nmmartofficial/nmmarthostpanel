@@ -11,8 +11,29 @@ import { DB_SCHEMA } from '../dbSchema';
 import { toast } from 'sonner';
 import PaginationFooter from './PaginationFooter';
 
-export default function MasterListView({ title, table, bucket, fields, data, uploadImage, fetchInitialData, loading, customColumnMapping, ...relatedData }) {
+const parseLinkedProductIds = (value) => {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value !== 'string') return value == null || value === '' ? [] : [String(value)];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch (_) {
+    // Legacy single IDs and comma-separated values are handled below.
+  }
+  return value.split(',').map((id) => id.trim()).filter(Boolean);
+};
+
+const getProductBarcodeValue = (product) => String(
+  product?.barcode ?? product?.Barcode ?? product?.bar_code ?? product?.rawcode ?? product?.RawCodeNew ?? ''
+).trim();
+
+const getProductDisplayName = (product) => String(
+  product?.name ?? product?.itname ?? product?.item_name ?? product?.product_name ?? product?.RawName ?? ''
+).trim();
+
+export default function MasterListView({ title, table, bucket, fields, data, uploadImage, fetchInitialData, loading, customColumnMapping, filterField, filterOptions = [], ...relatedData }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [masterFilter, setMasterFilter] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({});
@@ -21,6 +42,30 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState([]);
+  const [multiProductSearchTerm, setMultiProductSearchTerm] = useState('');
+
+  const hasMultiProductField = fields.some((field) => field.type === 'product-multi-search');
+  const selectedProducts = (relatedData.products || []).filter((product) =>
+    selectedProductIds.some((id) => String(id) === String(product.id))
+  );
+
+  const addLinkedProduct = (product) => {
+    if (!product) return;
+    const productId = String(product.id);
+    const nextIds = [...new Set([...parseLinkedProductIds(formData.link_id), productId])];
+    setSelectedProductIds(nextIds);
+    setFormData((current) => ({ ...current, link_id: JSON.stringify(nextIds) }));
+    setMultiProductSearchTerm('');
+  };
+
+  const removeLinkedProduct = (productId) => {
+    setSelectedProductIds((current) => {
+      const next = current.filter((id) => String(id) !== String(productId));
+      setFormData((currentForm) => ({ ...currentForm, link_id: JSON.stringify(next) }));
+      return next;
+    });
+  };
 
   // Helper to get full image URL from filename or URL
   const getImageUrl = (src) => {
@@ -223,7 +268,8 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
     input.click();
   };
 
-  const filteredData = (data || []).filter(item => 
+  const filteredData = (data || []).filter(item =>
+    (!filterField || !masterFilter || String(item?.[filterField] || '') === masterFilter) &&
     Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -358,6 +404,9 @@ if (requiredField) {
     setIsSubmitting(true);
     try {
       const finalData = { ...formData };
+        if (hasMultiProductField) {
+          finalData.link_id = JSON.stringify(selectedProductIds);
+        }
       const allowedKeys = new Set(fields.map(f => f.name));
 
       for (const field of fields) {
@@ -422,6 +471,25 @@ if (requiredField) {
     }
   };
 
+  const renderMultiProductPicker = () => {
+    const term = multiProductSearchTerm.trim().toLowerCase();
+    const matches = (relatedData.products || []).filter((product) =>
+      (getProductDisplayName(product).toLowerCase().includes(term) || getProductBarcodeValue(product).toLowerCase().includes(term))
+      && !selectedProductIds.some((id) => String(id) === String(product.id))
+    );
+    const addFromInput = () => {
+      if (!term) return;
+      const match = (relatedData.products || []).find((product) => getProductBarcodeValue(product).toLowerCase() === term)
+        || (relatedData.products || []).find((product) => getProductDisplayName(product).toLowerCase() === term);
+      if (match) addLinkedProduct(match);
+    };
+    return <div className="space-y-3">
+      <div className="flex gap-2"><input type="text" placeholder="Search product name or scan barcode..." value={multiProductSearchTerm} onChange={(e) => setMultiProductSearchTerm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFromInput(); } }} className="min-w-0 flex-1 bg-white border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 outline-none" /><button type="button" onClick={addFromInput} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-primary-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary-700"><Plus size={14} /> Add</button></div>
+      {term && <div className="max-h-52 overflow-y-auto rounded-xl border border-neutral-100 bg-white shadow-sm">{matches.map((product) => <button key={product.id} type="button" onClick={() => addLinkedProduct(product)} className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-slate-700 hover:bg-blue-50 border-b border-slate-100 last:border-0">{getProductDisplayName(product)} {getProductBarcodeValue(product) ? `(${getProductBarcodeValue(product)})` : ''}</button>)}{matches.length === 0 && <div className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500">Product Not Found</div>}</div>}
+      {selectedProducts.length > 0 && <div className="flex flex-wrap gap-2">{selectedProducts.map((product) => <span key={product.id} className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-black text-blue-700">{getProductDisplayName(product)}<button type="button" onClick={() => removeLinkedProduct(product.id)} className="text-blue-500 hover:text-red-600" aria-label={`Remove ${getProductDisplayName(product)}`}><X size={13} /></button></span>)}</div>}
+    </div>;
+  };
+
   return (
     <div className="flex flex-col space-y-4">
       {/* Header Section matching Item Master style */}
@@ -444,6 +512,16 @@ if (requiredField) {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          {filterField && filterOptions.length > 0 && (
+            <select
+              value={masterFilter}
+              onChange={(e) => setMasterFilter(e.target.value)}
+              className="w-full md:w-52 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-widest text-neutral-700 outline-none"
+            >
+              <option value="">All Placements</option>
+              {filterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          )}
           
           <div className="flex items-center gap-2 w-full md:w-auto">
             <button 
@@ -656,6 +734,10 @@ if (requiredField) {
                         )}>
                           {item[f.name] ? 'Active' : 'Inactive'}
                         </span>
+                      ) : f.type === 'product-multi-search' ? (
+                        <span className="text-[10px] font-bold text-neutral-700">
+                          {parseLinkedProductIds(item[f.name]).map((id) => getProductDisplayName((relatedData.products || []).find((product) => String(product.id) === String(id))) || id).join(', ') || '-'}
+                        </span>
                       ) : f.type === 'product-search' ? (
                         <span className="text-[10px] font-bold text-neutral-700">
                           {relatedData.products?.find(p => p.id === item[f.name])?.name || item[f.name]}
@@ -672,7 +754,13 @@ if (requiredField) {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button 
-                        onClick={() => { setEditingItem(item); setFormData(item); setShowForm(true); }}
+                        onClick={() => {
+                          setEditingItem(item);
+                          setFormData(item);
+                          setSelectedProductIds(parseLinkedProductIds(item.link_id));
+                          setMultiProductSearchTerm('');
+                          setShowForm(true);
+                        }}
                         className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-all border border-transparent hover:border-primary-100 shadow-sm hover:shadow-md"
                         title="Edit"
                       >
@@ -831,9 +919,10 @@ if (requiredField) {
                           {(formData[`${f.name}_file`] || formData[f.name]) && (
                             <button 
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={() => {
                                 setFormData({ ...formData, [f.name]: null, [`${f.name}_file`]: null });
+                                setSelectedProductIds([]);
+                                setMultiProductSearchTerm('');
                               }}
                               className="absolute top-2 right-2 p-1.5 bg-error-500 text-white rounded-lg shadow-lg z-20 hover:scale-110 transition-transform"
                             >
@@ -841,14 +930,14 @@ if (requiredField) {
                             </button>
                           )}
                         </div>
-                      ) : f.type === 'product-search' ? (
+                      ) : f.type === 'product-multi-search' ? renderMultiProductPicker() : f.type === 'product-search' ? (
                         <div className="relative">
                           <input 
                             type="text"
                             placeholder={`Search product to link...`}
                             value={
-                              formData[f.name] 
-                                ? (relatedData.products?.find(p => p.id === formData[f.name])?.name || productSearchTerm)
+                                formData[f.name]
+                                ? (relatedData.products?.find(p => String(p.id) === String(formData[f.name]))?.name || productSearchTerm)
                                 : productSearchTerm
                             }
                             onChange={(e) => {
@@ -870,7 +959,6 @@ if (requiredField) {
                               >
                                 {(relatedData.products || [])
                                   .filter(p => (p.name || '').toLowerCase().includes(productSearchTerm.toLowerCase()))
-                                  .slice(0, 5)
                                   .map(product => (
                                     <button
                                       key={product.id}
@@ -901,8 +989,8 @@ if (requiredField) {
                             type="text"
                             placeholder={`Search category to link...`}
                             value={
-                              formData[f.name] 
-                                ? (relatedData.categories?.find(c => c.id === formData[f.name])?.name || categorySearchTerm)
+                                formData[f.name]
+                                ? (relatedData.categories?.find(c => String(c.id) === String(formData[f.name]))?.name || categorySearchTerm)
                                 : categorySearchTerm
                             }
                             onChange={(e) => {
@@ -924,7 +1012,6 @@ if (requiredField) {
                               >
                                 {(relatedData.categories || [])
                                   .filter(c => (c.name || '').toLowerCase().includes(categorySearchTerm.toLowerCase()))
-                                  .slice(0, 5)
                                   .map(category => (
                                     <button
                                       key={category.id}

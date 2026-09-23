@@ -61,6 +61,45 @@ export default function BulkProductEntry({
   const [showUnknownDrawer, setShowUnknownDrawer] = useState(false);
   const [showUnmatchedImagesDrawer, setShowUnmatchedImagesDrawer] = useState(false);
 
+  const bulkBrands = useMemo(() => {
+    const seen = new Set();
+    return (Array.isArray(brands) ? brands : [])
+      .filter((brand) => brand?.id != null && String(brand.name || '').trim())
+      .filter((brand) => {
+        const key = String(brand.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [brands]);
+
+  const bulkCategories = useMemo(() => {
+    const seen = new Set();
+    return (Array.isArray(categories) ? categories : [])
+      .filter((category) => category?.id != null && String(category.name || '').trim())
+      .filter((category) => {
+        const key = String(category.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [categories]);
+
+  const bulkSubcategories = useMemo(() => {
+    const seen = new Set();
+    return (Array.isArray(subcategories) ? subcategories : [])
+      .filter((subcategory) => subcategory?.id != null && String(subcategory.name || '').trim())
+      .filter((subcategory) => {
+        const key = String(subcategory.id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [subcategories]);
+
   // --- Category ID Resolution Helper ---
   const resolveCatId = useCallback((row) => {
     if (!row) return '';
@@ -1157,14 +1196,14 @@ export default function BulkProductEntry({
                           value={String(item.brand_id || '')}
                           onChange={(e) => {
                             const bId = e.target.value;
-                            const bName = brands.find(b => String(b.id) === bId)?.name || '';
+                            const bName = bulkBrands.find(b => String(b.id) === bId)?.name || '';
                             handleItemFieldChange(item.id, 'brand_id', bId);
                             handleItemFieldChange(item.id, 'brand_name', bName);
                           }}
                           className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-[10px] font-bold outline-none focus:border-blue-500"
                         >
                           <option value="">Select Brand</option>
-                          {brands.map(b => (
+                          {bulkBrands.map(b => (
                             <option key={b.id} value={b.id}>{b.name}</option>
                           ))}
                         </select>
@@ -1176,12 +1215,12 @@ export default function BulkProductEntry({
                           value={String(activeCatId || '')}
                           onChange={(e) => {
                             const cId = e.target.value;
-                            const cName = categories.find(c => String(c.id) === cId)?.name || '';
+                            const cName = bulkCategories.find(c => String(c.id) === cId)?.name || '';
                             handleItemFieldChange(item.id, 'category_id', cId);
                             handleItemFieldChange(item.id, 'category_name', cName);
 
                             // Instantly clear subcategory if it does not belong to the newly selected category
-                            const validSubcats = subcategories.filter(s => String(s.category_id).trim() === String(cId).trim());
+                            const validSubcats = bulkSubcategories.filter(s => String(s.category_id).trim() === String(cId).trim());
                             const isStillValid = validSubcats.some(s => String(s.id).trim() === String(item.subcategory_id).trim());
                             if (!isStillValid) {
                               handleItemFieldChange(item.id, 'subcategory_id', '');
@@ -1191,7 +1230,7 @@ export default function BulkProductEntry({
                           className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-[10px] font-bold outline-none focus:border-blue-500"
                         >
                           <option value="">Select Category</option>
-                          {categories.map(c => (
+                          {bulkCategories.map(c => (
                             <option key={c.id} value={c.id}>{c.name}</option>
                           ))}
                         </select>
@@ -1200,17 +1239,14 @@ export default function BulkProductEntry({
                       {/* Subcategory Select */}
                       <td className="px-2 py-2">
                         {(() => {
-                          const rowSubcategories = subcategories.filter(s => {
-                            if (!activeCatId) return true;
-                            return String(s.category_id).trim() === String(activeCatId).trim();
-                          });
+                          const rowSubcategories = bulkSubcategories;
 
                           return (
                             <select
                               value={String(item.subcategory_id || '')}
                               onChange={(e) => {
                                 const scId = e.target.value;
-                                const scMatch = subcategories.find(s => String(s.id) === scId);
+                                const scMatch = bulkSubcategories.find(s => String(s.id) === scId);
                                 handleItemFieldChange(item.id, 'subcategory_id', scId);
                                 handleItemFieldChange(item.id, 'subcategory_name', scMatch?.name || '');
                               }}

@@ -5606,7 +5606,6 @@ const SubcategoriesView = (props) => (
       'id': 'id'
     }}
     fields={[
-      { name: 'category_id', label: 'Category', type: 'select', options: props.categories?.map(c => ({ value: c.id, label: c.name })), required: true },
       { name: 'name', label: 'Subcategory Name', type: 'text', required: true },
       { name: 'image_url', label: 'Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
@@ -5620,10 +5619,7 @@ const BrandsView = (props) => (
     bucket="brands"
     fields={[
       { name: 'name', label: 'Brand Name', type: 'text', required: true },
-      { name: 'code', label: 'Brand Code', type: 'text' },
-      { name: 'description', label: 'Description', type: 'text' },
-      { name: 'image_url', label: 'Image', type: 'image' },
-      { name: 'logo_url', label: 'Logo URL', type: 'text' },
+      { name: 'image_url', label: 'Brand Photo', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
@@ -5702,9 +5698,33 @@ const BannersView = (props) => (
   <MasterListView
     {...props}
     bucket="banners"
+    filterField="banner_type"
+    filterOptions={[
+      { value: 'top_slider', label: 'Hero / Main' },
+      { value: 'top', label: 'Top' },
+      { value: 'middle', label: 'Middle' },
+      { value: 'bottom', label: 'Bottom' },
+      { value: 'category', label: 'Category' },
+      { value: 'product_section', label: 'Product Section' },
+      { value: 'offer', label: 'Offer' },
+      { value: 'popup', label: 'Popup' },
+      { value: 'app', label: 'App' }
+    ]}
     fields={[
       { name: 'title', label: 'Banner Title', type: 'text' },
       { name: 'image_url', label: 'Banner Image', type: 'image', required: true },
+      { name: 'banner_type', label: 'Placement', type: 'select', options: [
+        { value: 'top_slider', label: 'Hero / Main Banner' },
+        { value: 'top', label: 'Top Banner' },
+        { value: 'middle', label: 'Middle Banner' },
+        { value: 'bottom', label: 'Bottom Banner' },
+        { value: 'category', label: 'Category Banner' },
+        { value: 'product_section', label: 'Product Section Banner' },
+        { value: 'offer', label: 'Offer Banner' },
+        { value: 'popup', label: 'Popup Banner' },
+        { value: 'app', label: 'App Banner' }
+      ] },
+      { name: 'sort_order', label: 'Display Order', type: 'number' },
       { name: 'link_type', label: 'Click Action', type: 'select', options: [
         { value: 'none', label: 'None' },
         { value: 'product', label: 'Link to Product' },
@@ -5712,8 +5732,8 @@ const BannersView = (props) => (
       ]},
       {
         name: 'link_id',
-        label: 'Linked Product',
-        type: 'product-search',
+        label: 'Linked Products',
+        type: 'product-multi-search',
         condition: (formData) => formData.link_type === 'product'
       },
       {
@@ -5722,6 +5742,9 @@ const BannersView = (props) => (
         type: 'category-search',
         condition: (formData) => formData.link_type === 'category'
       },
+      { name: 'link_url', label: 'Target URL', type: 'text' },
+      { name: 'start_date', label: 'Start Date', type: 'date' },
+      { name: 'end_date', label: 'End Date', type: 'date' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
