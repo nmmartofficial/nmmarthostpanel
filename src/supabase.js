@@ -3,7 +3,7 @@ import { getSupabaseConfig } from './utils/supabaseConfig.js';
 
 const env = import.meta.env || {};
 const config = getSupabaseConfig(env);
-const realtimeEnabled = Boolean(config?.realtimeEnabled ?? false);
+const realtimeEnabled = Boolean(config?.realtimeEnabled ?? true);
 
 const useMock = env.VITE_USE_MOCK === 'true' || env.VITE_USE_MOCK === '1';
 
