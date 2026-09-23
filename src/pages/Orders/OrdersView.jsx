@@ -24,6 +24,13 @@ const getProductRate = (product) => Number(
   product?.retail_rate ?? product?.restrate ?? product?.mrp ?? 0
 );
 
+const escapePrintHtml = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
 export default function OrdersView({ orders, filter, fetchInitialData, appConfig }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
@@ -111,7 +118,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       const rawItemsByOrderId = new Map((rawOrders || []).map(order => [order.id, order.items]));
       const orderEntries = orders.map(order => ({
         orderId: order.id,
-        items: parseStoredOrderItems(order.items ?? rawItemsByOrderId.get(order.id))
+        items: parseStoredOrderItems(order.items ?? order.order_items ?? rawItemsByOrderId.get(order.id))
       }));
       const productIds = [...new Set(orderEntries.flatMap(({ items }) => items
         .map(item => Number(item.product_id ?? item.productId))
@@ -197,6 +204,38 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
     } finally {
       setLoadingItems(false);
     }
+  };
+
+  const printOrderBill = async (order, items = null) => {
+    let printableItems = items;
+    const storedItems = parseStoredOrderItems(order.items ?? order.order_items);
+    if (!Array.isArray(printableItems) || printableItems.length === 0) {
+      printableItems = storedItems;
+    }
+    printableItems = printableItems || [];
+
+    const rows = printableItems.map((item) => {
+      const name = item.product_name || item.name || `Product #${item.product_id || ''}`;
+      const quantity = Number(item.quantity ?? item.qty ?? 1);
+      const rate = Number(item.rate ?? item.unit_price ?? item.price ?? 0);
+      const total = Number(item.total ?? item.line_total ?? rate * quantity);
+      const image = String(item.image_url || item.picture || '').includes('/products/null')
+        ? ''
+        : String(item.image_url || item.picture || '');
+      return `<tr><td>${image ? `<img src="${escapePrintHtml(image)}" class="item-image" />` : ''}<span>${escapePrintHtml(name)}</span></td><td>${quantity}</td><td>₹${rate.toFixed(2)}</td><td>₹${total.toFixed(2)}</td></tr>`;
+    }).join('');
+
+    const printWindow = window.open('', '_blank', 'width=520,height=760');
+    if (!printWindow) {
+      alert('Please allow pop-ups to print the bill.');
+      return;
+    }
+
+    printWindow.document.write(`<!doctype html><html><head><title>Bill ${escapePrintHtml(order.order_number)}</title><style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:24px;font-size:13px}h1{margin:0 0 4px;font-size:22px;text-align:center}h2{margin:0 0 18px;font-size:14px;text-align:center}.meta{border-bottom:1px solid #111;padding-bottom:12px;margin-bottom:12px}.meta p{display:flex;justify-content:space-between}.items{width:100%;border-collapse:collapse}.items th,.items td{border-bottom:1px solid #ddd;padding:8px 4px;text-align:right;vertical-align:middle}.items th:first-child,.items td:first-child{text-align:left}.item-image{width:34px;height:34px;object-fit:contain;vertical-align:middle;margin-right:7px}.total{margin-top:16px;border-top:2px solid #111;padding-top:10px;font-size:16px;font-weight:700;display:flex;justify-content:space-between}@media print{body{margin:10mm}}</style></head><body><h1>${escapePrintHtml(appConfig?.shop_name || 'NM MART')}</h1><h2>Customer Bill</h2><div class="meta"><p><span>Bill No</span><strong>#${escapePrintHtml(order.order_number || order.id)}</strong></p><p><span>Customer</span><strong>${escapePrintHtml(order.customer_name || 'Walk-in')}</strong></p><p><span>Mobile</span><strong>${escapePrintHtml(order.user_mobile || order.customer_phone || '-')}</strong></p><p><span>Date</span><strong>${escapePrintHtml(new Date(order.created_at).toLocaleString())}</strong></p></div><table class="items"><thead><tr><th>Item</th><th>Qty</th><th>Rate</th><th>Total</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No item details found</td></tr>'}</tbody></table><div class="total"><span>Grand Total</span><span>₹${Number(order.total_amount || 0).toFixed(2)}</span></div><p style="text-align:center;margin-top:28px">Thank you. Visit again.</p></body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.onload = () => printWindow.print();
+    setTimeout(() => printWindow.print(), 250);
   };
 
   const updateStatus = async (id, status) => {
@@ -332,8 +371,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                     <button 
                       onClick={async () => {
                         const items = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, { eq: { column: 'order_id', value: order.id } });
-                        const commands = await handleERPAction(null, ACTION_TYPES.GENERATE_BILL, { order, items });
-                        alert("Printer Command Generated");
+                        await printOrderBill(order, items);
                       }}
                       className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-all"
                     >
@@ -631,8 +669,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                     </button>
                     <button 
                       onClick={async () => {
-                        const commands = await handleERPAction(null, ACTION_TYPES.GENERATE_BILL, { order: selectedOrder, items: orderItems });
-                        alert("Printer Command Generated");
+                        await printOrderBill(selectedOrder, orderItems);
                       }}
                       className="px-6 py-2 bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-blue-200 hover:translate-y-[-1px] transition-all"
                     >
@@ -640,11 +677,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                     </button>
                   <button 
                       onClick={async () => {
-                        await handleERPAction(null, ACTION_TYPES.GENERATE_GST_INVOICE, { 
-                          order: selectedOrder, 
-                          items: orderItems,
-                          appConfig: appConfig 
-                        });
+                        await printOrderBill(selectedOrder, orderItems);
                       }}
                       className="px-6 py-2 bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-emerald-200 hover:translate-y-[-1px] transition-all"
                     >
