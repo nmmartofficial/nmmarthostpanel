@@ -112,7 +112,8 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
         ? await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
             in: { column: 'id', values: orderIds },
             select: 'id,items',
-            includeDeleted: true
+              includeDeleted: true,
+              rawTable: true
           })
         : [];
       const rawItemsByOrderId = new Map((rawOrders || []).map(order => [order.id, order.items]));
@@ -164,7 +165,8 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
         const rawOrder = await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
           eq: { column: 'id', value: orderId },
           select: 'id,items',
-          includeDeleted: true
+          includeDeleted: true,
+          rawTable: true
         });
         storedOrderItems = parseStoredOrderItems(rawOrder?.[0]?.items);
       }

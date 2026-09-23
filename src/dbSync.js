@@ -460,7 +460,7 @@ export const dbSync = {
       // which causes the frontend to show zero products even though data exists.
       if (tableName === DB_SCHEMA.PRODUCTS.table) {
         effectiveSource = DB_SCHEMA.PRODUCTS.table;
-      } else if (tableName === DB_SCHEMA.ORDERS.table && DB_SCHEMA.READABLE_ORDERS) {
+      } else if (tableName === DB_SCHEMA.ORDERS.table && DB_SCHEMA.READABLE_ORDERS && !query.rawTable) {
         effectiveSource = DB_SCHEMA.READABLE_ORDERS.table;
       } else if (tableName === DB_SCHEMA.USERS.table && DB_SCHEMA.READABLE_USERS) {
         effectiveSource = DB_SCHEMA.READABLE_USERS.table;
