@@ -47,8 +47,18 @@ const fetchStoredOrderItems = async (orderId) => {
     .select('id,items')
     .eq('id', orderId)
     .maybeSingle();
-  if (error) console.error('Direct order item fallback failed:', error);
-  return parseStoredOrderItems(data?.items);
+  if (!error) {
+    const orderItems = parseStoredOrderItems(data?.items);
+    if (orderItems.length > 0) return orderItems;
+  } else {
+    console.error('Direct order item fallback failed:', error);
+  }
+
+  const lineItems = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, {
+    eq: { column: 'order_id', value: orderId },
+    includeDeleted: true
+  });
+  return Array.isArray(lineItems) ? lineItems : [];
 };
 
 export default function OrdersView({ orders, filter, fetchInitialData, appConfig }) {
@@ -128,9 +138,12 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
     let active = true;
     const loadOrderItemSummaries = async () => {
       const orderIds = orders.map(order => order.id).filter(Boolean);
-      const orderEntries = orders.map(order => ({
-        orderId: order.id,
-        items: parseStoredOrderItems(order.items ?? order.order_items)
+      const orderEntries = await Promise.all(orders.map(async (order) => {
+        const inlineItems = parseStoredOrderItems(order.items ?? order.order_items);
+        const items = inlineItems.length > 0
+          ? inlineItems
+          : await fetchStoredOrderItems(order.id).catch(() => []);
+        return { orderId: order.id, items };
       }));
       const productIds = [...new Set(orderEntries.flatMap(({ items }) => items
         .map(item => Number(item.product_id ?? item.productId))
