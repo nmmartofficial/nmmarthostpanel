@@ -51,12 +51,30 @@ const normalizeProductStatus = (rawValue) => {
 
 const resolveProductImageUrl = (rawValue) => {
   const imageName = String(rawValue || '').trim();
-  if (!imageName) return null;
+  if (!imageName || /(?:^|\/)null(?:$|\/)/i.test(imageName) || /products\/null/i.test(imageName)) return null;
   if (/^https?:\/\//i.test(imageName)) return imageName;
 
   const baseUrl = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/+$/, '');
   const encodedPath = imageName.split('/').map((part) => encodeURIComponent(part)).join('/');
   return baseUrl ? `${baseUrl}/storage/v1/object/public/products/${encodedPath}` : imageName;
+};
+
+const ProductPicture = ({ source, alt }) => {
+  const [failed, setFailed] = useState(false);
+  const imageUrl = resolveProductImageUrl(source);
+
+  return (
+    <div className="w-8 h-8 mx-auto bg-slate-50 rounded-md border border-slate-200 overflow-hidden p-0.5">
+      {imageUrl && !failed ? (
+        <img
+          src={imageUrl}
+          alt={alt}
+          className="w-full h-full object-contain"
+          onError={() => setFailed(true)}
+        />
+      ) : null}
+    </div>
+  );
 };
 
 // --- Product Import Processing ---
@@ -1083,14 +1101,10 @@ export default function ProductsView({ products = [], categories = [], brands = 
                     </div>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <div className="w-8 h-8 mx-auto bg-slate-50 rounded-md border border-slate-200 overflow-hidden p-0.5">
-                      <img
-                        src={resolveProductImageUrl(getVal('picture', 'image_url') || product.imagename) || undefined}
-                        alt={productName}
-                        className="w-full h-full object-contain"
-                        onError={(event) => { event.currentTarget.style.display = 'none'; }}
-                      />
-                    </div>
+                    <ProductPicture
+                      source={getVal('picture', 'image_url') || product.imagename}
+                      alt={productName}
+                    />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
