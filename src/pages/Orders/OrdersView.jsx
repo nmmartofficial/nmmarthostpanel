@@ -128,15 +128,9 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
     let active = true;
     const loadOrderItemSummaries = async () => {
       const orderIds = orders.map(order => order.id).filter(Boolean);
-      const storedItemsByOrderId = new Map(await Promise.all(orderIds.map(async (orderId) => [
-        orderId,
-        await fetchStoredOrderItems(orderId)
-      ])));
       const orderEntries = orders.map(order => ({
         orderId: order.id,
-        items: parseStoredOrderItems(order.items ?? order.order_items).length > 0
-          ? parseStoredOrderItems(order.items ?? order.order_items)
-          : (storedItemsByOrderId.get(order.id) || [])
+        items: parseStoredOrderItems(order.items ?? order.order_items)
       }));
       const productIds = [...new Set(orderEntries.flatMap(({ items }) => items
         .map(item => Number(item.product_id ?? item.productId))
