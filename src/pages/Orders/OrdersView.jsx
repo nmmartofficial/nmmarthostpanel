@@ -7,6 +7,7 @@ import { cn } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES } from '../../erpController';
 import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
+import { supabase } from '../../supabase';
 
 const parseStoredOrderItems = (items) => {
   if (Array.isArray(items)) return items;
@@ -30,6 +31,25 @@ const escapePrintHtml = (value) => String(value ?? '')
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#039;');
+
+const fetchStoredOrderItems = async (orderId) => {
+  const syncedRows = await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
+    eq: { column: 'id', value: orderId },
+    select: 'id,items',
+    includeDeleted: true,
+    rawTable: true
+  });
+  const syncedItems = parseStoredOrderItems(syncedRows?.[0]?.items);
+  if (syncedItems.length > 0) return syncedItems;
+
+  const { data, error } = await supabase
+    .from(DB_SCHEMA.ORDERS.table)
+    .select('id,items')
+    .eq('id', orderId)
+    .maybeSingle();
+  if (error) console.error('Direct order item fallback failed:', error);
+  return parseStoredOrderItems(data?.items);
+};
 
 export default function OrdersView({ orders, filter, fetchInitialData, appConfig }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -108,18 +128,15 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
     let active = true;
     const loadOrderItemSummaries = async () => {
       const orderIds = orders.map(order => order.id).filter(Boolean);
-      const rawOrders = orderIds.length > 0
-        ? await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
-            in: { column: 'id', values: orderIds },
-            select: 'id,items',
-              includeDeleted: true,
-              rawTable: true
-          })
-        : [];
-      const rawItemsByOrderId = new Map((rawOrders || []).map(order => [order.id, order.items]));
+      const storedItemsByOrderId = new Map(await Promise.all(orderIds.map(async (orderId) => [
+        orderId,
+        await fetchStoredOrderItems(orderId)
+      ])));
       const orderEntries = orders.map(order => ({
         orderId: order.id,
-        items: parseStoredOrderItems(order.items ?? order.order_items ?? rawItemsByOrderId.get(order.id))
+        items: parseStoredOrderItems(order.items ?? order.order_items).length > 0
+          ? parseStoredOrderItems(order.items ?? order.order_items)
+          : (storedItemsByOrderId.get(order.id) || [])
       }));
       const productIds = [...new Set(orderEntries.flatMap(({ items }) => items
         .map(item => Number(item.product_id ?? item.productId))
@@ -162,13 +179,7 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       });
       let storedOrderItems = parseStoredOrderItems(selectedOrder?.items);
       if (storedLineItems?.length === 0 && storedOrderItems.length === 0) {
-        const rawOrder = await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
-          eq: { column: 'id', value: orderId },
-          select: 'id,items',
-          includeDeleted: true,
-          rawTable: true
-        });
-        storedOrderItems = parseStoredOrderItems(rawOrder?.[0]?.items);
+        storedOrderItems = await fetchStoredOrderItems(orderId);
       }
       const sourceItems = storedLineItems?.length
         ? storedLineItems
