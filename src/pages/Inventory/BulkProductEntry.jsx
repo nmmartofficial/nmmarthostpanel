@@ -737,7 +737,21 @@ export default function BulkProductEntry({
               updatePayload
             });
 
-            const res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, updatePayload);
+            let res;
+            let attempts = 0;
+            while (attempts < 2) {
+              try {
+                attempts++;
+                res = await handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.UPDATE, updatePayload);
+                if (res?.success && res?.data) break;
+              } catch (fetchErr) {
+                if (attempts >= 2 || !fetchErr?.message?.includes('Failed to fetch')) {
+                  throw fetchErr;
+                }
+                console.warn(`[BULK SAVE RETRY] Network fetch transient error on attempt ${attempts}, retrying in 300ms...`, fetchErr.message);
+                await new Promise(r => setTimeout(r, 300));
+              }
+            }
 
             // STEP 2: LOG SUPABASE UPDATE RESPONSE
             console.log(`[BULK SAVE] SUPABASE UPDATE RESPONSE`, {

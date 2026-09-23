@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, supabaseConfig } from './supabase';
 import { isLocalPosReadOnlyMode, isLocalPosTestMode } from './utils/localPosTestMode';
 import { DB_SCHEMA } from './dbSchema';
 import { secureStorage } from './utils/security';
@@ -916,9 +916,34 @@ export const dbSync = {
       }
       const finalPayload = injectTenantIntoRecord(updatePayload, schemaEntry, tenantId, companyCode);
 
+      if (import.meta.env.DEV) {
+        console.log('[BULK SAVE] SUPABASE UPDATE START', {
+          supabaseUrl: supabaseConfig?.url || 'https://mggkadgemqcyybsplkqc.supabase.co',
+          table: tableName,
+          productId: id,
+          tenantId,
+          companyCode,
+          payloadKeys: Object.keys(finalPayload)
+        });
+      }
+
       let updateRequest = supabase.from(tableName).update(finalPayload).eq(pkColumn, id);
       updateRequest = applyTenantFilter(updateRequest, tableName, schemaEntry, tenantId, companyCode);
-      const { data, error } = await updateRequest.select();
+
+      let data, error, status, statusText;
+      try {
+        const res = await updateRequest.select();
+        data = res.data;
+        error = res.error;
+        status = res.status;
+        statusText = res.statusText;
+        if (import.meta.env.DEV) {
+          console.log('[BULK SAVE] SUPABASE UPDATE RESPONSE', { status, statusText, error, returnedRowCount: data?.length || 0, data });
+        }
+      } catch (fetchException) {
+        console.error('[BULK SAVE] SUPABASE FETCH EXCEPTION', fetchException);
+        throw new Error(`${tableName} update(id=${id}) failed: ${fetchException?.message || String(fetchException)}`);
+      }
 
       if (error) {
         const e = new Error(`${tableName} update(id=${id}) failed: ${error.message}${error.details ? ' | ' + error.details : ''}`);
