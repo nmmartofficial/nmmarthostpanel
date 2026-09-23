@@ -57,6 +57,29 @@ test('Category change clears old invalid subcategory_id and subcategory_name', (
   assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'subcategory_id',\s*''\)/);
 });
 
+test('Case 1: Changing ONLY Product Name preserves brand, category, subcategory, and image', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /resolveBrandId/);
+  assert.match(bulkCode, /resolveCategoryId/);
+  assert.match(bulkCode, /resolveSubcategoryId/);
+  assert.match(bulkCode, /finalImageUrl/);
+});
+
+test('Case 2: Changing ONLY Purchase Rate preserves brand, category, subcategory, and image', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /purcrate:\s*parseFloat\(item\.purchase_rate\)\s*\|\|\s*0/);
+});
+
+test('Case 3: Changing ONLY Category clears invalid subcategory and preserves brand/image', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'subcategory_id',\s*''\)/);
+});
+
+test('Case 4: Changing ONLY Image preserves brand, category, and subcategory without generating products/null', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /includes\('\/products\/null'\)/);
+});
+
 test('CSS rules hide numeric input spinners for Chrome, Edge, Safari and Firefox', () => {
   const cssCode = read('src/index.css');
   assert.match(cssCode, /::-webkit-inner-spin-button/);
