@@ -337,8 +337,6 @@ export const GlobalProvider = ({ children }) => {
       return undefined;
     }
 
-    fetchInitialData();
-    
     const tablesToWatch = [
       DB_SCHEMA.ORDERS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.NOTIFICATIONS.table,
       DB_SCHEMA.BANNERS.table, DB_SCHEMA.BRANDS.table, DB_SCHEMA.CATEGORIES.table,
