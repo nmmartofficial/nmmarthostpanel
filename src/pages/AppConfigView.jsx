@@ -151,6 +151,7 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
     handling_charge: { label: 'Order Handling Fee', type: 'number', category: 'financial' },
     cashback_percentage: { label: 'Reward Cashback (%)', type: 'number', category: 'financial' },
     tax_rate: { label: 'GST Tax Rate (%)', type: 'number', category: 'financial' },
+    navigation_config: { label: 'Navigation Buttons (JSON)', type: 'textarea', category: 'settings' },
     security_pin: { label: 'Security Admin PIN', type: 'text', category: 'settings' },
     maintenance_mode: { label: 'App Maintenance Mode', type: 'checkbox', category: 'settings' },
     app_version: { label: 'App Version (Latest)', type: 'text', category: 'settings' },
@@ -247,6 +248,13 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
                             )} />
                           </button>
                         </div>
+                      ) : f.type === 'textarea' ? (
+                        <textarea
+                          value={typeof formData[f.name] === 'string' ? formData[f.name] : JSON.stringify(formData[f.name] || {}, null, 2)}
+                          onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                          rows={8}
+                          className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[10px] font-black focus:border-primary-500 focus:ring-4 focus:ring-primary-50 transition-all text-neutral-900 outline-none resize-y"
+                        />
                       ) : (
                         <input
                           type={f.type}
@@ -362,6 +370,13 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
                             )} />
                           </button>
                         </div>
+                      ) : f.type === 'textarea' ? (
+                        <textarea
+                          value={typeof formData[f.name] === 'string' ? formData[f.name] : JSON.stringify(formData[f.name] || {}, null, 2)}
+                          onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                          rows={6}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-[10px] font-black focus:ring-1 focus:ring-blue-500 transition-all text-slate-900 resize-y"
+                        />
                       ) : (
                         <input
                           type={f.type}

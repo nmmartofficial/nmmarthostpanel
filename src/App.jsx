@@ -41,8 +41,17 @@ import MasterListView from './components/MasterListView';
 import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
 import { cn, generateUUID } from './utils/helpers';
 
+const DEFAULT_NAVIGATION_CONFIG = {
+  master: ['Products', 'Units', 'Categories', 'Subcategories', 'Brands', 'HSNMaster', 'Departments', 'Accounts', 'UserMaster', 'Banners', 'Credits', 'DeliveryBoys', 'DeliveryCustomers', 'Coupons', 'Offers', 'Pincodes', 'Addresses', 'WalletMaster', 'Suppliers'],
+  inventory: ['Products', 'StockAlerts', 'StockReduction', 'PurchaseEntry', 'StockLogs', 'InventoryReconciliation'],
+  reports: ['CustomerAnalytics', 'LoyaltyManagement', 'ProfitLoss', 'Expenses'],
+  views: ['Orders', 'POS', 'SelfCheckout'],
+  tools: ['AppConfig', 'CompanyManagement']
+};
+
 const DEFAULT_APP_CONFIG = {
-  id: 'default'
+  id: 'default',
+  navigation_config: JSON.stringify(DEFAULT_NAVIGATION_CONFIG, null, 2)
 };
 
 const ProductsView = lazy(() => import('./features/inventory/ProductsView'));
@@ -791,12 +800,28 @@ export default function App({ company, isTenantMode, companySlug }) {
     return roleData.allowedTabs.includes(tabId);
   }, [roleData]);
 
-  // --- UI Components ---
-  if (!isAuthorized) {
-    return null;
-  }
+  const navigationConfig = useMemo(() => {
+    const raw = appConfig?.navigation_config ?? appConfig?.nav_config ?? appConfig?.menu_config ?? DEFAULT_NAVIGATION_CONFIG;
+    let parsed = raw;
 
-  const masterItems = [
+    if (typeof raw === 'string') {
+      try {
+        parsed = JSON.parse(raw);
+      } catch (e) {
+        parsed = DEFAULT_NAVIGATION_CONFIG;
+      }
+    }
+
+    return {
+      master: Array.isArray(parsed?.master) ? parsed.master : DEFAULT_NAVIGATION_CONFIG.master,
+      inventory: Array.isArray(parsed?.inventory) ? parsed.inventory : DEFAULT_NAVIGATION_CONFIG.inventory,
+      reports: Array.isArray(parsed?.reports) ? parsed.reports : DEFAULT_NAVIGATION_CONFIG.reports,
+      views: Array.isArray(parsed?.views) ? parsed.views : DEFAULT_NAVIGATION_CONFIG.views,
+      tools: Array.isArray(parsed?.tools) ? parsed.tools : DEFAULT_NAVIGATION_CONFIG.tools
+    };
+  }, [appConfig]);
+
+  const masterDefaultItems = [
     { id: 'Products', label: 'Item Master', icon: <Package size={14} />, shortcut: 'F1' },
     { id: 'Units', label: 'Item Unit Master', icon: <ShoppingCart size={14} /> },
     { id: 'Categories', label: 'Item Main Category', icon: <Grid size={14} />, shortcut: 'F2' },
@@ -816,36 +841,56 @@ export default function App({ company, isTenantMode, companySlug }) {
     { id: 'Addresses', label: 'Address Master', icon: <MapPin size={14} /> },
     { id: 'WalletMaster', label: 'Wallet Master', icon: <Wallet size={14} /> },
     { id: 'Suppliers', label: 'Supplier Master', icon: <Users size={14} /> },
-  ].filter(item => isAllowed(item.id));
+  ];
 
-  const inventoryItems = [
+  const inventoryDefaultItems = [
     { id: 'Products', label: 'Current Stock & Inventory', icon: <Package size={14} />, shortcut: 'F1' },
     { id: 'StockAlerts', label: 'Low Stock & Expiry Alerts', icon: <AlertTriangle size={14} /> },
     { id: 'StockReduction', label: 'Damage / Expiry / Wastage', icon: <Trash2 size={14} /> },
     { id: 'PurchaseEntry', label: 'Purchase Entry (Stock In)', icon: <ShoppingBag size={14} /> },
     { id: 'StockLogs', label: 'Stock Movement History', icon: <History size={14} /> },
     { id: 'InventoryReconciliation', label: 'Inventory Reconciliation', icon: <RefreshCw size={14} /> },
-  ].filter(item => isAllowed(item.id));
+  ];
 
-  const reportItemsNav = [
+  const reportDefaultItems = [
     { id: 'CustomerAnalytics', label: 'Customer Analytics', icon: <Users size={14} /> },
     { id: 'LoyaltyManagement', label: 'Loyalty Management', icon: <Trophy size={14} /> },
     { id: 'ProfitLoss', label: 'Profit & Loss Analysis', icon: <TrendingUp size={14} /> },
     { id: 'Expenses', label: 'Expense Management', icon: <Receipt size={14} /> },
-  ].filter(item => isAllowed(item.id));
+  ];
 
-  const viewItems = [
+  const viewDefaultItems = [
     { id: 'Orders', label: 'Orders', icon: <QrCode size={14} />, shortcut: 'F9' },
     { id: 'POS', label: 'Point of Sale', icon: <ShoppingCart size={14} /> },
     { id: 'SelfCheckout', label: 'Self Checkout', icon: <Monitor size={14} /> },
-  ].filter(item => isAllowed(item.id));
+  ];
+
+  const toolsDefaultItems = [
+    { id: 'AppConfig', label: 'Configuration', icon: <Settings size={14} /> },
+    ...(!isTenantMode ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }] : []),
+  ];
+
+  const masterItems = masterDefaultItems.filter(item =>
+    isAllowed(item.id) && (!navigationConfig.master.length || navigationConfig.master.includes(item.id))
+  );
+
+  const inventoryItems = inventoryDefaultItems.filter(item =>
+    isAllowed(item.id) && (!navigationConfig.inventory.length || navigationConfig.inventory.includes(item.id))
+  );
+
+  const reportItemsNav = reportDefaultItems.filter(item =>
+    isAllowed(item.id) && (!navigationConfig.reports.length || navigationConfig.reports.includes(item.id))
+  );
+
+  const viewItems = viewDefaultItems.filter(item =>
+    isAllowed(item.id) && (!navigationConfig.views.length || navigationConfig.views.includes(item.id))
+  );
 
   const storeItems = [];
 
-  const toolsItems = [
-    { id: 'AppConfig', label: 'Configuration', icon: <Settings size={14} /> },
-    ...(!isTenantMode ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }] : []),
-  ].filter(item => isAllowed(item.id));
+  const toolsItems = toolsDefaultItems.filter(item =>
+    isAllowed(item.id) && (!navigationConfig.tools.length || navigationConfig.tools.includes(item.id))
+  );
 
   return (
     customerMode ? (

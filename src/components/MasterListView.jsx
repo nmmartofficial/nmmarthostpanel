@@ -479,12 +479,52 @@ if (requiredField) {
     );
     const addFromInput = () => {
       if (!term) return;
-      const match = (relatedData.products || []).find((product) => getProductBarcodeValue(product).toLowerCase() === term)
-        || (relatedData.products || []).find((product) => getProductDisplayName(product).toLowerCase() === term);
-      if (match) addLinkedProduct(match);
+
+      const exactByBarcode = (relatedData.products || []).find((product) => getProductBarcodeValue(product).toLowerCase() === term);
+      if (exactByBarcode) {
+        addLinkedProduct(exactByBarcode);
+        return;
+      }
+
+      const exactByName = (relatedData.products || []).find((product) => getProductDisplayName(product).toLowerCase() === term);
+      if (exactByName) {
+        addLinkedProduct(exactByName);
+        return;
+      }
+
+      if (matches.length > 0) {
+        addLinkedProduct(matches[0]);
+      }
     };
     return <div className="space-y-3">
-      <div className="flex gap-2"><input type="text" placeholder="Search product name or scan barcode..." value={multiProductSearchTerm} onChange={(e) => setMultiProductSearchTerm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFromInput(); } }} className="min-w-0 flex-1 bg-white border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 outline-none" /><button type="button" onClick={addFromInput} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-primary-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary-700"><Plus size={14} /> Add</button></div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          placeholder="Search product name or scan barcode..."
+          value={multiProductSearchTerm}
+          onChange={(e) => setMultiProductSearchTerm(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              addFromInput();
+            }
+          }}
+          className="min-w-0 flex-1 bg-white border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 outline-none"
+        />
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            addFromInput();
+          }}
+          className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-primary-600 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary-700"
+        >
+          <Plus size={14} /> Add
+        </button>
+      </div>
       {term && <div className="max-h-52 overflow-y-auto rounded-xl border border-neutral-100 bg-white shadow-sm">{matches.map((product) => <button key={product.id} type="button" onClick={() => addLinkedProduct(product)} className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-slate-700 hover:bg-blue-50 border-b border-slate-100 last:border-0">{getProductDisplayName(product)} {getProductBarcodeValue(product) ? `(${getProductBarcodeValue(product)})` : ''}</button>)}{matches.length === 0 && <div className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500">Product Not Found</div>}</div>}
       {selectedProducts.length > 0 && <div className="flex flex-wrap gap-2">{selectedProducts.map((product) => <span key={product.id} className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-black text-blue-700">{getProductDisplayName(product)}<button type="button" onClick={() => removeLinkedProduct(product.id)} className="text-blue-500 hover:text-red-600" aria-label={`Remove ${getProductDisplayName(product)}`}><X size={13} /></button></span>)}</div>}
     </div>;
@@ -862,9 +902,9 @@ if (requiredField) {
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200"
+              className="bg-white rounded-[26px] shadow-2xl w-full max-w-[440px] sm:max-w-[480px] max-h-[90vh] overflow-hidden border border-slate-200"
             >
-              <div className="p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary-600 rounded-lg text-white">
                     <Plus size={18} />
@@ -881,8 +921,8 @@ if (requiredField) {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 gap-5">
+              <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[calc(90vh-120px)] overflow-y-auto">
+                <div className="grid grid-cols-1 gap-4 sm:gap-5">
                   {fields.filter(f => !f.condition || f.condition(formData)).map(f => (
                     <div key={f.name} className="space-y-1.5">
                       <div className="flex items-center justify-between px-1">

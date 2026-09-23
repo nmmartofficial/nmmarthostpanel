@@ -479,9 +479,14 @@ export const dbSync = {
       let to;
 
       const buildRequest = (opts = {}) => {
-        const { source = effectiveSource, applyIsActive = !includeDeleted, applyCompanyFilter = true } = opts;
+        const {
+          source = effectiveSource,
+          applyIsActive = !includeDeleted,
+          applyCompanyFilter = true,
+          applyTenantFilterFlag = true,
+        } = opts;
         let req = supabase.from(source).select(query.select || '*');
-        if (applyCompanyFilter) {
+        if (applyTenantFilterFlag && applyCompanyFilter) {
           req = applyTenantFilter(req, source, schemaEntry, tenantId, companyCode);
         }
         if (applyIsActive && !isActiveFilterFailed && TABLES_WITH_IS_ACTIVE.includes(tableName)) {
@@ -645,6 +650,23 @@ export const dbSync = {
             error = retry.error;
             if (data.length > 0) {
               console.log('%c[dbSync.fetch] ✅ Live products loaded after removing the is_active exclusion filter.', 'color:#10b981;font-weight:bold');
+            }
+          }
+        }
+
+        const tenantFallback = isProductsRead && !error && Array.isArray(data) && data.length === 0;
+        if (tenantFallback) {
+          console.warn(
+            `%c[dbSync.fetch] ⚠ Tenant-scoped product fetch returned zero rows. Retrying without tenant/company filter so legacy rows can still be read and updated.`,
+            'background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:bold'
+          );
+          const retryReq = buildRequest({ applyTenantFilterFlag: false, applyCompanyFilter: false }).range(from, to);
+          const retry = await retryReq;
+          if (!retry.error && Array.isArray(retry.data)) {
+            data = retry.data;
+            error = retry.error;
+            if (data.length > 0) {
+              console.log('%c[dbSync.fetch] ✅ Products loaded after tenant filter fallback.', 'color:#10b981;font-weight:bold');
             }
           }
         }
@@ -943,6 +965,26 @@ export const dbSync = {
       } catch (fetchException) {
         console.error('[BULK SAVE] SUPABASE FETCH EXCEPTION', fetchException);
         throw new Error(`${tableName} update(id=${id}) failed: ${fetchException?.message || String(fetchException)}`);
+      }
+
+      if ((!error && (!data || data.length === 0)) || (error && ['42501', 'PGRST301', '401', '403'].includes(String(error.code || '')))) {
+        console.warn(
+          `%c[dbSync.update] ⚠ Tenant-scoped update returned zero rows. Retrying direct row update by id to preserve legacy product records.`,
+          'background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:bold',
+          { tableName, id, tenantId, companyCode, error: error?.message || null }
+        );
+        const fallbackRes = await supabase
+          .from(tableName)
+          .update(finalPayload)
+          .eq(pkColumn, id)
+          .select();
+
+        if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+          data = fallbackRes.data;
+          error = null;
+        } else if (fallbackRes.error) {
+          error = fallbackRes.error;
+        }
       }
 
       if (error) {
