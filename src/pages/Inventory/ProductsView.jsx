@@ -1018,15 +1018,15 @@ export default function ProductsView({ products = [], categories = [], brands = 
           <table className="w-full text-left border-collapse min-w-[1400px]">
             <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
               <tr className="border-b border-slate-200">
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest">SNo</th>
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest">Name / Category</th>
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest text-center">Barcode / HSN</th>
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest text-center">Brand / Counter</th>
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest text-center">Pricing (₹)</th>
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest text-center">Tax / Disc</th>
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest text-center">Stock / Specs</th>
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest text-center">Picture</th>
-                <th className="px-5 py-4 text-[12px] font-black text-slate-800 uppercase tracking-widest text-right">Action</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest">SNo</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest">Name / Category</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest text-center">Barcode / HSN</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest text-center">Brand / Counter</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest text-center">Pricing (₹)</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest text-center">Tax / Disc</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest text-center">Stock / Specs</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest text-center">Picture</th>
+                <th className="px-5 py-4 text-[13px] font-black text-slate-800 uppercase tracking-widest text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1037,53 +1037,53 @@ export default function ProductsView({ products = [], categories = [], brands = 
                 
                 return (
                 <tr key={product.id} className="odd:bg-white even:bg-slate-100 hover:bg-blue-50/30 transition-colors group">
-                  <td className="px-5 py-4 text-[12px] font-bold text-slate-500">
+                  <td className="px-5 py-4 text-[13px] font-bold text-slate-500">
                     {(currentPage - 1) * rowsPerPage + idx + 1}
                   </td>
                   <td className="px-5 py-4">
-                    <p className="text-[12px] font-black text-slate-800 uppercase tracking-tighter leading-tight">{productName}</p>
-                    <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">
+                    <p className="text-[13px] font-black text-slate-800 uppercase tracking-tighter leading-tight">{productName}</p>
+                    <p className="text-[11px] font-bold text-slate-400 mt-1 uppercase">
                       {resolveCategoryName(product)} {resolveSubcategoryName(product) !== '-' ? `/ ${resolveSubcategoryName(product)}` : ''}
                     </p>
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <p className="text-[12px] font-bold text-slate-600">{product.barcode || '-'}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">HSN: {getVal('hsncode', 'hsn_code') || '-'}</p>
+                    <p className="text-[13px] font-bold text-slate-600">{product.barcode || '-'}</p>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase">HSN: {getVal('hsncode', 'hsn_code') || '-'}</p>
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <p className="text-[12px] font-bold text-slate-600 uppercase">{resolveBrandName(product)}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">{product.counter_name || '-'}</p>
+                    <p className="text-[13px] font-bold text-slate-600 uppercase">{resolveBrandName(product)}</p>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase">{product.counter_name || '-'}</p>
                   </td>
                   <td className="px-5 py-4 text-center">
                     <div className="flex flex-col items-center">
-                      <span className="text-[12px] font-black text-blue-700">Sale: ₹{getVal('onlinerate', 'sale_rate')}</span>
-                      <span className="text-[10px] text-slate-400 line-through font-bold">MRP: ₹{product.mrp}</span>
-                      <span className="text-[10px] text-slate-500 font-bold">Purc: ₹{getVal('purcrate', 'purchase_rate') || 0}</span>
+                      <span className="text-[13px] font-black text-blue-700">Sale: ₹{getVal('onlinerate', 'sale_rate')}</span>
+                      <span className="text-[11px] text-slate-400 line-through font-bold">MRP: ₹{product.mrp}</span>
+                      <span className="text-[11px] text-slate-500 font-bold">Purc: ₹{getVal('purcrate', 'purchase_rate') || 0}</span>
                     </div>
                   </td>
                   <td className="px-5 py-4 text-center">
                     <div className="flex flex-col items-center gap-1">
-                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[11px] font-black uppercase tracking-widest">
                         {getVal('discperc', 'discount_percent') || 0}% OFF
                       </span>
-                      <span className="text-[10px] font-bold text-slate-500 uppercase">GST: {getVal('gst', 'gst_percent') || 0}%</span>
+                      <span className="text-[11px] font-bold text-slate-500 uppercase">GST: {getVal('gst', 'gst_percent') || 0}%</span>
                     </div>
                   </td>
                   <td className="px-5 py-4 text-center">
                     <div className="flex flex-col items-center">
                       <span className={cn(
-                        "text-[12px] font-black",
+                        "text-[13px] font-black",
                         (getVal('opstock', 'stock') || 0) <= 5 ? "text-red-600" : "text-green-600"
                       )}>
                         Stock: {getVal('opstock', 'stock') || 0}
                       </span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase">
                         {product.size ? `Size: ${product.size}` : ''} {product.color ? `| ${product.color}` : ''}
                       </span>
                     </div>
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <div className="w-12 h-12 mx-auto bg-slate-50 rounded-lg border border-slate-200 overflow-hidden p-1">
+                    <div className="w-9 h-9 mx-auto bg-slate-50 rounded-md border border-slate-200 overflow-hidden p-0.5">
                       <img
                         src={resolveProductImageUrl(getVal('picture', 'image_url') || product.imagename) || undefined}
                         alt={productName}
