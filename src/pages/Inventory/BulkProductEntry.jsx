@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import {
+import { Scanner } from '@yudiel/react-qr-scanner';
   Search, Barcode, Zap, RefreshCw, Save, Trash2, Plus, X, Upload, CheckCircle2,
   AlertTriangle, Image as ImageIcon, FileSpreadsheet, Eye, ChevronDown, Check, Layers, AlertCircle
 } from 'lucide-react';
@@ -22,13 +22,15 @@ export default function BulkProductEntry({
   fetchInitialData,
   onClose
 }) {
-  // --- Main Search & Scanner Input State ---
+    // --- Main Search & Scanner Input State ---
   const [searchInput, setSearchInput] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef(null);
   const dropdownRef = useRef(null);
 
+  // --- Camera Barcode Scanner State ---
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
   // --- Session State (loaded from / saved to localStorage) ---
   const [sessionItems, setSessionItems] = useState(() => {
     try {
