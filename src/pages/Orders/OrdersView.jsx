@@ -972,7 +972,7 @@ return {
               <br />
               GSTIN: 09CCFPR9966P1Z9
               <br />
-              Mobile: 8282827240
+              Helpline Number: 8282827240
             </div>
 
             <div class="tax-invoice">
