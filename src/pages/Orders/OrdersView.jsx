@@ -1,5 +1,3 @@
-Dekho pehle ka code ye tha aur ab ek baar me finle do code 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, Eye, Printer, Trash2, X, Edit2, User, MapPin, CreditCard, Truck, RefreshCw, Undo2, Package
