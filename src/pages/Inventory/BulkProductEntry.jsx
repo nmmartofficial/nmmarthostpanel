@@ -1206,11 +1206,7 @@ export default function BulkProductEntry({
 
             const activeCatId = resolveCatId(item);
 
-            const rowSubcategories = bulkSubcategories.filter(
-              s =>
-                !item.category_id ||
-                String(s.category_id).trim() === String(item.category_id).trim()
-            );
+            const rowSubcategories = bulkSubcategories;
 
             return (
               <div
