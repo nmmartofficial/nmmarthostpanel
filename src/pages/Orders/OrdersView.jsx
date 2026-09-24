@@ -43,15 +43,13 @@ const getValidProductImage = (value) => {
 
   if (!image) return '';
 
-  if (image.toLowerCase().includes('/products/null')) {
-    return '';
-  }
+  const lower = image.toLowerCase();
 
-  if (image.toLowerCase() === 'null') {
-    return '';
-  }
-
-  if (image.toLowerCase() === 'undefined') {
+  if (
+    lower === 'null' ||
+    lower === 'undefined' ||
+    lower.includes('/products/null')
+  ) {
     return '';
   }
 
@@ -156,10 +154,47 @@ const escapePrintHtml = (value) =>
     .replace(/'/g, '&#039;');
 
 /* =========================================================
-   FALLBACK ORDER ITEM FETCH
+   FETCH STORED ORDER ITEMS
+   PRIMARY SOURCE = public.orders.items
    ========================================================= */
 
 const fetchStoredOrderItems = async (orderId) => {
+  /*
+   * PRIMARY:
+   * Directly read orders.items from Supabase.
+   */
+  try {
+    const { data, error } = await supabase
+      .from(DB_SCHEMA.ORDERS.table)
+      .select('id,items')
+      .eq('id', orderId)
+      .maybeSingle();
+
+    if (error) {
+      console.error(
+        'Direct orders.items fetch failed:',
+        error
+      );
+    }
+
+    const items = parseStoredOrderItems(
+      data?.items
+    );
+
+    if (items.length > 0) {
+      return items;
+    }
+  } catch (error) {
+    console.error(
+      'Direct orders.items fetch exception:',
+      error
+    );
+  }
+
+  /*
+   * SECONDARY:
+   * dbSync fallback.
+   */
   try {
     const syncedRows = await dbSync.fetch(
       DB_SCHEMA.ORDERS.table,
@@ -168,19 +203,16 @@ const fetchStoredOrderItems = async (orderId) => {
           column: 'id',
           value: orderId
         },
-        select: 'id,items',
-        includeDeleted: true,
-        rawTable: true
+        includeDeleted: true
       }
     );
 
-    const syncedItems =
-      parseStoredOrderItems(
-        syncedRows?.[0]?.items
-      );
+    const items = parseStoredOrderItems(
+      syncedRows?.[0]?.items
+    );
 
-    if (syncedItems.length > 0) {
-      return syncedItems;
+    if (items.length > 0) {
+      return items;
     }
   } catch (error) {
     console.error(
@@ -189,44 +221,21 @@ const fetchStoredOrderItems = async (orderId) => {
     );
   }
 
+  /*
+   * LAST FALLBACK:
+   * legacy order_items table.
+   */
   try {
-    const { data, error } =
-      await supabase
-        .from(DB_SCHEMA.ORDERS.table)
-        .select('id,items')
-        .eq('id', orderId)
-        .maybeSingle();
-
-    if (!error) {
-      const orderItems =
-        parseStoredOrderItems(
-          data?.items
-        );
-
-      if (orderItems.length > 0) {
-        return orderItems;
+    const lineItems = await dbSync.fetch(
+      DB_SCHEMA.ORDER_ITEMS.table,
+      {
+        eq: {
+          column: 'order_id',
+          value: orderId
+        },
+        includeDeleted: true
       }
-    }
-  } catch (error) {
-    console.error(
-      'Direct orders.items fetch failed:',
-      error
     );
-  }
-
-  /* Last fallback only */
-  try {
-    const lineItems =
-      await dbSync.fetch(
-        DB_SCHEMA.ORDER_ITEMS.table,
-        {
-          eq: {
-            column: 'order_id',
-            value: orderId
-          },
-          includeDeleted: true
-        }
-      );
 
     if (
       Array.isArray(lineItems) &&
@@ -377,6 +386,7 @@ export default function OrdersView({
 
     if (dateFilter === '1 Month') {
       const date = new Date();
+
       date.setMonth(
         date.getMonth() - 1
       );
@@ -390,6 +400,7 @@ export default function OrdersView({
 
     if (dateFilter === '2 Months') {
       const date = new Date();
+
       date.setMonth(
         date.getMonth() - 2
       );
@@ -403,6 +414,7 @@ export default function OrdersView({
 
     if (dateFilter === '4 Months') {
       const date = new Date();
+
       date.setMonth(
         date.getMonth() - 4
       );
@@ -495,6 +507,10 @@ export default function OrdersView({
 
   /* =========================================================
      ORDER ITEM SUMMARY
+     
+     IMPORTANT:
+     Directly fetch orders.items for all visible orders.
+     This fixes "ITEM DETAILS UNAVAILABLE".
      ========================================================= */
 
   useEffect(() => {
@@ -506,13 +522,72 @@ export default function OrdersView({
           ? orders
           : [];
 
-      const entries =
+      if (safeOrders.length === 0) {
+        setOrderItemSummaries({});
+        return;
+      }
+
+      const orderIds = safeOrders
+        .map((order) => order?.id)
+        .filter(
+          (id) =>
+            id !== null &&
+            id !== undefined
+        );
+
+      let storedOrders = [];
+
+      /*
+       * Fetch all orders.items directly.
+       */
+      try {
+        const { data, error } =
+          await supabase
+            .from(DB_SCHEMA.ORDERS.table)
+            .select('id,items')
+            .in('id', orderIds);
+
+        if (error) {
+          console.error(
+            'Bulk orders.items fetch failed:',
+            error
+          );
+        } else {
+          storedOrders =
+            Array.isArray(data)
+              ? data
+              : [];
+        }
+      } catch (error) {
+        console.error(
+          'Bulk order items error:',
+          error
+        );
+      }
+
+      /*
+       * Make:
+       * order id -> items
+       */
+      const storedItemsByOrderId =
+        new Map(
+          storedOrders.map(
+            (order) => [
+              String(order.id),
+              parseStoredOrderItems(
+                order.items
+              )
+            ]
+          )
+        );
+
+      const summaryEntries =
         await Promise.all(
           safeOrders.map(
             async (order) => {
               /*
-               * PRIMARY SOURCE:
-               * public.orders.items
+               * First use items already
+               * present in the orders prop.
                */
               let items =
                 parseStoredOrderItems(
@@ -520,19 +595,53 @@ export default function OrdersView({
                 );
 
               /*
-               * Only fallback if items
-               * is empty.
+               * Then use directly fetched
+               * orders.items.
+               */
+              if (items.length === 0) {
+                items =
+                  storedItemsByOrderId.get(
+                    String(order.id)
+                  ) || [];
+              }
+
+              /*
+               * Last fallback.
                */
               if (items.length === 0) {
                 items =
                   await fetchStoredOrderItems(
                     order.id
-                  ).catch(() => []);
+                  );
               }
+
+              const normalized =
+                items.map(
+                  (item, index) =>
+                    normalizeOrderItem(
+                      item,
+                      index,
+                      null,
+                      order.id
+                    )
+                );
+
+              const summary =
+                normalized
+                  .filter(
+                    (item) =>
+                      item.product_name
+                  )
+                  .map((item) =>
+                    item.quantity > 1
+                      ? `${item.product_name} x${item.quantity}`
+                      : item.product_name
+                  )
+                  .join(', ');
 
               return {
                 orderId: order.id,
-                items
+                summary
               };
             }
           )
@@ -542,36 +651,14 @@ export default function OrdersView({
 
       const summaries =
         Object.fromEntries(
-          entries.map(
+          summaryEntries.map(
             ({
               orderId,
-              items
-            }) => {
-              const normalized =
-                items.map(
-                  (item, index) =>
-                    normalizeOrderItem(
-                      item,
-                      index,
-                      null,
-                      orderId
-                    )
-                );
-
-              const summary =
-                normalized
-                  .map((item) =>
-                    item.quantity > 1
-                      ? `${item.product_name} x${item.quantity}`
-                      : item.product_name
-                  )
-                  .join(', ');
-
-              return [
-                orderId,
-                summary
-              ];
-            }
+              summary
+            }) => [
+              orderId,
+              summary
+            ]
           )
         );
 
@@ -583,7 +670,7 @@ export default function OrdersView({
     loadSummaries().catch(
       (error) => {
         console.error(
-          'Order summary error:',
+          'Order item summary error:',
           error
         );
 
@@ -599,7 +686,7 @@ export default function OrdersView({
   }, [orders]);
 
   /* =========================================================
-     FETCH ITEMS
+     FETCH ORDER ITEMS
      ========================================================= */
 
   const fetchOrderItems = async (
@@ -614,7 +701,7 @@ export default function OrdersView({
         selectedOrder;
 
       /*
-       * PRIMARY:
+       * PRIMARY SOURCE:
        * orders.items
        */
       let sourceItems =
@@ -623,7 +710,8 @@ export default function OrdersView({
         );
 
       /*
-       * FALLBACK
+       * If items are not present
+       * in selectedOrder, fetch directly.
        */
       if (sourceItems.length === 0) {
         sourceItems =
@@ -632,6 +720,10 @@ export default function OrdersView({
           );
       }
 
+      /*
+       * Product IDs for optional
+       * product-master lookup.
+       */
       const productIds = [
         ...new Set(
           sourceItems
@@ -730,7 +822,7 @@ export default function OrdersView({
         : [];
 
     /*
-     * Always prefer orders.items.
+     * Prefer orders.items.
      */
     if (printableItems.length === 0) {
       printableItems =
@@ -739,6 +831,9 @@ export default function OrdersView({
         );
     }
 
+    /*
+     * Direct fallback.
+     */
     if (printableItems.length === 0) {
       printableItems =
         await fetchStoredOrderItems(
@@ -1359,11 +1454,6 @@ export default function OrdersView({
 
                       </td>
 
-                      {/* IMPORTANT:
-                          Product name comes from
-                          orders.items[].name
-                      */}
-
                       <td className="px-4 py-2.5 max-w-[280px]">
 
                         <p
@@ -1377,7 +1467,7 @@ export default function OrdersView({
                           {orderItemSummaries[
                             order.id
                           ] ||
-                            'Item details unavailable'}
+                            'Loading item details...'}
                         </p>
 
                       </td>
@@ -1528,13 +1618,17 @@ export default function OrdersView({
                 <div>
 
                   <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter">
+
                     {isEditing
                       ? 'Edit Bill'
                       : 'Order Details'}
+
                     : #
+
                     {selectedOrder.order_number ||
                       selectedOrder.order_no ||
                       selectedOrder.id}
+
                   </h3>
 
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
@@ -1597,6 +1691,7 @@ export default function OrdersView({
                   </button>
 
                 </div>
+
               </div>
 
               {/* BODY */}
@@ -1768,6 +1863,7 @@ export default function OrdersView({
                               }
                               className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 text-[10px] font-black uppercase"
                             >
+
                               <option value="Cash">
                                 Cash
                               </option>
@@ -1783,6 +1879,7 @@ export default function OrdersView({
                               <option value="Credit">
                                 Credit
                               </option>
+
                             </select>
 
                           </div>
@@ -1809,6 +1906,7 @@ export default function OrdersView({
                               }
                               className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 text-[10px] font-black uppercase"
                             >
+
                               <option value="paid">
                                 Paid
                               </option>
@@ -1820,6 +1918,7 @@ export default function OrdersView({
                               <option value="unpaid">
                                 Unpaid
                               </option>
+
                             </select>
 
                           </div>
@@ -1989,9 +2088,7 @@ export default function OrdersView({
 
                     </div>
 
-                    {/* =================================================
-                        PRODUCTS
-                        ================================================= */}
+                    {/* PRODUCTS */}
 
                     <div className="border border-slate-100 rounded-xl overflow-hidden">
 
@@ -2026,6 +2123,7 @@ export default function OrdersView({
                           {loadingItems ? (
 
                             <tr>
+
                               <td
                                 colSpan="4"
                                 className="px-4 py-8 text-center"
@@ -2035,17 +2133,20 @@ export default function OrdersView({
                                   size={20}
                                 />
                               </td>
+
                             </tr>
 
                           ) : orderItems.length === 0 ? (
 
                             <tr>
+
                               <td
                                 colSpan="4"
                                 className="px-4 py-8 text-center text-[10px] font-black text-slate-400 uppercase"
                               >
                                 No item details found for this order
                               </td>
+
                             </tr>
 
                           ) : (
@@ -2307,6 +2408,7 @@ export default function OrdersView({
               </div>
 
             </motion.div>
+
           </div>
         )}
 
