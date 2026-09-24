@@ -166,9 +166,140 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       ? orders
       : [];
 
-    const summaries = {};
-    const missingOrders = [];
+    if (safeOrders.length === 0) {
+      if (active) {
+        setOrderItemSummaries({});
+      }
+      return;
+    }
 
+    const summaries = {};
+
+    // 1. Pehle orders prop ke andar available items use karo
+    safeOrders.forEach((order) => {
+      const items = parseStoredOrderItems(
+        order?.items ?? order?.order_items
+      );
+
+      if (items.length > 0) {
+        summaries[order.id] = items
+          .map((item) => {
+            const name = String(
+              item?.name ??
+              item?.product_name ??
+              ''
+            ).trim();
+
+            const quantity =
+              Number(
+                item?.quantity ??
+                item?.qty ??
+                1
+              ) || 1;
+
+            if (!name) return '';
+
+            return quantity > 1
+              ? `${name} x${quantity}`
+              : name;
+          })
+          .filter(Boolean)
+          .join(', ');
+      }
+    });
+
+    // 2. Jo items already mil gaye hain unko turant show karo
+    if (active) {
+      setOrderItemSummaries({
+        ...summaries
+      });
+    }
+
+    // 3. Jinke items orders prop me nahi mile,
+    // unke liye direct public.orders se items JSONB fetch karo
+    const missingOrderIds = safeOrders
+      .filter((order) => {
+        const items = parseStoredOrderItems(
+          order?.items ?? order?.order_items
+        );
+
+        return items.length === 0;
+      })
+      .map((order) => order.id)
+      .filter(Boolean);
+
+    if (missingOrderIds.length === 0) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from(DB_SCHEMA.ORDERS.table)
+        .select('id,items')
+        .in('id', missingOrderIds);
+
+      if (error) {
+        console.error(
+          'DIRECT ORDERS ITEMS FETCH ERROR:',
+          error
+        );
+        return;
+      }
+
+      console.log(
+        'DIRECT ORDERS ITEMS RESPONSE:',
+        data
+      );
+
+      (data || []).forEach((order) => {
+        const items = parseStoredOrderItems(
+          order?.items
+        );
+
+        summaries[order.id] = items
+          .map((item) => {
+            const name = String(
+              item?.name ??
+              item?.product_name ??
+              ''
+            ).trim();
+
+            const quantity =
+              Number(
+                item?.quantity ??
+                item?.qty ??
+                1
+              ) || 1;
+
+            if (!name) return '';
+
+            return quantity > 1
+              ? `${name} x${quantity}`
+              : name;
+          })
+          .filter(Boolean)
+          .join(', ');
+      });
+
+      if (active) {
+        setOrderItemSummaries({
+          ...summaries
+        });
+      }
+    } catch (error) {
+      console.error(
+        'DIRECT ORDERS ITEMS FETCH FAILED:',
+        error
+      );
+    }
+  };
+
+  loadOrderItemSummaries();
+
+  return () => {
+    active = false;
+  };
+}, [orders]);
     // First: directly use orders.items
     safeOrders.forEach((order) => {
       const items = parseStoredOrderItems(
