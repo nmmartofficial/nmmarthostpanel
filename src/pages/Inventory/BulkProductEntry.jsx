@@ -1103,8 +1103,464 @@ export default function BulkProductEntry({
         </div>
       </div>
 
+      {/* Mobile Bulk Edit Cards */}
+      <div className="md:hidden w-full space-y-4">
+        {sessionItems.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
+            <Barcode size={42} strokeWidth={1} className="mx-auto text-slate-300 mb-3" />
+            <p className="text-xs font-black uppercase tracking-widest text-slate-600">
+              Bulk Entry Session Empty
+            </p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+              Scan barcode or search product name to add products
+            </p>
+          </div>
+        ) : (
+          sessionItems.map((item, idx) => {
+            const isHighlighted = highlightedBarcodes.has(String(item.barcode).trim());
+            const hasRatesError = item.sale_rate > item.mrp && item.mrp > 0;
+
+            const currentStockVal =
+              item.stock === '' ? 0 : (parseFloat(item.stock) || 0);
+
+            const origStockVal =
+              (item._original &&
+                item._original.stock !== undefined &&
+                item._original.stock !== null)
+                ? (parseFloat(item._original.stock) || 0)
+                : currentStockVal;
+
+            const isStockModified =
+              Math.abs(currentStockVal - origStockVal) > 0.0001;
+
+            const hasStockError =
+              currentStockVal < 0 || isNaN(currentStockVal);
+
+            const activeCatId = resolveCatId(item);
+
+            const rowSubcategories = bulkSubcategories.filter(
+              s =>
+                !item.category_id ||
+                String(s.category_id).trim() === String(item.category_id).trim()
+            );
+
+            return (
+              <div
+                key={item.id}
+                className={cn(
+                  "bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-4",
+                  isHighlighted && "ring-2 ring-blue-400 bg-blue-50",
+                  (hasRatesError || hasStockError) && "border-red-300 bg-red-50/40"
+                )}
+              >
+                {/* Product Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
+                        #{idx + 1}
+                      </span>
+
+                      <span className="text-[9px] font-black text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
+                        SCANS: {item.scan_count || 1}
+                      </span>
+                    </div>
+
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Product Name
+                    </p>
+
+                    <input
+                      type="text"
+                      value={item.itname || item.name || ''}
+                      onChange={(e) => {
+                        handleItemFieldChange(item.id, 'itname', e.target.value);
+                        handleItemFieldChange(item.id, 'name', e.target.value);
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-black uppercase text-slate-800 outline-none focus:border-blue-500 focus:bg-white"
+                      placeholder="Product Name"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeItemFromSession(item.id)}
+                    className="flex-shrink-0 p-2 text-red-500 bg-red-50 border border-red-100 rounded-lg"
+                    title="Remove product"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                {/* Barcode */}
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                    Barcode
+                  </p>
+
+                  <p className="text-xs font-mono font-black text-slate-700 break-all">
+                    {item.barcode || 'N/A'}
+                  </p>
+                </div>
+
+                {/* Brand / Category */}
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Brand
+                    </p>
+
+                    <select
+                      value={String(item.brand_id || '')}
+                      onChange={(e) => {
+                        const bId = e.target.value;
+                        const bName =
+                          bulkBrands.find(
+                            b => String(b.id) === bId
+                          )?.name || '';
+
+                        handleItemFieldChange(item.id, 'brand_id', bId);
+                        handleItemFieldChange(item.id, 'brand_name', bName);
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                    >
+                      <option value="">Select Brand</option>
+
+                      {bulkBrands.map(b => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Category
+                    </p>
+
+                    <select
+                      value={String(activeCatId || '')}
+                      onChange={(e) => {
+                        const cId = e.target.value;
+
+                        const cName =
+                          bulkCategories.find(
+                            c => String(c.id) === cId
+                          )?.name || '';
+
+                        handleItemFieldChange(item.id, 'category_id', cId);
+                        handleItemFieldChange(item.id, 'category_name', cName);
+
+                        const validSubcats =
+                          bulkSubcategories.filter(
+                            s =>
+                              String(s.category_id).trim() ===
+                              String(cId).trim()
+                          );
+
+                        const isStillValid =
+                          validSubcats.some(
+                            s =>
+                              String(s.id).trim() ===
+                              String(item.subcategory_id).trim()
+                          );
+
+                        if (!isStillValid) {
+                          handleItemFieldChange(
+                            item.id,
+                            'subcategory_id',
+                            ''
+                          );
+
+                          handleItemFieldChange(
+                            item.id,
+                            'subcategory_name',
+                            ''
+                          );
+                        }
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                    >
+                      <option value="">Select Category</option>
+
+                      {bulkCategories.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Subcategory
+                    </p>
+
+                    <select
+                      value={String(item.subcategory_id || '')}
+                      onChange={(e) => {
+                        const scId = e.target.value;
+
+                        const scMatch =
+                          bulkSubcategories.find(
+                            s => String(s.id) === scId
+                          );
+
+                        handleItemFieldChange(
+                          item.id,
+                          'subcategory_id',
+                          scId
+                        );
+
+                        handleItemFieldChange(
+                          item.id,
+                          'subcategory_name',
+                          scMatch?.name || ''
+                        );
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                    >
+                      <option value="">
+                        {rowSubcategories.length === 0
+                          ? 'No Subcategories Available'
+                          : 'Select Subcategory'}
+                      </option>
+
+                      {rowSubcategories.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Rates */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      MRP (₹)
+                    </p>
+
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.mrp || 0}
+                      onChange={(e) =>
+                        handleItemFieldChange(
+                          item.id,
+                          'mrp',
+                          e.target.value
+                        )
+                      }
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Purchase Rate (₹)
+                    </p>
+
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.purchase_rate || 0}
+                      onChange={(e) =>
+                        handleItemFieldChange(
+                          item.id,
+                          'purchase_rate',
+                          e.target.value
+                        )
+                      }
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Sale Rate (₹)
+                    </p>
+
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.sale_rate || 0}
+                      onChange={(e) =>
+                        handleItemFieldChange(
+                          item.id,
+                          'sale_rate',
+                          e.target.value
+                        )
+                      }
+                      className={cn(
+                        "w-full border rounded-lg px-3 py-2 text-xs font-black outline-none focus:border-blue-500",
+                        hasRatesError
+                          ? "bg-red-100 border-red-400 text-red-800"
+                          : "bg-blue-50 border-slate-200 text-blue-700"
+                      )}
+                    />
+
+                    {hasRatesError && (
+                      <p className="text-[8px] font-black text-red-600 uppercase mt-1">
+                        Sale Rate &gt; MRP
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Discount %
+                    </p>
+
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={item.discount_percent || 0}
+                      onChange={(e) =>
+                        handleItemFieldChange(
+                          item.id,
+                          'discount_percent',
+                          e.target.value
+                        )
+                      }
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* HSN / GST / Stock */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      HSN Code
+                    </p>
+
+                    <input
+                      type="text"
+                      value={item.hsn_code || ''}
+                      onChange={(e) =>
+                        handleItemFieldChange(
+                          item.id,
+                          'hsn_code',
+                          e.target.value
+                        )
+                      }
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      GST %
+                    </p>
+
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={item.gst_percent || 0}
+                      onChange={(e) =>
+                        handleItemFieldChange(
+                          item.id,
+                          'gst_percent',
+                          e.target.value
+                        )
+                      }
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Current Stock
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        step="0.001"
+                        value={item.stock ?? 0}
+                        onChange={(e) =>
+                          handleItemFieldChange(
+                            item.id,
+                            'stock',
+                            e.target.value
+                          )
+                        }
+                        className={cn(
+                          "w-full border rounded-lg px-3 py-2 text-xs font-black outline-none focus:border-blue-500",
+                          hasStockError
+                            ? "bg-red-100 border-red-400 text-red-800"
+                            : isStockModified
+                              ? "bg-amber-100 border-amber-400 text-amber-900"
+                              : "bg-slate-50 border-slate-200 text-slate-800"
+                        )}
+                      />
+
+                      <span className="text-[9px] font-bold text-slate-400 uppercase whitespace-nowrap">
+                        {item.unit_name}
+                      </span>
+                    </div>
+
+                    {hasStockError && (
+                      <p className="text-[8px] font-black text-red-600 uppercase mt-1">
+                        Stock &lt; 0
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Image */}
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                    Product Image
+                  </p>
+
+                  <div className="flex items-center gap-3">
+                    <label className="w-16 h-16 rounded-xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center cursor-pointer">
+                      {item.new_image_preview || item.image_url ? (
+                        <img
+                          src={item.new_image_preview || item.image_url}
+                          alt=""
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <ImageIcon size={22} className="text-slate-300" />
+                      )}
+
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleSingleImageChange(
+                            item.id,
+                            e.target.files?.[0]
+                          )
+                        }
+                        className="hidden"
+                      />
+                    </label>
+
+                    {(item.new_image_preview || item.image_url) && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(item.id)}
+                        className="px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-[9px] font-black uppercase"
+                      >
+                        Remove Image
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
       {/* Main Bulk Edit Table */}
-      <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
+   <div className="hidden md:flex flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-col min-h-0">
         <div className="flex-1 overflow-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1550px]">
             <thead className="sticky top-0 z-10 bg-slate-100 shadow-sm">
