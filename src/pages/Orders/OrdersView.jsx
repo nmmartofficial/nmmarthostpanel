@@ -586,8 +586,17 @@ if (sourceItems.length === 0) {
                           <div>
                             <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Address</label>
                             <textarea 
-                              value={editFormData.address} 
-                              onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
+                              value={
+                                editFormData.delivery_address ??
+                                  editFormData.shipping_address ??
+                                    ''
+                                      }
+                                      onChange={(e) =>
+                                        setEditFormData({
+                                        ...editFormData,
+                                      delivery_address: e.target.value
+                                      })
+                                      }
                               className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 text-[10px] font-bold h-20"
                             />
                           </div>
