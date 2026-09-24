@@ -243,12 +243,6 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       return;
     }
 
-    try {
-      const { data, error } = await supabase
-        .from(DB_SCHEMA.ORDERS.table)
-        .select('id,items')
-        .in('id', missingOrderIds);
-
       if (error) {
         console.error(
           'DIRECT ORDERS ITEMS FETCH ERROR:',
