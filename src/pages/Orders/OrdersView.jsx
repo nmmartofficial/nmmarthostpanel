@@ -549,93 +549,22 @@ return {
       ? items
       : parseStoredOrderItems(order?.items);
 
-  const rows = printableItems
-    .map((item) => {
-      const name =
-        item?.product_name ??
-        item?.name ??
-        `Product #${item?.product_id ?? ''}`;
+  const orderNumber =
+    order?.order_number ??
+    order?.order_no ??
+    order?.order_id_str ??
+    order?.id ??
+    '';
 
-      const hsn =
-        item?.hsn_code ??
-        item?.hsncode ??
-        item?.HSNCODE ??
-        'N/A';
-
-      const quantity =
-        Number(item?.quantity ?? item?.qty ?? 1) || 1;
-
-      const mrp =
-        Number(item?.mrp ?? 0) || 0;
-
-      const discount =
-        Number(
-          item?.discount_percent ??
-          item?.discount ??
-          0
-        ) || 0;
-
-      const saleRate =
-        Number(
-          item?.sale_rate ??
-          item?.rate ??
-          item?.unit_price ??
-          item?.price ??
-          0
-        ) || 0;
-
-      const total =
-        Number(item?.total ?? item?.line_total ?? 0) ||
-        saleRate * quantity;
-
-      return `
-        <tr>
-          <td>
-            <div class="product-name">${escapePrintHtml(name)}</div>
-            <div class="product-id">
-              Product ID: ${escapePrintHtml(String(item?.product_id ?? ''))}
-            </div>
-          </td>
-          <td>${escapePrintHtml(String(hsn))}</td>
-          <td>₹${mrp.toFixed(2)}</td>
-          <td>${discount > 0 ? `${discount}%` : '0%'}</td>
-          <td>₹${saleRate.toFixed(2)}</td>
-          <td>${quantity}</td>
-          <td class="amount">₹${total.toFixed(2)}</td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  const subtotal =
-    Number(
-      order?.subtotal ??
-      order?.total_amount ??
-      order?.total ??
-      0
-    ) || 0;
-
-  const discount =
-    Number(order?.discount ?? 0) || 0;
-
-  const delivery =
-    Number(order?.delivery_charge ?? 0) || 0;
-
-  const cgst =
-    Number(order?.cgst_amount ?? 0) || 0;
-
-  const sgst =
-    Number(order?.sgst_amount ?? 0) || 0;
-
-  const igst =
-    Number(order?.igst_amount ?? 0) || 0;
-
-  const grandTotal =
-    Number(
-      order?.total_amount ??
-      order?.total ??
-      0
-    ) || 0;
+  const orderDate = order?.created_at
+    ? new Date(order.created_at).toLocaleString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    : new Date().toLocaleString('en-IN');
 
   const customerName =
     order?.customer_name ||
@@ -652,23 +581,127 @@ return {
     order?.payment_mode ||
     'Cash';
 
-  const orderNumber =
-    order?.order_number ||
-    order?.order_no ||
-    order?.id;
+  const orderStatus =
+    order?.order_status ||
+    order?.status ||
+    'Completed';
 
-  const orderDate = order?.created_at
-    ? new Date(order.created_at).toLocaleString('en-IN')
-    : new Date().toLocaleString('en-IN');
+  const subtotal =
+    Number(
+      order?.subtotal ??
+      order?.total_amount ??
+      order?.total ??
+      0
+    ) || 0;
+
+  const discount =
+    Number(order?.discount ?? 0) || 0;
+
+  const couponDiscount =
+    Number(order?.coupon_discount ?? 0) || 0;
+
+  const deliveryCharge =
+    Number(order?.delivery_charge ?? 0) || 0;
+
+  const packagingCharge =
+    Number(order?.packaging_charge ?? 0) || 0;
+
+  const cgst =
+    Number(order?.cgst_amount ?? 0) || 0;
+
+  const sgst =
+    Number(order?.sgst_amount ?? 0) || 0;
+
+  const igst =
+    Number(order?.igst_amount ?? 0) || 0;
+
+  const roundOff =
+    Number(order?.round_off ?? 0) || 0;
+
+  const grandTotal =
+    Number(
+      order?.total_amount ??
+      order?.total ??
+      0
+    ) || 0;
+
+  const rows = printableItems
+    .map((item) => {
+      const name =
+        item?.product_name ??
+        item?.name ??
+        `Product #${item?.product_id ?? ''}`;
+
+      const quantity =
+        Number(
+          item?.quantity ??
+          item?.qty ??
+          1
+        ) || 1;
+
+      const rate =
+        Number(
+          item?.sale_rate ??
+          item?.rate ??
+          item?.unit_price ??
+          item?.price ??
+          0
+        ) || 0;
+
+      const total =
+        Number(
+          item?.total ??
+          item?.line_total ??
+          0
+        ) || rate * quantity;
+
+      const discountPercent =
+        Number(
+          item?.discount_percent ??
+          item?.discount ??
+          0
+        ) || 0;
+
+      return `
+        <div class="item">
+          <div class="item-name">
+            ${escapePrintHtml(String(name))}
+          </div>
+
+          <div class="item-row">
+            <span>
+              ${quantity} × ₹${rate.toFixed(2)}
+              ${
+                discountPercent > 0
+                  ? ` • ${discountPercent}% OFF`
+                  : ''
+              }
+            </span>
+
+            <strong>
+              ₹${total.toFixed(2)}
+            </strong>
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+
+  const address =
+    order?.delivery_address ||
+    order?.shipping_address ||
+    '';
 
   const printWindow = window.open(
     '',
     '_blank',
-    'width=1200,height=900'
+    'width=420,height=800'
   );
 
   if (!printWindow) {
-    alert('Please allow pop-ups to print the bill.');
+    alert(
+      'Please allow pop-ups to print the bill.'
+    );
     return;
   }
 
@@ -676,460 +709,590 @@ return {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>NM MART - Invoice #${escapePrintHtml(String(orderNumber))}</title>
+        <meta charset="UTF-8" />
+
+        <title>
+          NM MART - ${escapePrintHtml(
+            String(orderNumber)
+          )}
+        </title>
 
         <style>
           * {
             box-sizing: border-box;
           }
 
+          html,
           body {
+            width: 80mm;
             margin: 0;
-            padding: 30px;
-            background: #f1f5f9;
-            color: #0f172a;
+            padding: 0;
+            background: #ffffff;
+          }
+
+          body {
             font-family:
               Arial,
               Helvetica,
               sans-serif;
+
+            color: #000000;
+
+            font-size: 11px;
+            line-height: 1.35;
+
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
 
-          .invoice {
-            max-width: 1100px;
+          .receipt {
+            width: 80mm;
+            max-width: 80mm;
+
+            padding: 4mm 3.5mm 5mm;
+
             margin: 0 auto;
+
             background: #ffffff;
-            padding: 32px;
-            border-radius: 16px;
-            box-shadow: 0 10px 35px rgba(15, 23, 42, 0.10);
           }
 
-          .top {
-            display: flex;
-            justify-content: space-between;
-            gap: 30px;
-            padding-bottom: 22px;
-            border-bottom: 2px solid #e2e8f0;
+          .center {
+            text-align: center;
           }
 
-          .brand h1 {
-            margin: 0;
-            font-size: 30px;
+          .brand {
+            font-size: 23px;
             font-weight: 900;
-            letter-spacing: -0.5px;
-            color: #1d4ed8;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
           }
 
           .tagline {
-            margin-top: 5px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            color: #64748b;
-            text-transform: uppercase;
+            font-size: 9px;
+            font-weight: 600;
+            margin-bottom: 4px;
           }
 
           .business-info {
-            margin-top: 12px;
-            font-size: 12px;
-            line-height: 1.7;
-            color: #475569;
+            font-size: 9px;
+            line-height: 1.45;
           }
 
-          .invoice-title {
-            text-align: right;
+          .tax-invoice {
+            margin-top: 7px;
+            padding: 4px 0;
+
+            border-top: 1px dashed #000;
+            border-bottom: 1px dashed #000;
+
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 1px;
           }
 
-          .invoice-title .label {
-            font-size: 11px;
-            font-weight: 900;
-            letter-spacing: 2px;
+          .meta {
+            margin-top: 7px;
+            font-size: 9.5px;
+          }
+
+          .meta-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 2px;
+          }
+
+          .meta-row span:first-child {
+            font-weight: 700;
+          }
+
+          .divider {
+            border-top: 1px dashed #000;
+            margin: 7px 0;
+          }
+
+          .section-title {
+            font-size: 10px;
+            font-weight: 800;
             text-transform: uppercase;
-            color: #64748b;
+            margin-bottom: 4px;
           }
 
-          .invoice-title h2 {
-            margin: 6px 0;
-            font-size: 24px;
-            font-weight: 900;
-            color: #0f172a;
+          .item {
+            padding: 5px 0;
+            border-bottom: 1px dashed #b8b8b8;
           }
 
-          .invoice-title p {
-            margin: 3px 0;
-            font-size: 12px;
-            color: #64748b;
+          .item-name {
+            font-size: 10.5px;
+            font-weight: 700;
+            line-height: 1.25;
+
+            padding-right: 2px;
+          }
+
+          .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            gap: 8px;
+
+            margin-top: 2px;
+
+            font-size: 9.5px;
+          }
+
+          .item-row strong {
+            font-size: 10px;
+            white-space: nowrap;
           }
 
           .summary {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 14px;
-            margin: 22px 0;
-          }
-
-          .summary-box {
-            padding: 15px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-          }
-
-          .summary-label {
-            font-size: 9px;
-            font-weight: 900;
-            color: #94a3b8;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-          }
-
-          .summary-value {
             margin-top: 7px;
-            font-size: 13px;
-            font-weight: 800;
-            color: #0f172a;
           }
 
-          .items-title {
-            margin: 25px 0 10px;
-            font-size: 13px;
-            font-weight: 900;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            color: #1d4ed8;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            overflow: hidden;
-            border: 1px solid #e2e8f0;
-          }
-
-          th {
-            padding: 12px 9px;
-            background: #1d4ed8;
-            color: #ffffff;
-            font-size: 9px;
-            font-weight: 900;
-            text-align: left;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-          }
-
-          td {
-            padding: 13px 9px;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 10px;
-            color: #334155;
-          }
-
-          .product-name {
-            font-weight: 800;
-            color: #0f172a;
-          }
-
-          .product-id {
-            margin-top: 4px;
-            font-size: 8px;
-            color: #94a3b8;
-          }
-
-          .amount {
-            font-weight: 900;
-            color: #0f172a;
-            text-align: right;
-          }
-
-          .totals-area {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 22px;
-          }
-
-          .totals {
-            width: 360px;
-          }
-
-          .total-row {
+          .summary-row {
             display: flex;
             justify-content: space-between;
-            padding: 7px 0;
-            font-size: 11px;
-            color: #475569;
+            gap: 8px;
+
+            font-size: 10px;
+
+            margin: 3px 0;
+          }
+
+          .summary-row strong {
+            white-space: nowrap;
           }
 
           .grand-total {
+            margin-top: 7px;
+
+            padding: 7px 0;
+
+            border-top: 1.5px solid #000;
+            border-bottom: 1.5px solid #000;
+
             display: flex;
             justify-content: space-between;
-            margin-top: 8px;
-            padding: 14px 16px;
-            background: #1d4ed8;
-            color: #ffffff;
-            border-radius: 9px;
-            font-size: 16px;
+            align-items: center;
+
+            font-size: 14px;
             font-weight: 900;
           }
 
-          .footer {
-            margin-top: 30px;
-            padding-top: 18px;
-            border-top: 1px solid #e2e8f0;
-            text-align: center;
+          .payment {
+            margin-top: 7px;
+
+            padding: 5px 0;
+
+            border-bottom: 1px dashed #000;
+          }
+
+          .payment-row {
+            display: flex;
+            justify-content: space-between;
+
             font-size: 10px;
-            color: #64748b;
-            line-height: 1.7;
+
+            margin: 2px 0;
+          }
+
+          .address {
+            margin-top: 6px;
+
+            font-size: 9px;
+            line-height: 1.35;
+          }
+
+          .footer {
+            text-align: center;
+
+            margin-top: 10px;
+
+            font-size: 9px;
+            line-height: 1.45;
           }
 
           .footer strong {
-            color: #1d4ed8;
+            font-size: 10px;
+          }
+
+          .cut-space {
+            height: 8mm;
+          }
+
+          @page {
+            size: 80mm auto;
+            margin: 0;
           }
 
           @media print {
+            html,
             body {
+              width: 80mm;
+              margin: 0;
               padding: 0;
-              background: #ffffff;
             }
 
-            .invoice {
-              max-width: none;
-              padding: 15px;
-              box-shadow: none;
-              border-radius: 0;
+            .receipt {
+              width: 80mm;
+              max-width: 80mm;
+
+              margin: 0;
+              padding: 3mm 3.5mm 5mm;
             }
 
-            @page {
-              size: A4;
-              margin: 10mm;
-            }
-          }
-
-          @media (max-width: 700px) {
-            body {
-              padding: 10px;
-            }
-
-            .invoice {
-              padding: 18px;
-            }
-
-            .top {
-              flex-direction: column;
-            }
-
-            .invoice-title {
-              text-align: left;
-            }
-
-            .summary {
-              grid-template-columns: 1fr;
-            }
-
-            table {
-              font-size: 8px;
-            }
-
-            th,
-            td {
-              padding: 8px 5px;
+            .no-print {
+              display: none !important;
             }
           }
         </style>
       </head>
 
       <body>
-        <div class="invoice">
 
-          <div class="top">
+        <div class="receipt">
+
+          <!-- HEADER -->
+
+          <div class="center">
+
             <div class="brand">
-              <h1>NM MART</h1>
-
-              <div class="tagline">
-                Shop More • Save More
-              </div>
-
-              <div class="business-info">
-                <div>
-                  <strong>GSTIN:</strong>
-                  09CCFPR9966P1Z9
-                </div>
-
-                <div>
-                  <strong>Mobile:</strong>
-                  8282827240
-                </div>
-              </div>
+              NM MART
             </div>
 
-            <div class="invoice-title">
-              <div class="label">
-                Tax Invoice
-              </div>
-
-              <h2>
-                #${escapePrintHtml(String(orderNumber))}
-              </h2>
-
-              <p>
-                ${escapePrintHtml(orderDate)}
-              </p>
+            <div class="tagline">
+              SHOP MORE • SAVE MORE
             </div>
+
+            <div class="business-info">
+              Manjhanpur, Kaushambi
+              <br />
+              GSTIN: 09CCFPR9966P1Z9
+              <br />
+              Mobile: 8282827240
+            </div>
+
+            <div class="tax-invoice">
+              TAX INVOICE
+            </div>
+
           </div>
+
+
+          <!-- BILL DETAILS -->
+
+          <div class="meta">
+
+            <div class="meta-row">
+              <span>Bill No.</span>
+              <span>
+                ${escapePrintHtml(
+                  String(orderNumber)
+                )}
+              </span>
+            </div>
+
+            <div class="meta-row">
+              <span>Date</span>
+              <span>
+                ${escapePrintHtml(orderDate)}
+              </span>
+            </div>
+
+            <div class="meta-row">
+              <span>Customer</span>
+              <span>
+                ${escapePrintHtml(
+                  String(customerName)
+                )}
+              </span>
+            </div>
+
+            ${
+              customerMobile
+                ? `
+                  <div class="meta-row">
+                    <span>Mobile</span>
+                    <span>
+                      ${escapePrintHtml(
+                        String(customerMobile)
+                      )}
+                    </span>
+                  </div>
+                `
+                : ''
+            }
+
+            <div class="meta-row">
+              <span>Status</span>
+              <span>
+                ${escapePrintHtml(
+                  String(orderStatus)
+                )}
+              </span>
+            </div>
+
+          </div>
+
+
+          <div class="divider"></div>
+
+
+          <!-- ITEMS -->
+
+          <div class="section-title">
+            Items
+          </div>
+
+          ${
+            rows ||
+            `
+              <div class="center">
+                No items
+              </div>
+            `
+          }
+
+
+          <!-- TOTALS -->
 
           <div class="summary">
 
-            <div class="summary-box">
-              <div class="summary-label">
-                Customer
-              </div>
-
-              <div class="summary-value">
-                ${escapePrintHtml(customerName)}
-              </div>
-
-              <div style="margin-top:5px;font-size:11px;color:#64748b;">
-                ${escapePrintHtml(customerMobile || 'No mobile')}
-              </div>
+            <div class="summary-row">
+              <span>Subtotal</span>
+              <strong>
+                ₹${subtotal.toFixed(2)}
+              </strong>
             </div>
 
-            <div class="summary-box">
-              <div class="summary-label">
-                Payment
-              </div>
+            ${
+              discount > 0
+                ? `
+                  <div class="summary-row">
+                    <span>Discount</span>
+                    <strong>
+                      -₹${discount.toFixed(2)}
+                    </strong>
+                  </div>
+                `
+                : ''
+            }
 
-              <div class="summary-value">
-                ${escapePrintHtml(String(paymentMethod).toUpperCase())}
-              </div>
+            ${
+              couponDiscount > 0
+                ? `
+                  <div class="summary-row">
+                    <span>Coupon</span>
+                    <strong>
+                      -₹${couponDiscount.toFixed(2)}
+                    </strong>
+                  </div>
+                `
+                : ''
+            }
 
-              <div style="margin-top:5px;font-size:11px;color:#64748b;">
+            ${
+              deliveryCharge > 0
+                ? `
+                  <div class="summary-row">
+                    <span>Delivery</span>
+                    <strong>
+                      ₹${deliveryCharge.toFixed(2)}
+                    </strong>
+                  </div>
+                `
+                : ''
+            }
+
+            ${
+              packagingCharge > 0
+                ? `
+                  <div class="summary-row">
+                    <span>Packaging</span>
+                    <strong>
+                      ₹${packagingCharge.toFixed(2)}
+                    </strong>
+                  </div>
+                `
+                : ''
+            }
+
+            ${
+              cgst > 0
+                ? `
+                  <div class="summary-row">
+                    <span>CGST</span>
+                    <strong>
+                      ₹${cgst.toFixed(2)}
+                    </strong>
+                  </div>
+                `
+                : ''
+            }
+
+            ${
+              sgst > 0
+                ? `
+                  <div class="summary-row">
+                    <span>SGST</span>
+                    <strong>
+                      ₹${sgst.toFixed(2)}
+                    </strong>
+                  </div>
+                `
+                : ''
+            }
+
+            ${
+              igst > 0
+                ? `
+                  <div class="summary-row">
+                    <span>IGST</span>
+                    <strong>
+                      ₹${igst.toFixed(2)}
+                    </strong>
+                  </div>
+                `
+                : ''
+            }
+
+            ${
+              roundOff !== 0
+                ? `
+                  <div class="summary-row">
+                    <span>Round Off</span>
+                    <strong>
+                      ₹${roundOff.toFixed(2)}
+                    </strong>
+                  </div>
+                `
+                : ''
+            }
+
+          </div>
+
+
+          <!-- GRAND TOTAL -->
+
+          <div class="grand-total">
+
+            <span>
+              GRAND TOTAL
+            </span>
+
+            <span>
+              ₹${grandTotal.toFixed(2)}
+            </span>
+
+          </div>
+
+
+          <!-- PAYMENT -->
+
+          <div class="payment">
+
+            <div class="payment-row">
+              <span>Payment</span>
+              <strong>
                 ${escapePrintHtml(
-                  String(order?.payment_status || 'Pending').toUpperCase()
+                  String(paymentMethod)
                 )}
-              </div>
+              </strong>
             </div>
 
-            <div class="summary-box">
-              <div class="summary-label">
-                Order Status
-              </div>
-
-              <div class="summary-value">
-                ${escapePrintHtml(
-                  String(
-                    order?.order_status ||
-                    order?.status ||
-                    'Pending'
-                  ).toUpperCase()
-                )}
-              </div>
-
-              <div style="margin-top:5px;font-size:11px;color:#64748b;">
-                ${printableItems.length} item${printableItems.length === 1 ? '' : 's'}
-              </div>
+            <div class="payment-row">
+              <span>Amount Paid</span>
+              <strong>
+                ₹${grandTotal.toFixed(2)}
+              </strong>
             </div>
 
           </div>
 
-          <div class="items-title">
-            Order Items
-          </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>HSN</th>
-                <th>MRP</th>
-                <th>Disc.</th>
-                <th>Sale Rate</th>
-                <th>Qty</th>
-                <th style="text-align:right;">Amount</th>
-              </tr>
-            </thead>
+          ${
+            address
+              ? `
+                <div class="address">
+                  <strong>Delivery Address:</strong>
+                  <br />
+                  ${escapePrintHtml(
+                    String(address)
+                  )}
+                </div>
+              `
+              : ''
+          }
 
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
 
-          <div class="totals-area">
-            <div class="totals">
-
-              <div class="total-row">
-                <span>Subtotal</span>
-                <strong>₹${subtotal.toFixed(2)}</strong>
-              </div>
-
-              <div class="total-row">
-                <span>Discount</span>
-                <strong>
-                  -₹${discount.toFixed(2)}
-                </strong>
-              </div>
-
-              ${
-                cgst > 0
-                  ? `
-                    <div class="total-row">
-                      <span>CGST</span>
-                      <strong>₹${cgst.toFixed(2)}</strong>
-                    </div>
-                  `
-                  : ''
-              }
-
-              ${
-                sgst > 0
-                  ? `
-                    <div class="total-row">
-                      <span>SGST</span>
-                      <strong>₹${sgst.toFixed(2)}</strong>
-                    </div>
-                  `
-                  : ''
-              }
-
-              ${
-                igst > 0
-                  ? `
-                    <div class="total-row">
-                      <span>IGST</span>
-                      <strong>₹${igst.toFixed(2)}</strong>
-                    </div>
-                  `
-                  : ''
-              }
-
-              <div class="total-row">
-                <span>Delivery</span>
-                <strong>
-                  ₹${delivery.toFixed(2)}
-                </strong>
-              </div>
-
-              <div class="grand-total">
-                <span>Grand Total</span>
-                <span>
-                  ₹${grandTotal.toFixed(2)}
-                </span>
-              </div>
-
-            </div>
-          </div>
+          <!-- FOOTER -->
 
           <div class="footer">
-            Thank you for shopping with
-            <strong>NM MART</strong>.<br />
+
+            <strong>
+              Thank You for Shopping!
+            </strong>
+
+            <br />
+
+            Please visit again.
+
+            <br /><br />
+
+            NM MART
+            <br />
             Shop More • Save More
+
           </div>
+
+
+          <!-- SPACE FOR AUTO CUT -->
+
+          <div class="cut-space"></div>
 
         </div>
 
+
         <script>
-          window.onload = function () {
-            setTimeout(function () {
-              window.print();
-            }, 300);
-          };
+
+          window.addEventListener(
+            'load',
+            function () {
+
+              setTimeout(
+                function () {
+
+                  window.focus();
+
+                  window.print();
+
+                },
+                500
+              );
+
+            }
+          );
+
+
+          window.addEventListener(
+            'afterprint',
+            function () {
+
+              setTimeout(
+                function () {
+
+                  window.close();
+
+                },
+                500
+              );
+
+            }
+          );
+
         </script>
 
       </body>
@@ -1138,7 +1301,6 @@ return {
 
   printWindow.document.close();
 };
-
   /*
    * ============================================================
    * STATUS
