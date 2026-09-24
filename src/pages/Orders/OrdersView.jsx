@@ -81,8 +81,6 @@ const fetchStoredOrderItems = async (orderId) => {
 
   return [];
 };
-  return Array.isArray(directLineItems) ? directLineItems : [];
-};
 
 export default function OrdersView({ orders, filter, fetchInitialData, appConfig }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
