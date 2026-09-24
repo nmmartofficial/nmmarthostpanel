@@ -292,6 +292,54 @@ export default function BulkProductEntry({
     focusInput();
   }, [focusInput]);
 
+  // --- Handle Camera Barcode Scan ---
+  const handleCameraScan = useCallback((result) => {
+    if (!result) return;
+
+    const scannedBarcode =
+      typeof result === 'string'
+        ? result.trim()
+        : String(result?.[0]?.rawValue || '').trim();
+
+    if (!scannedBarcode) return;
+
+    // Exact barcode lookup
+    const product = barcodeMap.get(scannedBarcode);
+
+    if (product) {
+      // Directly add product to Bulk Entry session
+      addProductToSession(product);
+
+      // Close camera after successful scan
+      setShowCameraScanner(false);
+
+      return;
+    }
+
+    // Barcode not found
+    toast.error(`PRODUCT NOT FOUND: ${scannedBarcode}`);
+
+    setUnknownBarcodes(prev => [
+      {
+        id: Date.now(),
+        barcode: scannedBarcode,
+        timestamp: new Date().toLocaleTimeString(),
+        status: 'Not Found',
+        reason: 'Scanned barcode does not match any existing product'
+      },
+      ...prev
+    ]);
+
+    setShowCameraScanner(false);
+    setSearchInput('');
+    setShowDropdown(false);
+    focusInput();
+  }, [
+    barcodeMap,
+    addProductToSession,
+    focusInput
+  ]);
+
   // --- Handle Barcode Scan / Enter Key ---
   const handleSearchKeyDown = (e) => {
     if (e.key === 'ArrowDown') {
