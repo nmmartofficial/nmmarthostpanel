@@ -44,11 +44,8 @@ const fetchStoredOrderItems = async (orderId) => {
       const items = parseStoredOrderItems(data?.items);
 
       if (items.length > 0) {
-  console.log('ORDERS ITEMS FOUND:', orderId, items);
-  return items;
-}
-
-console.log('ORDERS ITEMS EMPTY:', orderId, data);
+        return items;
+      }
     } else {
       console.error('orders.items fetch failed:', error);
     }
@@ -159,152 +156,16 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
   }, [selectedOrder]);
 
   useEffect(() => {
-  const summaries = {};
+  let active = true;
 
-  const safeOrders = Array.isArray(orders) ? orders : [];
-
-  safeOrders.forEach((order) => {
-    const items = parseStoredOrderItems(order?.items);
-
-    summaries[order.id] = items
-      .map((item) => {
-        const name = item?.name ?? item?.product_name ?? '';
-        const quantity = Number(item?.quantity ?? item?.qty ?? 1) || 1;
-
-        if (!name) return '';
-
-        return quantity > 1
-          ? `${name} x${quantity}`
-          : name;
-      })
-      .filter(Boolean)
-      .join(', ');
-  });
-
-  setOrderItemSummaries(summaries);
-}, [orders]);
+  const loadOrderItemSummaries = async () => {
+    const safeOrders = Array.isArray(orders)
+      ? orders
+      : [];
 
     const summaries = {};
+    const missingOrders = [];
 
-    // 1. Pehle orders prop ke andar available items use karo
-    safeOrders.forEach((order) => {
-      const items = parseStoredOrderItems(
-        order?.items ?? order?.order_items
-      );
-
-      if (items.length > 0) {
-        summaries[order.id] = items
-          .map((item) => {
-            const name = String(
-              item?.name ??
-              item?.product_name ??
-              ''
-            ).trim();
-
-            const quantity =
-              Number(
-                item?.quantity ??
-                item?.qty ??
-                1
-              ) || 1;
-
-            if (!name) return '';
-
-            return quantity > 1
-              ? `${name} x${quantity}`
-              : name;
-          })
-          .filter(Boolean)
-          .join(', ');
-      }
-    });
-
-    // 2. Jo items already mil gaye hain unko turant show karo
-    if (active) {
-      setOrderItemSummaries({
-        ...summaries
-      });
-    }
-
-    // 3. Jinke items orders prop me nahi mile,
-    // unke liye direct public.orders se items JSONB fetch karo
-    const missingOrderIds = safeOrders
-      .filter((order) => {
-        const items = parseStoredOrderItems(
-          order?.items ?? order?.order_items
-        );
-
-        return items.length === 0;
-      })
-      .map((order) => order.id)
-      .filter(Boolean);
-
-    if (missingOrderIds.length === 0) {
-      return;
-    }
-
-      if (error) {
-        console.error(
-          'DIRECT ORDERS ITEMS FETCH ERROR:',
-          error
-        );
-        return;
-      }
-
-      console.log(
-        'DIRECT ORDERS ITEMS RESPONSE:',
-        data
-      );
-
-      (data || []).forEach((order) => {
-        const items = parseStoredOrderItems(
-          order?.items
-        );
-
-        summaries[order.id] = items
-          .map((item) => {
-            const name = String(
-              item?.name ??
-              item?.product_name ??
-              ''
-            ).trim();
-
-            const quantity =
-              Number(
-                item?.quantity ??
-                item?.qty ??
-                1
-              ) || 1;
-
-            if (!name) return '';
-
-            return quantity > 1
-              ? `${name} x${quantity}`
-              : name;
-          })
-          .filter(Boolean)
-          .join(', ');
-      });
-
-      if (active) {
-        setOrderItemSummaries({
-          ...summaries
-        });
-      }
-    } catch (error) {
-      console.error(
-        'DIRECT ORDERS ITEMS FETCH FAILED:',
-        error
-      );
-    }
-  };
-
-  loadOrderItemSummaries();
-
-  return () => {
-    active = false;
-  };
-}, [orders]);
     // First: directly use orders.items
     safeOrders.forEach((order) => {
       const items = parseStoredOrderItems(
@@ -351,11 +212,52 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       return;
     }
 
-const items = await fetchStoredOrderItems(order.id);
-summaries[order.id] = items
-  .map(item => item?.name ?? item?.product_name ?? '')
-  .filter(Boolean)
-  .join(', ');
+    for (const order of missingOrders) {
+      try {
+        const items =
+          await fetchStoredOrderItems(
+            order.id
+          );
+
+        summaries[order.id] = items
+          .map((item) => {
+            const name =
+              item?.name ??
+              item?.product_name ??
+              '';
+
+            const quantity =
+              Number(
+                item?.quantity ??
+                item?.qty ??
+                1
+              ) || 1;
+
+            if (!name) return '';
+
+            return quantity > 1
+              ? `${name} x${quantity}`
+              : name;
+          })
+          .filter(Boolean)
+          .join(', ');
+      } catch (error) {
+        console.error(
+          'Order item summary fallback failed:',
+          error
+        );
+
+        summaries[order.id] = '';
+      }
+
+      if (active) {
+        setOrderItemSummaries({
+          ...summaries
+        });
+      }
+    }
+  };
+
   loadOrderItemSummaries().catch((error) => {
     console.error(
       'Error loading order item summaries:',
@@ -468,7 +370,7 @@ if (sourceItems.length === 0) {
         customer_name: editFormData.customer_name,
         user_mobile: editFormData.user_mobile,
         delivery_address:
-  editFormData.delivery_address
+          editFormData.address
       });
       if (res.success) {
         alert("Bill updated successfully!");
@@ -684,17 +586,8 @@ if (sourceItems.length === 0) {
                           <div>
                             <label className="text-[9px] font-black text-slate-400 uppercase mb-1 block">Address</label>
                             <textarea 
-                              value={
-                                editFormData.delivery_address ??
-                                  editFormData.shipping_address ??
-                                    ''
-                                      }
-                                      onChange={(e) =>
-                                        setEditFormData({
-                                        ...editFormData,
-                                      delivery_address: e.target.value
-                                      })
-                                      }
+                              value={editFormData.address} 
+                              onChange={(e) => setEditFormData({...editFormData, address: e.target.value})}
                               className="w-full bg-white border border-slate-200 rounded px-3 py-1.5 text-[10px] font-bold h-20"
                             />
                           </div>
