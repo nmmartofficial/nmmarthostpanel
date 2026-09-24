@@ -1960,89 +1960,84 @@ export default function BulkProductEntry({
                   null;
               }
 
-              // BRAND
-              const resolveBrandId =
-                () => {
-                  if (
-                    item.brand_id ===
-                      '' ||
-                    item.brand_id ===
-                      null ||
-                    item.brand_id ===
-                      undefined
-                  ) {
-                    return item
-                      ._original
-                      ?.brand_id
-                      ? Number(
-                          item._original
-                            .brand_id
-                        )
-                      : null;
-                  }
+              // BRAND NAME
+const resolveBrandName = () => {
+  const brandId =
+    item.brand_id ||
+    item._original?.brand_id ||
+    '';
 
-                  return (
-                    Number(
-                      item.brand_id
-                    ) || null
-                  );
-                };
+  if (!brandId) {
+    return String(
+      item.brand_name || ''
+    ).trim();
+  }
 
-              // CATEGORY
-              const resolveCategoryId =
-                () => {
-                  if (
-                    item.category_id ===
-                      '' ||
-                    item.category_id ===
-                      null ||
-                    item.category_id ===
-                      undefined
-                  ) {
-                    return item
-                      ._original
-                      ?.category_id
-                      ? Number(
-                          item._original
-                            .category_id
-                        )
-                      : null;
-                  }
+  const brand = bulkBrands.find(
+    (b) =>
+      String(b.id).trim() ===
+      String(brandId).trim()
+  );
 
-                  return (
-                    Number(
-                      item.category_id
-                    ) || null
-                  );
-                };
+  return String(
+    brand?.name ||
+    item.brand_name ||
+    ''
+  ).trim();
+};
 
-              // SUBCATEGORY
-              const resolveSubcategoryId =
-                () => {
-                  if (
-                    item.subcategory_id ===
-                      '' ||
-                    item.subcategory_id ===
-                      null ||
-                    item.subcategory_id ===
-                      undefined
-                  ) {
-                    return item
-                      ._original
-                      ?.subcategory_id
-                      ? Number(
-                          item._original
-                            .subcategory_id
-                        )
-                      : null;
-                  }
+// CATEGORY NAME
+const resolveCategoryName = () => {
+  const categoryId =
+    item.category_id ||
+    item._original?.category_id ||
+    '';
 
-                  return (
-                    Number(
-                      item.subcategory_id
-                    ) || null
-                  );
-                };
+  if (!categoryId) {
+    return String(
+      item.category_name || ''
+    ).trim();
+  }
+
+  const category = bulkCategories.find(
+    (c) =>
+      String(c.id).trim() ===
+      String(categoryId).trim()
+  );
+
+  return String(
+    category?.name ||
+    item.category_name ||
+    ''
+  ).trim();
+};
+
+// SUBCATEGORY NAME
+const resolveSubcategoryName = () => {
+  const subcategoryId =
+    item.subcategory_id ||
+    item._original?.subcategory_id ||
+    '';
+
+  if (!subcategoryId) {
+    return String(
+      item.subcategory_name || ''
+    ).trim();
+  }
+
+  const subcategory =
+    bulkSubcategories.find(
+      (s) =>
+        String(s.id).trim() ===
+        String(subcategoryId).trim()
+    );
+
+  return String(
+    subcategory?.name ||
+    item.subcategory_name ||
+    ''
+  ).trim();
+};
 
               // STOCK CHANGE
               const origStock =
