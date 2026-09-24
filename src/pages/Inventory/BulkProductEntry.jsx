@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Scanner } from '@yudiel/react-qr-scanner';
+import {
   Search, Barcode, Zap, RefreshCw, Save, Trash2, Plus, X, Upload, CheckCircle2,
   AlertTriangle, Image as ImageIcon, FileSpreadsheet, Eye, ChevronDown, Check, Layers, AlertCircle
 } from 'lucide-react';
