@@ -465,18 +465,63 @@ export default function OrdersView({
               `Product #${productId || ''}`
             ).trim();
 
-            return {
-              ...item,
-              id:
-                item?.id ??
-                `${orderId}-${productId || index}`,
-              product_id: productId,
-              product_name: productName,
-              quantity,
-              rate,
-              total,
-              image_url: imageUrl
-            };
+            const mrp =
+  Number(
+    item?.mrp ??
+    product?.mrp ??
+    0
+  ) || 0;
+
+const saleRate =
+  Number(
+    item?.sale_rate ??
+    item?.unit_price ??
+    item?.rate ??
+    item?.price ??
+    product?.sale_rate ??
+    product?.onlinerate ??
+    product?.online_rate ??
+    product?.retail_rate ??
+    product?.restrate ??
+    0
+  ) || 0;
+
+const discountPercent =
+  Number(
+    item?.discount_percent ??
+    item?.discount ??
+    product?.dis_percent ??
+    product?.discount_percent ??
+    product?.dis ??
+    0
+  ) || 0;
+
+const hsnCode = String(
+  item?.hsn_code ??
+  item?.hsncode ??
+  item?.HSNCODE ??
+  product?.hsncode ??
+  product?.HSNCODE ??
+  product?.hsn_code ??
+  ''
+).trim();
+
+return {
+  ...item,
+  id:
+    item?.id ??
+    `${orderId}-${productId || index}`,
+  product_id: productId,
+  product_name: productName,
+  quantity,
+  mrp,
+  discount_percent: discountPercent,
+  hsn_code: hsnCode,
+  rate: saleRate,
+  sale_rate: saleRate,
+  total,
+  image_url: imageUrl
+};
           }
         );
 
