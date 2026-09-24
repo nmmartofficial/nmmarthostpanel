@@ -556,7 +556,10 @@ export default function App({ company, isTenantMode, companySlug }) {
       const results = await Promise.allSettled([
         dbSync.fetch(DB_SCHEMA.PRODUCTS.table, productsQuery),
         dbSync.fetch(DB_SCHEMA.CATEGORIES.table, { order: { column: 'name', ascending: true } }),
-        dbSync.fetch(DB_SCHEMA.ORDERS.table, { order: { column: 'created_at', ascending: false } }),
+        dbSync.fetch(DB_SCHEMA.ORDERS.table, {
+          order: { column: 'created_at', ascending: false },
+            rawTable: true
+              }),
         dbSync.fetch(DB_SCHEMA.APP_CONFIG.table),
         dbSync.fetch(DB_SCHEMA.BANNERS.table),
         dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table, { order: { column: 'name', ascending: true } }),
