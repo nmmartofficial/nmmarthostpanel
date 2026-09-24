@@ -44,7 +44,11 @@ const fetchStoredOrderItems = async (orderId) => {
       const items = parseStoredOrderItems(data?.items);
 
       if (items.length > 0) {
-        return items;
+  console.log('ORDERS ITEMS FOUND:', orderId, items);
+  return items;
+}
+
+console.log('ORDERS ITEMS EMPTY:', orderId, data);
       }
     } else {
       console.error('orders.items fetch failed:', error);
