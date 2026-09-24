@@ -33,42 +33,54 @@ const escapePrintHtml = (value) => String(value ?? '')
   .replace(/'/g, '&#039;');
 
 const fetchStoredOrderItems = async (orderId) => {
-  const syncedRows = await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
-    eq: { column: 'id', value: orderId },
-    select: 'id,items',
-    includeDeleted: true,
-    rawTable: true
-  });
-  const syncedItems = parseStoredOrderItems(syncedRows?.[0]?.items);
-  if (syncedItems.length > 0) return syncedItems;
+  try {
+    const { data, error } = await supabase
+      .from(DB_SCHEMA.ORDERS.table)
+      .select('id,items')
+      .eq('id', orderId)
+      .maybeSingle();
 
-  const { data, error } = await supabase
-    .from(DB_SCHEMA.ORDERS.table)
-    .select('id,items')
-    .eq('id', orderId)
-    .maybeSingle();
-  if (!error) {
-    const orderItems = parseStoredOrderItems(data?.items);
-    if (orderItems.length > 0) return orderItems;
-  } else {
-    console.error('Direct order item fallback failed:', error);
+    if (!error) {
+      const items = parseStoredOrderItems(data?.items);
+
+      if (items.length > 0) {
+        return items;
+      }
+    } else {
+      console.error('orders.items fetch failed:', error);
+    }
+  } catch (error) {
+    console.error('orders.items fetch failed:', error);
   }
 
-  const lineItems = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, {
-    eq: { column: 'order_id', value: orderId },
-    includeDeleted: true
-  });
-  if (Array.isArray(lineItems) && lineItems.length > 0) return lineItems;
+  // Legacy fallback
+  try {
+    const lineItems = await dbSync.fetch(
+      DB_SCHEMA.ORDER_ITEMS.table,
+      {
+        eq: {
+          column: 'order_id',
+          value: orderId
+        },
+        includeDeleted: true
+      }
+    );
 
-  const { data: directLineItems, error: directLineItemsError } = await supabase
-    .from(DB_SCHEMA.ORDER_ITEMS.table)
-    .select('*')
-    .eq('order_id', orderId)
-    .order('id', { ascending: true });
-  if (directLineItemsError) {
-    console.error('Direct order line-item fallback failed:', directLineItemsError);
-    return [];
+    if (
+      Array.isArray(lineItems) &&
+      lineItems.length > 0
+    ) {
+      return lineItems;
+    }
+  } catch (error) {
+    console.error(
+      'order_items fallback failed:',
+      error
+    );
   }
+
+  return [];
+};
   return Array.isArray(directLineItems) ? directLineItems : [];
 };
 
@@ -146,62 +158,133 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
   }, [selectedOrder]);
 
   useEffect(() => {
-    let active = true;
-    const loadOrderItemSummaries = async () => {
-      const orderIds = orders.map(order => order.id).filter(Boolean);
-      const orderEntries = await Promise.all(orders.map(async (order) => {
-        const inlineItems = parseStoredOrderItems(order.items ?? order.order_items);
-        const items = inlineItems.length > 0
-          ? inlineItems
-          : await fetchStoredOrderItems(order.id).catch(() => []);
-        return { orderId: order.id, items };
-      }));
-      const productIds = [...new Set(orderEntries.flatMap(({ items }) => items
-        .map(item => Number(item.product_id ?? item.productId))
-        .filter(Number.isFinite)))];
-      if (productIds.length === 0) {
-        if (active) setOrderItemSummaries({});
-        return;
+  let active = true;
+
+  const loadOrderItemSummaries = async () => {
+    const safeOrders = Array.isArray(orders)
+      ? orders
+      : [];
+
+    const summaries = {};
+    const missingOrders = [];
+
+    // First: directly use orders.items
+    safeOrders.forEach((order) => {
+      const items = parseStoredOrderItems(
+        order?.items ?? order?.order_items
+      );
+
+      if (items.length > 0) {
+        summaries[order.id] = items
+          .map((item) => {
+            const name =
+              item?.name ??
+              item?.product_name ??
+              '';
+
+            const quantity =
+              Number(
+                item?.quantity ??
+                item?.qty ??
+                1
+              ) || 1;
+
+            if (!name) return '';
+
+            return quantity > 1
+              ? `${name} x${quantity}`
+              : name;
+          })
+          .filter(Boolean)
+          .join(', ');
+      } else {
+        missingOrders.push(order);
+      }
+    });
+
+    // Show whatever is already available immediately
+    if (active) {
+      setOrderItemSummaries({
+        ...summaries
+      });
+    }
+
+    // Only fallback for orders without items
+    if (missingOrders.length === 0) {
+      return;
+    }
+
+    for (const order of missingOrders) {
+      try {
+        const items =
+          await fetchStoredOrderItems(
+            order.id
+          );
+
+        summaries[order.id] = items
+          .map((item) => {
+            const name =
+              item?.name ??
+              item?.product_name ??
+              '';
+
+            const quantity =
+              Number(
+                item?.quantity ??
+                item?.qty ??
+                1
+              ) || 1;
+
+            if (!name) return '';
+
+            return quantity > 1
+              ? `${name} x${quantity}`
+              : name;
+          })
+          .filter(Boolean)
+          .join(', ');
+      } catch (error) {
+        console.error(
+          'Order item summary fallback failed:',
+          error
+        );
+
+        summaries[order.id] = '';
       }
 
-      const products = await dbSync.fetch(DB_SCHEMA.PRODUCTS.table, {
-        in: { column: 'id', values: productIds },
-        includeDeleted: true
-      });
-      const productsById = new Map((products || []).map(product => [Number(product.id), product]));
-      const summaries = Object.fromEntries(orderEntries.map(({ orderId, items }) => [
-        orderId,
-        items.map(item => {
-          const productId = Number(item.product_id ?? item.productId);
-          const product = productsById.get(productId);
-          const name = item.product_name ?? item.name ?? product?.name ?? `Product #${productId}`;
-          const quantity = Number(item.quantity ?? item.qty ?? 1);
-          return quantity > 1 ? `${name} x${quantity}` : name;
-        }).join(', ')
-      ]));
-      if (active) setOrderItemSummaries(summaries);
-    };
+      if (active) {
+        setOrderItemSummaries({
+          ...summaries
+        });
+      }
+    }
+  };
 
-    loadOrderItemSummaries().catch(error => {
-      console.error('Error loading order item summaries:', error);
-      if (active) setOrderItemSummaries({});
-    });
-    return () => { active = false; };
-  }, [orders]);
+  loadOrderItemSummaries().catch((error) => {
+    console.error(
+      'Error loading order item summaries:',
+      error
+    );
+  });
+
+  return () => {
+    active = false;
+  };
+}, [orders]);
 
   const fetchOrderItems = async (orderId) => {
     setLoadingItems(true);
     try {
-      const storedLineItems = await dbSync.fetch(DB_SCHEMA.ORDER_ITEMS.table, {
-        eq: { column: 'order_id', value: orderId }
-      });
-      let storedOrderItems = parseStoredOrderItems(selectedOrder?.items);
-      if (storedLineItems?.length === 0 && storedOrderItems.length === 0) {
-        storedOrderItems = await fetchStoredOrderItems(orderId);
-      }
-      const sourceItems = storedLineItems?.length
-        ? storedLineItems
-        : storedOrderItems;
+      let sourceItems = parseStoredOrderItems(
+  selectedOrder?.items ??
+  selectedOrder?.order_items
+);
+
+if (sourceItems.length === 0) {
+  sourceItems = await fetchStoredOrderItems(
+    orderId
+  );
+}
       const productIds = [...new Set(sourceItems
         .map(item => Number(item.product_id ?? item.productId))
         .filter(Number.isFinite))];
@@ -288,7 +371,8 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
         payment_status: editFormData.payment_status,
         customer_name: editFormData.customer_name,
         user_mobile: editFormData.user_mobile,
-        address: editFormData.address
+        delivery_address:
+          editFormData.address
       });
       if (res.success) {
         alert("Bill updated successfully!");
@@ -570,7 +654,9 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                             <MapPin size={12} /> Address
                           </h4>
                           <p className="text-[10px] font-bold text-slate-600 leading-relaxed italic">
-                            {selectedOrder.address || 'No address provided'}
+                         {selectedOrder.delivery_address ||
+                           selectedOrder.shipping_address ||
+                           'No address provided'}
                           </p>
                         </div>
                       </div>
@@ -631,8 +717,13 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
                           ) : orderItems.map((item) => (
                             <tr key={item.id}>
                               <td className="px-4 py-3 flex items-center gap-3">
-                                {item.image_url ? (
-                                  <img src={item.image_url} alt={item.product_name} className="w-10 h-10 rounded-lg object-contain border border-slate-100 bg-white" />
+                           {item.image_url &&
+                              !String(item.image_url).includes('/products/null') ? (
+                              <img
+                               src={item.image_url}
+                                alt={item.product_name}
+                                className="w-10 h-10 rounded-lg object-contain border border-slate-100 bg-white"
+                                  />
                                 ) : (
                                   <div className="w-10 h-10 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-center text-slate-300"><Package size={16} /></div>
                                 )}
