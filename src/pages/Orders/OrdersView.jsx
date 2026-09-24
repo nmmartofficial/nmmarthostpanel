@@ -159,19 +159,30 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
   }, [selectedOrder]);
 
   useEffect(() => {
-  let active = true;
+  const summaries = {};
 
-  const loadOrderItemSummaries = async () => {
-    const safeOrders = Array.isArray(orders)
-      ? orders
-      : [];
+  const safeOrders = Array.isArray(orders) ? orders : [];
 
-    if (safeOrders.length === 0) {
-      if (active) {
-        setOrderItemSummaries({});
-      }
-      return;
-    }
+  safeOrders.forEach((order) => {
+    const items = parseStoredOrderItems(order?.items);
+
+    summaries[order.id] = items
+      .map((item) => {
+        const name = item?.name ?? item?.product_name ?? '';
+        const quantity = Number(item?.quantity ?? item?.qty ?? 1) || 1;
+
+        if (!name) return '';
+
+        return quantity > 1
+          ? `${name} x${quantity}`
+          : name;
+      })
+      .filter(Boolean)
+      .join(', ');
+  });
+
+  setOrderItemSummaries(summaries);
+}, [orders]);
 
     const summaries = {};
 
