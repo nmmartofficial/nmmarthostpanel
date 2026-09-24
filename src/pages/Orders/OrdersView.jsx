@@ -49,7 +49,6 @@ const fetchStoredOrderItems = async (orderId) => {
 }
 
 console.log('ORDERS ITEMS EMPTY:', orderId, data);
-      }
     } else {
       console.error('orders.items fetch failed:', error);
     }
