@@ -374,7 +374,7 @@ if (sourceItems.length === 0) {
         customer_name: editFormData.customer_name,
         user_mobile: editFormData.user_mobile,
         delivery_address:
-          editFormData.address
+  editFormData.delivery_address
       });
       if (res.success) {
         alert("Bill updated successfully!");
