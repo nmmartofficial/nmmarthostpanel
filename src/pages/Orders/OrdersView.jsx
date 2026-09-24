@@ -544,16 +544,16 @@ return {
    * ============================================================
    */
   const printOrderBill = async (
-    order,
-    items = null
-  ) => {
-    let printableItems =
-      Array.isArray(items) &&
-      items.length > 0
-        ? items
-        : parseStoredOrderItems(
-            order?.items
-          );
+  order,
+  items = null
+) => {
+  let printableItems =
+    Array.isArray(items) &&
+    items.length > 0
+      ? items
+      : parseStoredOrderItems(
+          order?.items
+        );
 
     const rows = printableItems
       .map((item) => {
