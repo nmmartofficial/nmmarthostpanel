@@ -332,29 +332,6 @@ if (requiredField) {
       }
     }
 
-    if (table === DB_SCHEMA.SUBCATEGORIES.table) {
-      const name = String(formData.name || '').trim();
-      const categoryId = formData.category_id ? Number(formData.category_id) : null;
-      const parentCategory = (relatedData.categories || []).find((category) => Number(category.id) === categoryId);
-      if (!parentCategory) {
-        toast.error('A valid parent category is required');
-        return;
-      }
-      if (name && categoryId) {
-        const duplicateSubcategory = (data || []).find((item) => {
-          if (!item || String(item.id) === String(editingItem?.id || '')) return false;
-          return (
-            String(item.name || '').trim().toLowerCase() === name.toLowerCase() &&
-            Number(item.category_id) === categoryId
-          );
-        });
-
-        if (duplicateSubcategory) {
-          toast.error(`Subcategory "${name}" already exists under this category. Duplicate subcategories are not allowed.`);
-          return;
-        }
-      }
-    }
 
     if (table === DB_SCHEMA.BRANDS.table) {
       const name = String(formData.name || '').trim();
