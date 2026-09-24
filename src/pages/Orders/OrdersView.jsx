@@ -346,52 +346,11 @@ export default function OrdersView({ orders, filter, fetchInitialData, appConfig
       return;
     }
 
-    for (const order of missingOrders) {
-      try {
-        const items =
-          await fetchStoredOrderItems(
-            order.id
-          );
-
-        summaries[order.id] = items
-          .map((item) => {
-            const name =
-              item?.name ??
-              item?.product_name ??
-              '';
-
-            const quantity =
-              Number(
-                item?.quantity ??
-                item?.qty ??
-                1
-              ) || 1;
-
-            if (!name) return '';
-
-            return quantity > 1
-              ? `${name} x${quantity}`
-              : name;
-          })
-          .filter(Boolean)
-          .join(', ');
-      } catch (error) {
-        console.error(
-          'Order item summary fallback failed:',
-          error
-        );
-
-        summaries[order.id] = '';
-      }
-
-      if (active) {
-        setOrderItemSummaries({
-          ...summaries
-        });
-      }
-    }
-  };
-
+const items = await fetchStoredOrderItems(order.id);
+summaries[order.id] = items
+  .map(item => item?.name ?? item?.product_name ?? '')
+  .filter(Boolean)
+  .join(', ');
   loadOrderItemSummaries().catch((error) => {
     console.error(
       'Error loading order item summaries:',
