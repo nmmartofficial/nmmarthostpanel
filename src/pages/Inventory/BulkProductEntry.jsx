@@ -1031,39 +1031,56 @@ export default function BulkProductEntry({
           </span>
         </div>
 
-        <div className="relative">
-          <div className="relative flex items-center">
-            <Search className="absolute left-4 text-blue-500" size={18} />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                setShowDropdown(true);
-                setSelectedIndex(-1);
-              }}
-              onKeyDown={handleSearchKeyDown}
-              onFocus={() => {
-                if (searchInput.trim()) setShowDropdown(true);
-              }}
-              placeholder="SCAN BARCODE (e.g. 8901030904554 + ENTER) OR TYPE PRODUCT NAME..."
-              className="w-full bg-blue-50/40 border-2 border-blue-200 focus:border-blue-600 rounded-xl pl-12 pr-12 py-3 text-xs font-black text-slate-900 placeholder-slate-400 outline-none transition-all shadow-inner"
-              autoFocus
-            />
-            {searchInput && (
-              <button
-                onClick={() => {
-                  setSearchInput('');
-                  setShowDropdown(false);
-                  focusInput();
-                }}
-                className="absolute right-4 text-slate-400 hover:text-slate-600"
-              >
-                <X size={16} />
-              </button>
-            )}
-          </div>
+    <div className="relative">
+  <div className="flex items-center gap-2">
+    <div className="relative flex-1">
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" size={18} />
+
+      <input
+        ref={searchInputRef}
+        type="text"
+        value={searchInput}
+        onChange={(e) => {
+          setSearchInput(e.target.value);
+          setShowDropdown(true);
+          setSelectedIndex(-1);
+        }}
+        onKeyDown={handleSearchKeyDown}
+        onFocus={() => {
+          if (searchInput.trim()) setShowDropdown(true);
+        }}
+        placeholder="SCAN BARCODE OR TYPE PRODUCT NAME..."
+        className="w-full bg-blue-50/40 border-2 border-blue-200 focus:border-blue-600 rounded-xl pl-12 pr-12 py-3 text-xs font-black text-slate-900 placeholder-slate-400 outline-none transition-all shadow-inner"
+        autoFocus
+      />
+
+      {searchInput && (
+        <button
+          type="button"
+          onClick={() => {
+            setSearchInput('');
+            setShowDropdown(false);
+            focusInput();
+          }}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+        >
+          <X size={16} />
+        </button>
+      )}
+    </div>
+
+    <button
+      type="button"
+      onClick={() => {
+        setShowDropdown(false);
+        setShowCameraScanner(true);
+      }}
+      className="flex-shrink-0 w-12 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white flex items-center justify-center shadow-md"
+      title="Scan Barcode with Camera"
+    >
+      <Barcode size={22} />
+    </button>
+  </div>
 
           {/* Live Search Dropdown */}
           <AnimatePresence>
