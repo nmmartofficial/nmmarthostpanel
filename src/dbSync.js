@@ -509,6 +509,9 @@ export const dbSync = {
         if (query.order) {
           const orderCol = query.order.column;
           req = req.order(orderCol, { ascending: query.order.ascending ?? true });
+        } else if (tableName === DB_SCHEMA.BANNERS.table) {
+          req = req.order('sort_order', { ascending: true, nullsFirst: false });
+          req = req.order('created_at', { ascending: true });
         } else {
           req = req.order('created_at', { ascending: false });
         }

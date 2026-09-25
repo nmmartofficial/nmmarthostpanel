@@ -150,9 +150,23 @@ const ROLE_WRITE_TABLES = {
   ])
 };
 
+const ERP_ROLE_ALIASES = {
+  inventory: 'inventory_head',
+  inventory_manager: 'inventory_head',
+  stock_manager: 'inventory_head',
+  store_manager: 'inventory_head',
+  purchase_manager: 'inventory_head',
+  sales: 'sales_manager',
+  finance: 'accountant'
+};
+
 const validateERPWriteAuthorization = (moduleName, actionType) => {
   const user = getCurrentERPUser();
-  const role = String(user?.role || 'viewer').toLowerCase();
+  const rawRole = String(user?.role || 'viewer')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+  const role = ERP_ROLE_ALIASES[rawRole] || rawRole;
   const protectedActions = new Set(['INSERT', 'UPDATE', 'DELETE', 'BULK_UPSERT']);
 
   if (!protectedActions.has(actionType)) {
@@ -165,6 +179,15 @@ const validateERPWriteAuthorization = (moduleName, actionType) => {
 
   if (['super_admin', 'admin'].includes(role) || ROLE_WRITE_TABLES[role]?.has(moduleName)) {
     return;
+  }
+
+  if (import.meta.env.DEV) {
+    console.warn('[ERP Authorization] Write blocked', {
+      moduleName,
+      actionType,
+      rawRole,
+      normalizedRole: role
+    });
   }
 
   throw new Error('Security Error: Insufficient privilege for ERP write operation.');

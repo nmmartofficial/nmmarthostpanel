@@ -17,7 +17,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../../erpController';
-import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
 
 const SESSION_STORAGE_ITEMS_KEY = 'nm_bulk_entry_session_items';
@@ -248,25 +247,25 @@ export default function BulkProductEntry({
     }
 
     // Name match
-    const nameCat = categories.find(
-      (c) =>
-        String(c.name || '')
-          .trim()
-          .toLowerCase() ===
-        String(
-          row.category_id ||
-          row.category_name ||
-          ''
-        )
-          .trim()
-          .toLowerCase()
+    const categoryCandidates = [
+      row.category_name,
+      row.category_id
+    ]
+      .filter((value) => value !== null && value !== undefined)
+      .map((value) => String(value).trim().toLowerCase())
+      .filter(Boolean);
+
+    const nameCat = categories.find((c) =>
+      categoryCandidates.includes(
+        String(c.name || '').trim().toLowerCase()
+      )
     );
 
     if (nameCat) {
       return String(nameCat.id);
     }
 
-    return String(row.category_id || '');
+    return String(row.category_id || row.category_name || '');
   }, [categories]);
 
   // =========================================================
@@ -566,12 +565,22 @@ export default function BulkProductEntry({
             product.itc ||
             '',
 
+          itc:
+            product.itc ||
+            product.category_name ||
+            '',
+
           subcategory_id:
             product.subcategory_id ?? '',
 
           subcategory_name:
             product.subcategory_name ||
             product.dtcode ||
+            '',
+
+          dtcode:
+            product.dtcode ||
+            product.subcategory_name ||
             '',
 
           mrp,
@@ -1966,15 +1975,16 @@ export default function BulkProductEntry({
                   item._original?.brand_id ||
                   '';
 
-                if (!brandId) return null;
-
+                const brandName = String(
+                  item.brand_name || item._original?.brand_name || ''
+                ).trim().toLowerCase();
                 const brand = bulkBrands.find(
                   (entry) =>
-                    String(entry.id).trim() ===
-                    String(brandId).trim()
+                    String(entry.id).trim() === String(brandId).trim() ||
+                    String(entry.name).trim().toLowerCase() === brandName
                 );
 
-                return brand?.id ?? brandId;
+                return brand?.id ?? (brandId || null);
               };
 
               const resolveCategoryId = () => {
@@ -1996,15 +2006,16 @@ export default function BulkProductEntry({
                   item._original?.subcategory_id ||
                   '';
 
-                if (!subcategoryId) return null;
-
+                const subcategoryName = String(
+                  item.subcategory_name || item._original?.subcategory_name || ''
+                ).trim().toLowerCase();
                 const subcategory = bulkSubcategories.find(
                   (entry) =>
-                    String(entry.id).trim() ===
-                    String(subcategoryId).trim()
+                    String(entry.id).trim() === String(subcategoryId).trim() ||
+                    String(entry.name).trim().toLowerCase() === subcategoryName
                 );
 
-                return subcategory?.id ?? subcategoryId;
+                return subcategory?.id ?? (subcategoryId || null);
               };
 
               // BRAND NAME
@@ -2035,27 +2046,18 @@ const resolveBrandName = () => {
 
 // CATEGORY NAME
 const resolveCategoryName = () => {
-  const categoryId =
-    item.category_id ||
-    item._original?.category_id ||
-    '';
-
-  if (!categoryId) {
-    return String(
-      item.category_name || ''
-    ).trim();
-  }
-
-  const category = bulkCategories.find(
-    (c) =>
-      String(c.id).trim() ===
-      String(categoryId).trim()
+  const categoryId = item.category_id || item._original?.category_id || '';
+  const categoryName = String(
+    item.category_name || item.itc || item._original?.category_name || ''
+  ).trim();
+  const category = bulkCategories.find((c) =>
+    String(c.id).trim() === String(categoryId).trim() ||
+    String(c.name).trim().toLowerCase() === categoryName.toLowerCase()
   );
 
   return String(
     category?.name ||
-    item.category_name ||
-    ''
+    categoryName
   ).trim();
 };
 
@@ -2065,28 +2067,26 @@ const resolveSubcategoryName = () => {
     item.subcategory_id ||
     item._original?.subcategory_id ||
     '';
-
-  if (!subcategoryId) {
-    return String(
-      item.subcategory_name || ''
-    ).trim();
-  }
+  const subcategoryName = String(
+    item.subcategory_name || item.dtcode || item._original?.subcategory_name || ''
+  ).trim();
 
   const subcategory =
     bulkSubcategories.find(
       (s) =>
         String(s.id).trim() ===
-        String(subcategoryId).trim()
+          String(subcategoryId).trim() ||
+        String(s.name).trim().toLowerCase() === subcategoryName.toLowerCase()
     );
 
   return String(
     subcategory?.name ||
-    item.subcategory_name ||
-    ''
+    subcategoryName
   ).trim();
 };
 
-              // STOCK CHANGE
+              // Calculate stock change, but apply it only after the product
+              // master update has been verified successfully.
               const origStock =
                 (
                   item._original &&
@@ -2116,57 +2116,6 @@ const resolveSubcategoryName = () => {
                 currentStock -
                 origStock;
 
-              if (
-                !isNaN(stockDiff) &&
-                Math.abs(
-                  stockDiff
-                ) > 0.0001
-              ) {
-                const stockRes =
-                  await handleERPAction(
-                    DB_SCHEMA.PRODUCTS.table,
-                    ACTION_TYPES.ADJUST_STOCK,
-                    {
-                      product_id:
-                        item.id,
-
-                      change_qty:
-                        stockDiff,
-
-                      change_type:
-                        'manual',
-
-                      narration:
-                        'Bulk Product Entry Stock Update',
-
-                      reference_number:
-                        `BULK-ENTRY-${
-                          item.barcode ||
-                          item.id
-                        }`
-                    }
-                  );
-
-                if (
-                  !stockRes?.success
-                ) {
-                  console.warn(
-                    `[Bulk Entry Save Warning] Atomic stock adjustment returned error for product ${
-                      item.barcode ||
-                      item.id
-                    }:`,
-                    stockRes?.error
-                  );
-
-                  throw new Error(
-                    `Stock Adjustment Failed (RPC): ${
-                      stockRes?.error ||
-                      'Atomic inventory transaction rejected'
-                    }`
-                  );
-                }
-              }
-
               // PRODUCT MASTER UPDATE
               const updatePayload = {
                 id:
@@ -2180,6 +2129,21 @@ const resolveSubcategoryName = () => {
                   item.itname ||
                   item.name,
 
+                brand_name:
+                  resolveBrandName(),
+
+                category_name:
+                  resolveCategoryName(),
+
+                itc:
+                  resolveCategoryName(),
+
+                subcategory_name:
+                  resolveSubcategoryName(),
+
+                dtcode:
+                  resolveSubcategoryName(),
+
                 mrp:
                   parseFloat(
                     item.mrp
@@ -2187,32 +2151,40 @@ const resolveSubcategoryName = () => {
 
                 purchase_rate:
                   parseFloat(
-                    item.purchase_rate
+                    item.purchase_rate ??
+                    item.purcrate
                   ) || 0,
 
                 purcrate:
                   parseFloat(
                     item.purchase_rate
+                  ) ||
+                  parseFloat(
+                    item.purcrate
                   ) || 0,
 
                 sale_rate:
                   parseFloat(
-                    item.sale_rate
+                    item.sale_rate ??
+                    item.onlinerate
                   ) || 0,
 
                 onlinerate:
                   parseFloat(
-                    item.sale_rate
+                    item.sale_rate ??
+                    item.onlinerate
                   ) || 0,
 
                 discount_percent:
                   parseFloat(
-                    item.discount_percent
+                    item.discount_percent ??
+                    item.discperc
                   ) || 0,
 
                 discperc:
                   parseFloat(
-                    item.discount_percent
+                    item.discount_percent ??
+                    item.discperc
                   ) || 0,
 
                 hsn_code:
@@ -2227,12 +2199,14 @@ const resolveSubcategoryName = () => {
 
                 gst_percent:
                   parseFloat(
-                    item.gst_percent
+                    item.gst_percent ??
+                    item.gst
                   ) || 0,
 
                 gst:
                   parseFloat(
-                    item.gst_percent
+                    item.gst_percent ??
+                    item.gst
                   ) || 0,
 
                 brand_id:
@@ -2366,26 +2340,12 @@ const resolveSubcategoryName = () => {
                 );
               }
 
-              // FRESH DATABASE VERIFICATION
-              const freshVerify =
-                await dbSync.fetch(
-                  DB_SCHEMA.PRODUCTS.table,
-                  {
-                    eq: {
-                      column:
-                        'id',
-                      value:
-                        item.id
-                    }
-                  }
-                );
-
+              // dbSync.update() returns the updated row, so verify locally
+              // without issuing another read request for every product.
               const freshProd =
-                Array.isArray(
-                  freshVerify
-                )
-                  ? freshVerify[0]
-                  : freshVerify;
+                Array.isArray(res.data)
+                  ? res.data[0]
+                  : res.data;
 
               console.log(
                 `[BULK SAVE] FRESH DATABASE VERIFICATION`,
@@ -2455,6 +2415,32 @@ const resolveSubcategoryName = () => {
                 throw new Error(
                   `Database verification failed: Product ID ${item.id} in Supabase still contains un-updated values.`
                 );
+              }
+
+              if (
+                !isNaN(stockDiff) &&
+                Math.abs(stockDiff) > 0.0001
+              ) {
+                const stockRes = await handleERPAction(
+                  DB_SCHEMA.PRODUCTS.table,
+                  ACTION_TYPES.ADJUST_STOCK,
+                  {
+                    product_id: item.id,
+                    change_qty: stockDiff,
+                    change_type: 'manual',
+                    narration: 'Bulk Product Entry Stock Update',
+                    reference_number: `BULK-ENTRY-${item.barcode || item.id}`
+                  }
+                );
+
+                if (!stockRes?.success) {
+                  throw new Error(
+                    `Stock Adjustment Failed (RPC): ${
+                      stockRes?.error ||
+                      'Atomic inventory transaction rejected'
+                    }`
+                  );
+                }
               }
 
               successCount++;
