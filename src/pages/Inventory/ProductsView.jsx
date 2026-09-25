@@ -575,14 +575,14 @@ export default function ProductsView({ products = [], categories = [], brands = 
       : (editingProduct?.subcategory_id != null ? Number(editingProduct.subcategory_id) : null);
     const isEditing = Boolean(editingProduct?.id);
 
-    if (!isEditing && (currentBrandId == null || Number.isNaN(currentBrandId) || !brands.some((brand) => Number(brand?.id) === Number(currentBrandId)))) {
-      alert('Brand not found.');
+    if (currentBrandId == null || Number.isNaN(currentBrandId) || !brands.some((brand) => Number(brand?.id) === Number(currentBrandId))) {
+      alert('Please select a Brand before saving the product.');
       setIsSubmitting(false);
       return;
     }
 
-    if (!isEditing && (currentCategoryId == null || Number.isNaN(currentCategoryId) || !categories.some((category) => Number(category?.id) === Number(currentCategoryId)))) {
-      alert('Main Category not found.');
+    if (currentCategoryId == null || Number.isNaN(currentCategoryId) || !categories.some((category) => Number(category?.id) === Number(currentCategoryId))) {
+      alert('Please select a Main Category before saving the product.');
       setIsSubmitting(false);
       return;
     }
@@ -600,8 +600,12 @@ export default function ProductsView({ products = [], categories = [], brands = 
       currentSubCategoryId = Number(matchingByNameInSelectedCategory.id);
     }
 
-    if (!isEditing && (currentSubCategoryId == null || Number.isNaN(currentSubCategoryId) || !subcategories.some((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId)))) {
-      alert('Sub Category not found.');
+    const categoryHasSubcategories = subcategories.some(
+      (subcategory) => Number(subcategory?.category_id) === Number(currentCategoryId)
+    );
+
+    if (categoryHasSubcategories && (currentSubCategoryId == null || Number.isNaN(currentSubCategoryId) || !subcategories.some((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId)))) {
+      alert('Please select a Sub Category before saving the product.');
       setIsSubmitting(false);
       return;
     }
@@ -638,6 +642,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
       // Get category/brand names from existing records for backward compatibility
       const categoryNameToUse = categories.find(c => Number(c.id) === finalCategoryId)?.name || formData.category_name || formData.itc || '';
       const brandNameToUse = brands.find(b => Number(b.id) === finalBrandId)?.name || formData.brand_name || formData.brandcode || '';
+      const subcategoryNameToUse = subcategories.find(s => Number(s.id) === finalSubcategoryId)?.name || formData.subcategory_name || formData.subcategory || formData.dtcode || '';
 
       // Build final data with both new and old column names for backward compatibility
       const finalData = { 
@@ -680,6 +685,8 @@ export default function ProductsView({ products = [], categories = [], brands = 
         item_category: formData.itc || formData.item_category,
         category_name: categoryNameToUse,
         itc: categoryNameToUse,
+        subcategory_name: subcategoryNameToUse,
+        sub_category_name: subcategoryNameToUse,
         department_code: formData.dtcode || formData.department_code,
         dtcode: formData.dtcode || formData.department_code,
         kcode: formData.kcode || formData.k_code,
