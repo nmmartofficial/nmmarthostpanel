@@ -1960,6 +1960,53 @@ export default function BulkProductEntry({
                   null;
               }
 
+              const resolveBrandId = () => {
+                const brandId =
+                  item.brand_id ||
+                  item._original?.brand_id ||
+                  '';
+
+                if (!brandId) return null;
+
+                const brand = bulkBrands.find(
+                  (entry) =>
+                    String(entry.id).trim() ===
+                    String(brandId).trim()
+                );
+
+                return brand?.id ?? brandId;
+              };
+
+              const resolveCategoryId = () => {
+                const categoryId =
+                  resolveCatId({
+                    ...item,
+                    category_id:
+                      item.category_id ||
+                      item._original?.category_id ||
+                      ''
+                  });
+
+                return categoryId || null;
+              };
+
+              const resolveSubcategoryId = () => {
+                const subcategoryId =
+                  item.subcategory_id ||
+                  item._original?.subcategory_id ||
+                  '';
+
+                if (!subcategoryId) return null;
+
+                const subcategory = bulkSubcategories.find(
+                  (entry) =>
+                    String(entry.id).trim() ===
+                    String(subcategoryId).trim()
+                );
+
+                return subcategory?.id ?? subcategoryId;
+              };
+
               // BRAND NAME
 const resolveBrandName = () => {
   const brandId =
