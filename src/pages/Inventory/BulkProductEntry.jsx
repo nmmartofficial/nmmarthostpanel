@@ -1941,10 +1941,13 @@ image_url:
                   );
                 }
 
-                if (url) {
-                  finalImageUrl =
-                    url;
+                if (!url) {
+                  throw new Error(
+                    'Image Upload Failed: Supabase did not return a public image URL'
+                  );
                 }
+
+                finalImageUrl = url;
               } else if (
                 item.image_url !==
                   undefined &&
