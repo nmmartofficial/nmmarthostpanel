@@ -362,7 +362,7 @@ export const parseERPCSV = async (file, columnMapping, uniqueField = null) => {
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         
         // Convert sheet to JSON
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "" });
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: "", raw: false });
         
         // Clean up empty rows at the end and filter out rows that are entirely empty
         const cleanRows = jsonData.filter(row => row && row.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== ""));
@@ -412,7 +412,7 @@ export const parseERPCSV = async (file, columnMapping, uniqueField = null) => {
               
               if (cleanValue !== '') {
                 hasAnyValue = true;
-                if (!isNaN(Number(cleanValue)) && cleanValue !== '') {
+                if (dbColumn !== 'barcode' && !isNaN(Number(cleanValue)) && cleanValue !== '') {
                   record[dbColumn] = Number(cleanValue);
                 } else {
                   record[dbColumn] = cleanValue;

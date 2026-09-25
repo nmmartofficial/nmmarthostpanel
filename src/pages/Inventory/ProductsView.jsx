@@ -31,6 +31,8 @@ const sanitizeMasterCode = (value, fallback = 'master') => {
   return cleaned.slice(0, 40) || fallback;
 };
 
+const BULK_ENTRY_MODE_KEY = 'nm_bulk_entry_mode';
+
 const normalizeProductStatus = (rawValue) => {
   const statusText = String(rawValue ?? 'Active').trim().toLowerCase();
 
@@ -191,7 +193,13 @@ const processProductImportData = async (parsedData, brands = []) => {
 };
 
 export default function ProductsView({ products = [], categories = [], brands = [], subcategories = [], filter, uploadImage, fetchInitialData, setLoading }) {
-  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [isBulkMode, setIsBulkMode] = useState(() => {
+    try {
+      return localStorage.getItem(BULK_ENTRY_MODE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [formData, setFormData] = useState({});
@@ -213,6 +221,18 @@ export default function ProductsView({ products = [], categories = [], brands = 
   const [showCountDialog, setShowCountDialog] = useState(false);
   const [productToAdjust, setProductToAdjust] = useState(null);
   const barcodeRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      if (isBulkMode) {
+        localStorage.setItem(BULK_ENTRY_MODE_KEY, 'true');
+      } else {
+        localStorage.removeItem(BULK_ENTRY_MODE_KEY);
+      }
+    } catch (err) {
+      console.warn('Failed to persist bulk entry mode:', err);
+    }
+  }, [isBulkMode]);
 
   // --- Brand name resolver: NEVER render raw numeric brand_id as brand label ---
   const resolveBrandName = useCallback((product) => {

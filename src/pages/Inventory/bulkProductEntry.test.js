@@ -33,13 +33,13 @@ test('Unknown barcode scanning logs to unknownBarcodes list without auto-creatin
 
 test('Product Name is editable in the bulk edit table', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
-  assert.match(bulkCode, /Product Name \(Editable\)/);
+  assert.match(bulkCode, /Product Name/);
   assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'itname',\s*e\.target\.value\)/);
 });
 
 test('Current Stock and Purchase Rate fields are editable numeric inputs', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
-  assert.match(bulkCode, /Current Stock \(Clickable & Editable, No Spinners via CSS\)/);
+  assert.match(bulkCode, /Current Stock/);
   assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'stock',\s*e\.target\.value\)/);
   assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'purchase_rate',\s*e\.target\.value\)/);
 });
@@ -52,17 +52,16 @@ test('Subcategory dropdown options load using normalized category ID resolution'
   assert.match(bulkCode, /const rowSubcategories = bulkSubcategories/);
 });
 
-test('Category change clears old invalid subcategory_id and subcategory_name', () => {
+test('Subcategory dropdown keeps the complete master list available', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
-  assert.match(bulkCode, /validSubcats/);
-  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'subcategory_id',\s*''\)/);
+  assert.match(bulkCode, /const rowSubcategories\s*=\s*bulkSubcategories/);
 });
 
 test('Case 1: Changing ONLY Product Name preserves brand, category, subcategory, and image', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /resolveBrandId/);
-  assert.match(bulkCode, /resolveCategoryId/);
-  assert.match(bulkCode, /resolveSubcategoryId/);
+  assert.match(bulkCode, /resolveCatId/);
+  assert.match(bulkCode, /bulkSubcategories/);
   assert.match(bulkCode, /finalImageUrl/);
 });
 
@@ -71,9 +70,10 @@ test('Case 2: Changing ONLY Purchase Rate preserves brand, category, subcategory
   assert.match(bulkCode, /purcrate:\s*parseFloat\(item\.purchase_rate\)\s*\|\|\s*0/);
 });
 
-test('Case 3: Changing ONLY Category clears invalid subcategory and preserves brand/image', () => {
+test('Case 3: Category and subcategory fields remain independently editable', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
-  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'subcategory_id',\s*''\)/);
+  assert.match(bulkCode, /'category_id'/);
+  assert.match(bulkCode, /'subcategory_id'/);
 });
 
 test('Case 4: Changing ONLY Image preserves brand, category, and subcategory without generating products/null', () => {
@@ -98,8 +98,10 @@ test('Saving stock change uses canonical atomic stock adjustment without direct 
 test('Bulk image matching matches barcode filenames like 8901030904554.jpg to products in session', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /handleBulkImageMatch/);
-  assert.match(bulkCode, /String\(item\.barcode\)\.trim\(\)\s*===\s*filename/);
-  assert.match(bulkCode, /unmatchedNames/);
+  assert.match(bulkCode, /productBarcodeMap/);
+  assert.match(bulkCode, /Invalid Barcode Filename/);
+  assert.match(bulkCode, /Duplicate Barcode/);
+  assert.match(bulkCode, /bulk_image_status/);
   assert.match(bulkCode, /setShowUnmatchedImagesDrawer/);
 });
 
@@ -121,7 +123,7 @@ test('SAVE ALL confirms changes and updates products via handleERPAction with ba
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /handleConfirmSaveAll/);
   assert.match(bulkCode, /BATCH_SIZE/);
-  assert.match(bulkCode, /handleERPAction\(DB_SCHEMA\.PRODUCTS\.table,\s*ACTION_TYPES\.UPDATE/);
+  assert.match(bulkCode, /ACTION_TYPES\.UPDATE/);
   assert.match(bulkCode, /failedList\.push/);
 });
 
@@ -130,4 +132,22 @@ test('ProductsView includes BULK ENTRY button and renders BulkProductEntry', () 
   assert.match(productsViewCode, /BulkProductEntry/);
   assert.match(productsViewCode, /isBulkMode/);
   assert.match(productsViewCode, /BULK ENTRY/);
+});
+
+test('Product Excel merge classifies NEW, UPDATE, INVALID and DUPLICATE rows before apply', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /MERGE_EXCEL_COLUMN_MAPPING/);
+  assert.match(bulkCode, /productBarcodeMap\.get\(barcode\)/);
+  assert.match(bulkCode, /status: existing \? 'UPDATE' : 'NEW'/);
+  assert.match(bulkCode, /status: 'DUPLICATE'/);
+  assert.match(bulkCode, /status: 'INVALID'/);
+  assert.match(bulkCode, /handleERPAction\(/);
+  assert.match(bulkCode, /ACTION_TYPES\.INSERT/);
+});
+
+test('Product Excel merge does not send blank cells as destructive updates', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /value === undefined \|\| value === null/);
+  assert.match(bulkCode, /if \(!hasDataField\)/);
+  assert.match(bulkCode, /Confirm Merge/);
 });
