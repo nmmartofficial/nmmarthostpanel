@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../../erpController';
+import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
 
 const SESSION_STORAGE_ITEMS_KEY = 'nm_bulk_entry_session_items';
@@ -247,25 +248,25 @@ export default function BulkProductEntry({
     }
 
     // Name match
-    const categoryCandidates = [
-      row.category_name,
-      row.category_id
-    ]
-      .filter((value) => value !== null && value !== undefined)
-      .map((value) => String(value).trim().toLowerCase())
-      .filter(Boolean);
-
-    const nameCat = categories.find((c) =>
-      categoryCandidates.includes(
-        String(c.name || '').trim().toLowerCase()
-      )
+    const nameCat = categories.find(
+      (c) =>
+        String(c.name || '')
+          .trim()
+          .toLowerCase() ===
+        String(
+          row.category_id ||
+          row.category_name ||
+          ''
+        )
+          .trim()
+          .toLowerCase()
     );
 
     if (nameCat) {
       return String(nameCat.id);
     }
 
-    return String(row.category_id || row.category_name || '');
+    return String(row.category_id || '');
   }, [categories]);
 
   // =========================================================
@@ -565,22 +566,12 @@ export default function BulkProductEntry({
             product.itc ||
             '',
 
-          itc:
-            product.itc ||
-            product.category_name ||
-            '',
-
           subcategory_id:
             product.subcategory_id ?? '',
 
           subcategory_name:
             product.subcategory_name ||
             product.dtcode ||
-            '',
-
-          dtcode:
-            product.dtcode ||
-            product.subcategory_name ||
             '',
 
           mrp,
@@ -660,19 +651,28 @@ export default function BulkProductEntry({
             gst,
 
             brand_id:
-              product.brand_id ??
-              null,
+  product.brand_id ?? null,
 
-            category_id:
-              product.category_id ??
-              null,
+brand_name:
+  product.brand_name || product.brandcode || '',
 
-            subcategory_id:
-              product.subcategory_id ??
-              null,
+category_id:
+  product.category_id ?? null,
 
-            image_url:
-              cleanImg,
+category_name:
+  product.category_name || product.itc || '',
+
+subcategory_id:
+  product.subcategory_id ?? null,
+
+subcategory_name:
+  product.subcategory_name || product.dtcode || '',
+
+sub_category_name:
+  product.subcategory_name || product.dtcode || '',
+
+image_url:
+  cleanImg,
 
             stock,
 
@@ -1969,54 +1969,33 @@ export default function BulkProductEntry({
                   null;
               }
 
-              const resolveBrandId = () => {
-                const brandId =
-                  item.brand_id ||
-                  item._original?.brand_id ||
-                  '';
+// BRAND ID
+const resolveBrandId = () => {
+  const brandId =
+    item.brand_id ||
+    item._original?.brand_id ||
+    '';
 
-                const brandName = String(
-                  item.brand_name || item._original?.brand_name || ''
-                ).trim().toLowerCase();
-                const brand = bulkBrands.find(
-                  (entry) =>
-                    String(entry.id).trim() === String(brandId).trim() ||
-                    String(entry.name).trim().toLowerCase() === brandName
-                );
+  if (brandId) {
+    return brandId;
+  }
 
-                return brand?.id ?? (brandId || null);
-              };
+  const brandName = String(
+    item.brand_name || ''
+  ).trim();
 
-              const resolveCategoryId = () => {
-                const categoryId =
-                  resolveCatId({
-                    ...item,
-                    category_id:
-                      item.category_id ||
-                      item._original?.category_id ||
-                      ''
-                  });
+  if (!brandName) {
+    return null;
+  }
 
-                return categoryId || null;
-              };
+  const brand = bulkBrands.find(
+    (b) =>
+      String(b.name || '').trim().toLowerCase() ===
+      brandName.toLowerCase()
+  );
 
-              const resolveSubcategoryId = () => {
-                const subcategoryId =
-                  item.subcategory_id ||
-                  item._original?.subcategory_id ||
-                  '';
-
-                const subcategoryName = String(
-                  item.subcategory_name || item._original?.subcategory_name || ''
-                ).trim().toLowerCase();
-                const subcategory = bulkSubcategories.find(
-                  (entry) =>
-                    String(entry.id).trim() === String(subcategoryId).trim() ||
-                    String(entry.name).trim().toLowerCase() === subcategoryName
-                );
-
-                return subcategory?.id ?? (subcategoryId || null);
-              };
+  return brand?.id ?? null;
+};
 
               // BRAND NAME
 const resolveBrandName = () => {
@@ -2046,18 +2025,27 @@ const resolveBrandName = () => {
 
 // CATEGORY NAME
 const resolveCategoryName = () => {
-  const categoryId = item.category_id || item._original?.category_id || '';
-  const categoryName = String(
-    item.category_name || item.itc || item._original?.category_name || ''
-  ).trim();
-  const category = bulkCategories.find((c) =>
-    String(c.id).trim() === String(categoryId).trim() ||
-    String(c.name).trim().toLowerCase() === categoryName.toLowerCase()
+  const categoryId =
+    item.category_id ||
+    item._original?.category_id ||
+    '';
+
+  if (!categoryId) {
+    return String(
+      item.category_name || ''
+    ).trim();
+  }
+
+  const category = bulkCategories.find(
+    (c) =>
+      String(c.id).trim() ===
+      String(categoryId).trim()
   );
 
   return String(
     category?.name ||
-    categoryName
+    item.category_name ||
+    ''
   ).trim();
 };
 
@@ -2067,26 +2055,28 @@ const resolveSubcategoryName = () => {
     item.subcategory_id ||
     item._original?.subcategory_id ||
     '';
-  const subcategoryName = String(
-    item.subcategory_name || item.dtcode || item._original?.subcategory_name || ''
-  ).trim();
+
+  if (!subcategoryId) {
+    return String(
+      item.subcategory_name || ''
+    ).trim();
+  }
 
   const subcategory =
     bulkSubcategories.find(
       (s) =>
         String(s.id).trim() ===
-          String(subcategoryId).trim() ||
-        String(s.name).trim().toLowerCase() === subcategoryName.toLowerCase()
+        String(subcategoryId).trim()
     );
 
   return String(
     subcategory?.name ||
-    subcategoryName
+    item.subcategory_name ||
+    ''
   ).trim();
 };
 
-              // Calculate stock change, but apply it only after the product
-              // master update has been verified successfully.
+              // STOCK CHANGE
               const origStock =
                 (
                   item._original &&
@@ -2116,6 +2106,57 @@ const resolveSubcategoryName = () => {
                 currentStock -
                 origStock;
 
+              if (
+                !isNaN(stockDiff) &&
+                Math.abs(
+                  stockDiff
+                ) > 0.0001
+              ) {
+                const stockRes =
+                  await handleERPAction(
+                    DB_SCHEMA.PRODUCTS.table,
+                    ACTION_TYPES.ADJUST_STOCK,
+                    {
+                      product_id:
+                        item.id,
+
+                      change_qty:
+                        stockDiff,
+
+                      change_type:
+                        'manual',
+
+                      narration:
+                        'Bulk Product Entry Stock Update',
+
+                      reference_number:
+                        `BULK-ENTRY-${
+                          item.barcode ||
+                          item.id
+                        }`
+                    }
+                  );
+
+                if (
+                  !stockRes?.success
+                ) {
+                  console.warn(
+                    `[Bulk Entry Save Warning] Atomic stock adjustment returned error for product ${
+                      item.barcode ||
+                      item.id
+                    }:`,
+                    stockRes?.error
+                  );
+
+                  throw new Error(
+                    `Stock Adjustment Failed (RPC): ${
+                      stockRes?.error ||
+                      'Atomic inventory transaction rejected'
+                    }`
+                  );
+                }
+              }
+
               // PRODUCT MASTER UPDATE
               const updatePayload = {
                 id:
@@ -2129,21 +2170,6 @@ const resolveSubcategoryName = () => {
                   item.itname ||
                   item.name,
 
-                brand_name:
-                  resolveBrandName(),
-
-                category_name:
-                  resolveCategoryName(),
-
-                itc:
-                  resolveCategoryName(),
-
-                subcategory_name:
-                  resolveSubcategoryName(),
-
-                dtcode:
-                  resolveSubcategoryName(),
-
                 mrp:
                   parseFloat(
                     item.mrp
@@ -2151,40 +2177,32 @@ const resolveSubcategoryName = () => {
 
                 purchase_rate:
                   parseFloat(
-                    item.purchase_rate ??
-                    item.purcrate
+                    item.purchase_rate
                   ) || 0,
 
                 purcrate:
                   parseFloat(
                     item.purchase_rate
-                  ) ||
-                  parseFloat(
-                    item.purcrate
                   ) || 0,
 
                 sale_rate:
                   parseFloat(
-                    item.sale_rate ??
-                    item.onlinerate
+                    item.sale_rate
                   ) || 0,
 
                 onlinerate:
                   parseFloat(
-                    item.sale_rate ??
-                    item.onlinerate
+                    item.sale_rate
                   ) || 0,
 
                 discount_percent:
                   parseFloat(
-                    item.discount_percent ??
-                    item.discperc
+                    item.discount_percent
                   ) || 0,
 
                 discperc:
                   parseFloat(
-                    item.discount_percent ??
-                    item.discperc
+                    item.discount_percent
                   ) || 0,
 
                 hsn_code:
@@ -2198,29 +2216,38 @@ const resolveSubcategoryName = () => {
                   '',
 
                 gst_percent:
-                  parseFloat(
-                    item.gst_percent ??
-                    item.gst
-                  ) || 0,
+                parseFloat(
+                  item.gst_percent
+                        ) || 0,
 
-                gst:
-                  parseFloat(
-                    item.gst_percent ??
-                    item.gst
-                  ) || 0,
+                        gst:
+                        parseFloat(
+                        item.gst_percent
+                        ) || 0,
 
-                brand_id:
-                  resolveBrandId(),
+                        brand_id:
+                    resolveBrandId(),
 
-                category_id:
-                  resolveCategoryId(),
+brand_name:
+  resolveBrandName(),
 
-                subcategory_id:
-                  resolveSubcategoryId(),
+category_id:
+  resolveCategoryId(),
 
-                image_url:
-                  finalImageUrl,
+category_name:
+  resolveCategoryName(),
 
+subcategory_id:
+  resolveSubcategoryId(),
+
+subcategory_name:
+  resolveSubcategoryName(),
+
+sub_category_name:
+  resolveSubcategoryName(),
+
+image_url:
+  finalImageUrl,
                 picture:
                   finalImageUrl,
 
@@ -2340,12 +2367,26 @@ const resolveSubcategoryName = () => {
                 );
               }
 
-              // dbSync.update() returns the updated row, so verify locally
-              // without issuing another read request for every product.
+              // FRESH DATABASE VERIFICATION
+              const freshVerify =
+                await dbSync.fetch(
+                  DB_SCHEMA.PRODUCTS.table,
+                  {
+                    eq: {
+                      column:
+                        'id',
+                      value:
+                        item.id
+                    }
+                  }
+                );
+
               const freshProd =
-                Array.isArray(res.data)
-                  ? res.data[0]
-                  : res.data;
+                Array.isArray(
+                  freshVerify
+                )
+                  ? freshVerify[0]
+                  : freshVerify;
 
               console.log(
                 `[BULK SAVE] FRESH DATABASE VERIFICATION`,
@@ -2415,32 +2456,6 @@ const resolveSubcategoryName = () => {
                 throw new Error(
                   `Database verification failed: Product ID ${item.id} in Supabase still contains un-updated values.`
                 );
-              }
-
-              if (
-                !isNaN(stockDiff) &&
-                Math.abs(stockDiff) > 0.0001
-              ) {
-                const stockRes = await handleERPAction(
-                  DB_SCHEMA.PRODUCTS.table,
-                  ACTION_TYPES.ADJUST_STOCK,
-                  {
-                    product_id: item.id,
-                    change_qty: stockDiff,
-                    change_type: 'manual',
-                    narration: 'Bulk Product Entry Stock Update',
-                    reference_number: `BULK-ENTRY-${item.barcode || item.id}`
-                  }
-                );
-
-                if (!stockRes?.success) {
-                  throw new Error(
-                    `Stock Adjustment Failed (RPC): ${
-                      stockRes?.error ||
-                      'Atomic inventory transaction rejected'
-                    }`
-                  );
-                }
               }
 
               successCount++;
@@ -2944,132 +2959,158 @@ const resolveSubcategoryName = () => {
           CAMERA SCANNER MODAL
       ===================================================== */}
 
-      <AnimatePresence>
-        {showCameraScanner && (
-          <div className="fixed inset-0 z-[1000] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4">
+  <AnimatePresence>
+  {showCameraScanner && (
+    <div className="fixed inset-0 z-[1000] bg-black">
 
-            <motion.div
-              initial={{
-                scale: 0.95,
-                opacity: 0
-              }}
-              animate={{
-                scale: 1,
-                opacity: 1
-              }}
-              exit={{
-                scale: 0.95,
-                opacity: 0
-              }}
-              className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="w-full h-full bg-black flex flex-col"
+      >
+
+        {/* Scanner Header */}
+        <div className="shrink-0 px-4 py-3 bg-slate-950 text-white flex items-center justify-between">
+
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-widest">
+              Scan Barcode
+            </h3>
+
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+              Camera Barcode Scanner
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowCameraScanner(false);
+              focusInput();
+            }}
+            className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 transition"
+          >
+            <X size={20} />
+          </button>
+
+        </div>
+
+        {/* Full Camera Area */}
+        <div className="relative flex-1 bg-black overflow-hidden">
+
+          <Scanner
+            onScan={handleCameraScan}
+            constraints={{
+              facingMode: 'environment'
+            }}
+            scanDelay={500}
+            allowMultiple={false}
+            components={{
+              audio: false,
+              onOff: false,
+              torch: false,
+              finder: false
+            }}
+            styles={{
+              container: {
+                width: '100%',
+                height: '100%'
+              },
+              video: {
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }
+            }}
+          />
+
+          {/* Scanner Guide */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+
+            <div
+              className="
+                relative
+                w-[88%]
+                h-[30%]
+                max-w-2xl
+                border-2
+                border-white/90
+                rounded-2xl
+                shadow-[0_0_0_9999px_rgba(0,0,0,0.30)]
+              "
             >
 
-              {/* Scanner Header */}
-              <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              {/* Scan Line */}
+              <motion.div
+                initial={{ y: 0 }}
+                animate={{ y: ['0%', '100%', '0%'] }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: 'easeInOut'
+                }}
+                className="
+                  absolute
+                  left-3
+                  right-3
+                  top-0
+                  h-0.5
+                  bg-red-500
+                  shadow-[0_0_12px_rgba(239,68,68,0.9)]
+                "
+              />
 
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest">
-                    Scan Barcode
-                  </h3>
+              {/* Corner Highlights */}
+              <div className="absolute -top-0.5 -left-0.5 w-8 h-8 border-t-4 border-l-4 border-red-500 rounded-tl-xl" />
 
-                  <p className="text-[9px] text-slate-300 font-bold uppercase tracking-widest mt-1">
-                    Camera Barcode Scanner
-                  </p>
-                </div>
+              <div className="absolute -top-0.5 -right-0.5 w-8 h-8 border-t-4 border-r-4 border-red-500 rounded-tr-xl" />
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCameraScanner(
-                      false
-                    );
+              <div className="absolute -bottom-0.5 -left-0.5 w-8 h-8 border-b-4 border-l-4 border-red-500 rounded-bl-xl" />
 
-                    focusInput();
-                  }}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-8 h-8 border-b-4 border-r-4 border-red-500 rounded-br-xl" />
 
-              {/* Camera */}
-              <div className="relative bg-black aspect-square overflow-hidden">
+            </div>
 
-                <Scanner
-                  onScan={
-                    handleCameraScan
-                  }
-                  constraints={{
-                    facingMode:
-                      'environment'
-                  }}
-                  scanDelay={
-                    500
-                  }
-                  allowMultiple={
-                    false
-                  }
-                  components={{
-                    audio: false,
-                    onOff: false,
-                    torch: false,
-                    finder: true
-                  }}
-                  styles={{
-                    container: {
-                      width:
-                        '100%',
-                      height:
-                        '100%'
-                    },
-                    video: {
-                      width:
-                        '100%',
-                      height:
-                        '100%',
-                      objectFit:
-                        'cover'
-                    }
-                  }}
-                />
-
-                {/* Scanner Guide */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-
-                  <div className="w-[72%] h-[28%] border-2 border-white rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.25)] relative">
-
-                    <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-red-500 shadow-lg" />
-
-                  </div>
-                </div>
-              </div>
-
-              {/* Scanner Footer */}
-              <div className="p-4 bg-white space-y-3">
-
-                <p className="text-[10px] text-center text-slate-500 font-bold uppercase tracking-widest">
-                  Barcode ko frame ke andar rakhein
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCameraScanner(
-                      false
-                    );
-
-                    focusInput();
-                  }}
-                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest"
-                >
-                  Cancel Scanner
-                </button>
-
-              </div>
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+
+        </div>
+
+        {/* Bottom Control */}
+        <div className="shrink-0 p-3 bg-slate-950">
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowCameraScanner(false);
+              focusInput();
+            }}
+            className="
+              w-full
+              bg-white/10
+              hover:bg-white/15
+              active:scale-[0.99]
+              text-white
+              py-3
+              rounded-xl
+              text-[11px]
+              font-black
+              uppercase
+              tracking-[0.18em]
+              transition
+              border
+              border-white/10
+            "
+          >
+            Cancel Scanner
+          </button>
+
+        </div>
+
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
 
       {/* =====================================================
           SUMMARY CARDS
