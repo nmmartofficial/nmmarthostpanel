@@ -2249,7 +2249,10 @@ category_name:
   resolveCategoryName(),
 
 subcategory_id:
-  resolveSubcategoryId(),
+  (bulkSubcategories.find((entry) =>
+    String(entry.id).trim() === String(item.subcategory_id || item._original?.subcategory_id || '').trim() ||
+    String(entry.name).trim().toLowerCase() === String(item.subcategory_name || item.dtcode || item._original?.subcategory_name || '').trim().toLowerCase()
+  )?.id || item.subcategory_id || item._original?.subcategory_id || null),
 
 subcategory_name:
   resolveSubcategoryName(),
