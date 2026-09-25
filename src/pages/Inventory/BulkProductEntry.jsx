@@ -2063,6 +2063,41 @@ const resolveSubcategoryName = () => {
               const currentStock = parseFloat(item.stock) || 0;
               const stockDiff = currentStock - origStock;
 
+              const resolvedBrandId = resolveBrandId();
+              const resolvedBrandName = resolveBrandName();
+              const resolvedCategoryId = resolveCatId({
+                ...item,
+                category_id: item.category_id || item._original?.category_id || '',
+                category_name: item.category_name || item.itc || item._original?.category_name || ''
+              });
+              const resolvedCategoryName = resolveCategoryName();
+              const resolvedSubcategoryId = bulkSubcategories.find((entry) =>
+                String(entry.id).trim() === String(item.subcategory_id || item._original?.subcategory_id || '').trim() ||
+                String(entry.name).trim().toLowerCase() === String(item.subcategory_name || item.dtcode || item._original?.subcategory_name || '').trim().toLowerCase()
+              )?.id || item.subcategory_id || item._original?.subcategory_id || null;
+              const resolvedSubcategoryName = resolveSubcategoryName();
+              const relationshipPayload = {};
+
+              // Do not overwrite existing master links with null/blank values
+              // when an imported product has no relationship data yet.
+              if (resolvedBrandId !== null && resolvedBrandId !== undefined && String(resolvedBrandId).trim() !== '') {
+                relationshipPayload.brand_id = resolvedBrandId;
+              }
+              if (resolvedBrandName) relationshipPayload.brand_name = resolvedBrandName;
+              if (resolvedCategoryId) relationshipPayload.category_id = resolvedCategoryId;
+              if (resolvedCategoryName) {
+                relationshipPayload.category_name = resolvedCategoryName;
+                relationshipPayload.itc = resolvedCategoryName;
+              }
+              if (resolvedSubcategoryId !== null && resolvedSubcategoryId !== undefined && String(resolvedSubcategoryId).trim() !== '') {
+                relationshipPayload.subcategory_id = resolvedSubcategoryId;
+              }
+              if (resolvedSubcategoryName) {
+                relationshipPayload.subcategory_name = resolvedSubcategoryName;
+                relationshipPayload.sub_category_name = resolvedSubcategoryName;
+                relationshipPayload.dtcode = resolvedSubcategoryName;
+              }
+
               // PRODUCT MASTER UPDATE
               const updatePayload = {
                 id:
@@ -2131,45 +2166,12 @@ const resolveSubcategoryName = () => {
                         item.gst_percent
                         ) || 0,
 
-                        brand_id:
-                    resolveBrandId(),
-
-brand_name:
-  resolveBrandName(),
-
-category_id:
-  resolveCatId({
-    ...item,
-    category_id:
-      item.category_id ||
-      item._original?.category_id ||
-      '',
-    category_name:
-      item.category_name ||
-      item.itc ||
-      item._original?.category_name ||
-      ''
-  }) || null,
-
-category_name:
-  resolveCategoryName(),
-
-subcategory_id:
-  (bulkSubcategories.find((entry) =>
-    String(entry.id).trim() === String(item.subcategory_id || item._original?.subcategory_id || '').trim() ||
-    String(entry.name).trim().toLowerCase() === String(item.subcategory_name || item.dtcode || item._original?.subcategory_name || '').trim().toLowerCase()
-  )?.id || item.subcategory_id || item._original?.subcategory_id || null),
-
-subcategory_name:
-  resolveSubcategoryName(),
-
-sub_category_name:
-  resolveSubcategoryName(),
-
-image_url:
+                image_url:
   finalImageUrl,
                 picture:
                   finalImageUrl,
+
+                ...relationshipPayload,
 
                 updated_at:
                   new Date().toISOString()
