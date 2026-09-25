@@ -17,7 +17,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/helpers';
 import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../../erpController';
-import { dbSync } from '../../dbSync';
 import { DB_SCHEMA } from '../../dbSchema';
 
 const SESSION_STORAGE_ITEMS_KEY = 'nm_bulk_entry_session_items';
@@ -1975,26 +1974,15 @@ const resolveBrandId = () => {
     item.brand_id ||
     item._original?.brand_id ||
     '';
-
-  if (brandId) {
-    return brandId;
-  }
-
   const brandName = String(
-    item.brand_name || ''
-  ).trim();
-
-  if (!brandName) {
-    return null;
-  }
-
-  const brand = bulkBrands.find(
-    (b) =>
-      String(b.name || '').trim().toLowerCase() ===
-      brandName.toLowerCase()
+    item.brand_name || item._original?.brand_name || ''
+  ).trim().toLowerCase();
+  const brand = bulkBrands.find((b) =>
+    String(b.id).trim() === String(brandId).trim() ||
+    String(b.name || '').trim().toLowerCase() === brandName
   );
 
-  return brand?.id ?? null;
+  return brand?.id ?? (brandId || null);
 };
 
               // BRAND NAME
@@ -2029,23 +2017,17 @@ const resolveCategoryName = () => {
     item.category_id ||
     item._original?.category_id ||
     '';
-
-  if (!categoryId) {
-    return String(
-      item.category_name || ''
-    ).trim();
-  }
-
-  const category = bulkCategories.find(
-    (c) =>
-      String(c.id).trim() ===
-      String(categoryId).trim()
+  const categoryName = String(
+    item.category_name || item.itc || item._original?.category_name || ''
+  ).trim();
+  const category = bulkCategories.find((c) =>
+    String(c.id).trim() === String(categoryId).trim() ||
+    String(c.name || '').trim().toLowerCase() === categoryName.toLowerCase()
   );
 
   return String(
     category?.name ||
-    item.category_name ||
-    ''
+    categoryName
   ).trim();
 };
 
@@ -2055,107 +2037,31 @@ const resolveSubcategoryName = () => {
     item.subcategory_id ||
     item._original?.subcategory_id ||
     '';
-
-  if (!subcategoryId) {
-    return String(
-      item.subcategory_name || ''
-    ).trim();
-  }
+  const subcategoryName = String(
+    item.subcategory_name || item.dtcode || item._original?.subcategory_name || ''
+  ).trim();
 
   const subcategory =
     bulkSubcategories.find(
       (s) =>
         String(s.id).trim() ===
-        String(subcategoryId).trim()
+        String(subcategoryId).trim() ||
+        String(s.name || '').trim().toLowerCase() === subcategoryName.toLowerCase()
     );
 
   return String(
     subcategory?.name ||
-    item.subcategory_name ||
-    ''
+    subcategoryName
   ).trim();
 };
 
-              // STOCK CHANGE
-              const origStock =
-                (
-                  item._original &&
-                  item._original.stock !==
-                    undefined &&
-                  item._original.stock !==
-                    null
-                )
-                  ? (
-                      parseFloat(
-                        item._original
-                          .stock
-                      ) || 0
-                    )
-                  : (
-                      parseFloat(
-                        item.stock
-                      ) || 0
-                    );
-
-              const currentStock =
-                parseFloat(
-                  item.stock
-                ) || 0;
-
-              const stockDiff =
-                currentStock -
-                origStock;
-
-              if (
-                !isNaN(stockDiff) &&
-                Math.abs(
-                  stockDiff
-                ) > 0.0001
-              ) {
-                const stockRes =
-                  await handleERPAction(
-                    DB_SCHEMA.PRODUCTS.table,
-                    ACTION_TYPES.ADJUST_STOCK,
-                    {
-                      product_id:
-                        item.id,
-
-                      change_qty:
-                        stockDiff,
-
-                      change_type:
-                        'manual',
-
-                      narration:
-                        'Bulk Product Entry Stock Update',
-
-                      reference_number:
-                        `BULK-ENTRY-${
-                          item.barcode ||
-                          item.id
-                        }`
-                    }
-                  );
-
-                if (
-                  !stockRes?.success
-                ) {
-                  console.warn(
-                    `[Bulk Entry Save Warning] Atomic stock adjustment returned error for product ${
-                      item.barcode ||
-                      item.id
-                    }:`,
-                    stockRes?.error
-                  );
-
-                  throw new Error(
-                    `Stock Adjustment Failed (RPC): ${
-                      stockRes?.error ||
-                      'Atomic inventory transaction rejected'
-                    }`
-                  );
-                }
-              }
+              // Calculate stock change. It is applied only after the product
+              // master update has succeeded.
+              const origStock = item._original?.stock !== undefined && item._original?.stock !== null
+                ? parseFloat(item._original.stock) || 0
+                : parseFloat(item.stock) || 0;
+              const currentStock = parseFloat(item.stock) || 0;
+              const stockDiff = currentStock - origStock;
 
               // PRODUCT MASTER UPDATE
               const updatePayload = {
@@ -2381,26 +2287,12 @@ image_url:
                 );
               }
 
-              // FRESH DATABASE VERIFICATION
-              const freshVerify =
-                await dbSync.fetch(
-                  DB_SCHEMA.PRODUCTS.table,
-                  {
-                    eq: {
-                      column:
-                        'id',
-                      value:
-                        item.id
-                    }
-                  }
-                );
-
+              // dbSync.update returns the updated row. Verify that response
+              // locally instead of issuing another read for every product.
               const freshProd =
-                Array.isArray(
-                  freshVerify
-                )
-                  ? freshVerify[0]
-                  : freshVerify;
+                Array.isArray(res.data)
+                  ? res.data[0]
+                  : res.data;
 
               console.log(
                 `[BULK SAVE] FRESH DATABASE VERIFICATION`,
@@ -2470,6 +2362,29 @@ image_url:
                 throw new Error(
                   `Database verification failed: Product ID ${item.id} in Supabase still contains un-updated values.`
                 );
+              }
+
+              if (!isNaN(stockDiff) && Math.abs(stockDiff) > 0.0001) {
+                const stockRes = await handleERPAction(
+                  DB_SCHEMA.PRODUCTS.table,
+                  ACTION_TYPES.ADJUST_STOCK,
+                  {
+                    product_id: item.id,
+                    change_qty: stockDiff,
+                    change_type: 'manual',
+                    narration: 'Bulk Product Entry Stock Update',
+                    reference_number: `BULK-ENTRY-${item.barcode || item.id}`
+                  }
+                );
+
+                if (!stockRes?.success) {
+                  throw new Error(
+                    `Stock Adjustment Failed (RPC): ${
+                      stockRes?.error ||
+                      'Atomic inventory transaction rejected'
+                    }`
+                  );
+                }
               }
 
               successCount++;
