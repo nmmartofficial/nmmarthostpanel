@@ -2232,7 +2232,18 @@ brand_name:
   resolveBrandName(),
 
 category_id:
-  resolveCategoryId(),
+  resolveCatId({
+    ...item,
+    category_id:
+      item.category_id ||
+      item._original?.category_id ||
+      '',
+    category_name:
+      item.category_name ||
+      item.itc ||
+      item._original?.category_name ||
+      ''
+  }) || null,
 
 category_name:
   resolveCategoryName(),
