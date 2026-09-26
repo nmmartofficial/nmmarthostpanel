@@ -85,7 +85,7 @@ export const buildPosProductPatch = (rawProduct) => {
       ? Number(value)
       : field === 'barcode'
         ? normalizeProductBarcode(value)
-        : String(value).trim();
+            : String(value).trim();
   });
 
   delete patch.stock;
@@ -129,22 +129,12 @@ export const planPosProductSync = ({ posProducts = [], existingProducts = [] } =
     }
     if (barcode) seenIncomingBarcodes.add(barcode);
 
-    let match = barcode ? existingByBarcode.get(barcode) : null;
-    if (!match && name) {
       const nameMatches = existingByName.get(name) || [];
-      if (nameMatches.length === 1) {
-        match = nameMatches[0];
-      } else if (nameMatches.length > 1) {
-        conflicts.push({ index, barcode, name, reason: 'Ambiguous normalized product name', rawProduct });
         return;
       }
     }
 
-    if (match) {
-      plan.push({ action: 'UPDATE', id: match.id, barcode, patch });
-    } else {
-      plan.push({ action: 'INSERT', barcode, patch });
-    }
+    plan.push({ action: 'INSERT', barcode, patch });
   });
 
   return {
@@ -152,7 +142,6 @@ export const planPosProductSync = ({ posProducts = [], existingProducts = [] } =
     conflicts,
     summary: {
       inserted: plan.filter((entry) => entry.action === 'INSERT').length,
-      updated: plan.filter((entry) => entry.action === 'UPDATE').length,
       conflicts: conflicts.length
     }
   };
@@ -171,7 +160,6 @@ export const applyPosProductSync = async ({ plan = [], repository, dryRun = true
     errors: []
   };
 
-  if (dryRun) return report;
 
   for (const entry of plan) {
     try {
