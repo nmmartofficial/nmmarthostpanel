@@ -2517,39 +2517,7 @@ const resolveSubcategoryName = () => {
                         item.gst_percent
                         ) || 0,
 
-<<<<<<< HEAD
                 image_url:
-=======
-                        brand_id:
-                    resolveBrandId(),
-
-brand_name:
-  resolveBrandName(),
-
-category_id:
-  resolveCatId({
-    ...item,
-    category_id: item.category_id || item._original?.category_id || '',
-    category_name: item.category_name || item.itc || item._original?.category_name || ''
-  }) || null,
-
-category_name:
-  resolveCategoryName(),
-
-subcategory_id:
-  (bulkSubcategories.find((entry) =>
-    String(entry.id).trim() === String(item.subcategory_id || item._original?.subcategory_id || '').trim() ||
-    String(entry.name).trim().toLowerCase() === String(item.subcategory_name || item.dtcode || item._original?.subcategory_name || '').trim().toLowerCase()
-  )?.id || item.subcategory_id || item._original?.subcategory_id || null),
-
-subcategory_name:
-  resolveSubcategoryName(),
-
-sub_category_name:
-  resolveSubcategoryName(),
-
-image_url:
->>>>>>> d90ba65 (Remove undefined bulk entry resolvers)
   finalImageUrl,
                 picture:
                   finalImageUrl,
