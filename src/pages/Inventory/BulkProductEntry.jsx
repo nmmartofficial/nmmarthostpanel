@@ -22,34 +22,6 @@ import { DB_SCHEMA } from '../../dbSchema';
 const SESSION_STORAGE_ITEMS_KEY = 'nm_bulk_entry_session_items';
 const SESSION_STORAGE_UNKNOWN_KEY = 'nm_bulk_entry_unknown_barcodes';
 
-const MERGE_EXCEL_COLUMN_MAPPING = {
-  'Item Name': 'name',
-  itname: 'name',
-  name: 'name',
-  BARCODE: 'barcode',
-  barcode: 'barcode',
-  HSNCODE: 'hsn_code',
-  'HSN Code': 'hsn_code',
-  'MAIN CATEGORY': 'category_name',
-  Category: 'category_name',
-  'SUB CATEGORY': 'subcategory_name',
-  Subcategory: 'subcategory_name',
-  MRP: 'mrp',
-  'SALE RATE': 'sale_rate',
-  'PURC RATE': 'purchase_rate',
-  'GST%': 'gst_percent',
-  'GST %': 'gst_percent',
-  'CESS%': 'cess_percent',
-  'CESS %': 'cess_percent',
-  OPENING: 'stock',
-  Opening: 'stock',
-  'Brand name': 'brand_name',
-  Brand: 'brand_name',
-  Unit: 'unit_name',
-  MinQty: 'low_stock_threshold',
-  'Dis %': 'discount_percent'
-};
-
 export default function BulkProductEntry({
   products = [],
   categories = [],
@@ -117,24 +89,6 @@ export default function BulkProductEntry({
 
   const [showUnknownDrawer, setShowUnknownDrawer] = useState(false);
   const [showUnmatchedImagesDrawer, setShowUnmatchedImagesDrawer] = useState(false);
-  const [showMergeExcelPreview, setShowMergeExcelPreview] = useState(false);
-  const [mergeExcelRows, setMergeExcelRows] = useState([]);
-  const [isMergingExcel, setIsMergingExcel] = useState(false);
-
-  const calculatePurchaseRate = useCallback((mrp, discountPercent, gstPercent) => {
-    const numericMrp = parseFloat(mrp) || 0;
-    const numericDiscount = parseFloat(discountPercent) || 0;
-    const numericGst = parseFloat(gstPercent) || 0;
-    const grossPurchaseRate =
-      numericMrp * (1 - numericDiscount / 100);
-
-    const netPurchaseRate =
-      grossPurchaseRate / (1 + numericGst / 100);
-
-    return Math.round(
-      (netPurchaseRate + Number.EPSILON) * 100
-    ) / 100;
-  }, []);
 
   // =========================================================
   // BRANDS
@@ -417,20 +371,6 @@ export default function BulkProductEntry({
     return map;
   }, [products]);
 
-  const productBarcodeMap = useMemo(() => {
-    const map = new Map();
-
-    (products || []).forEach((product) => {
-      const barcode = String(product?.barcode || '').trim();
-
-      if (barcode) {
-        map.set(barcode, product);
-      }
-    });
-
-    return map;
-  }, [products]);
-
   // =========================================================
   // LIVE PRODUCT SEARCH
   // =========================================================
@@ -489,11 +429,8 @@ export default function BulkProductEntry({
   // =========================================================
 
   const addProductToSession = useCallback(
-    (product, options = {}) => {
+    (product) => {
       if (!product) return;
-
-      const incrementDuplicate =
-        options.incrementDuplicate !== false;
 
       const barcodeKey = String(
         product.barcode ||
@@ -514,10 +451,6 @@ export default function BulkProductEntry({
 
         // DUPLICATE PRODUCT
         if (existingIdx !== -1) {
-          if (!incrementDuplicate) {
-            return prev;
-          }
-
           const updated = [...prev];
 
           const currentCount =
@@ -696,19 +629,6 @@ export default function BulkProductEntry({
 
           new_image_preview:
             null,
-
-          purchase_discount_percent:
-            Math.min(
-              100,
-              Math.max(
-                0,
-                100 - (
-                  purchaseRate *
-                  (1 + gst / 100) /
-                  Math.max(mrp, 1)
-                ) * 100
-              )
-            ),
 
           scan_count:
             1,
@@ -1005,22 +925,6 @@ image_url:
                       ? 0
                       : parseFloat(value)
                   );
-
-            if (
-              updated.purchase_discount_percent !==
-                undefined &&
-              updated.mrp !== ''
-            ) {
-              const calculatedRate =
-                calculatePurchaseRate(
-                  updated.mrp,
-                  updated.purchase_discount_percent,
-                  updated.gst_percent ?? updated.gst
-                );
-
-              updated.purchase_rate = calculatedRate;
-              updated.purcrate = calculatedRate;
-            }
           }
 
           if (
@@ -1065,42 +969,6 @@ image_url:
 
             updated.purcrate =
               val;
-
-            updated.purchase_discount_percent =
-              updated.mrp > 0 && val !== ''
-                ? 100 - (parseFloat(val) / parseFloat(updated.mrp)) * 100
-                : '';
-          }
-
-          if (field === 'purchase_discount_percent') {
-            const discount =
-              value === ''
-                ? ''
-                : Math.min(100, Math.max(0, parseFloat(value) || 0));
-
-            const calculatedRate =
-              discount === ''
-                ? updated.purchase_rate
-                : calculatePurchaseRate(updated.mrp, discount);
-
-            updated.purchase_discount_percent = discount;
-            updated.purchase_rate = calculatedRate;
-            updated.purcrate = calculatedRate;
-          }
-
-          if (
-            (field === 'gst_percent' || field === 'gst') &&
-            updated.purchase_discount_percent !== undefined
-          ) {
-            const calculatedRate =
-              calculatePurchaseRate(
-                updated.mrp,
-                updated.purchase_discount_percent,
-                value
-              );
-
-            updated.purchase_rate = calculatedRate;
-            updated.purcrate = calculatedRate;
           }
 
           if (
@@ -1269,118 +1137,83 @@ image_url:
       return;
     }
 
-    const unmatchedImagesBatch = [];
-    const filesByBarcode = new Map();
-    const duplicateImages = [];
+    let matchedCount = 0;
+
+    const unmatchedNames = [];
 
     files.forEach((file) => {
-      const filename = file.name
-        .replace(/\.[^.]+$/, '')
-        .trim();
-      const duplicateMatch = filename.match(/^(\d+)_\d+$/);
-      const barcode = duplicateMatch?.[1] || filename;
-      const previewUrl = URL.createObjectURL(file);
+      const filename =
+        file.name
+          .substring(
+            0,
+            file.name.lastIndexOf('.')
+          )
+          .trim();
 
-      if (!/^\d+$/.test(barcode)) {
-        unmatchedImagesBatch.push({
-          type: 'invalid',
-          status: 'Invalid Barcode Filename',
-          filename: file.name,
-          barcode,
-          previewUrl
-        });
-        return;
-      }
+      const previewUrl =
+        URL.createObjectURL(file);
 
-      const product = productBarcodeMap.get(barcode);
+      let found = false;
 
-      if (!product) {
-        unmatchedImagesBatch.push({
-          type: 'unknown',
-          status: 'Unknown Barcode',
-          filename: file.name,
-          barcode,
-          previewUrl
-        });
-        return;
-      }
+      setSessionItems(
+        (prev) =>
+          prev.map((item) => {
+            if (
+              String(
+                item.barcode
+              ).trim() ===
+              filename
+            ) {
+              found = true;
 
-      if (filesByBarcode.has(barcode)) {
-        duplicateImages.push({
-          type: 'duplicate',
-          status: 'Duplicate Barcode',
-          filename: file.name,
-          barcode,
-          previewUrl,
-          firstFilename: filesByBarcode.get(barcode).filename
-        });
-        return;
-      }
+              matchedCount++;
 
-      filesByBarcode.set(barcode, {
-        file,
-        filename: file.name,
-        previewUrl,
-        product
-      });
-    });
+              return {
+                ...item,
+                new_image_file:
+                  file,
+                new_image_preview:
+                  previewUrl
+              };
+            }
 
-    const matchedEntries = Array.from(filesByBarcode.values());
+            return item;
+          })
+      );
 
-    matchedEntries.forEach(({ product }) => {
-      addProductToSession(product, {
-        incrementDuplicate: false
-      });
-    });
-
-    setSessionItems((prev) =>
-      prev.map((item) => {
-        const match = filesByBarcode.get(
-          String(item.barcode || '').trim()
+      if (!found) {
+        unmatchedNames.push(
+          file.name
         );
+      }
+    });
 
-        if (!match) return item;
-
-        return {
-          ...item,
-          new_image_file: match.file,
-          new_image_preview: match.previewUrl,
-          bulk_image_filename: match.filename,
-          bulk_image_status: 'Barcode Matched'
-        };
-      })
+    setUnmatchedImages(
+      (prev) => [
+        ...unmatchedNames,
+        ...prev
+      ]
     );
 
-    const resultRecords = [
-      ...duplicateImages,
-      ...unmatchedImagesBatch
-    ];
-
-    setUnmatchedImages((prev) => [
-      ...resultRecords,
-      ...prev
-    ]);
-
-    if (matchedEntries.length > 0) {
+    if (
+      matchedCount > 0
+    ) {
       toast.success(
-        `Matched ${matchedEntries.length} image(s) with product barcodes.`
+        `Matched ${matchedCount} image(s) with session product barcodes!`
       );
     }
 
-    if (duplicateImages.length > 0) {
+    if (
+      unmatchedNames.length >
+      0
+    ) {
       toast.warning(
-        `${duplicateImages.length} duplicate barcode image(s) were not silently overwritten.`
+        `${unmatchedNames.length} image(s) did not match any barcode in session.`
       );
-    }
 
-    if (unmatchedImagesBatch.length > 0) {
-      toast.warning(
-        `${unmatchedImagesBatch.length} image(s) need review.`
+      setShowUnmatchedImagesDrawer(
+        true
       );
-    }
-
-    if (resultRecords.length > 0) {
-      setShowUnmatchedImagesDrawer(true);
     }
 
     e.target.value = '';
@@ -1627,179 +1460,6 @@ image_url:
       );
     }
   };
-
-  const handleMergeExcelImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    e.target.value = '';
-
-    try {
-      const parsedRows = await parseERPCSV(
-        file,
-        MERGE_EXCEL_COLUMN_MAPPING
-      );
-      const barcodeRows = new Map();
-      const numericFields = new Set([
-        'mrp',
-        'sale_rate',
-        'purchase_rate',
-        'gst_percent',
-        'cess_percent',
-        'stock',
-        'low_stock_threshold',
-        'discount_percent'
-      ]);
-
-      parsedRows.forEach((row, index) => {
-        const barcode = String(row.barcode ?? '').trim();
-        if (!barcode) return;
-        const indexes = barcodeRows.get(barcode) || [];
-        indexes.push(index);
-        barcodeRows.set(barcode, indexes);
-      });
-
-      const rows = parsedRows.map((row, index) => {
-        const barcode = String(row.barcode ?? '').trim();
-        const itemName = String(row.name ?? '').trim();
-        const duplicateRows = barcode
-          ? barcodeRows.get(barcode) || []
-          : [];
-        const existing = barcode
-          ? productBarcodeMap.get(barcode)
-          : null;
-        const invalidReason = !barcode
-          ? 'Missing barcode'
-          : duplicateRows.length > 1
-            ? `Duplicate barcode in Excel (rows ${duplicateRows.map((rowIndex) => rowIndex + 2).join(', ')})`
-            : !existing && !itemName
-              ? 'Item Name is required for a new product'
-              : null;
-
-        if (invalidReason) {
-          return {
-            rowNumber: index + 2,
-            status: duplicateRows.length > 1 ? 'DUPLICATE' : 'INVALID',
-            barcode,
-            itemName,
-            reason: invalidReason,
-            payload: null
-          };
-        }
-
-        const payload = existing
-          ? { id: existing.id, barcode }
-          : { barcode };
-        let hasDataField = false;
-
-        const copyValue = (key, value, aliases = []) => {
-          if (value === undefined || value === null || String(value).trim() === '') {
-            return;
-          }
-
-          const parsedValue = numericFields.has(key)
-            ? Number(value)
-            : String(value).trim();
-
-          if (numericFields.has(key) && !Number.isFinite(parsedValue)) {
-            throw new Error(`Invalid ${key} at Excel row ${index + 2}`);
-          }
-
-          payload[key] = parsedValue;
-          hasDataField = true;
-          aliases.forEach((alias) => {
-            payload[alias] = parsedValue;
-          });
-        };
-
-        copyValue('name', itemName, ['itname']);
-        copyValue('hsn_code', row.hsn_code, ['hsncode']);
-        copyValue('category_name', row.category_name, ['itc']);
-        copyValue('subcategory_name', row.subcategory_name, ['sub_category_name']);
-        copyValue('brand_name', row.brand_name, ['brandcode']);
-        copyValue('mrp', row.mrp);
-        copyValue('sale_rate', row.sale_rate, ['onlinerate']);
-        copyValue('purchase_rate', row.purchase_rate, ['purcrate']);
-        copyValue('gst_percent', row.gst_percent, ['gst']);
-        copyValue('cess_percent', row.cess_percent, ['cess']);
-        copyValue('stock', row.stock, ['opstock', 'opening_stock']);
-        copyValue('unit_name', row.unit_name, ['unitcode']);
-        copyValue('low_stock_threshold', row.low_stock_threshold);
-        copyValue('discount_percent', row.discount_percent, ['discperc']);
-
-        if (!hasDataField) {
-          return {
-            rowNumber: index + 2,
-            status: 'INVALID',
-            barcode,
-            itemName,
-            reason: 'No non-empty product fields found',
-            payload: null
-          };
-        }
-
-        return {
-          rowNumber: index + 2,
-          status: existing ? 'UPDATE' : 'NEW',
-          barcode,
-          itemName: itemName || existing?.name || existing?.itname || '',
-          reason: '',
-          payload
-        };
-      });
-
-      setMergeExcelRows(rows);
-      setShowMergeExcelPreview(true);
-    } catch (err) {
-      console.error('Merge Excel Import Error:', err);
-      toast.error(`Merge Excel Failed: ${err.message}`);
-    }
-  };
-
-  const handleApplyMergeExcel = async () => {
-    const validRows = mergeExcelRows.filter(
-      (row) => row.status === 'NEW' || row.status === 'UPDATE'
-    );
-
-    if (validRows.length === 0) {
-      toast.error('No valid NEW or UPDATE rows to apply.');
-      return;
-    }
-
-    setIsMergingExcel(true);
-
-    try {
-      const result = await handleERPAction(
-        DB_SCHEMA.PRODUCTS.table,
-        ACTION_TYPES.INSERT,
-        validRows.map((row) => row.payload)
-      );
-
-      if (!result?.success) {
-        throw new Error(result?.error || 'Product merge was rejected');
-      }
-
-      toast.success(
-        `Product merge complete: ${validRows.filter((row) => row.status === 'NEW').length} new, ${validRows.filter((row) => row.status === 'UPDATE').length} updated.`
-      );
-      setMergeExcelRows([]);
-      setShowMergeExcelPreview(false);
-      await fetchInitialData(true, true);
-    } catch (err) {
-      console.error('Merge Excel Apply Error:', err);
-      toast.error(`Product merge failed: ${err.message}`);
-    } finally {
-      setIsMergingExcel(false);
-    }
-  };
-
-  const mergeExcelSummary = useMemo(() => ({
-    total: mergeExcelRows.length,
-    newCount: mergeExcelRows.filter((row) => row.status === 'NEW').length,
-    updateCount: mergeExcelRows.filter((row) => row.status === 'UPDATE').length,
-    invalidCount: mergeExcelRows.filter((row) => row.status === 'INVALID').length,
-    duplicateCount: mergeExcelRows.filter((row) => row.status === 'DUPLICATE').length
-  }), [mergeExcelRows]);
 
   // =========================================================
   // SESSION STATS
@@ -2091,11 +1751,6 @@ image_url:
         }
       );
 
-      const imageUnknownCount = unmatchedImages.filter(
-        (image) => image?.type === 'unknown'
-      ).length;
-      const imageReviewCount = unmatchedImages.length;
-
       return {
         uniqueProducts:
           sessionItems.length,
@@ -2129,14 +1784,11 @@ image_url:
         validationErrors,
 
         unknownCount:
-          unknownBarcodes.length + imageUnknownCount,
-
-        imageReviewCount
+          unknownBarcodes.length
       };
     }, [
       sessionItems,
-      unknownBarcodes,
-      unmatchedImages
+      unknownBarcodes
     ]);
 
   // =========================================================
@@ -2881,81 +2533,6 @@ const resolveSubcategoryName = () => {
 
           <div>
             <h2 className="text-base font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-          {/* =====================================================
-              ADD / MERGE EXCEL PREVIEW
-          ===================================================== */}
-
-          <AnimatePresence>
-            {showMergeExcelPreview && (
-              <div className="fixed inset-0 z-[550] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                <motion.div
-                  initial={{ scale: 0.96, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.96, opacity: 0 }}
-                  className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden border border-slate-200 flex flex-col"
-                >
-                  <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-blue-50">
-                    <div>
-                      <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Add / Merge Excel Preview</h3>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Existing barcodes update; new barcodes insert. Missing products remain untouched.</p>
-                    </div>
-                    <button type="button" onClick={() => setShowMergeExcelPreview(false)} disabled={isMergingExcel} className="p-1.5 hover:bg-blue-100 rounded-lg text-slate-500">
-                      <X size={18} />
-                    </button>
-                  </div>
-
-                  <div className="p-5 space-y-4 overflow-y-auto">
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                      {[
-                        ['Total Rows', mergeExcelSummary.total, 'text-slate-800'],
-                        ['New Products', mergeExcelSummary.newCount, 'text-emerald-700'],
-                        ['Existing Updates', mergeExcelSummary.updateCount, 'text-blue-700'],
-                        ['Invalid Rows', mergeExcelSummary.invalidCount, 'text-red-600'],
-                        ['Duplicate Rows', mergeExcelSummary.duplicateCount, 'text-orange-600']
-                      ].map(([label, value, color]) => (
-                        <div key={label} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-                          <p className={`text-lg font-black ${color}`}>{value}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                      <div className="max-h-[45vh] overflow-y-auto divide-y divide-slate-100">
-                        {mergeExcelRows.map((row) => (
-                          <div key={`${row.rowNumber}-${row.barcode}`} className="p-3 flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-xs font-black text-slate-800 truncate">{row.itemName || 'Unnamed product'}</p>
-                              <p className="text-[10px] font-mono text-slate-500 mt-1">Barcode: {row.barcode || 'Missing'} • Excel row: {row.rowNumber}</p>
-                              {row.reason && <p className="text-[10px] font-bold text-red-600 mt-1">{row.reason}</p>}
-                            </div>
-                            <span className={cn(
-                              "shrink-0 text-[9px] font-black uppercase px-2 py-1 rounded",
-                              row.status === 'NEW' && 'bg-emerald-100 text-emerald-700',
-                              row.status === 'UPDATE' && 'bg-blue-100 text-blue-700',
-                              row.status === 'DUPLICATE' && 'bg-orange-100 text-orange-700',
-                              row.status === 'INVALID' && 'bg-red-100 text-red-700'
-                            )}>
-                              {row.status === 'UPDATE' ? '↻ UPDATE' : row.status === 'NEW' ? '✓ NEW' : `⚠ ${row.status}`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                    <button type="button" onClick={() => setShowMergeExcelPreview(false)} disabled={isMergingExcel} className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
-                    <button type="button" onClick={handleApplyMergeExcel} disabled={isMergingExcel || mergeExcelSummary.invalidCount > 0 || mergeExcelSummary.duplicateCount > 0 || mergeExcelSummary.total === 0} className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
-                      {isMergingExcel && <RefreshCw className="animate-spin" size={14} />}
-                      Confirm Merge ({mergeExcelSummary.newCount + mergeExcelSummary.updateCount})
-                    </button>
-                  </div>
-                </motion.div>
-              </div>
-            )}
-          </AnimatePresence>
-
               Item Master → Bulk Entry
 
               <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase">
@@ -3012,18 +2589,6 @@ const resolveSubcategoryName = () => {
             />
           </label>
 
-          {/* ADD / MERGE EXCEL */}
-          <label className="bg-blue-50 border border-blue-300 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer shadow-sm flex items-center gap-1.5">
-            <FileSpreadsheet size={14} className="text-blue-600" />
-            Add / Merge Excel
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleMergeExcelImport}
-              className="hidden"
-            />
-          </label>
-
           {/* CLEAR */}
           {sessionItems.length >
             0 && (
@@ -3069,7 +2634,7 @@ const resolveSubcategoryName = () => {
               }
               className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
             >
-              Back to Products
+              Exit Bulk Mode
             </button>
           )}
         </div>
@@ -4037,31 +3602,6 @@ const resolveSubcategoryName = () => {
 
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Purchase Discount (%)
-                      </p>
-
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.01"
-                        value={
-                          item.purchase_discount_percent ??
-                          0
-                        }
-                        onChange={(e) =>
-                          handleItemFieldChange(
-                            item.id,
-                            'purchase_discount_percent',
-                            e.target.value
-                          )
-                        }
-                        className="w-full bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-amber-500"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
                         Sale Rate (₹)
                       </p>
 
@@ -4154,7 +3694,7 @@ const resolveSubcategoryName = () => {
 
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Auto GST %
+                        GST %
                       </p>
 
                       <input
@@ -4344,10 +3884,6 @@ const resolveSubcategoryName = () => {
                 </th>
 
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-24">
-                  Purc Disc %
-                </th>
-
-                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-24">
                   Sale Rate (₹)
                 </th>
 
@@ -4360,7 +3896,7 @@ const resolveSubcategoryName = () => {
                 </th>
 
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-20">
-                  Auto GST %
+                  GST %
                 </th>
 
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-widest w-28 text-center bg-blue-50/60">
@@ -4387,7 +3923,7 @@ const resolveSubcategoryName = () => {
               0 ? (
                 <tr>
                   <td
-                    colSpan={17}
+                    colSpan={16}
                     className="px-4 py-20 text-center text-slate-400"
                   >
                     <div className="flex flex-col items-center gap-3">
@@ -4791,30 +4327,6 @@ const resolveSubcategoryName = () => {
                           />
                         </td>
 
-                        {/* PURCHASE DISCOUNT */}
-                        <td className="px-2 py-2">
-
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={
-                              item.purchase_discount_percent ??
-                              0
-                            }
-                            onChange={(e) =>
-                              handleItemFieldChange(
-                                item.id,
-                                'purchase_discount_percent',
-                                e.target.value
-                              )
-                            }
-                            className="w-full bg-amber-50 border border-amber-200 rounded px-2 py-1 text-[10px] font-bold outline-none focus:border-amber-500 text-right"
-                            title="Example: 30 means purchase rate becomes 70% of MRP"
-                          />
-                        </td>
-
                         {/* SALE RATE */}
                         <td className="px-2 py-2">
 
@@ -4976,27 +4488,14 @@ const resolveSubcategoryName = () => {
 
                             <label className="w-8 h-8 rounded border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center cursor-pointer hover:border-blue-400 relative">
 
-                              {item.new_image_preview ? (
-                                <div className="flex items-center gap-0.5">
-                                  {item.image_url && (
-                                    <img
-                                      src={item.image_url}
-                                      alt="Current"
-                                      title="Current image"
-                                      className="w-3.5 h-6 object-contain"
-                                    />
-                                  )}
-                                  <img
-                                    src={item.new_image_preview}
-                                    alt="New"
-                                    title="New uploaded image"
-                                    className="w-3.5 h-6 object-contain"
-                                  />
-                                </div>
-                              ) : item.image_url ? (
+                              {item.new_image_preview ||
+                              item.image_url ? (
                                 <img
-                                  src={item.image_url}
-                                  alt="Current"
+                                  src={
+                                    item.new_image_preview ||
+                                    item.image_url
+                                  }
+                                  alt=""
                                   className="w-full h-full object-contain"
                                 />
                               ) : (
@@ -5046,17 +4545,6 @@ const resolveSubcategoryName = () => {
                               </button>
                             )}
                           </div>
-
-                          {item.bulk_image_status && (
-                            <div className="mt-1">
-                              <p className="text-[7px] font-black text-emerald-600 uppercase">
-                                ✓ {item.bulk_image_status}
-                              </p>
-                              <p className="text-[6px] font-mono text-slate-400 max-w-20 truncate" title={item.bulk_image_filename}>
-                                {item.bulk_image_filename}
-                              </p>
-                            </div>
-                          )}
                         </td>
 
                         {/* SCANS */}
@@ -5679,7 +5167,11 @@ const resolveSubcategoryName = () => {
                     No unmatched images
                   </p>
                 ) : (
-                  unmatchedImages.map((imageResult, idx) => (
+                  unmatchedImages.map(
+                    (
+                      filename,
+                      idx
+                    ) => (
                       <div
                         key={
                           idx
@@ -5687,40 +5179,18 @@ const resolveSubcategoryName = () => {
                         className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 flex justify-between items-center"
                       >
 
-                        <div className="min-w-0">
-                          <p className="font-mono text-[10px] break-all">
-                            {imageResult.filename || imageResult}
-                          </p>
+                        <span className="font-mono text-[10px]">
+                          {
+                            filename
+                          }
+                        </span>
 
-                          {imageResult.barcode && (
-                            <p className="text-[9px] text-slate-400 mt-1">
-                              Barcode: {imageResult.barcode}
-                            </p>
-                          )}
-
-                          {imageResult.previewUrl && (
-                            <img
-                              src={imageResult.previewUrl}
-                              alt=""
-                              className="w-10 h-10 object-contain mt-1 rounded border border-slate-200"
-                            />
-                          )}
-                        </div>
-
-                        <span
-                          className={cn(
-                            "text-[9px] font-black text-right",
-                            imageResult.type === 'duplicate'
-                              ? 'text-orange-600'
-                              : imageResult.type === 'invalid'
-                                ? 'text-red-600'
-                                : 'text-amber-600'
-                          )}
-                        >
-                          {imageResult.status || 'Unknown Barcode'}
+                        <span className="text-[9px] text-amber-600 font-black">
+                          No Barcode Match
                         </span>
                       </div>
-                    ))
+                    )
+                  )
                 )}
               </div>
             </motion.div>
