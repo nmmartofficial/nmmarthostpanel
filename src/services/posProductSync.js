@@ -129,9 +129,20 @@ export const planPosProductSync = ({ posProducts = [], existingProducts = [] } =
     }
     if (barcode) seenIncomingBarcodes.add(barcode);
 
-      const nameMatches = existingByName.get(name) || [];
-        return;
-      }
+    const barcodeMatch = barcode ? existingByBarcode.get(barcode) : null;
+    if (barcodeMatch) {
+      plan.push({ action: 'UPDATE', id: barcodeMatch.id, barcode, patch });
+      return;
+    }
+
+    const nameMatches = name ? existingByName.get(name) || [] : [];
+    if (nameMatches.length > 1) {
+      conflicts.push({ index, reason: 'Ambiguous product name match', rawProduct });
+      return;
+    }
+    if (nameMatches.length === 1) {
+      plan.push({ action: 'UPDATE', id: nameMatches[0].id, barcode, patch });
+      return;
     }
 
     plan.push({ action: 'INSERT', barcode, patch });
@@ -160,6 +171,10 @@ export const applyPosProductSync = async ({ plan = [], repository, dryRun = true
     errors: []
   };
 
+  if (dryRun) {
+    report.skipped.push(...plan);
+    return report;
+  }
 
   for (const entry of plan) {
     try {

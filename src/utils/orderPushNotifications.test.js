@@ -4,7 +4,11 @@ import {
   buildNewOrderPushPayload,
   isAuthorizedPushRecipient,
   validateTenantRecipientScope,
-  normalizeDeviceTokenRegistration
+  normalizeDeviceTokenRegistration,
+  normalizeNewOrderPushData,
+  buildNewOrderNotificationOptions,
+  claimNewOrderNotificationSound,
+  playNewOrderNotificationChime
 } from './orderPushNotifications.js';
 
 test('builds a safe new-order push payload', () => {
@@ -16,12 +20,57 @@ test('builds a safe new-order push payload', () => {
     company_code: 'NMM001'
   });
 
-  assert.equal(payload.title, 'New Order Received');
-  assert.equal(payload.body, 'Order #NM-123 • ₹849');
+  assert.equal(payload.title, '🔔 New Order Received');
+  assert.equal(payload.body, 'Dear NM Mart, you have received a new order.\nOrder #NM-123 • ₹849');
   assert.equal(payload.data.order_id, '123');
+  assert.equal(payload.data.order_number, 'NM-123');
   assert.equal(payload.data.notification_type, 'new_order');
   assert.equal(payload.data.tenant_id, '1');
   assert.equal(payload.data.company_code, 'NMM001');
+  assert.deepEqual(normalizeNewOrderPushData(payload.data), payload.data);
+  assert.equal(normalizeNewOrderPushData({ notification_type: 'other' }), null);
+
+  const presentation = buildNewOrderNotificationOptions({ data: payload.data });
+  assert.equal(presentation.title, '🔔 New Order Received');
+  assert.equal(presentation.options.tag, 'nm-order-123');
+  assert.equal(presentation.options.renotify, false);
+  assert.equal(presentation.options.silent, false);
+  assert.deepEqual(presentation.options.data, payload.data);
+});
+
+test('claims one notification sound per order ID for the active app session', () => {
+  const playedOrderIds = new Set();
+
+  assert.equal(claimNewOrderNotificationSound('order-123', playedOrderIds), true);
+  assert.equal(claimNewOrderNotificationSound('order-123', playedOrderIds), false);
+  assert.equal(claimNewOrderNotificationSound('order-124', playedOrderIds), true);
+  assert.equal(claimNewOrderNotificationSound('', playedOrderIds), false);
+});
+
+test('plays only a short two-tone chime when the audio context is unlocked', () => {
+  const frequencies = [];
+  const stopTimes = [];
+  const audioContext = {
+    state: 'running',
+    currentTime: 1,
+    destination: {},
+    createOscillator: () => ({
+      type: '',
+      frequency: { setValueAtTime: (frequency) => frequencies.push(frequency) },
+      connect: () => {},
+      start: () => {},
+      stop: (time) => stopTimes.push(time)
+    }),
+    createGain: () => ({
+      gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
+      connect: () => {}
+    })
+  };
+
+  assert.equal(playNewOrderNotificationChime(audioContext), true);
+  assert.deepEqual(frequencies, [659.25, 880]);
+  assert.equal(stopTimes.length, 2);
+  assert.equal(playNewOrderNotificationChime({ ...audioContext, state: 'suspended' }), false);
 });
 
 test('authorizes only allowed admin roles for push delivery', () => {

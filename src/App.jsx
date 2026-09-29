@@ -36,6 +36,12 @@ import { processImageForUpload } from './utils/imageHandler';
 import { loadSupabaseTables } from './utils/supabaseDataLoader';
 import { shouldSkipGlobalFetch } from './utils/fetchControl';
 import { isLocalPosReadOnlyMode, isLocalPosTestMode } from './utils/localPosTestMode';
+import {
+  buildNewOrderNotificationOptions,
+  claimNewOrderNotificationSound,
+  isAuthorizedPushRecipient,
+  playNewOrderNotificationChime
+} from './utils/orderPushNotifications';
 
 import MasterListView from './components/MasterListView';
 import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
@@ -205,7 +211,12 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   const isAuthorized = isAuthenticated;
   const [currentUser, setCurrentUser] = useState(() => authUser || secureStorage.getItem('nm_user_data'));
-  const [activeTab, setActiveTab] = useState(localStorage.getItem('nm_active_tab') || 'Dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get('tab');
+    return requestedTab === 'Orders'
+      ? 'Orders'
+      : localStorage.getItem('nm_active_tab') || 'Dashboard';
+  });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [customerMode, setCustomerMode] = useState(false);
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
@@ -214,12 +225,165 @@ export default function App({ company, isTenantMode, companySlug }) {
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
   const sessionTimeoutRef = useRef(null);
   const warningTimeoutRef = useRef(null);
+  const orderNotificationSoundRef = useRef({
+    audioContext: null,
+    unlocked: false,
+    playedOrderIds: new Set()
+  });
 
   useEffect(() => {
     if (authUser) {
       setCurrentUser(authUser);
     }
   }, [authUser]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAuthorizedPushRecipient(currentUser)) return undefined;
+
+    const unlockNotificationAudio = async () => {
+      const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextConstructor) return;
+
+      try {
+        let audioContext = orderNotificationSoundRef.current.audioContext;
+        if (!audioContext || audioContext.state === 'closed') {
+          audioContext = new AudioContextConstructor();
+          orderNotificationSoundRef.current.audioContext = audioContext;
+        }
+        await audioContext.resume();
+        if (audioContext.state === 'running') {
+          orderNotificationSoundRef.current.unlocked = true;
+          window.removeEventListener('pointerdown', unlockNotificationAudio);
+          window.removeEventListener('keydown', unlockNotificationAudio);
+        }
+      } catch {
+        // Keep browser autoplay restrictions in force; no prompt or retry loop.
+      }
+    };
+
+    window.addEventListener('pointerdown', unlockNotificationAudio, { passive: true });
+    window.addEventListener('keydown', unlockNotificationAudio);
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockNotificationAudio);
+      window.removeEventListener('keydown', unlockNotificationAudio);
+      orderNotificationSoundRef.current.unlocked = false;
+      orderNotificationSoundRef.current.playedOrderIds.clear();
+      const audioContext = orderNotificationSoundRef.current.audioContext;
+      orderNotificationSoundRef.current.audioContext = null;
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch(() => {});
+      }
+    };
+  }, [isAuthenticated, currentUser?.role]);
+
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      !isAuthorizedPushRecipient(currentUser) ||
+      typeof Notification === 'undefined' ||
+      Notification.permission !== 'granted'
+    ) {
+      return undefined;
+    }
+
+    let isActive = true;
+    let unsubscribe = () => {};
+
+    const subscribeToForegroundMessages = async () => {
+      try {
+        const [{ firebaseApp }, { getMessaging, isSupported, onMessage }] = await Promise.all([
+          import('./lib/firebase.js'),
+          import('firebase/messaging')
+        ]);
+        if (!isActive || !(await isSupported())) return;
+
+        unsubscribe = onMessage(getMessaging(firebaseApp), (payload) => {
+          const presentation = buildNewOrderNotificationOptions(payload);
+          if (!presentation) return;
+
+          const orderId = presentation.options.data.order_id;
+          const isFirstForSession = claimNewOrderNotificationSound(
+            orderId,
+            orderNotificationSoundRef.current.playedOrderIds
+          );
+          const isFocused = document.visibilityState === 'visible' && document.hasFocus();
+          const audioContext = orderNotificationSoundRef.current.audioContext;
+          const canPlayCustomSound = Boolean(
+            isFirstForSession &&
+            isFocused &&
+            orderNotificationSoundRef.current.unlocked &&
+            audioContext?.state === 'running'
+          );
+          const customSoundPlayed = canPlayCustomSound && playNewOrderNotificationChime(audioContext);
+
+          const notification = new Notification(presentation.title, {
+            ...presentation.options,
+            silent: !isFirstForSession || customSoundPlayed
+          });
+          notification.onclick = () => {
+            window.focus();
+            setActiveTab('Orders');
+            notification.close();
+          };
+        });
+      } catch {
+        // Push initialization failures must not affect the Admin Panel.
+      }
+    };
+
+    subscribeToForegroundMessages();
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [isAuthenticated, currentUser?.role]);
+
+  useEffect(() => {
+    if (
+      !isAuthenticated ||
+      !isAuthorizedPushRecipient(currentUser) ||
+      typeof Notification === 'undefined' ||
+      Notification.permission !== 'granted'
+    ) {
+      return undefined;
+    }
+
+    let isActive = true;
+    let unsubscribe = () => {};
+
+    const subscribeToForegroundMessages = async () => {
+      try {
+        const [{ firebaseApp }, { getMessaging, isSupported, onMessage }] = await Promise.all([
+          import('./lib/firebase.js'),
+          import('firebase/messaging')
+        ]);
+
+        if (!isActive || !(await isSupported())) return;
+
+        unsubscribe = onMessage(getMessaging(firebaseApp), (payload) => {
+          const presentation = buildNewOrderNotificationOptions(payload);
+          if (!presentation) return;
+
+          const notification = new Notification(presentation.title, presentation.options);
+          notification.onclick = () => {
+            window.focus();
+            setActiveTab('Orders');
+            notification.close();
+          };
+        });
+      } catch {
+        // Push initialization failures must not affect the Admin Panel.
+      }
+    };
+
+    subscribeToForegroundMessages();
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [isAuthenticated, currentUser?.role]);
 
   const handleLogout = useCallback(() => {
     secureStorage.clear();

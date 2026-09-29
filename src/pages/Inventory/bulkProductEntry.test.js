@@ -111,6 +111,8 @@ test('Bulk image matching matches barcode filenames like 8901030904554.jpg to pr
   assert.match(bulkCode, /handleBulkImageMatch/);
   assert.match(bulkCode, /productBarcodeMap/);
   assert.match(bulkCode, /normalizeBulkImageBarcode/);
+  assert.match(bulkCode, /barcode:\s*product\.barcode\s*\|\|\s*barcode/);
+  assert.match(bulkCode, /incrementDuplicate:\s*false/);
   assert.match(bulkCode, /typeof imageResult === 'string'/);
   assert.match(bulkCode, /imageResult\?\.filename/);
   assert.match(bulkCode, /Invalid Barcode Filename/);

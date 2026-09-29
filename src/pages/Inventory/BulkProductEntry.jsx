@@ -21,6 +21,31 @@ import { DB_SCHEMA } from '../../dbSchema';
 
 const SESSION_STORAGE_ITEMS_KEY = 'nm_bulk_entry_session_items';
 const SESSION_STORAGE_UNKNOWN_KEY = 'nm_bulk_entry_unknown_barcodes';
+const MERGE_EXCEL_COLUMN_MAPPING = Object.freeze({
+  Barcode: 'barcode',
+  MRP: 'mrp',
+  'Purchase Rate': 'purchase_rate',
+  'Sale Rate': 'sale_rate',
+  'Discount %': 'discount_percent',
+  HSN: 'hsn_code',
+  'GST %': 'gst_percent'
+});
+
+const isBlankExcelCell = (value) =>
+  value === undefined || value === null || String(value).trim() === '';
+
+const parseExcelNumber = (value) => {
+  if (isBlankExcelCell(value)) return undefined;
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
+const getExcelMergeValue = (value, originalValue, replaceBlankValues) => {
+  if (isBlankExcelCell(value)) return replaceBlankValues ? '' : originalValue;
+  if (typeof value === 'number' && !Number.isFinite(value)) return originalValue;
+  return value;
+};
+
 const normalizeBulkImageBarcode = (value) => {
   const barcode = String(value ?? '').trim().replace(/\.0+$/, '');
   return /^[\d\s-]+$/.test(barcode)
@@ -1293,27 +1318,10 @@ image_url:
     e.target.value = '';
 
     try {
-      const columnMapping = {
-        Barcode:
-          'barcode',
-        MRP:
-          'mrp',
-        'Purchase Rate':
-          'purchase_rate',
-        'Sale Rate':
-          'sale_rate',
-        'Discount %':
-          'discount_percent',
-        HSN:
-          'hsn_code',
-        'GST %':
-          'gst_percent'
-      };
-
       const parsedRows =
         await parseERPCSV(
           file,
-          columnMapping
+          MERGE_EXCEL_COLUMN_MAPPING
         );
 
       if (
@@ -1363,112 +1371,84 @@ image_url:
                     ) {
                       updatedCount++;
 
-                      const getValue =
-                        (
-                          val,
-                          originalVal
-                        ) => {
-                          if (
-                            val !==
-                              undefined &&
-                            val !==
-                              null &&
-                            val !==
-                              ''
-                          ) {
-                            return val;
-                          }
-
-                          return replaceBlankExcelValues
-                            ? ''
-                            : originalVal;
-                        };
-
                       return {
                         ...item,
 
                         mrp:
-                          getValue(
-                            parseFloat(
-                              row.mrp
-                            ),
+                          getExcelMergeValue(
+                            parseExcelNumber(row.mrp),
                             item.mrp
+                            , replaceBlankExcelValues
                           ),
 
                         sale_rate:
-                          getValue(
-                            parseFloat(
-                              row.sale_rate
-                            ),
-                            item.sale_rate
+                          getExcelMergeValue(
+                            parseExcelNumber(row.sale_rate),
+                            item.sale_rate,
+                            replaceBlankExcelValues
                           ),
 
                         onlinerate:
-                          getValue(
-                            parseFloat(
-                              row.sale_rate
-                            ),
-                            item.sale_rate
+                          getExcelMergeValue(
+                            parseExcelNumber(row.sale_rate),
+                            item.sale_rate,
+                            replaceBlankExcelValues
                           ),
 
                         purchase_rate:
-                          getValue(
-                            parseFloat(
-                              row.purchase_rate
-                            ),
-                            item.purchase_rate
+                          getExcelMergeValue(
+                            parseExcelNumber(row.purchase_rate),
+                            item.purchase_rate,
+                            replaceBlankExcelValues
                           ),
 
                         purcrate:
-                          getValue(
-                            parseFloat(
-                              row.purchase_rate
-                            ),
-                            item.purchase_rate
+                          getExcelMergeValue(
+                            parseExcelNumber(row.purchase_rate),
+                            item.purchase_rate,
+                            replaceBlankExcelValues
                           ),
 
                         discount_percent:
-                          getValue(
-                            parseFloat(
-                              row.discount_percent
-                            ),
-                            item.discount_percent
+                          getExcelMergeValue(
+                            parseExcelNumber(row.discount_percent),
+                            item.discount_percent,
+                            replaceBlankExcelValues
                           ),
 
                         discperc:
-                          getValue(
-                            parseFloat(
-                              row.discount_percent
-                            ),
-                            item.discount_percent
+                          getExcelMergeValue(
+                            parseExcelNumber(row.discount_percent),
+                            item.discount_percent,
+                            replaceBlankExcelValues
                           ),
 
                         hsn_code:
-                          getValue(
+                          getExcelMergeValue(
                             row.hsn_code,
-                            item.hsn_code
+                            item.hsn_code,
+                            replaceBlankExcelValues
                           ),
 
                         hsncode:
-                          getValue(
+                          getExcelMergeValue(
                             row.hsn_code,
-                            item.hsn_code
+                            item.hsn_code,
+                            replaceBlankExcelValues
                           ),
 
                         gst_percent:
-                          getValue(
-                            parseFloat(
-                              row.gst_percent
-                            ),
-                            item.gst_percent
+                          getExcelMergeValue(
+                            parseExcelNumber(row.gst_percent),
+                            item.gst_percent,
+                            replaceBlankExcelValues
                           ),
 
                         gst:
-                          getValue(
-                            parseFloat(
-                              row.gst_percent
-                            ),
-                            item.gst
+                          getExcelMergeValue(
+                            parseExcelNumber(row.gst_percent),
+                            item.gst,
+                            replaceBlankExcelValues
                           )
                       };
                     }
@@ -2679,6 +2659,16 @@ const resolveSubcategoryName = () => {
               }
               className="hidden"
             />
+          </label>
+
+          <label className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-700">
+            <input
+              type="checkbox"
+              checked={replaceBlankExcelValues}
+              onChange={(event) => setReplaceBlankValues(event.target.checked)}
+              className="h-4 w-4 accent-blue-600"
+            />
+            Replace Blank Excel Values
           </label>
 
           {/* CLEAR */}

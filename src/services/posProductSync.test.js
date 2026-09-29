@@ -29,6 +29,7 @@ test('POS patch preserves blank existing values by omitting blank fields', () =>
   assert.deepEqual(patch, { barcode: '000123' });
 });
 
+test('POS sync updates an existing barcode match and inserts a new product', () => {
   const result = planPosProductSync({
     existingProducts: [{ id: 7, barcode: '123', name: 'Old Item', image_url: 'admin-image' }],
     posProducts: [
@@ -37,8 +38,17 @@ test('POS patch preserves blank existing values by omitting blank fields', () =>
     ]
   });
 
+  assert.deepEqual(result.plan.map(({ action, id, barcode }) => ({ action, id, barcode })), [
+    { action: 'UPDATE', id: 7, barcode: '123' },
+    { action: 'INSERT', id: undefined, barcode: '999' }
+  ]);
+  assert.deepEqual(result.plan[0].patch, { name: 'New Name', barcode: '123', mrp: 50 });
+  assert.equal(result.plan[0].patch.image_url, undefined);
+  assert.equal(result.summary.inserted, 1);
+  assert.equal(result.summary.conflicts, 0);
 });
 
+test('POS sync rejects ambiguous name matches and duplicate incoming barcodes', () => {
   const result = planPosProductSync({
     existingProducts: [
       { id: 1, name: 'Same Item' },
@@ -53,6 +63,10 @@ test('POS patch preserves blank existing values by omitting blank fields', () =>
 
   assert.equal(result.plan.length, 1);
   assert.equal(result.conflicts.length, 2);
+  assert.deepEqual(result.conflicts.map(({ reason }) => reason), [
+    'Ambiguous product name match',
+    'Duplicate barcode in POS batch'
+  ]);
 });
 
 test('POS apply defaults to dry-run and never writes in dry-run mode', async () => {
