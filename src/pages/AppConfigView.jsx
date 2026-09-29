@@ -2,16 +2,181 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Save, RefreshCw, Link as LinkIcon, Copy } from 'lucide-react';
 import { handleERPAction, ACTION_TYPES } from '../erpController';
 import { supabase } from '../supabase';
+import { useAuthContext } from '../context/AuthContext';
 import { DB_SCHEMA } from '../dbSchema';
 import { cn } from '../utils/helpers';
 import { toast } from 'sonner';
 
+const getCurrentBrowserName = () => {
+  const userAgent = navigator.userAgent || '';
+  if (/EdgA?\/|EdgiOS\//.test(userAgent)) return 'Edge';
+  if (/OPR\/|OPiOS\//.test(userAgent)) return 'Opera';
+  if (/CriOS\/|Chrome\//.test(userAgent)) return 'Chrome';
+  if (/FxiOS\/|Firefox\//.test(userAgent)) return 'Firefox';
+  if (/Safari\//.test(userAgent)) return 'Safari';
+  return 'Unknown';
+};
+
 export default function AppConfigView({ appConfig, setAppConfig, fetchInitialData, uploadImage }) {
+  const { isAuthenticated } = useAuthContext();
   const [formData, setFormData] = useState(appConfig);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [password, setPassword] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [logoFile, setLogoFile] = useState(null);
+  const [isGeneratingFcmToken, setIsGeneratingFcmToken] = useState(false);
+  const [fcmTokenStatus, setFcmTokenStatus] = useState('');
+
+  const handleGenerateFcmToken = async () => {
+    const allowedRoles = new Set(['super_admin', 'admin', 'manager']);
+    setIsGeneratingFcmToken(true);
+    setFcmTokenStatus('');
+
+    const diagnostics = {
+      tokenGenerated: false,
+      currentAuthUserExists: false,
+      adminProfileFound: false,
+      role: null,
+      tenant_id: null,
+      company_code: null,
+      registrationAttempted: false,
+      supabaseErrorCode: null,
+      supabaseErrorMessage: null,
+      registrationSuccess: false
+    };
+    let generatedToken = '';
+    const recordSupabaseError = (error) => {
+      diagnostics.supabaseErrorCode = error?.code || null;
+      const message = String(error?.message || '');
+      diagnostics.supabaseErrorMessage = generatedToken
+        ? message.replaceAll(generatedToken, '[redacted]')
+        : message;
+    };
+
+    try {
+      if (
+        typeof Notification === 'undefined' ||
+        !window.isSecureContext ||
+        !navigator.serviceWorker
+      ) {
+        throw new Error('This browser or connection does not support FCM Web Push.');
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        recordSupabaseError(authError);
+        throw authError;
+      }
+      const authUser = authData?.user;
+      diagnostics.currentAuthUserExists = Boolean(authUser?.id);
+      if (!authUser?.id) {
+        throw new Error('An authenticated Supabase user is required to register browser push.');
+      }
+
+      if (!isAuthenticated) {
+        throw new Error('The admin session is not authenticated. Please sign in again.');
+      }
+
+      const { data: adminProfile, error: profileError } = await supabase
+        .from('admin_users')
+        .select('auth_user_id, role, tenant_id, company_code, is_active, status')
+        .eq('auth_user_id', authUser.id)
+        .maybeSingle();
+
+      if (profileError) {
+        recordSupabaseError(profileError);
+        throw profileError;
+      }
+
+      diagnostics.adminProfileFound = Boolean(adminProfile);
+      diagnostics.role = adminProfile?.role ?? null;
+      diagnostics.tenant_id = adminProfile?.tenant_id ?? null;
+      diagnostics.company_code = adminProfile?.company_code ?? null;
+
+      const role = String(adminProfile?.role || '').trim().toLowerCase();
+      const profileStatus = String(adminProfile?.status || '').trim().toLowerCase();
+      const tenantId = adminProfile?.tenant_id;
+      const companyCode = adminProfile?.company_code;
+
+      if (
+        !adminProfile ||
+        adminProfile.auth_user_id !== authUser.id ||
+        !allowedRoles.has(role) ||
+        adminProfile.is_active !== true ||
+        profileStatus !== 'active' ||
+        tenantId == null ||
+        !companyCode
+      ) {
+        throw new Error('An active authorized admin profile with tenant and company scope is required.');
+      }
+
+      if (Notification.permission === 'denied') {
+        throw new Error('Notification permission is blocked in browser settings.');
+      }
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          throw new Error('Notification permission was not granted.');
+        }
+      }
+
+      const { requestAdminFcmToken } = await import('../utils/firebaseMessaging.js');
+      const response = await requestAdminFcmToken();
+      generatedToken = typeof response?.token === 'string' ? response.token : '';
+      diagnostics.tokenGenerated = Boolean(generatedToken);
+
+      if (response?.status !== 'granted' || !generatedToken) {
+        const messages = {
+          unsupported: 'This browser or connection does not support FCM Web Push.',
+          'permission-denied': 'Notification permission is blocked in browser settings.',
+          'permission-not-granted': 'Notification permission was not granted.',
+          'token-unavailable': 'Firebase did not return a registration token.'
+        };
+        setFcmTokenStatus(messages[response.status] || 'FCM token generation did not complete.');
+        return;
+      }
+
+      setFcmTokenStatus('Token generated. It was not saved.');
+
+      const now = new Date().toISOString();
+      diagnostics.registrationAttempted = true;
+      const { data: registration, error: registrationError } = await supabase
+        .from('admin_device_tokens')
+        .upsert({
+          auth_user_id: authUser.id,
+          tenant_id: tenantId,
+          company_code: companyCode,
+          device_token: generatedToken,
+          platform: 'web',
+          browser: getCurrentBrowserName(),
+          is_active: true,
+          last_seen_at: now,
+          updated_at: now
+        }, { onConflict: 'device_token' })
+        .select('id')
+        .single();
+
+      if (registrationError) {
+        recordSupabaseError(registrationError);
+        throw registrationError;
+      }
+      if (!registration?.id) {
+        throw new Error('Supabase did not confirm the browser device registration.');
+      }
+      diagnostics.registrationSuccess = true;
+      setFcmTokenStatus('Browser push enabled successfully.');
+    } catch (error) {
+      const message = String(error?.message || 'FCM token registration failed.');
+      const safeMessage = generatedToken ? message.replaceAll(generatedToken, '[redacted]') : message;
+      setFcmTokenStatus(`Browser push registration failed: ${safeMessage}`);
+    } finally {
+      if (import.meta.env.DEV) {
+        console.info('[FCM registration diagnostics]', diagnostics);
+      }
+      generatedToken = '';
+      setIsGeneratingFcmToken(false);
+    }
+  };
 
   // Secret link logic
   const [currentSecretPath, setCurrentSecretPath] = useState("nm-mart");
@@ -46,7 +211,7 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
     try {
       // Prefer server-side verification via RPC
       if (supabase && supabase.rpc) {
-        const { data, error } = await supabase.rpc('verify_admin_pin', { pin: password });
+        const { data, error } = await supabase.rpc('verify_admin_pin', { p_pin: password });
         if (error) throw error;
         if (data === true || data === 't') {
           setIsVerified(true);
@@ -188,6 +353,23 @@ export default function AppConfigView({ appConfig, setAppConfig, fetchInitialDat
       <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           <div className="space-y-8">
+            {import.meta.env.DEV && (
+              <section className="border border-neutral-200 rounded-xl p-5 space-y-3">
+                <div>
+                  <h4 className="text-xs font-black text-neutral-800 uppercase tracking-widest">Browser Push Test</h4>
+                  <p className="mt-1 text-xs text-neutral-500">Generate a local FCM token. It will not be saved to the database.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGenerateFcmToken}
+                  disabled={isGeneratingFcmToken}
+                  className="bg-primary-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                >
+                  {isGeneratingFcmToken ? 'Generating token...' : 'Request permission and generate token'}
+                </button>
+                {fcmTokenStatus && <p role="status" className="text-xs text-neutral-600">{fcmTokenStatus}</p>}
+              </section>
+            )}
             {/* Secure Admin Portal Link */}
             <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden border border-white/5">
               <div className="relative z-10">
