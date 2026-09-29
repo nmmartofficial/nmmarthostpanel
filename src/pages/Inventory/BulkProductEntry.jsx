@@ -5352,11 +5352,19 @@ const resolveSubcategoryName = () => {
                     No unmatched images
                   </p>
                 ) : (
-                  unmatchedImages.map(
+                    unmatchedImages.map(
                     (
-                      filename,
+                      imageResult,
                       idx
-                    ) => (
+                    ) => {
+                      const filename = typeof imageResult === 'string'
+                        ? imageResult
+                        : imageResult?.filename || 'Unknown image';
+                      const status = typeof imageResult === 'string'
+                        ? 'No Barcode Match'
+                        : imageResult?.status || 'Unknown Barcode';
+
+                      return (
                       <div
                         key={
                           idx
@@ -5365,16 +5373,15 @@ const resolveSubcategoryName = () => {
                       >
 
                         <span className="font-mono text-[10px]">
-                          {
-                            filename
-                          }
+                          {filename}
                         </span>
 
                         <span className="text-[9px] text-amber-600 font-black">
-                          No Barcode Match
+                          {status}
                         </span>
                       </div>
-                    )
+                      );
+                    }
                   )
                 )}
               </div>
