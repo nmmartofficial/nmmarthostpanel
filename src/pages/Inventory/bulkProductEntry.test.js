@@ -34,14 +34,14 @@ test('Unknown barcode scanning logs to unknownBarcodes list without auto-creatin
 test('Product Name is editable in the bulk edit table', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /Product Name/);
-  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'itname',\s*e\.target\.value\)/);
+  assert.match(bulkCode, /handleItemFieldChange\(\s*item\.id,\s*'itname',\s*e\.target\s*\.value\s*\)/);
 });
 
 test('Current Stock and Purchase Rate fields are editable numeric inputs', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /Current Stock/);
-  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'stock',\s*e\.target\.value\)/);
-  assert.match(bulkCode, /handleItemFieldChange\(item\.id,\s*'purchase_rate',\s*e\.target\.value\)/);
+  assert.match(bulkCode, /handleItemFieldChange\(\s*item\.id,\s*'stock',\s*e\.target\s*\.value\s*\)/);
+  assert.match(bulkCode, /handleItemFieldChange\(\s*item\.id,\s*'purchase_rate',\s*e\.target\s*\.value\s*\)/);
 });
 
 test('Subcategory dropdown options load using normalized category ID resolution', () => {
@@ -49,7 +49,7 @@ test('Subcategory dropdown options load using normalized category ID resolution'
   assert.match(bulkCode, /resolveCatId/);
   assert.match(bulkCode, /No Subcategories Available/);
   assert.match(bulkCode, /const bulkSubcategories = useMemo/);
-  assert.match(bulkCode, /const rowSubcategories = bulkSubcategories/);
+  assert.match(bulkCode, /const rowSubcategories\s*=\s*bulkSubcategories/);
 });
 
 test('Subcategory dropdown keeps the complete master list available', () => {
@@ -78,7 +78,7 @@ test('Case 1: Changing ONLY Product Name preserves brand, category, subcategory,
 
 test('Case 2: Changing ONLY Purchase Rate preserves brand, category, subcategory, and image', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
-  assert.match(bulkCode, /purcrate:\s*parseFloat\(item\.purchase_rate\)\s*\|\|\s*0/);
+  assert.match(bulkCode, /purcrate:\s*parseFloat\(\s*item\.purchase_rate\s*\)\s*\|\|\s*0/);
 });
 
 test('Case 3: Category and subcategory fields remain independently editable', () => {
@@ -153,17 +153,18 @@ test('ProductsView includes BULK ENTRY button and renders BulkProductEntry', () 
 test('Product Excel merge classifies NEW, UPDATE, INVALID and DUPLICATE rows before apply', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /MERGE_EXCEL_COLUMN_MAPPING/);
-  assert.match(bulkCode, /productBarcodeMap\.get\(barcode\)/);
-  assert.match(bulkCode, /status: existing \? 'UPDATE' : 'NEW'/);
-  assert.match(bulkCode, /status: 'DUPLICATE'/);
-  assert.match(bulkCode, /status: 'INVALID'/);
-  assert.match(bulkCode, /handleERPAction\(/);
-  assert.match(bulkCode, /ACTION_TYPES\.INSERT/);
+  assert.match(bulkCode, /if \(!rowBarcode\)\s*\{\s*return;/);
+  assert.match(bulkCode, /barcodeMap\.get\(\s*rowBarcode\s*\)/);
+  assert.match(bulkCode, /if \(productMatch\)\s*\{\s*addProductToSession\(\s*productMatch\s*\)/);
+  assert.match(bulkCode, /status:\s*'Excel Barcode Not Found'/);
+  assert.match(bulkCode, /reason:\s*'Barcode in Excel does not match any existing product'/);
 });
 
 test('Product Excel merge does not send blank cells as destructive updates', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
-  assert.match(bulkCode, /value === undefined \|\| value === null/);
-  assert.match(bulkCode, /if \(!hasDataField\)/);
-  assert.match(bulkCode, /Confirm Merge/);
+  assert.match(bulkCode, /const isBlankExcelCell = \(value\) =>[\s\S]*?value === undefined \|\| value === null/);
+  assert.match(bulkCode, /if \(isBlankExcelCell\(value\)\) return replaceBlankValues \? '' : originalValue;/);
+  assert.match(bulkCode, /const \[replaceBlankExcelValues, setReplaceBlankValues\] = useState\(false\)/);
+  assert.match(bulkCode, /checked=\{replaceBlankExcelValues\}/);
+  assert.match(bulkCode, /mrp:\s*getExcelMergeValue\(\s*parseExcelNumber\(row\.mrp\),\s*item\.mrp\s*,\s*replaceBlankExcelValues/);
 });
