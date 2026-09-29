@@ -57,6 +57,17 @@ test('Subcategory dropdown keeps the complete master list available', () => {
   assert.match(bulkCode, /const rowSubcategories\s*=\s*bulkSubcategories/);
 });
 
+test('Bulk selectors apply brand, category, and subcategory to every session item', () => {
+  const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
+  assert.match(bulkCode, /Apply to All Items/);
+  assert.match(bulkCode, /handleBulkFieldChange/);
+  assert.match(bulkCode, /'brand_id',\s*'brand_name'/);
+  assert.match(bulkCode, /'category_id',\s*'category_name'/);
+  assert.match(bulkCode, /'subcategory_id',\s*'subcategory_name'/);
+  assert.match(bulkCode, /prev\.map\(\(item\) => \(\{/);
+  assert.match(bulkCode, /subcategory_id:\s*'',\s*subcategory_name:\s*''/);
+});
+
 test('Case 1: Changing ONLY Product Name preserves brand, category, subcategory, and image', () => {
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /resolveBrandId/);
@@ -99,6 +110,7 @@ test('Bulk image matching matches barcode filenames like 8901030904554.jpg to pr
   const bulkCode = read('src/pages/Inventory/BulkProductEntry.jsx');
   assert.match(bulkCode, /handleBulkImageMatch/);
   assert.match(bulkCode, /productBarcodeMap/);
+  assert.match(bulkCode, /normalizeBulkImageBarcode/);
   assert.match(bulkCode, /Invalid Barcode Filename/);
   assert.match(bulkCode, /Duplicate Barcode/);
   assert.match(bulkCode, /bulk_image_status/);

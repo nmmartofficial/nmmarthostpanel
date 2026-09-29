@@ -21,6 +21,12 @@ import { DB_SCHEMA } from '../../dbSchema';
 
 const SESSION_STORAGE_ITEMS_KEY = 'nm_bulk_entry_session_items';
 const SESSION_STORAGE_UNKNOWN_KEY = 'nm_bulk_entry_unknown_barcodes';
+const normalizeBulkImageBarcode = (value) => {
+  const barcode = String(value ?? '').trim().replace(/\.0+$/, '');
+  return /^[\d\s-]+$/.test(barcode)
+    ? barcode.replace(/[\s-]/g, '')
+    : barcode;
+};
 
 export default function BulkProductEntry({
   products = [],
@@ -66,6 +72,10 @@ export default function BulkProductEntry({
       return [];
     }
   });
+
+  const [bulkBrandId, setBulkBrandId] = useState('');
+  const [bulkCategoryId, setBulkCategoryId] = useState('');
+  const [bulkSubcategoryId, setBulkSubcategoryId] = useState('');
 
   const [unmatchedImages, setUnmatchedImages] = useState([]);
   const [highlightedBarcodes, setHighlightedBarcodes] = useState(new Set());
@@ -371,6 +381,25 @@ export default function BulkProductEntry({
     return map;
   }, [products]);
 
+  const productBarcodeMap = useMemo(() => {
+    const map = new Map();
+
+    (products || []).forEach((product) => {
+      const rawBarcode = [
+        product?.barcode,
+        product?.sku,
+        product?.RawCodeNew,
+        product?.RawCode
+      ].find((value) => String(value ?? '').trim());
+      const barcode = normalizeBulkImageBarcode(rawBarcode);
+
+      if (barcode) {
+        map.set(barcode, product);
+      }
+    });
+
+    return map;
+  }, [products]);
   // =========================================================
   // LIVE PRODUCT SEARCH
   // =========================================================
@@ -429,7 +458,7 @@ export default function BulkProductEntry({
   // =========================================================
 
   const addProductToSession = useCallback(
-    (product) => {
+    (product, { incrementDuplicate = true } = {}) => {
       if (!product) return;
 
       const barcodeKey = String(
@@ -451,6 +480,8 @@ export default function BulkProductEntry({
 
         // DUPLICATE PRODUCT
         if (existingIdx !== -1) {
+          if (!incrementDuplicate) return prev;
+
           const updated = [...prev];
 
           const currentCount =
@@ -1137,83 +1168,111 @@ image_url:
       return;
     }
 
-    let matchedCount = 0;
-
-    const unmatchedNames = [];
+    const unmatchedImagesBatch = [];
+    const filesByBarcode = new Map();
+    const duplicateImages = [];
 
     files.forEach((file) => {
-      const filename =
-        file.name
-          .substring(
-            0,
-            file.name.lastIndexOf('.')
-          )
-          .trim();
-
-      const previewUrl =
-        URL.createObjectURL(file);
-
-      let found = false;
-
-      setSessionItems(
-        (prev) =>
-          prev.map((item) => {
-            if (
-              String(
-                item.barcode
-              ).trim() ===
-              filename
-            ) {
-              found = true;
-
-              matchedCount++;
-
-              return {
-                ...item,
-                new_image_file:
-                  file,
-                new_image_preview:
-                  previewUrl
-              };
-            }
-
-            return item;
-          })
+      const filename = file.name.replace(/\.[^.]+$/, '').trim();
+      const duplicateMatch = filename.match(/^(.+)_\d+$/);
+      const barcode = normalizeBulkImageBarcode(
+        duplicateMatch?.[1] || filename
       );
+      const previewUrl = URL.createObjectURL(file);
 
-      if (!found) {
-        unmatchedNames.push(
-          file.name
-        );
+      if (!/^\d+$/.test(barcode)) {
+        unmatchedImagesBatch.push({
+          type: 'invalid',
+          status: 'Invalid Barcode Filename',
+          filename: file.name,
+          barcode,
+          previewUrl
+        });
+        return;
       }
+
+      const product = productBarcodeMap.get(barcode);
+
+      if (!product) {
+        unmatchedImagesBatch.push({
+          type: 'unknown',
+          status: 'Unknown Barcode',
+          filename: file.name,
+          barcode,
+          previewUrl
+        });
+        return;
+      }
+
+      if (filesByBarcode.has(barcode)) {
+        duplicateImages.push({
+          type: 'duplicate',
+          status: 'Duplicate Barcode',
+          filename: file.name,
+          barcode,
+          previewUrl,
+          firstFilename: filesByBarcode.get(barcode).filename
+        });
+        return;
+      }
+
+      filesByBarcode.set(barcode, {
+        file,
+        filename: file.name,
+        previewUrl,
+        barcode,
+        product
+      });
     });
 
-    setUnmatchedImages(
-      (prev) => [
-        ...unmatchedNames,
-        ...prev
-      ]
+    const matchedEntries = Array.from(filesByBarcode.values());
+
+    matchedEntries.forEach(({ product, barcode }) => {
+      addProductToSession(
+        { ...product, barcode: product.barcode || barcode },
+        { incrementDuplicate: false }
+      );
+    });
+
+    setSessionItems((prev) =>
+      prev.map((item) => {
+        const match = filesByBarcode.get(
+          normalizeBulkImageBarcode(item.barcode)
+        );
+
+        if (!match) return item;
+
+        return {
+          ...item,
+          new_image_file: match.file,
+          new_image_preview: match.previewUrl,
+          bulk_image_filename: match.filename,
+          bulk_image_status: 'Barcode Matched'
+        };
+      })
     );
 
-    if (
-      matchedCount > 0
-    ) {
+    const resultRecords = [...duplicateImages, ...unmatchedImagesBatch];
+    setUnmatchedImages((prev) => [...resultRecords, ...prev]);
+
+    if (matchedEntries.length > 0) {
       toast.success(
-        `Matched ${matchedCount} image(s) with session product barcodes!`
+        `Matched ${matchedEntries.length} image(s) with product barcodes.`
       );
     }
 
-    if (
-      unmatchedNames.length >
-      0
-    ) {
+    if (duplicateImages.length > 0) {
       toast.warning(
-        `${unmatchedNames.length} image(s) did not match any barcode in session.`
+        `${duplicateImages.length} duplicate barcode image(s) were not silently overwritten.`
       );
+    }
 
-      setShowUnmatchedImagesDrawer(
-        true
-      );
+    if (unmatchedImagesBatch.length > 0) {
+      toast.warning(`${unmatchedImagesBatch.length} image(s) need review.`);
+    }
+
+    if (resultRecords.length > 0) {
+      setShowUnmatchedImagesDrawer(true);
     }
 
     e.target.value = '';
@@ -2514,6 +2573,39 @@ const resolveSubcategoryName = () => {
     };
 
   // =========================================================
+  const handleBulkFieldChange = (
+    field,
+    nameField,
+    value,
+    options,
+    label
+  ) => {
+    const selected = options.find(
+      (option) => String(option.id) === value
+    );
+    const name = selected?.name || '';
+
+    if (field === 'category_id') {
+      setBulkSubcategoryId('');
+    }
+
+    setSessionItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        [field]: selected ? value : '',
+        [nameField]: name,
+        ...(field === 'category_id'
+          ? { subcategory_id: '', subcategory_name: '' }
+          : {})
+      }))
+    );
+
+    toast.success(
+      `${sessionItems.length} items updated with ${label}`
+    );
+  };
+
+  // =========================================================
   // RENDER
   // =========================================================
 
@@ -3049,6 +3141,99 @@ const resolveSubcategoryName = () => {
       {/* =====================================================
           SUMMARY CARDS
       ===================================================== */}
+
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+              Apply to All Items
+            </h3>
+            <p className="text-[10px] font-bold text-slate-400 mt-1">
+              Choose a value to update all {sessionItems.length} items in this session
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+            Brand
+            <select
+              value={bulkBrandId}
+              disabled={sessionItems.length === 0}
+              onChange={(e) => {
+                setBulkBrandId(e.target.value);
+                handleBulkFieldChange(
+                  'brand_id',
+                  'brand_name',
+                  e.target.value,
+                  bulkBrands,
+                  'Brand'
+                );
+              }}
+              className="mt-1 block w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 normal-case tracking-normal outline-none focus:border-blue-500 disabled:opacity-50"
+            >
+              <option value="">Select Brand for All</option>
+              {bulkBrands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+            Category
+            <select
+              value={bulkCategoryId}
+              disabled={sessionItems.length === 0}
+              onChange={(e) => {
+                setBulkCategoryId(e.target.value);
+                handleBulkFieldChange(
+                  'category_id',
+                  'category_name',
+                  e.target.value,
+                  bulkCategories,
+                  'Category'
+                );
+              }}
+              className="mt-1 block w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 normal-case tracking-normal outline-none focus:border-blue-500 disabled:opacity-50"
+            >
+              <option value="">Select Category for All</option>
+              {bulkCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+            Subcategory
+            <select
+              value={bulkSubcategoryId}
+              disabled={sessionItems.length === 0}
+              onChange={(e) => {
+                setBulkSubcategoryId(e.target.value);
+                handleBulkFieldChange(
+                  'subcategory_id',
+                  'subcategory_name',
+                  e.target.value,
+                  bulkSubcategories,
+                  'Subcategory'
+                );
+              }}
+              className="mt-1 block w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 normal-case tracking-normal outline-none focus:border-blue-500 disabled:opacity-50"
+            >
+              <option value="">Select Subcategory for All</option>
+              {bulkSubcategories.map((subcategory) => (
+                <option key={subcategory.id} value={subcategory.id}>
+                  {subcategory.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 flex-shrink-0">
 
