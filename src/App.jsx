@@ -238,8 +238,6 @@ export default function App({ company, isTenantMode, companySlug }) {
   }, [authUser]);
 
   useEffect(() => {
-    if (!isAuthenticated || !isAuthorizedPushRecipient(currentUser)) return undefined;
-
     const unlockNotificationAudio = async () => {
       const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextConstructor) return;
@@ -275,7 +273,7 @@ export default function App({ company, isTenantMode, companySlug }) {
         audioContext.close().catch(() => {});
       }
     };
-  }, [isAuthenticated, currentUser?.role]);
+  }, []);
 
   useEffect(() => {
     if (
@@ -290,6 +288,38 @@ export default function App({ company, isTenantMode, companySlug }) {
     let isActive = true;
     let unsubscribe = () => {};
 
+    const playOrderNotificationSound = (payload) => {
+      const presentation = buildNewOrderNotificationOptions(payload);
+      if (!presentation) return null;
+
+      const orderId = presentation.options.data.order_id || presentation.options.data.order_number;
+      const soundAlreadyPlayed = Boolean(
+        orderId && orderNotificationSoundRef.current.playedOrderIds.has(String(orderId))
+      );
+      const audioContext = orderNotificationSoundRef.current.audioContext;
+      const customSoundPlayed = Boolean(
+        !soundAlreadyPlayed &&
+        orderNotificationSoundRef.current.unlocked &&
+        audioContext?.state === 'running' &&
+        playNewOrderNotificationChime(audioContext)
+      );
+
+      if (customSoundPlayed && orderId) {
+        claimNewOrderNotificationSound(orderId, orderNotificationSoundRef.current.playedOrderIds);
+      }
+
+      return { presentation, soundAlreadyPlayed, customSoundPlayed };
+    };
+
+    const handleServiceWorkerMessage = (event) => {
+      if (event.data?.type !== 'NM_MART_NEW_ORDER_SOUND') return;
+
+      const soundResult = playOrderNotificationSound(event.data.payload);
+      event.ports?.[0]?.postMessage({ played: Boolean(soundResult?.customSoundPlayed) });
+    };
+
+    navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage);
+
     const subscribeToForegroundMessages = async () => {
       try {
         const [{ firebaseApp }, { getMessaging, isSupported, onMessage }] = await Promise.all([
@@ -299,27 +329,12 @@ export default function App({ company, isTenantMode, companySlug }) {
         if (!isActive || !(await isSupported())) return;
 
         unsubscribe = onMessage(getMessaging(firebaseApp), (payload) => {
-          const presentation = buildNewOrderNotificationOptions(payload);
-          if (!presentation) return;
+          const soundResult = playOrderNotificationSound(payload);
+          if (!soundResult) return;
 
-          const orderId = presentation.options.data.order_id;
-          const isFirstForSession = claimNewOrderNotificationSound(
-            orderId,
-            orderNotificationSoundRef.current.playedOrderIds
-          );
-          const isFocused = document.visibilityState === 'visible' && document.hasFocus();
-          const audioContext = orderNotificationSoundRef.current.audioContext;
-          const canPlayCustomSound = Boolean(
-            isFirstForSession &&
-            isFocused &&
-            orderNotificationSoundRef.current.unlocked &&
-            audioContext?.state === 'running'
-          );
-          const customSoundPlayed = canPlayCustomSound && playNewOrderNotificationChime(audioContext);
-
-          const notification = new Notification(presentation.title, {
-            ...presentation.options,
-            silent: !isFirstForSession || customSoundPlayed
+          const notification = new Notification(soundResult.presentation.title, {
+            ...soundResult.presentation.options,
+            silent: soundResult.soundAlreadyPlayed || soundResult.customSoundPlayed
           });
           notification.onclick = () => {
             window.focus();
@@ -336,52 +351,7 @@ export default function App({ company, isTenantMode, companySlug }) {
     return () => {
       isActive = false;
       unsubscribe();
-    };
-  }, [isAuthenticated, currentUser?.role]);
-
-  useEffect(() => {
-    if (
-      !isAuthenticated ||
-      !isAuthorizedPushRecipient(currentUser) ||
-      typeof Notification === 'undefined' ||
-      Notification.permission !== 'granted'
-    ) {
-      return undefined;
-    }
-
-    let isActive = true;
-    let unsubscribe = () => {};
-
-    const subscribeToForegroundMessages = async () => {
-      try {
-        const [{ firebaseApp }, { getMessaging, isSupported, onMessage }] = await Promise.all([
-          import('./lib/firebase.js'),
-          import('firebase/messaging')
-        ]);
-
-        if (!isActive || !(await isSupported())) return;
-
-        unsubscribe = onMessage(getMessaging(firebaseApp), (payload) => {
-          const presentation = buildNewOrderNotificationOptions(payload);
-          if (!presentation) return;
-
-          const notification = new Notification(presentation.title, presentation.options);
-          notification.onclick = () => {
-            window.focus();
-            setActiveTab('Orders');
-            notification.close();
-          };
-        });
-      } catch {
-        // Push initialization failures must not affect the Admin Panel.
-      }
-    };
-
-    subscribeToForegroundMessages();
-
-    return () => {
-      isActive = false;
-      unsubscribe();
+      navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
     };
   }, [isAuthenticated, currentUser?.role]);
 
