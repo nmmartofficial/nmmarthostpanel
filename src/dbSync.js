@@ -51,7 +51,7 @@ const PRODUCT_WHITELIST = [
 // Only tables that actually have an `is_active` column are listed here.
 const TABLES_WITH_IS_ACTIVE = [
   'companies',
-  'categories', 'subcategories', 'brands', 'account_master',
+  'categories', 'subcategories', 'brands', 'department_master', 'account_master',
   'users', 'admin_users', 'delivery_boy_master',
   'delivery_customer_master', 'wallet_master',
   'expenses', 'expense_categories',
@@ -59,6 +59,7 @@ const TABLES_WITH_IS_ACTIVE = [
   'banners', 'coupons', 'offers_master',
   'home_config', 'app_config',
   'customer_loyalty', 'loyalty_tiers',
+  'unit_master',
   'products'
 ];
 
@@ -464,7 +465,7 @@ export const dbSync = {
         effectiveSource = DB_SCHEMA.READABLE_ORDERS.table;
       } else if (tableName === DB_SCHEMA.USERS.table && DB_SCHEMA.READABLE_USERS) {
         effectiveSource = DB_SCHEMA.READABLE_USERS.table;
-      } else if (tableName === DB_SCHEMA.CATEGORIES.table && DB_SCHEMA.READABLE_CATEGORIES) {
+      } else if (tableName === DB_SCHEMA.CATEGORIES.table && DB_SCHEMA.READABLE_CATEGORIES && !query.rawTable) {
         effectiveSource = DB_SCHEMA.READABLE_CATEGORIES.table;
       } else if (tableName === DB_SCHEMA.BRANDS.table && DB_SCHEMA.READABLE_BRANDS) {
         // readable_brands omits image_url; use the authoritative table so Brand Master previews work.
@@ -913,6 +914,10 @@ export const dbSync = {
         data = r2.data;
       }
 
+      if ([DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table].includes(tableName) && (!Array.isArray(data) || data.length !== preparedRecords.length)) {
+        throw new Error(`${tableName} insert returned ${data?.length || 0} of ${preparedRecords.length} saved row(s)`);
+      }
+
       return Array.isArray(payload) ? data : data?.[0];
     } catch (err) {
       console.error('%c[dbSync.insert FAIL]', 'color:#ef4444;font-weight:bold', tableName, '\n  message:', err.message,
@@ -970,7 +975,7 @@ export const dbSync = {
         throw new Error(`${tableName} update(id=${id}) failed: ${fetchException?.message || String(fetchException)}`);
       }
 
-      if ((!error && (!data || data.length === 0)) || (error && ['42501', 'PGRST301', '401', '403'].includes(String(error.code || '')))) {
+      if (![DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table].includes(tableName) && ((!error && (!data || data.length === 0)) || (error && ['42501', 'PGRST301', '401', '403'].includes(String(error.code || ''))))) {
         console.warn(
           `%c[dbSync.update] ⚠ Tenant-scoped update returned zero rows. Retrying direct row update by id to preserve legacy product records.`,
           'background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:bold',
@@ -994,6 +999,9 @@ export const dbSync = {
         const e = new Error(`${tableName} update(id=${id}) failed: ${error.message}${error.details ? ' | ' + error.details : ''}`);
         e.code = error.code; e.details = error.details; e.hint = error.hint;
         throw e;
+      }
+      if ([DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table].includes(tableName) && (!Array.isArray(data) || data.length !== 1)) {
+        throw new Error(`${tableName} update(id=${id}) matched no row in the current tenant or was not permitted by RLS`);
       }
       console.log(`%c[dbSync.update] ${tableName} id=${id} OK, returned ${data?.length || 0} row(s)`, 'color:#3b82f6');
       if (tableName === DB_SCHEMA.PRODUCTS?.table && data?.[0]) {

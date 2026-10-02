@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAtomicCheckoutPayload, validateAtomicCheckoutInput } from '../../utils/pos/atomicCheckout.js';
+import { buildBannerActionFields } from '../../utils/bannerActions.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -176,4 +177,154 @@ test('master high-risk mappings use canonical fields and wallet is atomic', () =
   assert.match(sync, /functionName === 'adjust_wallet_atomic'/);
   assert.match(master, /requiredField/);
   assert.match(master, /A valid parent category is required/);
+});
+
+test('product edits allow independent main-category and subcategory selection', () => {
+  const productsView = read('src/pages/Inventory/ProductsView.jsx');
+
+  assert.match(productsView, /subcategories\.map\(s => <option key=\{s\.id\} value=\{s\.id\}>\{s\.name\}<\/option>\)/);
+  assert.doesNotMatch(productsView, /does not belong to/);
+  assert.doesNotMatch(productsView, /updates\.category_id\s*=/);
+  assert.doesNotMatch(productsView, /Number\(s\.category_id\)\s*===\s*selectedCategoryId/);
+});
+
+test('product unit selector uses active Unit Master entries and preserves inactive existing units', () => {
+  const app = read('src/App.jsx');
+  const dbSync = read('src/dbSync.js');
+  const productsView = read('src/pages/Inventory/ProductsView.jsx');
+
+  assert.match(app, /dbSync\.fetch\(DB_SCHEMA\.UNITS\.table,\s*\{\s*includeDeleted:\s*true\s*\}\)/);
+  assert.match(dbSync, /'unit_master'/);
+  assert.match(productsView, /units = \[\]/);
+  assert.match(productsView, /unit\.is_active !== false/);
+  assert.match(productsView, /units\.length === 0 \? \['Nos', 'Pcs', 'Kg', 'Ltr', 'Box', 'Pkt'\] : uniqueUnits/);
+  assert.match(productsView, /Inactive - existing/);
+  assert.match(productsView, /unitcode: e\.target\.value/);
+  assert.match(productsView, /<select required value=\{String\(formData\.unit/);
+});
+
+test('main category delete is permanent and restricted to the owning active super admin', () => {
+  const master = read('src/components/MasterListView.jsx');
+  const deletePolicy = read('supabase/migrations/20261003__secure_category_master_delete_rls.sql');
+  const softDeleteTables = master.match(/const SOFT_DELETE_TABLES = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '';
+
+  assert.doesNotMatch(softDeleteTables, /DB_SCHEMA\.CATEGORIES\.table/);
+  assert.match(master, /table === DB_SCHEMA\.CATEGORIES\.table[\s\S]*permanently delete/);
+  assert.match(deletePolicy, /ON public\.categories\s+FOR DELETE\s+TO authenticated/);
+  assert.match(deletePolicy, /admin_user\.status = 'active'/);
+  assert.match(deletePolicy, /admin_user\.role = 'super_admin'/);
+  assert.match(deletePolicy, /admin_user\.tenant_id = categories\.tenant_id/);
+  assert.match(deletePolicy, /admin_user\.company_code = categories\.company_code/);
+});
+
+test('Department Master exposes schema fields, filters inactive rows, and supports reversible soft delete', () => {
+  const app = read('src/App.jsx');
+  const dbSync = read('src/dbSync.js');
+  const master = read('src/components/MasterListView.jsx');
+  const softDeleteTables = master.match(/const SOFT_DELETE_TABLES = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '';
+
+  assert.match(app, /name: 'code', label: 'Department Code'/);
+  assert.match(app, /name: 'description', label: 'Description'/);
+  assert.match(dbSync, /'department_master'/);
+  assert.match(softDeleteTables, /DB_SCHEMA\.DEPARTMENTS\.table/);
+  assert.match(master, /Show Inactive/);
+  assert.match(master, /includeDeleted: true/);
+  assert.match(master, /is_deleted: false/);
+});
+
+test('Account Master validates contact and tax identifiers and uses reversible inactive records', () => {
+  const app = read('src/App.jsx');
+  const master = read('src/components/MasterListView.jsx');
+  const softDeleteTables = master.match(/const SOFT_DELETE_TABLES = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '';
+
+  assert.match(app, /name: 'account_type'.*required: true/);
+  for (const field of ['email', 'address', 'gst_no', 'pan_no', 'credit_limit']) {
+    assert.match(app, new RegExp(`name: '${field}'`));
+  }
+  assert.match(softDeleteTables, /DB_SCHEMA\.ACCOUNTS\.table/);
+  assert.match(master, /isAccountMaster && showInactiveAccounts/);
+  assert.match(master, /valid 15-character GSTIN/);
+  assert.match(master, /Enter a valid PAN/);
+  assert.match(master, /Mobile number must be a valid 10-digit Indian mobile number/);
+});
+
+test('User Master disables login status consistently and protects administrator access', () => {
+  const app = read('src/App.jsx');
+  const master = read('src/components/MasterListView.jsx');
+  const softDeleteTables = master.match(/const SOFT_DELETE_TABLES = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '';
+
+  assert.match(app, /name: 'role', label: 'Role'.*required: true/);
+  assert.match(app, /storedRoles/);
+  assert.match(softDeleteTables, /DB_SCHEMA\.ADMIN_USERS\.table/);
+  assert.match(master, /status: status \? 'active' : 'disabled'/);
+  assert.match(master, /status: 'disabled'/);
+  assert.match(master, /showInactiveAdminUsers/);
+  assert.match(master, /You cannot disable your own User Master account/);
+  assert.match(master, /At least one active Super Admin must remain/);
+  assert.match(master, /Username or email is already assigned to another user/);
+});
+
+test('banner action payload resolves selected product, category, URL, and no-action states', () => {
+  assert.deepEqual(buildBannerActionFields({
+    linkType: 'product',
+    productIds: [12, '12', 34]
+  }), {
+    link_type: 'product',
+    link_id: '["12","34"]',
+    linked_product_id: '12',
+    action_type: 'product',
+    action_value: '12',
+    link_url: null
+  });
+  assert.deepEqual(buildBannerActionFields({
+    linkType: 'category',
+    categoryId: 56
+  }), {
+    link_type: 'category',
+    link_id: '56',
+    linked_product_id: null,
+    action_type: 'category',
+    action_value: '56',
+    link_url: null
+  });
+  assert.equal(buildBannerActionFields({ linkType: 'url', targetUrl: 'https://example.com/shop' }).action_value, 'https://example.com/shop');
+  assert.equal(buildBannerActionFields({ linkType: 'none' }).link_id, null);
+});
+
+test('Banner Master exposes required placement and target actions, preserving category targets', () => {
+  const app = read('src/App.jsx');
+  const master = read('src/components/MasterListView.jsx');
+  const schema = read('src/dbSchema.js');
+
+  assert.match(app, /name: 'banner_type', label: 'Placement', type: 'select', required: true/);
+  assert.match(app, /name: 'link_type', label: 'Click Action', type: 'select', required: true/);
+  assert.match(app, /value: 'top_slider'/);
+  assert.match(app, /value: 'product_section'/);
+  assert.match(app, /value: 'popup'/);
+  assert.match(app, /value: 'app'/);
+  assert.match(app, /value: 'url', label: 'Open URL'/);
+  assert.match(master, /Choose at least one product for this banner/);
+  assert.match(master, /Choose a valid category for this banner/);
+  assert.match(master, /hasMultiProductField && \(!isBannerMaster \|\| finalData\.link_type === 'product'\)/);
+  assert.match(schema, /action_type: 'action_type', action_value: 'action_value'/);
+});
+
+test('Banner linked-product Add opens product options when the search is blank', () => {
+  const master = read('src/components/MasterListView.jsx');
+  assert.match(master, /if \(!term\) \{\s*setShowMultiProductDropdown\(true\);\s*return;/);
+  assert.match(master, /showMultiProductDropdown &&/);
+  assert.match(master, /matches\.slice\(0, 20\)\.map/);
+  assert.match(master, /No matching product found/);
+  assert.match(master, /already linked to the banner/);
+});
+
+test('Master forms require only currently visible conditional fields', () => {
+  const master = read('src/components/MasterListView.jsx');
+  assert.match(master, /if \(!field\.required \|\| \(field\.condition && !field\.condition\(formData\)\)\) return false/);
+});
+
+test('Master edit forms normalize stored timestamps for date inputs', () => {
+  const master = read('src/components/MasterListView.jsx');
+  assert.match(master, /const toDateInputValue = \(value\) =>/);
+  assert.match(master, /editedFormData\[field\.name\] = toDateInputValue\(item\[field\.name\]\)/);
 });

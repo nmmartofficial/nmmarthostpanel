@@ -192,7 +192,7 @@ const processProductImportData = async (parsedData, brands = []) => {
   });
 };
 
-export default function ProductsView({ products = [], categories = [], brands = [], subcategories = [], filter, uploadImage, fetchInitialData, setLoading }) {
+export default function ProductsView({ products = [], categories = [], brands = [], subcategories = [], units = [], filter, uploadImage, fetchInitialData, setLoading }) {
   const [isBulkMode, setIsBulkMode] = useState(() => {
     try {
       return localStorage.getItem(BULK_ENTRY_MODE_KEY) === 'true';
@@ -279,19 +279,19 @@ export default function ProductsView({ products = [], categories = [], brands = 
     return subcategories || [];
   }, [subcategories]);
 
+  const activeUnitOptions = useMemo(() => {
+    const activeUnits = (units || [])
+      .filter((unit) => unit.is_active !== false && unit.is_active !== 'false' && unit.is_deleted !== true && unit.is_deleted !== 'true')
+      .map((unit) => String(unit.name || '').trim())
+      .filter(Boolean);
+    const uniqueUnits = [...new Map(activeUnits.map((name) => [name.toLowerCase(), name])).values()];
+    const defaultUnits = units.length === 0 ? ['Nos', 'Pcs', 'Kg', 'Ltr', 'Box', 'Pkt'] : uniqueUnits;
+    return defaultUnits.map((name) => ({ value: name, label: name }));
+  }, [units]);
+
   const resolveFormSubcategory = useCallback((nextFormData) => {
-    const rawCategoryId = nextFormData.category_id || nextFormData.categoryId;
-    if (!rawCategoryId) {
-      return { ...nextFormData, subcategory_id: '', subcategory_name: '', subcategory: '' };
-    }
-
-    const selectedCategoryId = Number(rawCategoryId);
-
     if (nextFormData.subcategory_id) {
-      const matched = (subcategories || []).find(
-        s => Number(s.id) === Number(nextFormData.subcategory_id)
-          && Number(s.category_id) === selectedCategoryId
-      );
+      const matched = (subcategories || []).find(s => Number(s.id) === Number(nextFormData.subcategory_id));
 
       if (matched) {
         return {
@@ -306,8 +306,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
     const lookupName = String(nextFormData.subcategory_name || nextFormData.subcategory || '').trim().toLowerCase();
     if (lookupName) {
       const matchedByName = (subcategories || []).find(
-        s => Number(s.category_id) === selectedCategoryId
-          && String(s.name || '').trim().toLowerCase() === lookupName
+        s => String(s.name || '').trim().toLowerCase() === lookupName
       );
 
       if (matchedByName) {
@@ -387,35 +386,23 @@ export default function ProductsView({ products = [], categories = [], brands = 
       record.subcategory?.name
     ];
 
+    // IDs are authoritative; a subcategory can be paired with any main category.
+    for (const candidate of idCandidates) {
+      if (candidate === undefined || candidate === null || candidate === '') continue;
+      const match = (subcategories || []).find(s => String(s.id).trim() === String(candidate).trim());
+      if (match) return { id: String(match.id), name: match.name };
+    }
+
     const categoryMatch = resolveCategoryId(record);
-    const matchByCategory = (candidate) => {
-      if (candidate === undefined || candidate === null || candidate === '') return null;
-      return (subcategories || []).find(s => {
-        const matchesId = String(s.id).trim() === String(candidate).trim();
-        const matchesName = String(s.name || '').trim().toLowerCase() === String(candidate).trim().toLowerCase();
-        // If we have a category match, try to find subcategory WITHIN that category
-        const categoryOk = !categoryMatch || Number(s.category_id) === Number(categoryMatch.id);
-        return (matchesId || matchesName) && categoryOk;
-      });
-    };
-
-    // First try strict match (by ID/Name AND Category)
-    for (const candidate of idCandidates) {
-      const match = matchByCategory(candidate);
-      if (match) return { id: String(match.id), name: match.name };
-    }
-
     for (const candidate of nameCandidates) {
-      const match = matchByCategory(candidate);
+      if (candidate === undefined || candidate === null || candidate === '') continue;
+      const normalized = String(candidate).trim().toLowerCase();
+      const match = (subcategories || []).find(s =>
+        String(s.name || '').trim().toLowerCase() === normalized
+        && categoryMatch
+        && Number(s.category_id) === Number(categoryMatch.id)
+      );
       if (match) return { id: String(match.id), name: match.name };
-    }
-
-    // If no match found within category, try to find by ID/Name across ANY category
-    for (const candidate of idCandidates) {
-      if (candidate !== undefined && candidate !== null && candidate !== '') {
-        const match = (subcategories || []).find(s => String(s.id).trim() === String(candidate).trim());
-        if (match) return { id: String(match.id), name: match.name };
-      }
     }
 
     for (const candidate of nameCandidates) {
@@ -425,12 +412,6 @@ export default function ProductsView({ products = [], categories = [], brands = 
         const match = (subcategories || []).find(s => String(s.name || '').trim().toLowerCase() === normalized);
         if (match) return { id: String(match.id), name: match.name };
       }
-    }
-
-    // Finally, if we have a category match, just pick the FIRST subcategory under it if any
-    if (categoryMatch) {
-      const fallbackMatch = (subcategories || []).find(s => Number(s.category_id) === Number(categoryMatch.id));
-      if (fallbackMatch) return { id: String(fallbackMatch.id), name: fallbackMatch.name };
     }
 
     return null;
@@ -590,9 +571,12 @@ export default function ProductsView({ products = [], categories = [], brands = 
     let currentCategoryId = formData.category_id != null && formData.category_id !== ''
       ? Number(formData.category_id)
       : (editingProduct?.category_id != null ? Number(editingProduct.category_id) : null);
-    let currentSubCategoryId = formData.subcategory_id != null && formData.subcategory_id !== ''
-      ? Number(formData.subcategory_id)
-      : (editingProduct?.subcategory_id != null ? Number(editingProduct.subcategory_id) : null);
+    const subcategoryValue = Object.prototype.hasOwnProperty.call(formData, 'subcategory_id')
+      ? formData.subcategory_id
+      : editingProduct?.subcategory_id;
+    let currentSubCategoryId = subcategoryValue != null && subcategoryValue !== ''
+      ? Number(subcategoryValue)
+      : null;
     const isEditing = Boolean(editingProduct?.id);
 
     if (currentBrandId == null || Number.isNaN(currentBrandId) || !brands.some((brand) => Number(brand?.id) === Number(currentBrandId))) {
@@ -608,49 +592,24 @@ export default function ProductsView({ products = [], categories = [], brands = 
     }
 
     const subCategoryLookupName = String(formData.subcategory_name || formData.subcategory || '').trim();
-    const matchingByNameInSelectedCategory = subCategoryLookupName
-      ? subcategories.find((subcategory) => {
-          const sameName = String(subcategory?.name || '').trim().toLowerCase() === subCategoryLookupName.toLowerCase();
-          const sameCategory = Number(subcategory?.category_id) === Number(currentCategoryId);
-          return sameName && sameCategory;
-        })
+    const matchingSubcategoryByName = currentSubCategoryId == null && subCategoryLookupName
+      ? subcategories.find((subcategory) =>
+          String(subcategory?.name || '').trim().toLowerCase() === subCategoryLookupName.toLowerCase()
+        )
       : null;
 
-    if (matchingByNameInSelectedCategory) {
-      currentSubCategoryId = Number(matchingByNameInSelectedCategory.id);
-    }
-
-    const categoryHasSubcategories = subcategories.some(
-      (subcategory) => Number(subcategory?.category_id) === Number(currentCategoryId)
-    );
-
-    if (categoryHasSubcategories && (currentSubCategoryId == null || Number.isNaN(currentSubCategoryId) || !subcategories.some((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId)))) {
-      alert('Please select a Sub Category before saving the product.');
-      setIsSubmitting(false);
-      return;
+    if (matchingSubcategoryByName) {
+      currentSubCategoryId = Number(matchingSubcategoryByName.id);
     }
 
     const selectedSubcategory = subcategories.find((subcategory) => Number(subcategory?.id) === Number(currentSubCategoryId));
-    if (selectedSubcategory && Number(selectedSubcategory.category_id) !== Number(currentCategoryId)) {
-      const fallbackMatch = subcategories.find((subcategory) => {
-        const subName = String(subcategory?.name || '').trim().toLowerCase();
-        const lookName = subCategoryLookupName.toLowerCase();
-        const sameName = subName === lookName;
-        const sameCategory = Number(subcategory?.category_id) === Number(currentCategoryId);
-        return sameName && sameCategory;
-      });
-
-      if (fallbackMatch) {
-        currentSubCategoryId = Number(fallbackMatch.id);
-      } else {
-        const categoryMatch = categories.find(c => Number(c.id) === Number(currentCategoryId));
-        const subCategoryName = selectedSubcategory?.name || subCategoryLookupName;
-        const categoryName = categoryMatch?.name || 'Selected Category';
-
-        alert(`Sub Category "${subCategoryName}" does not belong to "${categoryName}". Please select a sub category that belongs to the selected main category.`);
-        setIsSubmitting(false);
-        return;
-      }
+    if (currentSubCategoryId != null && (
+      Number.isNaN(currentSubCategoryId) ||
+      !selectedSubcategory
+    )) {
+      alert('Please select a valid Sub Category.');
+      setIsSubmitting(false);
+      return;
     }
 
     setIsSubmitting(true);
@@ -702,7 +661,7 @@ export default function ProductsView({ products = [], categories = [], brands = 
         unitcode: formData.unitcode || formData.unit_name,
         item_group: formData.itg || formData.item_group,
         itg: formData.itg || formData.item_group,
-        item_category: formData.itc || formData.item_category,
+        item_category: categoryNameToUse,
         category_name: categoryNameToUse,
         itc: categoryNameToUse,
         subcategory_name: subcategoryNameToUse,
@@ -1045,7 +1004,9 @@ export default function ProductsView({ products = [], categories = [], brands = 
                 subcategory_name: '',
                 brand_id: '',
                 brand_name: '',
-                unit_name: 'Nos'
+                unit: activeUnitOptions[0]?.value || (units.length === 0 ? 'Nos' : ''),
+                unit_name: activeUnitOptions[0]?.value || (units.length === 0 ? 'Nos' : ''),
+                unitcode: activeUnitOptions[0]?.value || (units.length === 0 ? 'Nos' : '')
               }); 
               setShowForm(true); 
             }}
@@ -1428,14 +1389,6 @@ export default function ProductsView({ products = [], categories = [], brands = 
                           subcategory: selectedSubCat?.name || ''
                         };
 
-                        // Smart Auto-Selection: If subcategory has a parent category, update it too
-                        if (selectedSubCat?.category_id) {
-                          const parentCat = categories.find(c => String(c.id) === String(selectedSubCat.category_id));
-                          updates.category_id = String(selectedSubCat.category_id);
-                          updates.category_name = parentCat?.name || '';
-                          updates.category = parentCat?.name || '';
-                        }
-
                         setFormData({ ...formData, ...updates });
                       }} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-blue-500 outline-none">
                         <option value="">Select Sub Category</option>
@@ -1459,13 +1412,24 @@ export default function ProductsView({ products = [], categories = [], brands = 
                     </div>
                     <div className="md:col-span-3 space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Unit Name</label>
-                      <select value={formData.unit || formData.unit_name || ''} onChange={(e) => setFormData({ ...formData, unit: e.target.value, unit_name: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-blue-500 outline-none">
-                        <option value="Nos">Nos</option>
-                        <option value="Pcs">Pcs</option>
-                        <option value="Kg">Kg</option>
-                        <option value="Ltr">Ltr</option>
-                        <option value="Box">Box</option>
-                        <option value="Pkt">Pkt</option>
+                      <select required value={String(formData.unit || formData.unit_name || formData.unitcode || '')} onChange={(e) => setFormData({ ...formData, unit: e.target.value, unit_name: e.target.value, unitcode: e.target.value })} className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2.5 text-sm font-medium text-slate-900 focus:border-blue-500 outline-none">
+                        <option value="">Select Unit</option>
+                        {(() => {
+                          const currentUnit = String(formData.unit || formData.unit_name || formData.unitcode || '').trim();
+                          const matchedUnit = (units || []).find((unit) =>
+                            [unit.name, unit.short_name, unit.symbol, unit.code]
+                              .some((value) => String(value || '').trim().toLowerCase() === currentUnit.toLowerCase())
+                          );
+                          const currentIsActive = matchedUnit && matchedUnit.is_active !== false && matchedUnit.is_active !== 'false'
+                            && matchedUnit.is_deleted !== true && matchedUnit.is_deleted !== 'true';
+                          const hasCurrentOption = activeUnitOptions.some((option) => option.value.toLowerCase() === currentUnit.toLowerCase());
+                          return currentUnit && !hasCurrentOption ? (
+                            <option value={currentUnit} disabled={!currentIsActive}>
+                              {currentIsActive ? `${matchedUnit.name} (${currentUnit})` : `${currentUnit} (Inactive - existing)`}
+                            </option>
+                          ) : null;
+                        })()}
+                        {activeUnitOptions.map((unit) => <option key={unit.value} value={unit.value}>{unit.label}</option>)}
                       </select>
                     </div>
 

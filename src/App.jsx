@@ -713,7 +713,7 @@ export default function App({ company, isTenantMode, companySlug }) {
         dbSync.fetch(DB_SCHEMA.DELIVERY_CUSTOMERS.table),
         dbSync.fetch(DB_SCHEMA.PURCHASES.table),
         dbSync.fetch(DB_SCHEMA.DEPARTMENTS.table),
-        dbSync.fetch(DB_SCHEMA.UNITS.table),
+        dbSync.fetch(DB_SCHEMA.UNITS.table, { includeDeleted: true }),
         dbSync.fetch(DB_SCHEMA.ACCOUNTS.table),
         dbSync.fetch(DB_SCHEMA.INVENTORY_LOGS.table, { order: { column: 'created_at', ascending: false }, limit: 100 }),
         dbSync.fetch(DB_SCHEMA.EXPENSES.table, { order: { column: 'date', ascending: false } }),
@@ -1666,7 +1666,7 @@ export default function App({ company, isTenantMode, companySlug }) {
           >
             <Suspense fallback={<ModuleLoadingFallback title={`Loading ${activeTab}...`} />}>
               {renderTabContent(activeTab, {
-                  activeTab, setActiveTab,
+                  activeTab, setActiveTab, currentUser,
                   stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons,
                   offers, pincodes, homeConfig, walletTx, wallets, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                   purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
@@ -5787,6 +5787,7 @@ const SubcategoriesView = (props) => (
       'id': 'id'
     }}
     fields={[
+      { name: 'category_id', label: 'Parent Category', type: 'category-search', required: true },
       { name: 'name', label: 'Subcategory Name', type: 'text', required: true },
       { name: 'image_url', label: 'Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
@@ -5822,6 +5823,8 @@ const DepartmentsView = (props) => (
     {...props}
     fields={[
       { name: 'name', label: 'Department Name', type: 'text', required: true },
+      { name: 'code', label: 'Department Code', type: 'text' },
+      { name: 'description', label: 'Description', type: 'text' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
@@ -5844,9 +5847,14 @@ const AccountsView = (props) => (
     {...props}
     fields={[
       { name: 'name', label: 'Account Name', type: 'text', required: true },
-      { name: 'mobile', label: 'Mobile', type: 'text' },
-      { name: 'account_type', label: 'Type', type: 'select', options: [{value: 'Customer', label: 'Customer'}, {value: 'Supplier', label: 'Supplier'}] },
-      { name: 'current_balance', label: 'Balance', type: 'number' },
+      { name: 'account_type', label: 'Type', type: 'select', required: true, options: [{value: 'Customer', label: 'Customer'}, {value: 'Supplier', label: 'Supplier'}] },
+      { name: 'mobile', label: 'Mobile', type: 'tel' },
+      { name: 'email', label: 'Email', type: 'email' },
+      { name: 'address', label: 'Address', type: 'text' },
+      { name: 'gst_no', label: 'GSTIN', type: 'text' },
+      { name: 'pan_no', label: 'PAN', type: 'text' },
+      { name: 'current_balance', label: 'Current Balance', type: 'number' },
+      { name: 'credit_limit', label: 'Credit Limit', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
@@ -5892,9 +5900,9 @@ const BannersView = (props) => (
       { value: 'app', label: 'App' }
     ]}
     fields={[
-      { name: 'title', label: 'Banner Title', type: 'text' },
+      { name: 'title', label: 'Banner Title', type: 'text', required: true },
       { name: 'image_url', label: 'Banner Image', type: 'image', required: true },
-      { name: 'banner_type', label: 'Placement', type: 'select', options: [
+      { name: 'banner_type', label: 'Placement', type: 'select', required: true, options: [
         { value: 'top_slider', label: 'Hero / Main Banner' },
         { value: 'top', label: 'Top Banner' },
         { value: 'middle', label: 'Middle Banner' },
@@ -5906,10 +5914,11 @@ const BannersView = (props) => (
         { value: 'app', label: 'App Banner' }
       ] },
       { name: 'sort_order', label: 'Display Order', type: 'number' },
-      { name: 'link_type', label: 'Click Action', type: 'select', options: [
+      { name: 'link_type', label: 'Click Action', type: 'select', required: true, options: [
         { value: 'none', label: 'None' },
         { value: 'product', label: 'Link to Product' },
-        { value: 'category', label: 'Link to Category' }
+        { value: 'category', label: 'Link to Category' },
+        { value: 'url', label: 'Open URL' }
       ]},
       {
         name: 'link_id',
@@ -5923,7 +5932,13 @@ const BannersView = (props) => (
         type: 'category-search',
         condition: (formData) => formData.link_type === 'category'
       },
-      { name: 'link_url', label: 'Target URL', type: 'text' },
+      {
+        name: 'link_url',
+        label: 'Target URL',
+        type: 'text',
+        required: true,
+        condition: (formData) => formData.link_type === 'url'
+      },
       { name: 'start_date', label: 'Start Date', type: 'date' },
       { name: 'end_date', label: 'End Date', type: 'date' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
@@ -6055,19 +6070,37 @@ const WalletView = ({ wallets = [], users = [], fetchInitialData }) => {
 // New Master Views
 
 
-const UserMasterView = (props) => (
-  <MasterListView
-    {...props}
-    fields={[
-      { name: 'username', label: 'Username', type: 'text', required: true },
-      { name: 'full_name', label: 'Full Name', type: 'text' },
-      { name: 'email', label: 'Email', type: 'text' },
-      { name: 'phone', label: 'Phone', type: 'text' },
-      { name: 'role', label: 'Role', type: 'select', options: [{value: 'super_admin', label: 'Super Admin'}, {value: 'sales_manager', label: 'Sales Manager'}, {value: 'inventory_head', label: 'Inventory Head'}, {value: 'accountant', label: 'Accountant'}] },
-      { name: 'is_active', label: 'Active', type: 'boolean' }
-    ]}
-  />
-);
+const UserMasterView = (props) => {
+  const standardRoles = [
+    { value: 'super_admin', label: 'Super Admin' },
+    { value: 'sales_manager', label: 'Sales Manager' },
+    { value: 'inventory_head', label: 'Inventory Head' },
+    { value: 'accountant', label: 'Accountant' }
+  ];
+  const storedRoles = (props.data || [])
+    .map((user) => user.role)
+    .filter(Boolean)
+    .filter((role, index, roles) => roles.indexOf(role) === index)
+    .map((role) => ({ value: role, label: role.replace(/_/g, ' ') }));
+  const roleOptions = [...standardRoles];
+  storedRoles.forEach((role) => {
+    if (!roleOptions.some((option) => option.value === role.value)) roleOptions.push(role);
+  });
+
+  return (
+    <MasterListView
+      {...props}
+      fields={[
+        { name: 'username', label: 'Username', type: 'text', required: true },
+        { name: 'full_name', label: 'Full Name', type: 'text' },
+        { name: 'email', label: 'Email', type: 'email' },
+        { name: 'phone', label: 'Phone', type: 'tel' },
+        { name: 'role', label: 'Role', type: 'select', required: true, options: roleOptions },
+        { name: 'is_active', label: 'Active', type: 'boolean' }
+      ]}
+    />
+  );
+};
 
 const CreditsView = (props) => (
   <MasterListView

@@ -8,8 +8,10 @@ import { cn, generateUUID } from '../utils/helpers';
 import { secureStorage } from '../utils/security';
 import { handleERPAction, ACTION_TYPES, parseERPCSV } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
+import { dbSync } from '../dbSync';
 import { toast } from 'sonner';
 import PaginationFooter from './PaginationFooter';
+import { buildBannerActionFields } from '../utils/bannerActions';
 
 const parseLinkedProductIds = (value) => {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
@@ -31,6 +33,39 @@ const getProductDisplayName = (product) => String(
   product?.name ?? product?.itname ?? product?.item_name ?? product?.product_name ?? product?.RawName ?? ''
 ).trim();
 
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  const valueString = String(value);
+  const isoDate = valueString.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (isoDate) return isoDate;
+  const parsedDate = new Date(valueString);
+  return Number.isNaN(parsedDate.getTime()) ? '' : parsedDate.toISOString().slice(0, 10);
+};
+
+const SOFT_DELETE_TABLES = new Set([
+  DB_SCHEMA.SUBCATEGORIES.table,
+  DB_SCHEMA.BRANDS.table,
+  DB_SCHEMA.DEPARTMENTS.table,
+  DB_SCHEMA.ACCOUNTS.table,
+  DB_SCHEMA.ADMIN_USERS.table
+]);
+
+const deleteMasterRecord = async (table, id) => {
+  const isSoftDelete = SOFT_DELETE_TABLES.has(table);
+  const isAdminUser = table === DB_SCHEMA.ADMIN_USERS.table;
+  const result = await handleERPAction(
+    table,
+    isSoftDelete ? ACTION_TYPES.UPDATE : ACTION_TYPES.DELETE,
+    isSoftDelete
+      ? { id, is_active: false, ...(isAdminUser ? { status: 'disabled' } : { is_deleted: true }) }
+      : { id }
+  );
+  if (isSoftDelete && result.success && !result.data) {
+    return { ...result, success: false, error: `Failed to hide ${table} record ${id}: no record was updated` };
+  }
+  return result;
+};
+
 export default function MasterListView({ title, table, bucket, fields, data, uploadImage, fetchInitialData, loading, customColumnMapping, filterField, filterOptions = [], ...relatedData }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [masterFilter, setMasterFilter] = useState('');
@@ -44,7 +79,18 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [selectedProductIds, setSelectedProductIds] = useState([]);
   const [multiProductSearchTerm, setMultiProductSearchTerm] = useState('');
+  const [showMultiProductDropdown, setShowMultiProductDropdown] = useState(false);
+  const [showInactiveDepartments, setShowInactiveDepartments] = useState(false);
+  const [inactiveDepartments, setInactiveDepartments] = useState([]);
+  const [showInactiveAccounts, setShowInactiveAccounts] = useState(false);
+  const [inactiveAccounts, setInactiveAccounts] = useState([]);
+  const [showInactiveAdminUsers, setShowInactiveAdminUsers] = useState(false);
+  const [inactiveAdminUsers, setInactiveAdminUsers] = useState([]);
 
+  const isDepartmentMaster = table === DB_SCHEMA.DEPARTMENTS.table;
+  const isAccountMaster = table === DB_SCHEMA.ACCOUNTS.table;
+  const isAdminUserMaster = table === DB_SCHEMA.ADMIN_USERS.table;
+  const isBannerMaster = table === DB_SCHEMA.BANNERS.table;
   const hasMultiProductField = fields.some((field) => field.type === 'product-multi-search');
   const selectedProducts = (relatedData.products || []).filter((product) =>
     selectedProductIds.some((id) => String(id) === String(product.id))
@@ -57,6 +103,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
     setSelectedProductIds(nextIds);
     setFormData((current) => ({ ...current, link_id: JSON.stringify(nextIds) }));
     setMultiProductSearchTerm('');
+    setShowMultiProductDropdown(false);
   };
 
   const removeLinkedProduct = (productId) => {
@@ -84,6 +131,106 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   const [rowsPerPage, setRowsPerPage] = useState(20);
   const [selectedIds, setSelectedIds] = useState([]);
 
+  useEffect(() => {
+    if (!isDepartmentMaster || !showInactiveDepartments) {
+      setInactiveDepartments([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    dbSync.fetch(table, { includeDeleted: true })
+      .then((records) => {
+        if (!cancelled) {
+          setInactiveDepartments((records || []).filter((record) =>
+            record.is_active === false || record.is_deleted === true
+          ));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(`Could not load inactive departments: ${error.message}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data, isDepartmentMaster, showInactiveDepartments, table]);
+
+  useEffect(() => {
+    if (!isAccountMaster || !showInactiveAccounts) {
+      setInactiveAccounts([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    dbSync.fetch(table, { includeDeleted: true })
+      .then((records) => {
+        if (!cancelled) {
+          setInactiveAccounts((records || []).filter((record) =>
+            record.is_active === false || record.is_deleted === true
+          ));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(`Could not load inactive accounts: ${error.message}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data, isAccountMaster, showInactiveAccounts, table]);
+
+  useEffect(() => {
+    if (!isAdminUserMaster || !showInactiveAdminUsers) {
+      setInactiveAdminUsers([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    dbSync.fetch(table, { includeDeleted: true })
+      .then((records) => {
+        if (!cancelled) {
+          setInactiveAdminUsers((records || []).filter((record) =>
+            record.is_active === false || record.status === 'disabled'
+          ));
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(`Could not load inactive users: ${error.message}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data, isAdminUserMaster, showInactiveAdminUsers, table]);
+
+  const canDeactivateAdminUsers = (ids) => {
+    if (!isAdminUserMaster) return true;
+    const selectedUsers = (data || []).filter((user) => ids.some((id) => String(id) === String(user.id)));
+    const currentUserId = relatedData.currentUser?.id;
+    const deactivatesSelf = selectedUsers.some((user) =>
+      currentUserId != null && (
+        String(user.id) === String(currentUserId)
+        || (user.auth_user_id != null && String(user.auth_user_id) === String(currentUserId))
+      )
+    );
+    if (deactivatesSelf) {
+      toast.error('You cannot disable your own User Master account');
+      return false;
+    }
+
+    const activeSuperAdmins = (data || []).filter((user) =>
+      user.role === 'super_admin' && user.is_active !== false && user.status !== 'disabled'
+    );
+    const selectedSuperAdmins = selectedUsers.filter((user) =>
+      user.role === 'super_admin' && user.is_active !== false && user.status !== 'disabled'
+    );
+    if (selectedSuperAdmins.length > 0 && activeSuperAdmins.length <= selectedSuperAdmins.length) {
+      toast.error('At least one active Super Admin must remain');
+      return false;
+    }
+    return true;
+  };
+
   // Bulk Actions
   const toggleSelectAll = () => {
     if (selectedIds.length === paginatedData.length) {
@@ -100,10 +247,16 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   };
 
   const handleBulkStatus = async (status) => {
+    if (!status && !canDeactivateAdminUsers(selectedIds)) return;
     if (!window.confirm(`Change status for ${selectedIds.length} items to ${status ? 'Active' : 'Inactive'}?`)) return;
     setIsSubmitting(true);
     try {
-      const updates = selectedIds.map(id => ({ id, is_active: status }));
+      const updates = selectedIds.map(id => ({
+        id,
+        is_active: status,
+        ...((isDepartmentMaster || isAccountMaster) && status ? { is_deleted: false } : {}),
+        ...(isAdminUserMaster ? { status: status ? 'active' : 'disabled' } : {})
+      }));
       const res = await handleERPAction(table, ACTION_TYPES.BULK_UPSERT, updates);
       if (res.success) {
         toast.success(`Successfully updated ${selectedIds.length} items`);
@@ -118,15 +271,21 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(`PERMANENTLY DELETE ${selectedIds.length} items? This cannot be undone!`)) return;
+    if (isAdminUserMaster && !canDeactivateAdminUsers(selectedIds)) return;
+    const confirmMessage = SOFT_DELETE_TABLES.has(table)
+      ? `Hide ${selectedIds.length} selected items?`
+      : `PERMANENTLY DELETE ${selectedIds.length} items? This cannot be undone!`;
+    if (!window.confirm(confirmMessage)) return;
     setIsSubmitting(true);
     try {
       let successCount = 0;
       for (const id of selectedIds) {
-        const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id }, true);
+        const res = await deleteMasterRecord(table, id);
         if (res.success) successCount++;
       }
-      toast.success(`Deleted ${successCount} items`);
+      toast.success(SOFT_DELETE_TABLES.has(table)
+        ? `Hidden ${successCount} items`
+        : `Deleted ${successCount} items`);
       setSelectedIds([]);
       fetchInitialData();
     } catch (e) {
@@ -268,7 +427,19 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
     input.click();
   };
 
-  const filteredData = (data || []).filter(item =>
+  const recordsIncludingInactive = isDepartmentMaster && showInactiveDepartments
+    ? [...(data || []), ...inactiveDepartments]
+    : isAccountMaster && showInactiveAccounts
+      ? [...(data || []), ...inactiveAccounts]
+      : isAdminUserMaster && showInactiveAdminUsers
+        ? [...(data || []), ...inactiveAdminUsers]
+        : isAdminUserMaster
+          ? (data || []).filter((user) => user.is_active !== false && user.status !== 'disabled')
+          : data || [];
+  const recordsForDisplay = (isDepartmentMaster && showInactiveDepartments) || (isAccountMaster && showInactiveAccounts) || (isAdminUserMaster && showInactiveAdminUsers)
+    ? Array.from(new Map(recordsIncludingInactive.map((item) => [String(item.id), item])).values())
+    : recordsIncludingInactive;
+  const filteredData = recordsForDisplay.filter(item =>
     (!filterField || !masterFilter || String(item?.[filterField] || '') === masterFilter) &&
     Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -284,7 +455,7 @@ export default function MasterListView({ title, table, bucket, fields, data, upl
     e.preventDefault();
 
     const requiredField = fields.find((field) => {
-  if (!field.required) return false;
+  if (!field.required || (field.condition && !field.condition(formData))) return false;
 
   // Image field: check uploaded file OR existing image URL
   if (field.type === 'image') {
@@ -306,6 +477,17 @@ if (requiredField) {
   toast.error(`${requiredField.label || requiredField.name} is required`);
   return;
 }
+
+    if (table === DB_SCHEMA.SUBCATEGORIES.table) {
+      const parentCategoryId = formData.category_id == null ? '' : String(formData.category_id).trim();
+      const parentCategory = (relatedData.categories || []).find((category) =>
+        String(category.id) === parentCategoryId && category.is_active !== false && category.is_deleted !== true
+      );
+      if (!parentCategory) {
+        toast.error('A valid parent category is required');
+        return;
+      }
+    }
 
     const numericError = fields.find((field) => field.type === 'number' && formData[field.name] !== undefined && formData[field.name] !== '' && !Number.isFinite(Number(formData[field.name])));
     if (numericError) {
@@ -347,7 +529,16 @@ if (requiredField) {
     if ([DB_SCHEMA.UNITS.table, DB_SCHEMA.DEPARTMENTS.table].includes(table)) {
       const name = String(formData.name || '').trim().toLowerCase();
       const code = String(formData.code || '').trim().toLowerCase();
-      const duplicate = (data || []).find((item) => {
+      let recordsToCheck = data || [];
+      if (isDepartmentMaster) {
+        try {
+          recordsToCheck = await dbSync.fetch(table, { includeDeleted: true });
+        } catch (error) {
+          toast.error(`Could not verify department duplicates: ${error.message}`);
+          return;
+        }
+      }
+      const duplicate = recordsToCheck.find((item) => {
         if (String(item.id) === String(editingItem?.id || '')) return false;
         return (name && String(item.name || '').trim().toLowerCase() === name)
           || (code && String(item.code || '').trim().toLowerCase() === code);
@@ -378,10 +569,140 @@ if (requiredField) {
       }
     }
 
+    if (isAccountMaster) {
+      const mobile = String(formData.mobile || '').trim();
+      const email = String(formData.email || '').trim();
+      const gstin = String(formData.gst_no || '').trim().toUpperCase();
+      const pan = String(formData.pan_no || '').trim().toUpperCase();
+
+      if (mobile && !/^[6-9]\d{9}$/.test(mobile)) {
+        toast.error('Mobile number must be a valid 10-digit Indian mobile number');
+        return;
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        toast.error('Enter a valid email address');
+        return;
+      }
+      if (gstin && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstin)) {
+        toast.error('Enter a valid 15-character GSTIN');
+        return;
+      }
+      if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) {
+        toast.error('Enter a valid PAN');
+        return;
+      }
+      const creditLimit = formData.credit_limit;
+      if (creditLimit !== undefined && creditLimit !== '' && Number(creditLimit) < 0) {
+        toast.error('Credit Limit cannot be negative');
+        return;
+      }
+    }
+
+    if (isAdminUserMaster) {
+      const username = String(formData.username || '').trim().toLowerCase();
+      const email = String(formData.email || '').trim();
+      const phone = String(formData.phone || '').trim();
+      if (!/^[a-z0-9][a-z0-9._@-]{1,99}$/.test(username)) {
+        toast.error('Username must be 2-100 characters and use only letters, numbers, dot, underscore, @, or hyphen');
+        return;
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        toast.error('Enter a valid email address');
+        return;
+      }
+      if (phone && !/^[6-9]\d{9}$/.test(phone)) {
+        toast.error('Phone must be a valid 10-digit Indian mobile number');
+        return;
+      }
+      if (
+        editingItem
+        && relatedData.currentUser?.id != null
+        && String(editingItem.id) === String(relatedData.currentUser.id)
+        && formData.role !== editingItem.role
+      ) {
+        toast.error('You cannot change your own User Master role');
+        return;
+      }
+
+      let allAdminUsers;
+      try {
+        allAdminUsers = await dbSync.fetch(table, { includeDeleted: true });
+      } catch (error) {
+        toast.error(`Could not verify user uniqueness: ${error.message}`);
+        return;
+      }
+      const duplicateUser = (allAdminUsers || []).find((user) =>
+        String(user.id) !== String(editingItem?.id || '')
+        && (
+          String(user.username || '').trim().toLowerCase() === username
+          || (email && String(user.email || '').trim().toLowerCase() === email.toLowerCase())
+        )
+      );
+      if (duplicateUser) {
+        toast.error('Username or email is already assigned to another user');
+        return;
+      }
+      if (formData.is_active === false && !canDeactivateAdminUsers([editingItem?.id].filter(Boolean))) return;
+    }
+
+    if (isBannerMaster) {
+      const linkType = String(formData.link_type || 'none');
+      if (!formData.banner_type) {
+        toast.error('Choose a banner placement');
+        return;
+      }
+      if (!['none', 'product', 'category', 'url'].includes(linkType)) {
+        toast.error('Choose a valid banner click action');
+        return;
+      }
+      if (linkType === 'product') {
+        const linkedProductIds = selectedProductIds.length > 0
+          ? selectedProductIds
+          : parseLinkedProductIds(formData.link_id || formData.linked_product_id);
+        if (linkedProductIds.length === 0) {
+          toast.error('Choose at least one product for this banner');
+          return;
+        }
+        const missingProduct = linkedProductIds.find((id) =>
+          !(relatedData.products || []).some((product) => String(product.id) === String(id))
+        );
+        if (missingProduct) {
+          toast.error('A linked product is no longer available. Select a valid product.');
+          return;
+        }
+      } else if (linkType === 'category') {
+        const categoryId = String(formData.link_id || '').trim();
+        if (!categoryId || !(relatedData.categories || []).some((category) => String(category.id) === categoryId)) {
+          toast.error('Choose a valid category for this banner');
+          return;
+        }
+      } else if (linkType === 'url') {
+        const targetUrl = String(formData.link_url || '').trim();
+        try {
+          const parsedUrl = new URL(targetUrl, window.location.origin);
+          if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('unsupported protocol');
+        } catch {
+          toast.error('Enter a valid http or https target URL');
+          return;
+        }
+      }
+
+      if (formData.start_date && formData.end_date && String(formData.end_date) < String(formData.start_date)) {
+        toast.error('End date cannot be earlier than start date');
+        return;
+      }
+      if (formData.sort_order !== undefined && formData.sort_order !== '' && (
+        !Number.isInteger(Number(formData.sort_order)) || Number(formData.sort_order) < 0
+      )) {
+        toast.error('Display Order must be a non-negative whole number');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const finalData = { ...formData };
-        if (hasMultiProductField) {
+        if (hasMultiProductField && (!isBannerMaster || finalData.link_type === 'product')) {
           finalData.link_id = JSON.stringify(selectedProductIds);
         }
       const allowedKeys = new Set(fields.map(f => f.name));
@@ -411,13 +732,52 @@ if (requiredField) {
         }
       }
 
-      if (table === DB_SCHEMA.CATEGORIES.table || table === DB_SCHEMA.SUBCATEGORIES.table || table === DB_SCHEMA.BRANDS.table || table === DB_SCHEMA.BANNERS.table) {
+      if ([DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table, DB_SCHEMA.BRANDS.table, DB_SCHEMA.BANNERS.table, DB_SCHEMA.DEPARTMENTS.table].includes(table)) {
         if (finalData.name && typeof finalData.name === 'string') {
           finalData.name = finalData.name.trim();
         }
         if (finalData.description && typeof finalData.description === 'string') {
           finalData.description = finalData.description.trim();
         }
+      }
+      if (isDepartmentMaster) {
+        if (typeof finalData.code === 'string') finalData.code = finalData.code.trim();
+        if (finalData.is_active !== false) finalData.is_deleted = false;
+      }
+      if (isAccountMaster) {
+        for (const key of ['name', 'mobile', 'email', 'address']) {
+          if (typeof finalData[key] === 'string') finalData[key] = finalData[key].trim();
+        }
+        for (const key of ['gst_no', 'pan_no']) {
+          if (typeof finalData[key] === 'string') finalData[key] = finalData[key].trim().toUpperCase();
+        }
+        if (finalData.is_active !== false) finalData.is_deleted = false;
+      }
+      if (isAdminUserMaster) {
+        finalData.username = String(finalData.username || '').trim().toLowerCase();
+        if (typeof finalData.full_name === 'string') finalData.full_name = finalData.full_name.trim();
+        if (typeof finalData.email === 'string') finalData.email = finalData.email.trim().toLowerCase();
+        if (typeof finalData.phone === 'string') finalData.phone = finalData.phone.trim();
+        finalData.is_active = finalData.is_active !== false;
+        finalData.status = finalData.is_active ? 'active' : 'disabled';
+      }
+      if (isBannerMaster) {
+        const linkType = String(finalData.link_type || 'none');
+        let bannerActionFields;
+        if (linkType === 'product') {
+          const productIds = selectedProductIds.length > 0
+            ? selectedProductIds
+            : parseLinkedProductIds(finalData.link_id || finalData.linked_product_id);
+          bannerActionFields = buildBannerActionFields({ linkType, productIds });
+        } else if (linkType === 'category') {
+          bannerActionFields = buildBannerActionFields({ linkType, categoryId: finalData.link_id });
+        } else if (linkType === 'url') {
+          bannerActionFields = buildBannerActionFields({ linkType, targetUrl: finalData.link_url });
+        } else {
+          bannerActionFields = buildBannerActionFields({ linkType: 'none' });
+        }
+        Object.assign(finalData, bannerActionFields);
+        if (finalData.title) finalData.title = String(finalData.title).trim();
       }
 
       let res;
@@ -432,6 +792,33 @@ if (requiredField) {
         throw new Error(`Database Error [Table: ${table}]: ${res.error}`);
       }
 
+      if ([DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table].includes(table)) {
+        const savedRecord = Array.isArray(res?.data) ? res.data[0] : res?.data;
+        const savedCategoryId = editingItem?.id ?? savedRecord?.id;
+        if (savedCategoryId === undefined || savedCategoryId === null) {
+          throw new Error(`Database did not return the saved ${title.toLowerCase()} ID`);
+        }
+
+        const savedCategories = await dbSync.fetch(table, {
+          rawTable: true,
+          includeDeleted: true,
+          eq: { column: 'id', value: savedCategoryId },
+          limit: 1
+        });
+        const savedCategory = savedCategories.find((category) => String(category.id) === String(savedCategoryId));
+        if (!savedCategory) {
+          throw new Error(`${title} ${savedCategoryId} was not found in the database after saving`);
+        }
+
+        const mismatchedField = fields.find((field) =>
+          Object.prototype.hasOwnProperty.call(finalData, field.name)
+          && savedCategory[field.name] !== finalData[field.name]
+        );
+        if (mismatchedField) {
+          throw new Error(`${title} ${savedCategoryId} was saved, but ${mismatchedField.label || mismatchedField.name} did not match the submitted value`);
+        }
+      }
+
       setShowForm(false);
       setEditingItem(null);
       setFormData({});
@@ -439,7 +826,8 @@ if (requiredField) {
       // Force immediate refresh from server so the new record appears in the UI right away
       await fetchInitialData(true, true);
       
-      alert(`${title.slice(0, -1)} saved successfully!`);
+      const savedTitle = [DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table, DB_SCHEMA.DEPARTMENTS.table].includes(table) ? title : title.slice(0, -1);
+      alert(`${savedTitle} saved successfully!`);
     } catch (error) {
       console.error("Form Submission Error:", error);
       alert(`Operation Failed!\n\nReason: ${error.message}\n\nPlease check your internet connection or database permissions.`);
@@ -455,31 +843,51 @@ if (requiredField) {
       && !selectedProductIds.some((id) => String(id) === String(product.id))
     );
     const addFromInput = () => {
-      if (!term) return;
+      if (!term) {
+        setShowMultiProductDropdown(true);
+        return;
+      }
 
-      const exactByBarcode = (relatedData.products || []).find((product) => getProductBarcodeValue(product).toLowerCase() === term);
+      const exactByBarcode = matches.find((product) => getProductBarcodeValue(product).toLowerCase() === term);
       if (exactByBarcode) {
         addLinkedProduct(exactByBarcode);
         return;
       }
 
-      const exactByName = (relatedData.products || []).find((product) => getProductDisplayName(product).toLowerCase() === term);
+      const exactByName = matches.find((product) => getProductDisplayName(product).toLowerCase() === term);
       if (exactByName) {
         addLinkedProduct(exactByName);
         return;
       }
 
-      if (matches.length > 0) {
+      if (matches.length === 1) {
         addLinkedProduct(matches[0]);
+      } else if (matches.length > 1) {
+        setShowMultiProductDropdown(true);
+      } else {
+        const alreadySelected = (relatedData.products || []).some((product) =>
+          selectedProductIds.some((id) => String(id) === String(product.id))
+          && (
+            getProductBarcodeValue(product).toLowerCase() === term
+            || getProductDisplayName(product).toLowerCase() === term
+          )
+        );
+        toast.info(alreadySelected ? 'This product is already linked to the banner' : 'No matching product found');
       }
     };
     return <div className="space-y-3">
-      <div className="flex gap-2">
+      <div className="relative flex gap-2">
         <input
           type="text"
           placeholder="Search product name or scan barcode..."
           value={multiProductSearchTerm}
-          onChange={(e) => setMultiProductSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setMultiProductSearchTerm(e.target.value);
+            setShowMultiProductDropdown(true);
+          }}
+          onFocus={() => {
+            if (multiProductSearchTerm.trim()) setShowMultiProductDropdown(true);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -501,8 +909,26 @@ if (requiredField) {
         >
           <Plus size={14} /> Add
         </button>
+        {showMultiProductDropdown && (
+          <div className="absolute left-0 right-0 top-full z-[60] mt-2 max-h-52 overflow-y-auto rounded-xl border border-neutral-100 bg-white shadow-xl">
+            {matches.slice(0, 20).map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => addLinkedProduct(product)}
+                className="w-full border-b border-slate-100 px-4 py-2.5 text-left text-[11px] font-bold text-slate-700 last:border-0 hover:bg-blue-50"
+              >
+                {getProductDisplayName(product)} {getProductBarcodeValue(product) ? `(${getProductBarcodeValue(product)})` : ''}
+              </button>
+            ))}
+            {matches.length === 0 && (
+              <div className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-neutral-500">
+                {term ? 'No matching products found' : 'All available products are already linked'}
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      {term && <div className="max-h-52 overflow-y-auto rounded-xl border border-neutral-100 bg-white shadow-sm">{matches.map((product) => <button key={product.id} type="button" onClick={() => addLinkedProduct(product)} className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-slate-700 hover:bg-blue-50 border-b border-slate-100 last:border-0">{getProductDisplayName(product)} {getProductBarcodeValue(product) ? `(${getProductBarcodeValue(product)})` : ''}</button>)}{matches.length === 0 && <div className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500">Product Not Found</div>}</div>}
       {selectedProducts.length > 0 && <div className="flex flex-wrap gap-2">{selectedProducts.map((product) => <span key={product.id} className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-black text-blue-700">{getProductDisplayName(product)}<button type="button" onClick={() => removeLinkedProduct(product.id)} className="text-blue-500 hover:text-red-600" aria-label={`Remove ${getProductDisplayName(product)}`}><X size={13} /></button></span>)}</div>}
     </div>;
   };
@@ -539,18 +965,42 @@ if (requiredField) {
               {filterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           )}
+          {isDepartmentMaster && (
+            <button
+              type="button"
+              onClick={() => setShowInactiveDepartments((current) => !current)}
+              className="w-full md:w-auto bg-amber-50 text-amber-800 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] border border-amber-200 hover:bg-amber-100"
+            >
+              {showInactiveDepartments ? 'Hide Inactive' : 'Show Inactive'}
+            </button>
+          )}
+          {isAccountMaster && (
+            <button
+              type="button"
+              onClick={() => setShowInactiveAccounts((current) => !current)}
+              className="w-full md:w-auto bg-amber-50 text-amber-800 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] border border-amber-200 hover:bg-amber-100"
+            >
+              {showInactiveAccounts ? 'Hide Inactive' : 'Show Inactive'}
+            </button>
+          )}
+          {isAdminUserMaster && (
+            <button
+              type="button"
+              onClick={() => setShowInactiveAdminUsers((current) => !current)}
+              className="w-full md:w-auto bg-amber-50 text-amber-800 px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] border border-amber-200 hover:bg-amber-100"
+            >
+              {showInactiveAdminUsers ? 'Hide Inactive' : 'Show Inactive'}
+            </button>
+          )}
           
           <div className="flex items-center gap-2 w-full md:w-auto">
             <button 
               onClick={async () => {
+                if (isAdminUserMaster && !canDeactivateAdminUsers((data || []).map((item) => item.id))) return;
                 console.log('[MasterListView Delete All] Button clicked! table:', table, 'data:', data);
                 let confirmMessage = `क्या आप वाकई सभी ${title} को PERMANENTLY DELETE करना चाहते हैं? ये वापस नहीं लाया जा सकता!`;
-                if (table === DB_SCHEMA.CATEGORIES.table) {
-                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी CATEGORIES को soft delete करेगा (hide कर देगा)!";
-                } else if (table === DB_SCHEMA.SUBCATEGORIES.table) {
-                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी SUBCATEGORIES को soft delete करेगा (hide कर देगा)!";
-                } else if (table === DB_SCHEMA.BRANDS.table) {
-                  confirmMessage = "क्या आप वाकई SURE हैं? ये सभी BRANDS को soft delete करेगा (hide कर देगा)!";
+                if (SOFT_DELETE_TABLES.has(table)) {
+                  confirmMessage = `क्या आप वाकई सभी ${title} को hide करना चाहते हैं?`;
                 }
                 
                 if (!window.confirm(confirmMessage)) {
@@ -566,7 +1016,7 @@ if (requiredField) {
                 
                 for (const item of itemsToDelete) {
                   console.log('[MasterListView Delete All] Deleting item:', item);
-                  const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                  const res = await deleteMasterRecord(table, item.id);
                   console.log('[MasterListView Delete All] Deleted item, response:', res);
                   
                   if (!res.success) {
@@ -588,7 +1038,9 @@ if (requiredField) {
                 } else {
                   console.log('[MasterListView Delete All] All items processed, refreshing from Supabase');
                   await fetchInitialData(true, true);
-                  alert(`सभी ${title} सफलतापूर्वक DELETE कर दिए गए!`);
+                  alert(SOFT_DELETE_TABLES.has(table)
+                    ? `सभी ${title} सफलतापूर्वक hide कर दिए गए!`
+                    : `सभी ${title} सफलतापूर्वक DELETE कर दिए गए!`);
                 }
               }}
               className="flex-1 md:flex-none bg-red-600 text-white px-4 py-2 rounded-lg font-black uppercase tracking-widest text-[9px] flex items-center justify-center gap-2 hover:bg-red-700 transition-all border border-red-600 shadow-sm"
@@ -610,6 +1062,7 @@ if (requiredField) {
             <button 
               onClick={() => { 
                 setEditingItem(null); 
+                setCategorySearchTerm('');
                 // Initialize form data with default values for fields
                 const defaultFormData = {};
                 fields.forEach(field => {
@@ -672,7 +1125,7 @@ if (requiredField) {
                 <th className="px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest w-16">SNo.</th>
                 {fields.map((f, i) => (
                   <th
-                    key={f.name}
+                    key={`${f.name}-${f.type}`}
                     className={cn(
                       "px-4 py-4 text-[9px] font-black text-neutral-500 uppercase tracking-widest",
                       i > 1 && "hidden md:table-cell"
@@ -719,7 +1172,7 @@ if (requiredField) {
                   </td>
                   {fields.map((f, i) => (
                     <td
-                      key={f.name}
+                      key={`${f.name}-${f.type}`}
                       className={cn(
                         "px-4 py-3",
                         i > 1 && "hidden md:table-cell"
@@ -763,6 +1216,10 @@ if (requiredField) {
                         <span className="text-[10px] font-bold text-neutral-700">
                           {relatedData.categories?.find(c => c.id === item[f.name])?.name || item[f.name]}
                         </span>
+                      ) : isBannerMaster && item.link_type === 'category' && f.name === 'link_id' ? (
+                        <span className="text-[10px] font-bold text-neutral-700">
+                          {relatedData.categories?.find((category) => String(category.id) === String(item.link_id))?.name || item.link_id}
+                        </span>
                       ) : (
                         <span className="text-[10px] font-bold text-neutral-700">{item[f.name]}</span>
                       )}
@@ -773,9 +1230,25 @@ if (requiredField) {
                       <button 
                         onClick={() => {
                           setEditingItem(item);
-                          setFormData(item);
-                          setSelectedProductIds(parseLinkedProductIds(item.link_id));
+                          const linkType = item.link_type || item.action_type || 'none';
+                          const linkedValue = item.link_id ?? item.action_value ?? item.linked_product_id ?? '';
+                          const productIds = parseLinkedProductIds(linkedValue || item.linked_product_id);
+                          const normalizedLinkId = linkType === 'product'
+                            ? JSON.stringify(productIds)
+                            : String(productIds[0] || '');
+                          const editedFormData = {
+                            ...item,
+                            link_type: linkType,
+                            link_id: normalizedLinkId,
+                            link_url: item.link_url || (linkType === 'url' ? item.action_value : '')
+                          };
+                          fields.filter((field) => field.type === 'date').forEach((field) => {
+                            editedFormData[field.name] = toDateInputValue(item[field.name]);
+                          });
+                          setFormData(editedFormData);
+                          setSelectedProductIds(linkType === 'product' ? productIds : []);
                           setMultiProductSearchTerm('');
+                          setCategorySearchTerm('');
                           setShowForm(true);
                         }}
                         className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-all border border-transparent hover:border-primary-100 shadow-sm hover:shadow-md"
@@ -787,7 +1260,14 @@ if (requiredField) {
                         onClick={async () => {
                           const field = 'is_active' in item ? 'is_active' : ('is_allowed' in item ? 'is_allowed' : null);
                           if (field) {
-                            await handleERPAction(table, ACTION_TYPES.UPDATE, { id: item.id, [field]: !item[field] });
+                            const activating = !item[field];
+                            if (!activating && !canDeactivateAdminUsers([item.id])) return;
+                            await handleERPAction(table, ACTION_TYPES.UPDATE, {
+                              id: item.id,
+                              [field]: activating,
+                              ...((isDepartmentMaster || isAccountMaster) && activating ? { is_deleted: false } : {}),
+                              ...(isAdminUserMaster ? { status: activating ? 'active' : 'disabled' } : {})
+                            });
                             fetchInitialData();
                           }
                         }}
@@ -804,15 +1284,27 @@ if (requiredField) {
                           if (table === DB_SCHEMA.PRODUCTS.table) {
                             confirmMessage = "क्या आप वाकई SURE हैं? ये इस Item Master entry को DELETE कर देगा!";
                           } else if (table === DB_SCHEMA.CATEGORIES.table) {
-                            confirmMessage = "क्या आप वाकई SURE हैं? ये इस Category को hide कर देगा!";
+                            confirmMessage = "क्या आप इस Category को database से permanently delete करना चाहते हैं? अगर इससे जुड़े records हैं, तो database deletion रोक सकता है।";
+                          } else if (SOFT_DELETE_TABLES.has(table)) {
+                            confirmMessage = `क्या आप वाकई SURE हैं? ये इस ${title} को hide कर देगा!`;
                           }
                           
                           if (!window.confirm(confirmMessage)) return;
+                          if (isAdminUserMaster && !canDeactivateAdminUsers([item.id])) return;
                           
-                          const res = await handleERPAction(table, ACTION_TYPES.DELETE, { id: item.id });
+                          const res = await deleteMasterRecord(table, item.id);
 
                           if (res.success) {
-                            toast.success(`${title.slice(0, -1)} permanently deleted`);
+                            const deletedLabel = table === DB_SCHEMA.CATEGORIES.table
+                              ? 'Category'
+                              : table === DB_SCHEMA.DEPARTMENTS.table
+                                ? 'Department'
+                                : table === DB_SCHEMA.ACCOUNTS.table
+                                  ? 'Account'
+                                  : title.slice(0, -1);
+                            toast.success(SOFT_DELETE_TABLES.has(table)
+                              ? `${deletedLabel} hidden`
+                              : `${deletedLabel} permanently deleted`);
                             await fetchInitialData(true, true);
                           } else {
                             if (res.error && res.error.startsWith('409_CONFLICT:')) {
@@ -901,7 +1393,7 @@ if (requiredField) {
               <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5 max-h-[calc(90vh-120px)] overflow-y-auto">
                 <div className="grid grid-cols-1 gap-4 sm:gap-5">
                   {fields.filter(f => !f.condition || f.condition(formData)).map(f => (
-                    <div key={f.name} className="space-y-1.5">
+                    <div key={`${f.name}-${f.type}`} className="space-y-1.5">
                       <div className="flex items-center justify-between px-1">
                         <label className="text-[9px] font-black text-neutral-500 uppercase tracking-widest">{f.label}</label>
                         {f.required && <span className="text-[8px] font-black text-error-500 uppercase tracking-widest">Required</span>}
@@ -1012,6 +1504,7 @@ if (requiredField) {
                             }
                             onChange={(e) => {
                               setCategorySearchTerm(e.target.value);
+                              setFormData({ ...formData, [f.name]: '' });
                               setShowCategoryDropdown(true);
                             }}
                             onFocus={() => setShowCategoryDropdown(true)}
@@ -1056,7 +1549,24 @@ if (requiredField) {
                       ) : f.type === 'select' ? (
                         <select 
                           value={formData[f.name] || ''}
-                          onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (isBannerMaster && f.name === 'link_type') {
+                              setFormData({
+                                ...formData,
+                                link_type: value,
+                                link_id: '',
+                                link_url: '',
+                                linked_product_id: null,
+                                action_value: null
+                              });
+                              setSelectedProductIds([]);
+                              setMultiProductSearchTerm('');
+                              setCategorySearchTerm('');
+                            } else {
+                              setFormData({ ...formData, [f.name]: value });
+                            }
+                          }}
                           className="w-full bg-white border-2 border-slate-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition-all text-slate-900 appearance-none shadow-sm"
                           required={f.required}
                         >

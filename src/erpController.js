@@ -316,7 +316,11 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
         throw new Error(`Invalid Action: ${actionType}`);
     }
 
-    if (toastId) toast.success(`${actionType} Successful`, { id: toastId });
+    if (toastId && [DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table].includes(moduleName)) {
+      toast.dismiss(toastId);
+    } else if (toastId) {
+      toast.success(`${actionType} Successful`, { id: toastId });
+    }
     return { success: true, data };
 
   } catch (error) {
