@@ -73,7 +73,7 @@ messaging.onBackgroundMessage(async payload => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const targetUrl = new URL('/nm-mart/dashboard?tab=Orders', self.location.origin);
+  const targetUrl = new URL('/orders', self.location.origin);
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const existingClient = windows.find(client => new URL(client.url).origin === self.location.origin);
