@@ -9,12 +9,11 @@ import { supabase } from '../supabase';
 import { DB_SCHEMA } from '../dbSchema';
 
 const BRAND_NAME = "NM MART";
-const DEFAULT_COMPANY_SLUG = 'nm-mart';
 
 export default function ForgotPasswordView({ isTenantMode = false }) {
   const navigate = useNavigate();
   const { companySlug } = useParams();
-  const resolvedSlug = (isTenantMode && companySlug) ? companySlug : DEFAULT_COMPANY_SLUG;
+  const authPath = (path) => `${isTenantMode && companySlug ? `/${companySlug}` : ''}/${path}`;
   const [email, setEmail] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -58,7 +57,7 @@ export default function ForgotPasswordView({ isTenantMode = false }) {
       }
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-        redirectTo: `${window.location.origin}/${resolvedSlug}/reset-password`
+        redirectTo: `${window.location.origin}${authPath('reset-password')}`
       });
 
       if (resetError) throw resetError;
@@ -74,7 +73,7 @@ export default function ForgotPasswordView({ isTenantMode = false }) {
   };
 
   const handleBackToLogin = () => {
-    navigate(`/${resolvedSlug}/login`);
+    navigate(authPath('login'));
   };
 
   return (

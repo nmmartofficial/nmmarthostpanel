@@ -20,6 +20,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { getTabIdFromRouteSegment, getTabRouteSegment } from './utils/tabRoutes';
 import { dbSync } from './dbSync';
 import { DB_SCHEMA, USER_ROLES } from './dbSchema';
 import { handleERPAction, ERP_MODULES, ACTION_TYPES, parseERPCSV, exportToExcel } from './erpController';
@@ -192,6 +194,8 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 // --- App Component ---
 export default function App({ company, isTenantMode, companySlug }) {
   const { currentUser: authUser, isAuthenticated, logout } = useAuthContext();
+  const navigate = useNavigate();
+  const location = useLocation();
   // Initialize login rate limiter
   const loginRateLimiter = useMemo(() => new LoginRateLimiter(5, 5), []);
 
@@ -211,11 +215,12 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   const isAuthorized = isAuthenticated;
   const [currentUser, setCurrentUser] = useState(() => authUser || secureStorage.getItem('nm_user_data'));
-  const [activeTab, setActiveTab] = useState(() => {
+  const [activeTab, setActiveTabState] = useState(() => {
+    const routeSegment = window.location.pathname.split('/').filter(Boolean).pop();
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
     return requestedTab === 'Orders'
       ? 'Orders'
-      : localStorage.getItem('nm_active_tab') || 'Dashboard';
+      : getTabIdFromRouteSegment(routeSegment) || sessionStorage.getItem('nm_active_tab') || 'Dashboard';
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [customerMode, setCustomerMode] = useState(false);
@@ -230,6 +235,26 @@ export default function App({ company, isTenantMode, companySlug }) {
     unlocked: false,
     playedOrderIds: new Set()
   });
+
+  const setActiveTab = useCallback((nextTab) => {
+    const tabId = typeof nextTab === 'function' ? nextTab(activeTab) : nextTab;
+    if (!tabId) return;
+
+    setActiveTabState(tabId);
+    sessionStorage.setItem('nm_active_tab', tabId);
+
+    const basePath = isTenantMode && companySlug ? `/${companySlug}` : '';
+    navigate(`${basePath}/${getTabRouteSegment(tabId)}`);
+  }, [activeTab, companySlug, isTenantMode, navigate]);
+
+  useEffect(() => {
+    const routeSegment = location.pathname.split('/').filter(Boolean).pop();
+    const routeTab = getTabIdFromRouteSegment(routeSegment);
+    if (routeTab && routeTab !== activeTab) {
+      setActiveTabState(routeTab);
+      sessionStorage.setItem('nm_active_tab', routeTab);
+    }
+  }, [activeTab, location.pathname]);
 
   useEffect(() => {
     if (authUser) {
@@ -357,8 +382,8 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   const handleLogout = useCallback(() => {
     secureStorage.clear();
-    localStorage.removeItem('nm_active_tab');
-    logout(isTenantMode && companySlug ? companySlug : null);
+    sessionStorage.removeItem('nm_active_tab');
+    logout(isTenantMode && companySlug ? companySlug : '');
   }, [logout, isTenantMode, companySlug]);
 
   const resetSessionTimer = useCallback(() => {
@@ -613,9 +638,9 @@ export default function App({ company, isTenantMode, companySlug }) {
     return () => clearInterval(intervalId);
   }, [festivals]);
 
-  // Sync activeTab with localStorage so it persists on refresh during session
+  // Keep tab selection isolated across browser tabs while preserving it on refresh.
   useEffect(() => {
-    localStorage.setItem('nm_active_tab', activeTab);
+    sessionStorage.setItem('nm_active_tab', activeTab);
   }, [activeTab]);
 
   // Apply Dark Mode to Document and Save to LocalStorage
@@ -6008,32 +6033,80 @@ const AddressesView = (props) => (
   />
 );
 
-const WalletView = ({ wallets = [], users = [], fetchInitialData }) => {
-  const [selectedWallet, setSelectedWallet] = useState(null);
+const WalletView = () => {
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [type, setType] = useState('credit');
   const [saving, setSaving] = useState(false);
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const loadLoginCustomers = useCallback(async () => {
+    setLoadingCustomers(true);
+    setLoadError('');
+    try {
+      const { data, error } = await supabase.rpc('admin_list_wallet_customers');
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new Error('Wallet customer lookup returned an invalid response');
+      setCustomers(data);
+      setSelectedCustomer((current) =>
+        current ? data.find((customer) => String(customer.user_id) === String(current.user_id)) || null : null
+      );
+    } catch (error) {
+      setLoadError(error.message || 'Unable to load login-linked wallet customers');
+      setCustomers([]);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLoginCustomers();
+  }, [loadLoginCustomers]);
+
+  const filteredCustomers = customers.filter((customer) => {
+    const searchableText = [
+      customer.customer_name,
+      customer.customer_phone,
+      customer.customer_email,
+      customer.company_code,
+      customer.user_id,
+    ].filter(Boolean).join(' ').toLowerCase();
+    return searchableText.includes(searchTerm.trim().toLowerCase());
+  });
 
   const adjustWallet = async () => {
     const numericAmount = Number(amount);
-    if (!selectedWallet?.user_id || !Number.isFinite(numericAmount) || numericAmount <= 0 || !reason.trim()) {
-      toast.error('Select a wallet and enter a positive amount with a reason');
+    if (!selectedCustomer?.user_id || !Number.isFinite(numericAmount) || numericAmount <= 0 || !reason.trim()) {
+      toast.error('Select a customer and enter a positive amount with a reason');
+      return;
+    }
+    if (type === 'debit' && numericAmount > Number(selectedCustomer.wallet_balance || 0)) {
+      toast.error('Debit amount cannot exceed the customer wallet balance');
+      return;
+    }
+    const customerName = selectedCustomer.customer_name || `Customer #${selectedCustomer.user_id}`;
+    if (!window.confirm(`Confirm ${type} of ₹${numericAmount.toLocaleString('en-IN')} ${type === 'credit' ? 'to' : 'from'} ${customerName}'s wallet?`)) {
       return;
     }
     setSaving(true);
     try {
-      const result = await handleERPAction(DB_SCHEMA.WALLET_MASTER.table, ACTION_TYPES.WALLET_ADJUST, {
-        user_id: selectedWallet.user_id,
-        amount: numericAmount,
-        type,
-        reason: reason.trim(),
-      });
-      if (!result.success || result.data !== true) throw new Error(result.error || 'Wallet adjustment failed');
-      toast.success('Wallet transaction completed');
+      const data = await dbSync.executeAtomic('admin_adjust_wallet_atomic', {
+        p_user_id: selectedCustomer.user_id,
+        p_tenant_id: selectedCustomer.tenant_id,
+        p_company_code: selectedCustomer.company_code,
+        p_amount: numericAmount,
+        p_type: type,
+        p_reason: reason.trim(),
+      }, DB_SCHEMA.WALLET_MASTER.table, 'ADMIN_WALLET_ADJUST');
+      if (data !== true) throw new Error('Wallet adjustment was not confirmed by the backend');
+      toast.success(`₹${numericAmount.toLocaleString('en-IN')} ${type === 'credit' ? 'added to' : 'deducted from'} customer wallet`);
       setAmount('');
       setReason('');
-      await fetchInitialData?.(true, true);
+      await loadLoginCustomers();
     } catch (error) {
       toast.error(error.message || 'Wallet adjustment failed');
     } finally {
@@ -6045,22 +6118,84 @@ const WalletView = ({ wallets = [], users = [], fetchInitialData }) => {
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-base font-black uppercase tracking-widest text-slate-800">Wallet Master</h2>
-        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Balance is read-only; use atomic credit/debit transactions.</p>
+        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Only signed-in customer accounts with one exact email/phone match to an active customer record are shown. Unmatched or duplicate matches are hidden.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
-          <table className="w-full text-left"><thead className="bg-slate-50"><tr><th className="p-3 text-[10px] font-black uppercase">Customer</th><th className="p-3 text-[10px] font-black uppercase">Balance</th><th className="p-3 text-[10px] font-black uppercase">Action</th></tr></thead><tbody className="divide-y divide-slate-100">
-            {wallets.map((wallet) => <tr key={wallet.id}><td className="p-3 text-xs font-bold">{users.find((user) => String(user.id) === String(wallet.user_id))?.name || `User #${wallet.user_id}`}</td><td className="p-3 text-xs font-black">₹{Number(wallet.balance || 0).toLocaleString('en-IN')}</td><td className="p-3"><button type="button" onClick={() => setSelectedWallet(wallet)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-black uppercase text-white">Adjust</button></td></tr>)}
-            {wallets.length === 0 && <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-slate-400">No wallet records found</td></tr>}
-          </tbody></table>
+          <div className="border-b border-slate-100 p-3">
+            <div className="flex gap-2">
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search customer name, phone, or email"
+                aria-label="Search wallet customers"
+                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={loadLoginCustomers}
+                disabled={loadingCustomers}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-black uppercase text-slate-600 disabled:opacity-50"
+              >
+                {loadingCustomers ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+          </div>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-left">
+              <thead className="sticky top-0 bg-slate-50">
+                <tr>
+                  <th className="p-3 text-[10px] font-black uppercase">Customer Details</th>
+                  <th className="p-3 text-[10px] font-black uppercase">Balance</th>
+                  <th className="p-3 text-[10px] font-black uppercase">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredCustomers.map((customer) => (
+                  <tr key={`${customer.tenant_id}-${customer.user_id}`} className={String(selectedCustomer?.user_id) === String(customer.user_id) ? 'bg-blue-50/60' : ''}>
+                    <td className="p-3">
+                      <p className="text-xs font-bold text-slate-800">{customer.customer_name || `Customer #${customer.user_id}`}</p>
+                      <p className="mt-0.5 text-[10px] text-slate-500">{customer.customer_phone}</p>
+                      {customer.customer_email && <p className="text-[10px] text-slate-400">{customer.customer_email}</p>}
+                      <p className="mt-1 text-[9px] font-bold uppercase text-slate-400">{customer.company_code} · Last login {customer.last_login_at ? new Date(customer.last_login_at).toLocaleDateString('en-IN') : 'unknown'}</p>
+                    </td>
+                    <td className="p-3 text-xs font-black">₹{Number(customer.wallet_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="p-3">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCustomer(customer)}
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-[10px] font-black uppercase text-white disabled:opacity-50"
+                      >
+                        Select
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {loadingCustomers && <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-slate-400">Checking signed-in customer matches...</td></tr>}
+                {!loadingCustomers && loadError && <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-red-500">{loadError}</td></tr>}
+                {!loadingCustomers && !loadError && filteredCustomers.length === 0 && (
+                  <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-slate-400">{searchTerm ? 'No matched customers match your search' : 'No signed-in customer has a unique email/phone match yet'}</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-700">Atomic Wallet Adjustment</h3>
-          <p className="mt-2 text-[10px] text-slate-400">{selectedWallet ? `Wallet #${selectedWallet.id}` : 'Select a wallet first'}</p>
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-700">Customer Wallet Adjustment</h3>
+          {selectedCustomer ? (
+            <div className="mt-3 rounded-lg bg-slate-50 p-3">
+              <p className="text-xs font-black text-slate-800">{selectedCustomer.customer_name || `Customer #${selectedCustomer.user_id}`}</p>
+              <p className="mt-1 text-[10px] text-slate-500">{selectedCustomer.customer_phone} · {selectedCustomer.company_code}</p>
+              <p className="mt-2 text-[10px] font-bold uppercase text-slate-500">Current balance: ₹{Number(selectedCustomer.wallet_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          ) : (
+            <p className="mt-2 text-[10px] text-slate-400">Select a customer to continue</p>
+          )}
           <select value={type} onChange={(event) => setType(event.target.value)} className="mt-4 w-full rounded-lg border border-slate-200 p-2 text-xs"><option value="credit">Credit</option><option value="debit">Debit</option></select>
-          <input type="number" min="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount" className="mt-2 w-full rounded-lg border border-slate-200 p-2 text-xs" />
+          <input type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Amount" className="mt-2 w-full rounded-lg border border-slate-200 p-2 text-xs" />
           <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason" className="mt-2 w-full rounded-lg border border-slate-200 p-2 text-xs" />
-          <button type="button" disabled={saving || !selectedWallet} onClick={adjustWallet} className="mt-3 w-full rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50">{saving ? 'Saving...' : 'Post Transaction'}</button>
+          <button type="button" disabled={saving || !selectedCustomer} onClick={adjustWallet} className="mt-3 w-full rounded-lg bg-emerald-600 px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50">{saving ? 'Saving...' : type === 'credit' ? 'Add Money to Wallet' : 'Post Debit'}</button>
         </div>
       </div>
     </div>
@@ -7273,7 +7408,7 @@ function renderTabContent(activeTab, props) {
     case 'AdminUsers': return <AdminUsersView title="Admin Users" table={DB_SCHEMA.ADMIN_USERS.table} data={props.adminUsers} {...props} />;
     case 'Pincodes': return <PincodesView title="Pincode Master" table={DB_SCHEMA.PINCODES.table} data={props.pincodes} {...props} />;
     case 'Addresses': return <AddressesView title="Address Master" table={DB_SCHEMA.ADDRESSES.table} data={props.addresses} {...props} />;
-    case 'WalletMaster': return <WalletView wallets={props.wallets} users={props.users} fetchInitialData={props.fetchInitialData} />;
+    case 'WalletMaster': return <WalletView />;
     case 'Departments': return <DepartmentsView title="Department Master" table={DB_SCHEMA.DEPARTMENTS.table} data={props.departments} {...props} />;
     case 'HSNMaster': return <HSNMasterView title="HSN Master" table={DB_SCHEMA.HSN_MASTER.table} data={props.hsnMaster} {...props} />;
     case 'Units': return <UnitsView title="Unit Master" table={DB_SCHEMA.UNITS.table} data={props.units} {...props} />;

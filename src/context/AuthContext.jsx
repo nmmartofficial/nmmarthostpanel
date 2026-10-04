@@ -18,7 +18,6 @@ import {
 
 const AuthContext = createContext();
 const SUPABASE_NETWORK_TIMEOUT_MS = Number(import.meta.env.VITE_SUPABASE_TIMEOUT_MS || 15000);
-const DEFAULT_COMPANY_SLUG = 'nm-mart';
 
 const authLoginDebug = (message, startedAt) => {
   if (import.meta.env.DEV) {
@@ -539,7 +538,7 @@ export const AuthProvider = ({ children }) => {
     performLogoutRef.current = performLogout;
   }, [performLogout]);
 
-  const logout = useCallback(async (companySlugOverride) => {
+  const logout = useCallback(async (companySlugOverride = '') => {
     try {
       localStorage.setItem('nm_logout_event', 'true');
       setTimeout(() => localStorage.removeItem('nm_logout_event'), 100);
@@ -547,18 +546,17 @@ export const AuthProvider = ({ children }) => {
 
     await performLogout();
 
-    const targetSlug = companySlugOverride || currentCompanyRef.current?.company_slug || secureStorage.getItem('nm_current_company')?.company_slug || DEFAULT_COMPANY_SLUG;
-    const redirectUrl = `/${targetSlug}/login`;
+    const targetSlug = companySlugOverride ?? currentCompanyRef.current?.company_slug ?? secureStorage.getItem('nm_current_company')?.company_slug;
+    const redirectUrl = targetSlug ? `/${targetSlug}/login` : '/login';
     if (typeof window !== 'undefined') {
       setTimeout(() => window.location.replace(redirectUrl), 50);
     }
   }, [performLogout]);
 
-  const forgotPassword = useCallback(async (email) => {
+  const forgotPassword = useCallback(async (email, companySlug = '') => {
     try {
-      const companySlug = currentCompanyRef.current?.company_slug || DEFAULT_COMPANY_SLUG;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/${companySlug}/reset-password`
+        redirectTo: `${window.location.origin}${companySlug ? `/${companySlug}` : ''}/reset-password`
       });
       if (error) throw error;
       return { success: true };

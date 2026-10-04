@@ -2,7 +2,7 @@ import React from 'react'
 
 import ReactDOM from 'react-dom/client'
 
-import { BrowserRouter, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom'
 
 import App from './App.jsx'
 
@@ -29,6 +29,7 @@ import { DB_SCHEMA } from './dbSchema'
 import { secureStorage } from './utils/security'
 
 import { Toaster } from 'sonner'
+import { getTabIdFromRouteSegment, getTabRouteSegment } from './utils/tabRoutes'
 
 import './index.css'
 
@@ -41,6 +42,43 @@ import './index.css'
  */
 
 const SECRET_CLIENT_PATH = "nm-mart";
+
+function RootAdminRoute() {
+  const { companySlug } = useParams();
+  const tabId = getTabIdFromRouteSegment(companySlug);
+
+  if (companySlug === SECRET_CLIENT_PATH) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (!tabId) {
+    return <AuthChecker isTenantMode={true} />;
+  }
+
+  return (
+    <ProtectedRoute isTenantMode={false}>
+      <App isTenantMode={false} />
+    </ProtectedRoute>
+  );
+}
+
+function LegacyAdminRedirect() {
+  const location = useLocation();
+  const legacySegment = location.pathname
+    .slice(`/${SECRET_CLIENT_PATH}`.length)
+    .split('/')
+    .filter(Boolean)[0];
+
+  const legacyAuthRoutes = {
+    login: '/login',
+    'forgot-password': '/forgot-password',
+    'reset-password': '/reset-password'
+  };
+  const targetPath = legacyAuthRoutes[legacySegment] ||
+    `/${getTabRouteSegment(getTabIdFromRouteSegment(legacySegment) || 'Dashboard')}`;
+
+  return <Navigate to={`${targetPath}${location.search}${location.hash}`} replace />;
+}
 
 
 
@@ -63,7 +101,9 @@ function AuthChecker({ isTenantMode = false }) {
   React.useEffect(() => {
     if (authLoading) return;
 
-    const allowedPublicPaths = [`/${SECRET_CLIENT_PATH}/login`, `/${SECRET_CLIENT_PATH}/forgot-password`, `/${SECRET_CLIENT_PATH}/reset-password`];
+    const allowedPublicPaths = isTenantMode
+      ? []
+      : ['/login', '/forgot-password', '/reset-password'];
     if (isTenantMode) {
       allowedPublicPaths.push(`/${companySlug}/login`, `/${companySlug}/forgot-password`, `/${companySlug}/reset-password`);
     }
@@ -71,7 +111,7 @@ function AuthChecker({ isTenantMode = false }) {
     if (!isAuthenticated || !currentUser) {
       const loginPath = isTenantMode
         ? `/${companySlug}/login`
-        : `/${SECRET_CLIENT_PATH}/login`;
+        : '/login';
 
       if (window.location.pathname !== loginPath && !allowedPublicPaths.includes(window.location.pathname)) {
         navigate(loginPath, { replace: true });
@@ -86,7 +126,7 @@ function AuthChecker({ isTenantMode = false }) {
 
     const dashboardPath = isTenantMode
       ? `/${companySlug}/dashboard`
-      : `/${SECRET_CLIENT_PATH}/dashboard`;
+      : '/dashboard';
 
     if (window.location.pathname !== dashboardPath) {
       navigate(dashboardPath, { replace: true });
@@ -340,20 +380,18 @@ reactRoot.render(
 
 
 
-              {/* Super Admin / Central Access Routes */}
-              <Route path={`/${SECRET_CLIENT_PATH}`} element={<AuthChecker isTenantMode={false} />} />
-              <Route path={`/${SECRET_CLIENT_PATH}/login`} element={<LoginView />} />
-              <Route path={`/${SECRET_CLIENT_PATH}/forgot-password`} element={<ForgotPasswordView isTenantMode={false} />} />
-              <Route path={`/${SECRET_CLIENT_PATH}/reset-password`} element={<ResetPasswordView isTenantMode={false} />} />
-              <Route path={`/${SECRET_CLIENT_PATH}/*`} element={
-                <ProtectedRoute>
-                  <App isTenantMode={false} />
-                </ProtectedRoute>
-              } />
+              {/* Root admin routes keep page names directly in the URL. */}
+              <Route path="/login" element={<LoginView />} />
+              <Route path="/forgot-password" element={<ForgotPasswordView isTenantMode={false} />} />
+              <Route path="/reset-password" element={<ResetPasswordView isTenantMode={false} />} />
+              <Route path="/:companySlug" element={<RootAdminRoute />} />
+
+              {/* Redirect older admin links to the root-level page routes. */}
+              <Route path={`/${SECRET_CLIENT_PATH}`} element={<LegacyAdminRedirect />} />
+              <Route path={`/${SECRET_CLIENT_PATH}/*`} element={<LegacyAdminRedirect />} />
 
 
               {/* Tenant-Specific Access via Company Slug */}
-              <Route path="/:companySlug" element={<AuthChecker isTenantMode={true} />} />
               <Route path="/:companySlug/login" element={<LoginView isTenantMode={true} />} />
               <Route path="/:companySlug/forgot-password" element={<ForgotPasswordView isTenantMode={true} />} />
               <Route path="/:companySlug/reset-password" element={<ResetPasswordView isTenantMode={true} />} />
@@ -382,4 +420,3 @@ reactRoot.render(
   </>,
 
 )
-

@@ -169,14 +169,30 @@ test('master high-risk mappings use canonical fields and wallet is atomic', () =
   assert.doesNotMatch(app, /name: 'min_order_value'/);
   assert.match(app, /name: 'customer_id'/);
   assert.match(app, /name: 'phone'/);
-  assert.match(app, /case 'WalletMaster': return <WalletView wallets=\{props\.wallets\}/);
+  assert.match(app, /case 'WalletMaster': return <WalletView \/>/);
   assert.doesNotMatch(app, /name: 'password'/);
   assert.doesNotMatch(schema, /ADMIN_USERS:\s*\{[\s\S]*password\s*:/);
   assert.match(controller, /ACTION_TYPES\.WALLET_ADJUST/);
   assert.match(controller, /adjust_wallet_atomic/);
-  assert.match(sync, /functionName === 'adjust_wallet_atomic'/);
+  assert.match(sync, /admin_adjust_wallet_atomic/);
   assert.match(master, /requiredField/);
   assert.match(master, /A valid parent category is required/);
+});
+
+test('login-linked wallet customers use the tenant-scoped atomic admin RPC', () => {
+  const app = read('src/App.jsx');
+  const sync = read('src/dbSync.js');
+  const migration = read('../supabase/migrations/20261005__secure_login_wallet_customers.sql');
+
+  assert.match(app, /supabase\.rpc\('admin_list_wallet_customers'\)/);
+  assert.match(app, /dbSync\.executeAtomic\('admin_adjust_wallet_atomic'/);
+  assert.match(app, /p_tenant_id: selectedCustomer\.tenant_id/);
+  assert.match(app, /p_company_code: selectedCustomer\.company_code/);
+  assert.match(sync, /'admin_adjust_wallet_atomic'/);
+  assert.match(migration, /admin_user\.role = 'super_admin'/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_adjust_wallet_atomic/);
+  assert.match(migration, /matches_for_login = 1/);
+  assert.match(migration, /matches_for_customer = 1/);
 });
 
 test('product edits allow independent main-category and subcategory selection', () => {

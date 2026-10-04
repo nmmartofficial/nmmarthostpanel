@@ -7,12 +7,11 @@ import { supabase } from '../supabase';
 import { validatePasswordStrength, sanitizeText } from '../utils/security';
 
 const BRAND_NAME = "NM MART";
-const DEFAULT_COMPANY_SLUG = 'nm-mart';
 
 export default function ResetPasswordView({ isTenantMode = false }) {
   const navigate = useNavigate();
   const { companySlug } = useParams();
-  const resolvedSlug = (isTenantMode && companySlug) ? companySlug : DEFAULT_COMPANY_SLUG;
+  const loginPath = isTenantMode && companySlug ? `/${companySlug}/login` : '/login';
   const [searchParams] = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -138,7 +137,7 @@ export default function ResetPasswordView({ isTenantMode = false }) {
       toast.success('Password updated successfully');
 
       setTimeout(() => {
-        navigate(`/${resolvedSlug}/login`);
+        navigate(loginPath);
       }, 3000);
     } catch (err) {
       console.error('Reset password error:', err);
@@ -180,7 +179,7 @@ export default function ResetPasswordView({ isTenantMode = false }) {
             </p>
 
             <button
-              onClick={() => navigate(`/${resolvedSlug}/login`)}
+              onClick={() => navigate(loginPath)}
               className="w-full h-14 bg-gradient-to-r from-[#2563EB] to-[#7C3AED] text-white font-black text-[15px] tracking-[0.1em] rounded-2xl shadow-xl shadow-blue-100 hover:opacity-95 transition-colors"
             >
               Back to Login

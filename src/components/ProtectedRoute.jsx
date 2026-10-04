@@ -23,10 +23,11 @@ const hasRequiredPermission = (role, requiredPermission) => {
   return permissions.includes('*') || permissions.includes(requiredPermission);
 };
 
-export default function ProtectedRoute({ children, requiredPermission = null }) {
+export default function ProtectedRoute({ children, requiredPermission = null, isTenantMode }) {
   const { isAuthenticated, authLoading, currentCompany, currentUser, logout } = useAuthContext();
   const location = useLocation();
-  const { companySlug } = useParams();
+  const { companySlug: routeCompanySlug } = useParams();
+  const companySlug = isTenantMode === false ? undefined : routeCompanySlug;
 
   // Show loading while checking auth
   if (authLoading) {
@@ -44,7 +45,7 @@ export default function ProtectedRoute({ children, requiredPermission = null }) 
   if (!isAuthenticated) {
     const loginPath = companySlug 
       ? `/${companySlug}/login` 
-      : '/nm-mart/login';
+      : '/login';
     
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
@@ -52,14 +53,14 @@ export default function ProtectedRoute({ children, requiredPermission = null }) 
   // Check if user is disabled
   if (currentUser && currentUser.status === 'disabled') {
     // Logout disabled user
-    logout(companySlug);
+    logout(companySlug || '');
     return null;
   }
 
   // Check if company is suspended
   if (currentCompany && currentCompany.status === 'suspended') {
     // Logout user from suspended company
-    logout(companySlug);
+    logout(companySlug || '');
     return null;
   }
 
@@ -91,7 +92,7 @@ export default function ProtectedRoute({ children, requiredPermission = null }) 
         });
       } catch {}
       
-      return <Navigate to={`/${companySlug || 'nm-mart'}/dashboard`} replace />;
+      return <Navigate to={companySlug ? `/${companySlug}/dashboard` : '/dashboard'} replace />;
     }
   }
 
@@ -121,7 +122,7 @@ export default function ProtectedRoute({ children, requiredPermission = null }) 
   );
 
   if (isProtectedRoute && !currentUser) {
-    return <Navigate to={companySlug ? `/${companySlug}/login` : '/nm-mart/login'} replace />;
+    return <Navigate to={companySlug ? `/${companySlug}/login` : '/login'} replace />;
   }
 
   return children;

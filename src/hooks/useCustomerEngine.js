@@ -48,7 +48,14 @@ export const useCustomerEngine = ({
       setCustomerHistory(history || []);
       const userData = await dbSync.fetch(DB_SCHEMA.USERS.table, { eq: { column: 'mobile', value: mobile } });
       if (userData && userData.length > 0) {
-        setCustomerLoyalty({ points: userData[0].points || 0, wallet: userData[0].wallet || 0 });
+        const walletData = await dbSync.fetch(DB_SCHEMA.WALLET_MASTER.table, {
+          eq: { column: 'user_id', value: userData[0].id },
+          limit: 1
+        });
+        setCustomerLoyalty({
+          points: userData[0].points || 0,
+          wallet: Number(walletData?.[0]?.balance ?? userData[0].wallet ?? 0)
+        });
       }
     } catch (e) { console.error(e); }
   }, []);

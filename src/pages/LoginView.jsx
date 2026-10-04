@@ -13,7 +13,6 @@ import { useAuthContext } from '../context';
 import { cn } from '../utils/helpers';
 
 const BRAND_NAME = "NM MART";
-const DEFAULT_COMPANY_SLUG = "nm-mart";
 const loginRateLimiter = new LoginRateLimiter(5, 5);
 
 const loginUiDebug = (message) => {
@@ -65,7 +64,7 @@ export default function LoginView({ isTenantMode = false }) {
   const handleForgotPassword = () => {
     const forgotPasswordPath = isTenantMode && companySlug
       ? `/${companySlug}/forgot-password`
-      : `/${DEFAULT_COMPANY_SLUG}/forgot-password`;
+      : '/forgot-password';
     navigate(forgotPasswordPath);
   };
 
@@ -103,7 +102,7 @@ export default function LoginView({ isTenantMode = false }) {
       
       const dashboardPath = isTenantMode && companySlug
         ? `/${companySlug}/dashboard`
-        : `/${DEFAULT_COMPANY_SLUG}/dashboard`;
+        : '/dashboard';
       
       navigate(dashboardPath, { replace: true });
     } catch (err) {

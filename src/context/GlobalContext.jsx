@@ -93,6 +93,7 @@ export const GlobalProvider = ({ children }) => {
   const [pincodes, setPincodes] = useState([]);
   const [homeConfig, setHomeConfig] = useState([]);
   const [walletTx, setWalletTx] = useState([]);
+  const [wallets, setWallets] = useState([]);
   const [addresses, setAddresses] = useState([]);
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
@@ -181,7 +182,8 @@ export const GlobalProvider = ({ children }) => {
         dbSync.fetch(DB_SCHEMA.ACCOUNTS.table),
         dbSync.fetch(DB_SCHEMA.INVENTORY_LOGS.table, { order: { column: 'created_at', ascending: false }, limit: 100 }),
         dbSync.fetch(DB_SCHEMA.EXPENSES.table, { order: { column: 'date', ascending: false } }),
-        supabase.from(DB_SCHEMA.ORDER_ITEMS.table).select('*').gte('created_at', dateStr)
+        supabase.from(DB_SCHEMA.ORDER_ITEMS.table).select('*').gte('created_at', dateStr),
+        dbSync.fetch(DB_SCHEMA.USERS.table)
       ]);
 
       const getData = (index, fallback = []) => {
@@ -208,7 +210,7 @@ export const GlobalProvider = ({ children }) => {
       setBrands(getData(6));
       setCoupons(getData(7));
       setNotifications(getData(8));
-      setUsers(getData(9));
+      setWallets(getData(9));
       setHomeConfig(getData(10));
       setOffers(getData(11));
       setPincodes(getData(12));
@@ -227,12 +229,13 @@ export const GlobalProvider = ({ children }) => {
       setInventoryLogs(getData(25));
       setExpenses(getData(26));
       setOrderItems(getData(27));
+      setUsers(getData(28));
 
       setStats({
         products: getData(0).length,
         categories: getData(1).length,
         orders: getData(2).length,
-        users: getData(9).length
+        users: getData(28).length
       });
 
     } catch (error) {
@@ -318,8 +321,10 @@ export const GlobalProvider = ({ children }) => {
       case DB_SCHEMA.BRANDS.table: updateState(setBrands, DB_SCHEMA.BRANDS.table); break;
       case DB_SCHEMA.COUPONS.table: updateState(setCoupons, DB_SCHEMA.COUPONS.table); break;
       case DB_SCHEMA.WALLET_MASTER.table:
-        updateState(setUsers, DB_SCHEMA.WALLET_MASTER.table);
-        setStats(s => ({ ...s, users: Array.isArray(users) ? users.length : s.users }));
+        updateState(setWallets, DB_SCHEMA.WALLET_MASTER.table);
+        break;
+      case DB_SCHEMA.WALLET_TRANSACTIONS.table:
+        updateState(setWalletTx, DB_SCHEMA.WALLET_TRANSACTIONS.table);
         break;
       case DB_SCHEMA.PURCHASES.table: updateState(setPurchases, DB_SCHEMA.PURCHASES.table); break;
       case DB_SCHEMA.EXPENSES.table: updateState(setExpenses, DB_SCHEMA.EXPENSES.table); break;
@@ -340,7 +345,8 @@ export const GlobalProvider = ({ children }) => {
     const tablesToWatch = [
       DB_SCHEMA.ORDERS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.NOTIFICATIONS.table,
       DB_SCHEMA.BANNERS.table, DB_SCHEMA.BRANDS.table, DB_SCHEMA.CATEGORIES.table,
-      DB_SCHEMA.SUBCATEGORIES.table, DB_SCHEMA.COUPONS.table, DB_SCHEMA.WALLET_MASTER.table
+      DB_SCHEMA.SUBCATEGORIES.table, DB_SCHEMA.COUPONS.table,
+      DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table
     ];
 
     subscriptionsRef.current = tablesToWatch.map(table =>
@@ -389,18 +395,18 @@ export const GlobalProvider = ({ children }) => {
   const value = useMemo(() => ({
     stats, appConfig, banners, categories, subcategories, brands, adminUsers, credits,
     deliveryBoys, deliveryCustomers, purchases, departments, units, accounts, products,
-    orders, orderItems, users, coupons, offers, pincodes, homeConfig, walletTx, addresses,
+    orders, orderItems, users, coupons, offers, pincodes, homeConfig, walletTx, wallets, addresses,
     cart, wishlist, notifications, inventoryLogs, expenses, loyaltyPoints, loyaltyTransactions,
     loyaltyTiers, festivals, activeFestival, loading,
     setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts,
-    setOrders, setOrderItems, setUsers, setCoupons, setAdminUsers, setCredits, setDeliveryBoys,
+    setOrders, setOrderItems, setUsers, setWallets, setCoupons, setAdminUsers, setCredits, setDeliveryBoys,
     setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
     setFestivals, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
     fetchInitialData, setLoading
   }), [
     stats, appConfig, banners, categories, subcategories, brands, adminUsers, credits,
     deliveryBoys, deliveryCustomers, purchases, departments, units, accounts, products,
-    orders, orderItems, users, coupons, offers, pincodes, homeConfig, walletTx, addresses,
+    orders, orderItems, users, coupons, offers, pincodes, homeConfig, walletTx, wallets, addresses,
     cart, wishlist, notifications, inventoryLogs, expenses, loyaltyPoints, loyaltyTransactions,
     loyaltyTiers, festivals, activeFestival, loading,
     fetchInitialData
