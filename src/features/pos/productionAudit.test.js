@@ -179,25 +179,41 @@ test('master high-risk mappings use canonical fields and wallet is atomic', () =
   assert.match(master, /A valid parent category is required/);
 });
 
-test('wallet customers include order-linked users through the tenant-scoped admin RPC', () => {
+test('wallet customer logins are manually linked through tenant-scoped admin RPCs', () => {
   const app = read('src/App.jsx');
   const sync = read('src/dbSync.js');
-  const migration = read('supabase/migrations/20261005__secure_login_wallet_customers.sql');
-  const orderMigration = read('supabase/migrations/20261005__include_order_linked_wallet_customers.sql');
+  const migration = read('supabase/migrations/20261005__wallet_customer_auth_links.sql');
 
   assert.match(app, /supabase\.rpc\('admin_list_wallet_customers'\)/);
+  assert.match(app, /supabase\.rpc\('admin_list_wallet_login_candidates'\)/);
+  assert.match(app, /supabase\.rpc\('admin_list_wallet_link_customers'\)/);
+  assert.match(app, /supabase\.rpc\('admin_link_wallet_customer'/);
   assert.match(app, /dbSync\.executeAtomic\('admin_adjust_wallet_atomic'/);
   assert.match(app, /p_tenant_id: selectedCustomer\.tenant_id/);
   assert.match(app, /p_company_code: selectedCustomer\.company_code/);
   assert.match(sync, /'admin_adjust_wallet_atomic'/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.customer_auth_links/);
+  assert.match(migration, /auth_user_id UUID PRIMARY KEY REFERENCES auth\.users/);
+  assert.match(migration, /CONSTRAINT customer_auth_links_tenant_customer_unique UNIQUE/);
   assert.match(migration, /admin_user\.role = 'super_admin'/);
-  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_adjust_wallet_atomic/);
-  assert.match(orderMigration, /matches_for_login = 1/);
-  assert.match(orderMigration, /matches_for_customer = 1/);
-  assert.match(orderMigration, /FROM public\.orders AS customer_order/);
-  assert.match(orderMigration, /customer_order\.user_id = customer\.id/);
-  assert.match(orderMigration, /customer_order\.is_deleted IS DISTINCT FROM TRUE/);
-  assert.match(app, /Active customers with an order linked by user ID or a unique signed-in account match are shown/);
+  assert.match(migration, /admin_user\.tenant_id = p_tenant_id/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_link_wallet_customer/);
+});
+
+test('wallet credits and debits stay in the wallet balance and transaction ledger', () => {
+  const app = read('src/App.jsx');
+  const walletView = app.slice(app.indexOf('const WalletView ='), app.indexOf('// New Master Views'));
+  const sync = read('src/dbSync.js');
+  const migration = read('supabase/migrations/20261005__secure_login_wallet_customers.sql');
+
+  assert.match(walletView, /dbSync\.executeAtomic\('admin_adjust_wallet_atomic'/);
+  assert.match(sync, /'admin_adjust_wallet_atomic'/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.admin_adjust_wallet_atomic/);
+  assert.match(migration, /INSERT INTO public\.wallet_master/);
+  assert.match(migration, /INSERT INTO public\.wallet_transactions/);
+  assert.doesNotMatch(migration, /INSERT INTO public\.orders/);
+  assert.doesNotMatch(walletView, /admin_credit_wallet_with_order_atomic|order_id|order_number/i);
+  assert.match(walletView, /update the shared wallet balance and ledger only; they do not create sales orders/i);
 });
 
 test('order detail status changes require a confirmed Supabase row update', () => {

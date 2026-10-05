@@ -6036,11 +6036,16 @@ const AddressesView = (props) => (
 const WalletView = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customers, setCustomers] = useState([]);
+  const [loginCandidates, setLoginCandidates] = useState([]);
+  const [customerCandidates, setCustomerCandidates] = useState([]);
+  const [selectedLoginId, setSelectedLoginId] = useState('');
+  const [selectedLinkUserId, setSelectedLinkUserId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [type, setType] = useState('credit');
   const [saving, setSaving] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [loadError, setLoadError] = useState('');
 
@@ -6048,16 +6053,36 @@ const WalletView = () => {
     setLoadingCustomers(true);
     setLoadError('');
     try {
-      const { data, error } = await supabase.rpc('admin_list_wallet_customers');
-      if (error) throw error;
-      if (!Array.isArray(data)) throw new Error('Wallet customer lookup returned an invalid response');
-      setCustomers(data);
+      const [walletResult, loginResult, customerResult] = await Promise.all([
+        supabase.rpc('admin_list_wallet_customers'),
+        supabase.rpc('admin_list_wallet_login_candidates'),
+        supabase.rpc('admin_list_wallet_link_customers'),
+      ]);
+      const failedResult = [walletResult, loginResult, customerResult].find((result) => result.error);
+      if (failedResult) throw failedResult.error;
+      if (
+        !Array.isArray(walletResult.data) ||
+        !Array.isArray(loginResult.data) ||
+        !Array.isArray(customerResult.data)
+      ) {
+        throw new Error('Wallet customer lookup returned an invalid response');
+      }
+      setCustomers(walletResult.data);
+      setLoginCandidates(loginResult.data);
+      setCustomerCandidates(customerResult.data);
       setSelectedCustomer((current) =>
-        current ? data.find((customer) => String(customer.user_id) === String(current.user_id)) || null : null
+        current
+          ? walletResult.data.find((customer) =>
+              String(customer.user_id) === String(current.user_id) &&
+              String(customer.tenant_id) === String(current.tenant_id)
+            ) || null
+          : null
       );
     } catch (error) {
       setLoadError(error.message || 'Unable to load wallet customers');
       setCustomers([]);
+      setLoginCandidates([]);
+      setCustomerCandidates([]);
     } finally {
       setLoadingCustomers(false);
     }
@@ -6077,6 +6102,44 @@ const WalletView = () => {
     ].filter(Boolean).join(' ').toLowerCase();
     return searchableText.includes(searchTerm.trim().toLowerCase());
   });
+
+  const linkCustomerLogin = async () => {
+    const customer = customerCandidates.find(
+      (candidate) => String(candidate.user_id) === selectedLinkUserId
+    );
+    const login = loginCandidates.find(
+      (candidate) => candidate.auth_user_id === selectedLoginId
+    );
+    if (!customer || !login) {
+      toast.error('Select both a signed-in account and a customer record');
+      return;
+    }
+    const loginLabel = login.login_email || login.login_phone || login.auth_user_id;
+    const customerLabel = customer.customer_name || `Customer #${customer.user_id}`;
+    if (!window.confirm(`Link login ${loginLabel} to ${customerLabel} (${customer.company_code})?`)) {
+      return;
+    }
+
+    setLinking(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_link_wallet_customer', {
+        p_auth_user_id: login.auth_user_id,
+        p_user_id: customer.user_id,
+        p_tenant_id: customer.tenant_id,
+        p_company_code: customer.company_code,
+      });
+      if (error) throw error;
+      if (data !== true) throw new Error('Customer account link was not confirmed by Supabase');
+      toast.success(`Linked ${loginLabel} to ${customerLabel}`);
+      setSelectedLoginId('');
+      setSelectedLinkUserId('');
+      await loadWalletCustomers();
+    } catch (error) {
+      toast.error(error.message || 'Unable to link this login to the customer');
+    } finally {
+      setLinking(false);
+    }
+  };
 
   const adjustWallet = async () => {
     const numericAmount = Number(amount);
@@ -6118,7 +6181,56 @@ const WalletView = () => {
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-base font-black uppercase tracking-widest text-slate-800">Wallet Master</h2>
-        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Active customers with an order linked by user ID or a unique signed-in account match are shown. Login date is shown when available.</p>
+        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Wallet credits and debits update the shared wallet balance and ledger only; they do not create sales orders. Link each signed-in account to its existing customer record before managing that wallet.</p>
+      </div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+        <h3 className="text-xs font-black uppercase tracking-widest text-amber-900">Link a customer login</h3>
+        <p className="mt-1 text-[10px] text-amber-800">As Super Admin, match a signed-in app account to its existing customer record. Check the login contact and customer details before linking.</p>
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-[1fr_1fr_auto]">
+          <select
+            aria-label="Signed-in customer account"
+            value={selectedLoginId}
+            onChange={(event) => setSelectedLoginId(event.target.value)}
+            className="min-w-0 rounded-lg border border-amber-200 bg-white p-2 text-xs"
+          >
+            <option value="">Select signed-in account</option>
+            {loginCandidates.map((login) => (
+              <option key={login.auth_user_id} value={login.auth_user_id}>
+                {[login.login_email, login.login_phone, `Login ${new Date(login.last_login_at).toLocaleDateString('en-IN')}`].filter(Boolean).join(' · ')}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Customer record to link"
+            value={selectedLinkUserId}
+            onChange={(event) => setSelectedLinkUserId(event.target.value)}
+            className="min-w-0 rounded-lg border border-amber-200 bg-white p-2 text-xs"
+          >
+            <option value="">Select existing customer</option>
+            {customerCandidates.map((customer) => (
+              <option
+                key={`${customer.tenant_id}-${customer.user_id}`}
+                value={String(customer.user_id)}
+              >
+                {[customer.customer_name, customer.customer_phone, customer.company_code].filter(Boolean).join(' · ')}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={linkCustomerLogin}
+            disabled={linking || !selectedLoginId || !selectedLinkUserId}
+            className="rounded-lg bg-amber-600 px-4 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
+          >
+            {linking ? 'Linking...' : 'Link Account'}
+          </button>
+        </div>
+        {loginCandidates.length === 0 && !loadingCustomers && !loadError && (
+          <p className="mt-2 text-[10px] text-amber-800">No unlinked signed-in customer accounts are available.</p>
+        )}
+        {customerCandidates.length === 0 && !loadingCustomers && !loadError && (
+          <p className="mt-1 text-[10px] text-amber-800">No unlinked active customer records are available in your tenant.</p>
+        )}
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
@@ -6172,10 +6284,10 @@ const WalletView = () => {
                     </td>
                   </tr>
                 ))}
-                {loadingCustomers && <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-slate-400">Checking signed-in customer matches...</td></tr>}
+                {loadingCustomers && <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-slate-400">Loading linked customer wallets...</td></tr>}
                 {!loadingCustomers && loadError && <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-red-500">{loadError}</td></tr>}
                 {!loadingCustomers && !loadError && filteredCustomers.length === 0 && (
-                  <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-slate-400">{searchTerm ? 'No matched customers match your search' : 'No signed-in customer has a unique email/phone match yet'}</td></tr>
+                  <tr><td colSpan="3" className="p-10 text-center text-xs font-bold text-slate-400">{searchTerm ? 'No linked customers match your search' : 'No customer wallets are linked yet. Link a login to its existing customer record above.'}</td></tr>
                 )}
               </tbody>
             </table>
