@@ -6044,7 +6044,7 @@ const WalletView = () => {
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [loadError, setLoadError] = useState('');
 
-  const loadLoginCustomers = useCallback(async () => {
+  const loadWalletCustomers = useCallback(async () => {
     setLoadingCustomers(true);
     setLoadError('');
     try {
@@ -6056,7 +6056,7 @@ const WalletView = () => {
         current ? data.find((customer) => String(customer.user_id) === String(current.user_id)) || null : null
       );
     } catch (error) {
-      setLoadError(error.message || 'Unable to load login-linked wallet customers');
+      setLoadError(error.message || 'Unable to load wallet customers');
       setCustomers([]);
     } finally {
       setLoadingCustomers(false);
@@ -6064,8 +6064,8 @@ const WalletView = () => {
   }, []);
 
   useEffect(() => {
-    loadLoginCustomers();
-  }, [loadLoginCustomers]);
+    loadWalletCustomers();
+  }, [loadWalletCustomers]);
 
   const filteredCustomers = customers.filter((customer) => {
     const searchableText = [
@@ -6106,7 +6106,7 @@ const WalletView = () => {
       toast.success(`₹${numericAmount.toLocaleString('en-IN')} ${type === 'credit' ? 'added to' : 'deducted from'} customer wallet`);
       setAmount('');
       setReason('');
-      await loadLoginCustomers();
+      await loadWalletCustomers();
     } catch (error) {
       toast.error(error.message || 'Wallet adjustment failed');
     } finally {
@@ -6118,7 +6118,7 @@ const WalletView = () => {
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-base font-black uppercase tracking-widest text-slate-800">Wallet Master</h2>
-        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Only signed-in customer accounts with one exact email/phone match to an active customer record are shown. Unmatched or duplicate matches are hidden.</p>
+        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Active customers with an order linked by user ID or a unique signed-in account match are shown. Login date is shown when available.</p>
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
@@ -6134,7 +6134,7 @@ const WalletView = () => {
               />
               <button
                 type="button"
-                onClick={loadLoginCustomers}
+                onClick={loadWalletCustomers}
                 disabled={loadingCustomers}
                 className="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-black uppercase text-slate-600 disabled:opacity-50"
               >

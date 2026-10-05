@@ -179,10 +179,11 @@ test('master high-risk mappings use canonical fields and wallet is atomic', () =
   assert.match(master, /A valid parent category is required/);
 });
 
-test('login-linked wallet customers use the tenant-scoped atomic admin RPC', () => {
+test('wallet customers include order-linked users through the tenant-scoped admin RPC', () => {
   const app = read('src/App.jsx');
   const sync = read('src/dbSync.js');
-  const migration = read('../supabase/migrations/20261005__secure_login_wallet_customers.sql');
+  const migration = read('supabase/migrations/20261005__secure_login_wallet_customers.sql');
+  const orderMigration = read('supabase/migrations/20261005__include_order_linked_wallet_customers.sql');
 
   assert.match(app, /supabase\.rpc\('admin_list_wallet_customers'\)/);
   assert.match(app, /dbSync\.executeAtomic\('admin_adjust_wallet_atomic'/);
@@ -191,8 +192,12 @@ test('login-linked wallet customers use the tenant-scoped atomic admin RPC', () 
   assert.match(sync, /'admin_adjust_wallet_atomic'/);
   assert.match(migration, /admin_user\.role = 'super_admin'/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_adjust_wallet_atomic/);
-  assert.match(migration, /matches_for_login = 1/);
-  assert.match(migration, /matches_for_customer = 1/);
+  assert.match(orderMigration, /matches_for_login = 1/);
+  assert.match(orderMigration, /matches_for_customer = 1/);
+  assert.match(orderMigration, /FROM public\.orders AS customer_order/);
+  assert.match(orderMigration, /customer_order\.user_id = customer\.id/);
+  assert.match(orderMigration, /customer_order\.is_deleted IS DISTINCT FROM TRUE/);
+  assert.match(app, /Active customers with an order linked by user ID or a unique signed-in account match are shown/);
 });
 
 test('product edits allow independent main-category and subcategory selection', () => {
