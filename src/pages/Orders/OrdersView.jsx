@@ -1311,32 +1311,30 @@ return {
     status
   ) => {
     try {
-      const result =
-        await handleERPAction(
-          DB_SCHEMA.ORDERS.table,
-          ACTION_TYPES.UPDATE,
-          {
-            id,
-            order_status: status
-          }
-        );
-
+      const { data: updatedOrder, error } = await supabase.rpc(
+        'admin_update_order_status',
+        {
+          p_order_id: id,
+          p_order_status: status
+        }
+      );
+      if (error) throw error;
       if (
-        result &&
-        result.success === false
+        !updatedOrder ||
+        String(updatedOrder.id) !== String(id) ||
+        updatedOrder.order_status !== status
       ) {
         throw new Error(
-          result.error ||
-            'Status update failed'
+          'Supabase did not confirm the order status update'
         );
       }
 
       await fetchInitialData?.();
 
-      if (selectedOrder?.id === id) {
+      if (String(selectedOrder?.id) === String(id)) {
         setSelectedOrder({
           ...selectedOrder,
-          order_status: status
+          ...updatedOrder
         });
       }
 
@@ -1551,10 +1549,10 @@ return {
    * ============================================================
    */
   return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
+    <div className="flex-1 min-h-0 flex flex-col gap-3 sm:gap-4">
 
       {/* SUMMARY */}
-      <div className="bg-blue-600 p-4 rounded-xl text-white shadow-lg flex justify-between items-center flex-shrink-0">
+      <div className="bg-blue-600 px-3 py-2 sm:px-4 sm:py-3 rounded-xl text-white shadow-lg flex justify-between items-center flex-shrink-0">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest opacity-80">
             Report for {dateFilter}
@@ -1578,9 +1576,9 @@ return {
       </div>
 
       {/* SEARCH / FILTER */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] xl:grid-cols-[minmax(220px,1fr)_auto_auto] gap-3 bg-white p-3 sm:p-3 rounded-xl border border-slate-200 shadow-sm flex-shrink-0">
 
-        <div className="relative">
+        <div className="relative sm:col-start-1 sm:row-start-1 xl:col-span-1 xl:row-start-auto">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
             size={16}
@@ -1599,7 +1597,7 @@ return {
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto custom-scrollbar min-w-0 sm:col-span-2 sm:col-start-1 sm:row-start-2 xl:col-span-1 xl:row-start-auto">
           {[
             'Today',
             '1 Month',
@@ -1614,7 +1612,7 @@ return {
                 setDateFilter(value)
               }
               className={cn(
-                'px-3 py-1.5 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all border',
+                'px-2.5 sm:px-3 py-1.5 rounded-lg text-[8px] sm:text-[9px] font-black uppercase whitespace-nowrap transition-all border',
                 dateFilter === value
                   ? 'bg-blue-600 text-white border-blue-600 shadow-md'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -1625,8 +1623,8 @@ return {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto custom-scrollbar min-w-0 sm:col-start-2 sm:row-start-1 xl:col-start-auto xl:row-start-auto">
+          <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">
             Pay:
           </span>
 
@@ -1642,7 +1640,7 @@ return {
                 setPaymentFilter(value)
               }
               className={cn(
-                'px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border',
+                'px-2 sm:px-3 py-1.5 text-[8px] sm:text-[9px] rounded-lg font-black uppercase transition-all border whitespace-nowrap',
                 paymentFilter === value
                   ? 'bg-emerald-600 text-white border-emerald-600'
                   : 'bg-white text-slate-600 border-slate-200'
@@ -1655,35 +1653,35 @@ return {
       </div>
 
       {/* ORDER TABLE */}
-      <div className="flex-1 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col min-h-0">
-        <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-[10rem] bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col">
+        <div className="flex-1 min-h-0 overflow-auto custom-scrollbar">
 
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[640px] table-fixed text-left border-collapse">
 
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200">
 
-                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[11%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
                   Bill #
                 </th>
 
-                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[22%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
                   Customer / Mobile
                 </th>
 
-                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[30%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
                   Order Items
                 </th>
 
-                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[12%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
                   Amount
                 </th>
 
-                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[12%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
                   Method
                 </th>
 
-                <th className="px-4 py-3 text-[9px] font-black text-slate-800 uppercase tracking-widest text-right">
+                <th className="w-[13%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">
                   Actions
                 </th>
 
@@ -1698,10 +1696,10 @@ return {
                   (order, index) => (
                     <tr
                       key={order.id}
-                      className="hover:bg-blue-50/30 transition-colors"
+                      className="hover:bg-blue-50/50 transition-colors"
                     >
 
-                      <td className="px-4 py-2.5 font-black text-blue-700 text-[10px]">
+                      <td className="px-3 py-3 font-black text-blue-700 text-xs whitespace-nowrap">
                         #
                         {order.order_number ||
                           order.order_no ||
@@ -1709,25 +1707,25 @@ return {
                           index + 1}
                       </td>
 
-                      <td className="px-4 py-2.5">
+                      <td className="px-3 py-3">
 
-                        <p className="text-[10px] font-bold text-slate-800 leading-none">
+                        <p className="text-xs font-bold text-slate-800 leading-tight">
                           {order.user_mobile ||
                             order.customer_phone ||
                             'No mobile'}
                         </p>
 
-                        <p className="text-[8px] text-slate-400 font-bold uppercase mt-1">
+                        <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">
                           {order.customer_name ||
                             'Walk-in'}
                         </p>
 
                       </td>
 
-                      <td className="px-4 py-2.5 max-w-[320px]">
+                      <td className="px-3 py-3">
 
                         <p
-                          className="text-[9px] font-black text-slate-700 uppercase truncate"
+                          className="text-[11px] font-bold text-slate-700 uppercase truncate"
                           title={
                             orderItemSummaries[
                               order.id
@@ -1741,7 +1739,7 @@ return {
 
                       </td>
 
-                      <td className="px-4 py-2.5 text-[10px] font-black text-slate-800">
+                      <td className="px-3 py-3 text-xs font-black text-slate-800 whitespace-nowrap">
                         ₹
                         {Number(
                           order.total_amount ||
@@ -1750,7 +1748,7 @@ return {
                         )}
                       </td>
 
-                      <td className="px-4 py-2.5">
+                      <td className="px-3 py-3">
 
                         <span
                           className={cn(
@@ -1771,7 +1769,7 @@ return {
 
                       </td>
 
-                      <td className="px-4 py-2.5 text-right space-x-1">
+                      <td className="px-3 py-3 text-right whitespace-nowrap space-x-1">
 
                         <button
                           onClick={() =>

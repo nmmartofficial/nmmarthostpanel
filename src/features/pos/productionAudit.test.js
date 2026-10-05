@@ -200,6 +200,20 @@ test('wallet customers include order-linked users through the tenant-scoped admi
   assert.match(app, /Active customers with an order linked by user ID or a unique signed-in account match are shown/);
 });
 
+test('order detail status changes require a confirmed Supabase row update', () => {
+  const ordersView = read('src/pages/Orders/OrdersView.jsx');
+  const migration = read('supabase/migrations/20261005__secure_order_status_updates.sql');
+
+  assert.match(ordersView, /supabase\.rpc\(\s*'admin_update_order_status'/);
+  assert.match(ordersView, /!updatedOrder[\s\S]*String\(updatedOrder\.id\) !== String\(id\)[\s\S]*updatedOrder\.order_status !== status/);
+  assert.match(ordersView, /Supabase did not confirm the order status update/);
+  assert.match(migration, /admin_user\.auth_user_id = auth\.uid\(\)/);
+  assert.match(migration, /admin_user\.tenant_id = order_row\.tenant_id/);
+  assert.match(migration, /admin_user\.company_code = order_row\.company_code/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_update_order_status\(BIGINT, TEXT\) TO authenticated/);
+  assert.match(migration, /order_status = p_order_status,[\s\S]*status = p_order_status/);
+});
+
 test('product edits allow independent main-category and subcategory selection', () => {
   const productsView = read('src/pages/Inventory/ProductsView.jsx');
 
