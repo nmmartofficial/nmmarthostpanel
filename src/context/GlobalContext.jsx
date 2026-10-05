@@ -117,7 +117,6 @@ export const GlobalProvider = ({ children }) => {
   // --- Refs ---
   const isFetchingRef = useRef(false);
   const mountRef = useRef(false);
-  const subscriptionsRef = useRef([]);
 
   // --- Fetch Logic ---
   if (typeof window !== 'undefined') window.__NM_REFRESH_DATA__ = (s) => fetchInitialData(s);
@@ -246,115 +245,64 @@ export const GlobalProvider = ({ children }) => {
     }
   }, []);
 
-  // --- Realtime Updates ---
-  const handleRealtimeUpdate = useCallback((tableName, payload) => {
-    const { eventType, new: newRecord, old: oldRecord } = payload;
-
-    if (import.meta.env.DEV) {
-      console.log(`%c🔌 [Realtime] ${eventType} on ${tableName}`, 'color:#8b5cf6;font-weight:bold', {
-        newId: newRecord?.id, oldId: oldRecord?.id,
-        is_active_new: newRecord?.is_active
-      });
-    }
-
-    const updateState = (setter, label) => {
-      setter(prev => {
-        if (!Array.isArray(prev)) return prev;
-        if (eventType === 'INSERT' && newRecord) {
-          if (prev.find(item => String(item.id) === String(newRecord.id))) {
-            if (label === DB_SCHEMA.PRODUCTS.table) {
-              console.log(`🔌 [Realtime] Product already in list, replacing in-place (id=${newRecord.id})`);
-              return prev.map(item => String(item.id) === String(newRecord.id) ? { ...item, ...newRecord } : item);
-            }
-            return prev;
-          }
-          return [newRecord, ...prev];
-        }
-        if (eventType === 'UPDATE' && newRecord) {
-          const exists = prev.some(item => String(item.id) === String(newRecord.id));
-          if (exists) {
-            // is_active=false वाले को default listing से हटा दो (Recycle Bin अलग से includeDeleted फ़ेच करता है)
-            if (newRecord.is_active === false || newRecord.is_active === 0) {
-              if (import.meta.env.DEV) console.log(`🔌 [Realtime] Soft-delete: removing id=${newRecord.id} from ${label} list`);
-              return prev.filter(item => String(item.id) !== String(newRecord.id));
-            }
-            return prev.map(item => String(item.id) === String(newRecord.id) ? { ...item, ...newRecord } : item);
-          }
-          // नया record जो अभी list में नहीं था (e.g. restore from trash, या दूसरे client ने बनाया)
-          if (newRecord.is_active !== false && newRecord.is_active !== 0) {
-            return [newRecord, ...prev];
-          }
-          return prev;
-        }
-        if (eventType === 'DELETE' && oldRecord) {
-          return prev.filter(item => String(item.id) !== String(oldRecord.id));
-        }
-        return prev;
-      });
-    };
-
-    // Products table के लिए stats भी update करो
-    const refreshStatsAfterProducts = () => {
-      setProducts(prev => {
-        const count = Array.isArray(prev) ? prev.filter(p => p.is_active !== false && p.is_active !== 0).length : 0;
-        setStats(s => ({ ...s, products: count }));
-        return prev;
-      });
-    };
-
-    switch (tableName) {
-      case DB_SCHEMA.ORDERS.table:
-        updateState(setOrders, DB_SCHEMA.ORDERS.table);
-        setStats(s => ({ ...s, orders: Array.isArray(orders) ? orders.length : s.orders }));
-        break;
-      case DB_SCHEMA.PRODUCTS.table:
-        updateState(setProducts, DB_SCHEMA.PRODUCTS.table);
-        refreshStatsAfterProducts();
-        break;
-      case DB_SCHEMA.NOTIFICATIONS.table: updateState(setNotifications, DB_SCHEMA.NOTIFICATIONS.table); break;
-      case DB_SCHEMA.BANNERS.table: updateState(setBanners, DB_SCHEMA.BANNERS.table); break;
-      case DB_SCHEMA.CATEGORIES.table:
-        updateState(setCategories, DB_SCHEMA.CATEGORIES.table);
-        setStats(s => ({ ...s, categories: Array.isArray(categories) ? categories.length : s.categories }));
-        break;
-      case DB_SCHEMA.SUBCATEGORIES.table: updateState(setSubcategories, DB_SCHEMA.SUBCATEGORIES.table); break;
-      case DB_SCHEMA.BRANDS.table: updateState(setBrands, DB_SCHEMA.BRANDS.table); break;
-      case DB_SCHEMA.COUPONS.table: updateState(setCoupons, DB_SCHEMA.COUPONS.table); break;
-      case DB_SCHEMA.WALLET_MASTER.table:
-        updateState(setWallets, DB_SCHEMA.WALLET_MASTER.table);
-        break;
-      case DB_SCHEMA.WALLET_TRANSACTIONS.table:
-        updateState(setWalletTx, DB_SCHEMA.WALLET_TRANSACTIONS.table);
-        break;
-      case DB_SCHEMA.PURCHASES.table: updateState(setPurchases, DB_SCHEMA.PURCHASES.table); break;
-      case DB_SCHEMA.EXPENSES.table: updateState(setExpenses, DB_SCHEMA.EXPENSES.table); break;
-      case DB_SCHEMA.INVENTORY_LOGS.table: updateState(setInventoryLogs, DB_SCHEMA.INVENTORY_LOGS.table); break;
-      case DB_SCHEMA.ADMIN_USERS.table: updateState(setAdminUsers, DB_SCHEMA.ADMIN_USERS.table); break;
-      case DB_SCHEMA.OFFERS.table: updateState(setOffers, DB_SCHEMA.OFFERS.table); break;
-      case DB_SCHEMA.ADDRESSES.table: updateState(setAddresses, DB_SCHEMA.ADDRESSES.table); break;
-      default: break;
-    }
-  }, [orders, categories, users]);
-
   useEffect(() => {
-    if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
-      setLoading(false);
-      return undefined;
-    }
-
-    const tablesToWatch = [
-      DB_SCHEMA.ORDERS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.NOTIFICATIONS.table,
-      DB_SCHEMA.BANNERS.table, DB_SCHEMA.BRANDS.table, DB_SCHEMA.CATEGORIES.table,
-      DB_SCHEMA.SUBCATEGORIES.table, DB_SCHEMA.COUPONS.table,
-      DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table
-    ];
-
-    subscriptionsRef.current = tablesToWatch.map(table =>
-      dbSync.subscribe(table, (payload) => handleRealtimeUpdate(table, payload))
-    );
-
-    return () => subscriptionsRef.current.forEach(s => s.unsubscribe());
-  }, [fetchInitialData, handleRealtimeUpdate]);
+    const syncSetters = {
+      [DB_SCHEMA.PRODUCTS.table]: setProducts,
+      [DB_SCHEMA.ORDERS.table]: setOrders,
+      [DB_SCHEMA.ORDER_ITEMS.table]: setOrderItems,
+      [DB_SCHEMA.USERS.table]: setUsers,
+      [DB_SCHEMA.NOTIFICATIONS.table]: setNotifications,
+      [DB_SCHEMA.BANNERS.table]: setBanners,
+      [DB_SCHEMA.CATEGORIES.table]: setCategories,
+      [DB_SCHEMA.SUBCATEGORIES.table]: setSubcategories,
+      [DB_SCHEMA.BRANDS.table]: setBrands,
+      [DB_SCHEMA.COUPONS.table]: setCoupons,
+      [DB_SCHEMA.WALLET_MASTER.table]: setWallets,
+      [DB_SCHEMA.WALLET_TRANSACTIONS.table]: setWalletTx,
+      [DB_SCHEMA.PURCHASES.table]: setPurchases,
+      [DB_SCHEMA.EXPENSES.table]: setExpenses,
+      [DB_SCHEMA.INVENTORY_LOGS.table]: setInventoryLogs,
+      [DB_SCHEMA.ADMIN_USERS.table]: setAdminUsers,
+      [DB_SCHEMA.OFFERS.table]: setOffers,
+      [DB_SCHEMA.ADDRESSES.table]: setAddresses,
+      [DB_SCHEMA.CREDITS.table]: setCredits,
+      [DB_SCHEMA.DELIVERY_BOYS.table]: setDeliveryBoys,
+      [DB_SCHEMA.DELIVERY_CUSTOMERS.table]: setDeliveryCustomers,
+      [DB_SCHEMA.PINCODES.table]: setPincodes,
+      [DB_SCHEMA.CART.table]: setCart,
+      [DB_SCHEMA.WISHLIST.table]: setWishlist,
+      [DB_SCHEMA.LOYALTY_POINTS.table]: setLoyaltyPoints,
+      [DB_SCHEMA.LOYALTY_TRANSACTIONS.table]: setLoyaltyTransactions,
+      [DB_SCHEMA.LOYALTY_TIERS.table]: setLoyaltyTiers,
+      [DB_SCHEMA.DEPARTMENTS.table]: setDepartments,
+      [DB_SCHEMA.UNITS.table]: setUnits,
+      [DB_SCHEMA.ACCOUNTS.table]: setAccounts,
+      [DB_SCHEMA.HOME_CONFIG.table]: setHomeConfig
+    };
+    const handleResourceInvalidation = (event) => {
+      const { resources = [], data = {} } = event.detail || {};
+      resources.forEach((resource) => {
+        const rows = data[resource];
+        const setter = syncSetters[resource];
+        if (!setter || !Array.isArray(rows)) return;
+        setter(rows);
+        if (resource === DB_SCHEMA.PRODUCTS.table) {
+          setStats((previous) => ({ ...previous, products: rows.filter((row) => row.is_active !== false && row.is_active !== 0).length }));
+        } else if (resource === DB_SCHEMA.CATEGORIES.table) {
+          setStats((previous) => ({ ...previous, categories: rows.length }));
+        } else if (resource === DB_SCHEMA.ORDERS.table) {
+          setStats((previous) => ({ ...previous, orders: rows.length }));
+        } else if (resource === DB_SCHEMA.USERS.table) {
+          setStats((previous) => ({ ...previous, users: rows.length }));
+        }
+      });
+      if (resources.includes(DB_SCHEMA.APP_CONFIG.table) && Array.isArray(data[DB_SCHEMA.APP_CONFIG.table])) {
+        setAppConfig(data[DB_SCHEMA.APP_CONFIG.table][0] || DEFAULT_APP_CONFIG);
+      }
+    };
+    window.addEventListener('nm:resource-invalidated', handleResourceInvalidation);
+    return () => window.removeEventListener('nm:resource-invalidated', handleResourceInvalidation);
+  }, []);
 
   // --- Theme / Festival Logic ---
   useEffect(() => {

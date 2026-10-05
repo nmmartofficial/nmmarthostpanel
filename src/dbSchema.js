@@ -24,6 +24,7 @@ export const DB_SCHEMA = {
   DEPARTMENTS: { table: 'department_master', pk: 'id', label: 'Departments', tenantColumn: 'tenant_id' },
   ACCOUNTS: { table: 'account_master', pk: 'id', label: 'Accounts', tenantColumn: 'tenant_id' },
   USERS: { table: 'users', pk: 'id', label: 'App Users', tenantColumn: 'tenant_id' },
+  CUSTOMER_AUTH_LINKS: { table: 'customer_auth_links', pk: 'auth_user_id', label: 'Customer Account Links', tenantColumn: 'tenant_id' },
   PROFILES: { table: 'profiles', pk: 'id', label: 'Auth Profiles' },
 
   ORDERS: { table: 'orders', pk: 'id', label: 'Customer Orders', tenantColumn: 'tenant_id' },

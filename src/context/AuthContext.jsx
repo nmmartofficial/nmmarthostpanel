@@ -33,6 +33,30 @@ const withTimeout = async (promise, timeoutMs = SUPABASE_NETWORK_TIMEOUT_MS, fal
   return Promise.race([promise, timeoutPromise]);
 };
 
+const loadAdminProfile = async (sessionUser, email) => {
+  const queryProfile = (column, value, useMaybeSingle) => withRetry(
+    () => withTimeout(
+      (() => {
+        const query = supabase
+          .from(DB_SCHEMA.ADMIN_USERS.table)
+          .select('*')
+          .eq(column, value);
+        return useMaybeSingle ? query.maybeSingle() : query.single();
+      })(),
+      SUPABASE_NETWORK_TIMEOUT_MS,
+      { data: null, error: { message: 'Unable to load your account profile. Please try again.' } }
+    ),
+    { retries: 1, delayMs: 300, shouldRetry: () => true }
+  );
+
+  if (sessionUser?.id) {
+    const authenticatedProfile = await queryProfile('auth_user_id', sessionUser.id, true);
+    if (authenticatedProfile?.data || authenticatedProfile?.error) return authenticatedProfile;
+  }
+
+  return queryProfile('username', getAdminUserLookupValue(email), false);
+};
+
 export const useAuthContext = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -143,19 +167,7 @@ export const AuthProvider = ({ children }) => {
     setSessionExpiryWarning(false);
 
     try {
-      const lookupValue = getAdminUserLookupValue(email);
-      const userResult = await withRetry(
-        () => withTimeout(
-          supabase
-            .from('admin_users')
-            .select('*')
-            .eq('username', lookupValue)
-            .single(),
-          SUPABASE_NETWORK_TIMEOUT_MS,
-          { data: null, error: { message: 'Unable to load your account profile. Please try again.' } }
-        ),
-        { retries: 1, delayMs: 300, shouldRetry: () => true }
-      );
+      const userResult = await loadAdminProfile(supabaseSession.user, email);
 
       const fetchedUserData = userResult?.data || null;
       const userError = userResult?.error || null;
@@ -223,7 +235,7 @@ export const AuthProvider = ({ children }) => {
           name: normalizedUser.name,
           role: normalizedUser.role,
           company_code: normalizedUser.company_code,
-          tenant_id: companyData?.id,
+          tenant_id: companyData?.id ?? normalizedUser.tenant_id,
           status: normalizedUser.status
         });
         secureStorage.setItem('nm_auth_session', {
@@ -269,6 +281,24 @@ export const AuthProvider = ({ children }) => {
 
         const restoredFromStorage = restoreStoredAuthState();
         if (restoredFromStorage) {
+          const storedUser = secureStorage.getItem('nm_user_data');
+          const storedCompany = secureStorage.getItem('nm_current_company');
+          const hasTenantScope = Boolean(
+            (storedCompany?.id && storedCompany?.company_code)
+            || (storedUser?.tenant_id && storedUser?.company_code)
+          );
+          if (hasTenantScope) {
+            setAuthLoading(false);
+            return;
+          }
+
+          const { data: { session: restoredSession } } = await withTimeout(
+            supabase.auth.getSession(),
+            2500,
+            { data: { session: null }, error: null }
+          );
+          if (!isMounted) return;
+          if (restoredSession) await hydrateAuthState(restoredSession);
           setAuthLoading(false);
           return;
         }
@@ -404,19 +434,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       const sessionData = authData.session;
-      const lookupValue = getAdminUserLookupValue(email);
-      const userResult = await withRetry(
-        () => withTimeout(
-          supabase
-            .from('admin_users')
-            .select('*')
-            .eq('username', lookupValue)
-            .single(),
-          SUPABASE_NETWORK_TIMEOUT_MS,
-          { data: null, error: { message: 'Unable to load your account profile. Please try again.' } }
-        ),
-        { retries: 1, delayMs: 300, shouldRetry: () => true }
-      );
+      const userResult = await loadAdminProfile(authData.user, email);
 
       const fetchedUserData = userResult?.data || null;
       const userError = userResult?.error || null;
@@ -469,7 +487,7 @@ export const AuthProvider = ({ children }) => {
         name: userData.name,
         role: userData.role,
         company_code: userData.company_code,
-        tenant_id: company?.id,
+        tenant_id: company?.id ?? userData.tenant_id,
         status: userData.status
       });
 

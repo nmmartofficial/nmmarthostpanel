@@ -408,8 +408,14 @@ export const dbSync = {
     return schemaEntry?.primaryKey || 'id';
   },
 
-  subscribe: (tableName, callback) => {
+  subscribe: (tableName, callback, { tenantId, companyCode, onStatus } = {}) => {
     if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
+      return { unsubscribe: () => {} };
+    }
+
+    if (tenantId === null || tenantId === undefined || tenantId === ''
+      || companyCode === null || companyCode === undefined || companyCode === '') {
+      console.error('[dbSync.subscribe] Realtime subscription refused without tenant and company scope:', tableName);
       return { unsubscribe: () => {} };
     }
 
@@ -419,12 +425,19 @@ export const dbSync = {
         .channel(channelName)
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: tableName },
+          {
+            event: '*',
+            schema: 'public',
+            table: tableName,
+            filter: `tenant_id=eq.${tenantId}`,
+          },
           (payload) => {
             if (typeof callback === 'function') callback(payload);
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (typeof onStatus === 'function') onStatus(status);
+        });
 
       return {
         channel,

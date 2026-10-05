@@ -38,6 +38,8 @@ import { processImageForUpload } from './utils/imageHandler';
 import { loadSupabaseTables } from './utils/supabaseDataLoader';
 import { shouldSkipGlobalFetch } from './utils/fetchControl';
 import { isLocalPosReadOnlyMode, isLocalPosTestMode } from './utils/localPosTestMode';
+import { smartSync } from './utils/smartSync';
+import { createSmartSyncSubscriptionManager, resolveSmartSyncScope } from './utils/smartSyncScope';
 import {
   buildNewOrderNotificationOptions,
   claimNewOrderNotificationSound,
@@ -60,6 +62,99 @@ const DEFAULT_NAVIGATION_CONFIG = {
 const DEFAULT_APP_CONFIG = {
   id: 'default',
   navigation_config: JSON.stringify(DEFAULT_NAVIGATION_CONFIG, null, 2)
+};
+
+const GLOBAL_SYNC_RESOURCES = [
+  DB_SCHEMA.PRODUCTS.table,
+  DB_SCHEMA.ORDERS.table,
+  DB_SCHEMA.USERS.table
+];
+
+const PAGE_SYNC_RESOURCES = {
+  Dashboard: [DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.WALLET_MASTER.table],
+  Products: [DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table, DB_SCHEMA.BRANDS.table],
+  Orders: [DB_SCHEMA.ORDERS.table, DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.PAYMENT_TRANSACTIONS.table, DB_SCHEMA.USERS.table, DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table],
+  POS: [DB_SCHEMA.ORDERS.table, DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.PAYMENT_TRANSACTIONS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.USERS.table, DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table],
+  WalletMaster: [DB_SCHEMA.USERS.table, DB_SCHEMA.CUSTOMER_AUTH_LINKS.table, DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table, DB_SCHEMA.ORDERS.table, DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.PAYMENT_TRANSACTIONS.table],
+  UserMaster: [DB_SCHEMA.USERS.table, DB_SCHEMA.CUSTOMER_AUTH_LINKS.table, DB_SCHEMA.ADMIN_USERS.table, DB_SCHEMA.WALLET_MASTER.table],
+  Users: [DB_SCHEMA.USERS.table, DB_SCHEMA.CUSTOMER_AUTH_LINKS.table],
+  AdminUsers: [DB_SCHEMA.ADMIN_USERS.table],
+  Categories: [DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.PRODUCTS.table],
+  Subcategories: [DB_SCHEMA.SUBCATEGORIES.table, DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.PRODUCTS.table],
+  Brands: [DB_SCHEMA.BRANDS.table, DB_SCHEMA.PRODUCTS.table],
+  PurchaseEntry: [DB_SCHEMA.PURCHASES.table, DB_SCHEMA.PURCHASE_ITEMS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.ACCOUNTS.table],
+  Purchase: [DB_SCHEMA.PURCHASES.table, DB_SCHEMA.PURCHASE_ITEMS.table, DB_SCHEMA.ACCOUNTS.table],
+  Suppliers: [DB_SCHEMA.PURCHASES.table, DB_SCHEMA.ACCOUNTS.table],
+  StockAlerts: [DB_SCHEMA.STOCK_ALERTS.table, DB_SCHEMA.PRODUCTS.table],
+  StockReduction: [DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.INVENTORY_LOGS.table, DB_SCHEMA.STOCK_ALERTS.table],
+  StockLogs: [DB_SCHEMA.INVENTORY_LOGS.table, DB_SCHEMA.PRODUCTS.table],
+  InventoryReconciliation: [DB_SCHEMA.INVENTORY_LOGS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.STOCK_ALERTS.table],
+  Expenses: [DB_SCHEMA.EXPENSES.table, DB_SCHEMA.EXPENSE_CATEGORIES.table],
+  LoyaltyManagement: [DB_SCHEMA.LOYALTY_POINTS.table, DB_SCHEMA.LOYALTY_TRANSACTIONS.table, DB_SCHEMA.LOYALTY_TIERS.table, DB_SCHEMA.ORDERS.table, DB_SCHEMA.USERS.table],
+  Credits: [DB_SCHEMA.CREDITS.table],
+  DeliveryBoys: [DB_SCHEMA.DELIVERY_BOYS.table],
+  DeliveryCustomers: [DB_SCHEMA.DELIVERY_CUSTOMERS.table],
+  Pincodes: [DB_SCHEMA.PINCODES.table],
+  Analytics: [DB_SCHEMA.ORDERS.table, DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.USERS.table],
+  CustomerAnalytics: [DB_SCHEMA.ORDERS.table, DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.USERS.table],
+  ProfitLoss: [DB_SCHEMA.ORDERS.table, DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.PURCHASES.table, DB_SCHEMA.EXPENSES.table],
+  SelfCheckout: [DB_SCHEMA.ORDERS.table, DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.PRODUCTS.table],
+  Transaction: [DB_SCHEMA.ORDERS.table, DB_SCHEMA.PAYMENT_TRANSACTIONS.table, DB_SCHEMA.USERS.table],
+  Banners: [DB_SCHEMA.BANNERS.table],
+  Coupons: [DB_SCHEMA.COUPONS.table],
+  Offers: [DB_SCHEMA.OFFERS.table],
+  Addresses: [DB_SCHEMA.ADDRESSES.table, DB_SCHEMA.USERS.table],
+  Notifications: [DB_SCHEMA.NOTIFICATIONS.table],
+  AppConfig: [DB_SCHEMA.APP_CONFIG.table, DB_SCHEMA.HOME_CONFIG.table],
+  Units: [DB_SCHEMA.UNITS.table],
+  Departments: [DB_SCHEMA.DEPARTMENTS.table],
+  Accounts: [DB_SCHEMA.ACCOUNTS.table],
+  HSNMaster: [DB_SCHEMA.HSN_MASTER.table]
+};
+
+const SYNC_DEPENDENCIES = {
+  [DB_SCHEMA.PRODUCTS.table]: [DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.STOCK_ALERTS.table],
+  [DB_SCHEMA.CATEGORIES.table]: [DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.PRODUCTS.table],
+  [DB_SCHEMA.SUBCATEGORIES.table]: [DB_SCHEMA.SUBCATEGORIES.table, DB_SCHEMA.PRODUCTS.table],
+  [DB_SCHEMA.BRANDS.table]: [DB_SCHEMA.BRANDS.table, DB_SCHEMA.PRODUCTS.table],
+  [DB_SCHEMA.ORDERS.table]: [DB_SCHEMA.ORDERS.table, DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table],
+  [DB_SCHEMA.ORDER_ITEMS.table]: [DB_SCHEMA.ORDER_ITEMS.table, DB_SCHEMA.ORDERS.table],
+  [DB_SCHEMA.PAYMENT_TRANSACTIONS.table]: [DB_SCHEMA.PAYMENT_TRANSACTIONS.table, DB_SCHEMA.ORDERS.table, DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table],
+  [DB_SCHEMA.USERS.table]: [DB_SCHEMA.USERS.table, DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table],
+  [DB_SCHEMA.CUSTOMER_AUTH_LINKS.table]: [DB_SCHEMA.CUSTOMER_AUTH_LINKS.table, DB_SCHEMA.USERS.table],
+  [DB_SCHEMA.WALLET_MASTER.table]: [DB_SCHEMA.WALLET_MASTER.table, DB_SCHEMA.WALLET_TRANSACTIONS.table],
+  [DB_SCHEMA.WALLET_TRANSACTIONS.table]: [DB_SCHEMA.WALLET_TRANSACTIONS.table, DB_SCHEMA.WALLET_MASTER.table],
+  [DB_SCHEMA.PURCHASES.table]: [DB_SCHEMA.PURCHASES.table, DB_SCHEMA.PURCHASE_ITEMS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.INVENTORY_LOGS.table],
+  [DB_SCHEMA.PURCHASE_ITEMS.table]: [DB_SCHEMA.PURCHASE_ITEMS.table, DB_SCHEMA.PURCHASES.table, DB_SCHEMA.PRODUCTS.table],
+  [DB_SCHEMA.INVENTORY_LOGS.table]: [DB_SCHEMA.INVENTORY_LOGS.table, DB_SCHEMA.PRODUCTS.table, DB_SCHEMA.STOCK_ALERTS.table],
+  [DB_SCHEMA.STOCK_ALERTS.table]: [DB_SCHEMA.STOCK_ALERTS.table, DB_SCHEMA.PRODUCTS.table],
+  [DB_SCHEMA.EXPENSES.table]: [DB_SCHEMA.EXPENSES.table],
+  [DB_SCHEMA.EXPENSE_CATEGORIES.table]: [DB_SCHEMA.EXPENSE_CATEGORIES.table],
+  [DB_SCHEMA.LOYALTY_POINTS.table]: [DB_SCHEMA.LOYALTY_POINTS.table, DB_SCHEMA.LOYALTY_TRANSACTIONS.table],
+  [DB_SCHEMA.LOYALTY_TRANSACTIONS.table]: [DB_SCHEMA.LOYALTY_TRANSACTIONS.table, DB_SCHEMA.LOYALTY_POINTS.table],
+  [DB_SCHEMA.LOYALTY_TIERS.table]: [DB_SCHEMA.LOYALTY_TIERS.table],
+  [DB_SCHEMA.BANNERS.table]: [DB_SCHEMA.BANNERS.table],
+  [DB_SCHEMA.COUPONS.table]: [DB_SCHEMA.COUPONS.table],
+  [DB_SCHEMA.OFFERS.table]: [DB_SCHEMA.OFFERS.table],
+  [DB_SCHEMA.ADDRESSES.table]: [DB_SCHEMA.ADDRESSES.table],
+  [DB_SCHEMA.NOTIFICATIONS.table]: [DB_SCHEMA.NOTIFICATIONS.table],
+  [DB_SCHEMA.APP_CONFIG.table]: [DB_SCHEMA.APP_CONFIG.table],
+  [DB_SCHEMA.HOME_CONFIG.table]: [DB_SCHEMA.HOME_CONFIG.table],
+  [DB_SCHEMA.UNITS.table]: [DB_SCHEMA.UNITS.table],
+  [DB_SCHEMA.DEPARTMENTS.table]: [DB_SCHEMA.DEPARTMENTS.table],
+  [DB_SCHEMA.ACCOUNTS.table]: [DB_SCHEMA.ACCOUNTS.table],
+  [DB_SCHEMA.ADMIN_USERS.table]: [DB_SCHEMA.ADMIN_USERS.table],
+  [DB_SCHEMA.CREDITS.table]: [DB_SCHEMA.CREDITS.table],
+  [DB_SCHEMA.DELIVERY_BOYS.table]: [DB_SCHEMA.DELIVERY_BOYS.table],
+  [DB_SCHEMA.DELIVERY_CUSTOMERS.table]: [DB_SCHEMA.DELIVERY_CUSTOMERS.table],
+  [DB_SCHEMA.PINCODES.table]: [DB_SCHEMA.PINCODES.table],
+  [DB_SCHEMA.CART.table]: [DB_SCHEMA.CART.table],
+  [DB_SCHEMA.WISHLIST.table]: [DB_SCHEMA.WISHLIST.table],
+  [DB_SCHEMA.LOYALTY_POINTS.table]: [DB_SCHEMA.LOYALTY_POINTS.table, DB_SCHEMA.LOYALTY_TRANSACTIONS.table],
+  [DB_SCHEMA.LOYALTY_TRANSACTIONS.table]: [DB_SCHEMA.LOYALTY_TRANSACTIONS.table, DB_SCHEMA.LOYALTY_POINTS.table],
+  [DB_SCHEMA.LOYALTY_TIERS.table]: [DB_SCHEMA.LOYALTY_TIERS.table],
+  [DB_SCHEMA.UNITS.table]: [DB_SCHEMA.UNITS.table],
+  [DB_SCHEMA.DEPARTMENTS.table]: [DB_SCHEMA.DEPARTMENTS.table]
 };
 
 const ProductsView = lazy(() => import('./features/inventory/ProductsView'));
@@ -193,7 +288,13 @@ function GuardVerificationView({ orders, appConfig, fetchInitialData }) {
 
 // --- App Component ---
 export default function App({ company, isTenantMode, companySlug }) {
-  const { currentUser: authUser, isAuthenticated, logout } = useAuthContext();
+  const {
+    currentUser: authUser,
+    currentCompany: authCompany,
+    isAuthenticated,
+    authLoading,
+    logout
+  } = useAuthContext();
   const navigate = useNavigate();
   const location = useLocation();
   // Initialize login rate limiter
@@ -215,6 +316,10 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   const isAuthorized = isAuthenticated;
   const [currentUser, setCurrentUser] = useState(() => authUser || secureStorage.getItem('nm_user_data'));
+  const syncSubscriptionManagerRef = useRef(null);
+  if (!syncSubscriptionManagerRef.current) {
+    syncSubscriptionManagerRef.current = createSmartSyncSubscriptionManager(smartSync);
+  }
   const [activeTab, setActiveTabState] = useState(() => {
     const routeSegment = window.location.pathname.split('/').filter(Boolean).pop();
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
@@ -454,6 +559,7 @@ export default function App({ company, isTenantMode, companySlug }) {
   const [notifications, setNotifications] = useState([]);
   const [inventoryLogs, setInventoryLogs] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [smartSyncStatus, setSmartSyncStatus] = useState({ state: 'synced', lastSyncedAt: null, error: null });
   const [hsnMaster, setHsnMaster] = useState([]);
   const [loyaltyPoints, setLoyaltyPoints] = useState([]);
   const [loyaltyTransactions, setLoyaltyTransactions] = useState([]);
@@ -665,15 +771,217 @@ export default function App({ company, isTenantMode, companySlug }) {
   // --- Refs for Stability (Infinite Loop Prevention) ---
   const isFetchingRef = useRef(false);
   const mountRef = useRef(false);
-  const subscriptionsRef = useRef([]);
+  const hasLoadedInitialDataRef = useRef(false);
+  const syncPauseRef = useRef({ scope: null, releases: [] });
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
 
   // --- Targeted State Updates (Infinite Loop Prevention) ---
-  // handleRealtimeUpdate removed from App.jsx as it is now managed by GlobalContext
-  // to avoid redundant Supabase Realtime subscriptions.
+  // The App owns scoped Realtime subscriptions; shared context consumes its refresh events.
+
+  const activeSyncResources = useMemo(() => new Set([
+    ...GLOBAL_SYNC_RESOURCES,
+    ...(PAGE_SYNC_RESOURCES[activeTab] || [])
+  ]), [activeTab]);
+  const smartSyncScope = useMemo(() => resolveSmartSyncScope({
+    currentUser: authUser,
+    currentCompany: authCompany,
+    company
+  }), [authUser, authCompany, company]);
+
+  const refreshSyncResource = useCallback(async (resource, options = {}) => {
+    const fetchList = async (table, query) => {
+      const rows = await dbSync.fetch(table, query);
+      if (!Array.isArray(rows)) throw new Error(`Invalid ${table} refresh response`);
+      return rows;
+    };
+    let rows;
+    switch (resource) {
+      case DB_SCHEMA.PRODUCTS.table:
+        rows = await fetchList(resource, options.productsIncludeDeleted ? { includeDeleted: true } : undefined);
+        setProducts(rows);
+        setStats((previous) => ({ ...previous, products: rows.length }));
+        break;
+      case DB_SCHEMA.CATEGORIES.table:
+        rows = await fetchList(resource, { order: { column: 'name', ascending: true } });
+        setCategories(rows);
+        setStats((previous) => ({ ...previous, categories: rows.length }));
+        break;
+      case DB_SCHEMA.SUBCATEGORIES.table:
+        rows = await fetchList(resource, { order: { column: 'name', ascending: true } });
+        setSubcategories(rows);
+        break;
+      case DB_SCHEMA.BRANDS.table:
+        rows = await fetchList(resource, { order: { column: 'name', ascending: true } });
+        setBrands(rows);
+        break;
+      case DB_SCHEMA.ORDERS.table:
+        rows = await fetchList(resource, { order: { column: 'created_at', ascending: false } });
+        setOrders(rows);
+        setStats((previous) => ({ ...previous, orders: rows.length }));
+        break;
+      case DB_SCHEMA.ORDER_ITEMS.table: {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        let request = supabase.from(resource).select('*')
+          .eq('tenant_id', currentUser?.tenant_id)
+          .gte('created_at', thirtyDaysAgo.toISOString());
+        if (currentUser?.company_code) request = request.eq('company_code', currentUser.company_code);
+        const { data, error } = await request;
+        if (error) throw error;
+        rows = data || [];
+        setOrderItems(rows);
+        break;
+      }
+      case DB_SCHEMA.USERS.table:
+        rows = await fetchList(resource);
+        setUsers(rows);
+        setStats((previous) => ({ ...previous, users: rows.length }));
+        break;
+      case DB_SCHEMA.WALLET_MASTER.table:
+        rows = await fetchList(resource);
+        setWallets(rows);
+        break;
+      case DB_SCHEMA.WALLET_TRANSACTIONS.table:
+        rows = await fetchList(resource, { order: { column: 'created_at', ascending: false } });
+        setWalletTx(rows);
+        break;
+      case DB_SCHEMA.PURCHASES.table:
+        rows = await fetchList(resource);
+        setPurchases(rows);
+        break;
+      case DB_SCHEMA.INVENTORY_LOGS.table:
+        rows = await fetchList(resource, { order: { column: 'created_at', ascending: false }, limit: 100 });
+        setInventoryLogs(rows);
+        break;
+      case DB_SCHEMA.EXPENSES.table:
+        rows = await fetchList(resource, { order: { column: 'date', ascending: false } });
+        setExpenses(rows);
+        break;
+      case DB_SCHEMA.BANNERS.table:
+        rows = await fetchList(resource);
+        setBanners(rows);
+        break;
+      case DB_SCHEMA.COUPONS.table:
+        rows = await fetchList(resource);
+        setCoupons(rows);
+        break;
+      case DB_SCHEMA.OFFERS.table:
+        rows = await fetchList(resource);
+        setOffers(rows);
+        break;
+      case DB_SCHEMA.ADDRESSES.table:
+        rows = await fetchList(resource);
+        setAddresses(rows);
+        break;
+      case DB_SCHEMA.NOTIFICATIONS.table:
+        rows = await fetchList(resource, { order: { column: 'created_at', ascending: false }, limit: 20 });
+        setNotifications(rows);
+        break;
+      case DB_SCHEMA.APP_CONFIG.table: {
+        const configRows = await fetchList(resource);
+        const config = configRows[0] || DEFAULT_APP_CONFIG;
+        setAppConfig(config);
+        return configRows;
+      }
+      case DB_SCHEMA.HOME_CONFIG.table:
+        rows = await fetchList(resource);
+        setHomeConfig(rows);
+        break;
+      case DB_SCHEMA.UNITS.table:
+        rows = await fetchList(resource, { includeDeleted: true });
+        setUnits(rows);
+        break;
+      case DB_SCHEMA.DEPARTMENTS.table:
+        rows = await fetchList(resource);
+        setDepartments(rows);
+        break;
+      case DB_SCHEMA.ACCOUNTS.table:
+        rows = await fetchList(resource);
+        setAccounts(rows);
+        break;
+      case DB_SCHEMA.ADMIN_USERS.table:
+        rows = await fetchList(resource);
+        setAdminUsers(rows);
+        break;
+      case DB_SCHEMA.CREDITS.table:
+        rows = await fetchList(resource);
+        setCredits(rows);
+        break;
+      case DB_SCHEMA.DELIVERY_BOYS.table:
+        rows = await fetchList(resource);
+        setDeliveryBoys(rows);
+        break;
+      case DB_SCHEMA.DELIVERY_CUSTOMERS.table:
+        rows = await fetchList(resource);
+        setDeliveryCustomers(rows);
+        break;
+      case DB_SCHEMA.PINCODES.table:
+        rows = await fetchList(resource);
+        setPincodes(rows);
+        break;
+      case DB_SCHEMA.CART.table:
+        rows = await fetchList(resource);
+        setCart(rows);
+        break;
+      case DB_SCHEMA.WISHLIST.table:
+        rows = await fetchList(resource);
+        setWishlist(rows);
+        break;
+      case DB_SCHEMA.LOYALTY_POINTS.table:
+        rows = await fetchList(resource);
+        setLoyaltyPoints(rows);
+        break;
+      case DB_SCHEMA.LOYALTY_TRANSACTIONS.table:
+        rows = await fetchList(resource);
+        setLoyaltyTransactions(rows);
+        break;
+      case DB_SCHEMA.LOYALTY_TIERS.table:
+        rows = await fetchList(resource);
+        setLoyaltyTiers(rows);
+        break;
+      case DB_SCHEMA.HSN_MASTER.table:
+        rows = await fetchList(resource);
+        setHsnMaster(rows);
+        break;
+      case DB_SCHEMA.CUSTOMER_AUTH_LINKS.table:
+        return null;
+      default:
+        return null;
+    }
+    return rows;
+  }, [currentUser?.company_code, currentUser?.tenant_id]);
 
   const fetchInitialData = useCallback(async (force = false, silent = false, options = {}) => {
     if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
       setLoading(false);
+      return;
+    }
+
+    if (force && silent && !options?.fullRefresh) {
+      const syncResources = [...new Set([
+        ...(PAGE_SYNC_RESOURCES[activeTabRef.current] || []),
+        ...(options?.resources || [])
+      ])];
+      const refreshResults = await Promise.allSettled(syncResources.map(async (resource) => [
+        resource,
+        await refreshSyncResource(resource, options)
+      ]));
+      const refreshedData = {};
+      let failedResource = '';
+      refreshResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const [resource, data] = result.value;
+          refreshedData[resource] = data;
+        } else if (!failedResource) {
+          failedResource = result.reason?.message || 'A resource failed to refresh';
+        }
+      });
+      smartSync.publishResourceUpdates(refreshedData);
+      if (failedResource) {
+        console.error('[Smart Sync] Targeted refresh failed:', failedResource);
+        toast.error('Some data could not refresh. Please retry this view.');
+      }
       return;
     }
 
@@ -836,13 +1144,49 @@ export default function App({ company, isTenantMode, companySlug }) {
         orders: ordersData.length,
         users: usersData.length
       });
+      if (hasLoadedInitialDataRef.current) {
+        smartSync.publishResourceUpdates({
+          [DB_SCHEMA.PRODUCTS.table]: productsData,
+          [DB_SCHEMA.CATEGORIES.table]: categoriesData,
+          [DB_SCHEMA.ORDERS.table]: ordersData,
+          [DB_SCHEMA.APP_CONFIG.table]: Array.isArray(appConfigData) ? appConfigData : [appConfigData],
+          [DB_SCHEMA.BANNERS.table]: bannersData,
+          [DB_SCHEMA.SUBCATEGORIES.table]: subcategoriesData,
+          [DB_SCHEMA.BRANDS.table]: brandsData,
+          [DB_SCHEMA.COUPONS.table]: couponsData,
+          [DB_SCHEMA.NOTIFICATIONS.table]: notificationsData,
+          [DB_SCHEMA.WALLET_MASTER.table]: walletData,
+          [DB_SCHEMA.HOME_CONFIG.table]: homeConfigData,
+          [DB_SCHEMA.OFFERS.table]: offersData,
+          [DB_SCHEMA.PINCODES.table]: pincodesData,
+          [DB_SCHEMA.WALLET_TRANSACTIONS.table]: walletTxData,
+          [DB_SCHEMA.ADDRESSES.table]: addressesData,
+          [DB_SCHEMA.CART.table]: cartData,
+          [DB_SCHEMA.WISHLIST.table]: wishlistData,
+          [DB_SCHEMA.ADMIN_USERS.table]: adminUsersData,
+          [DB_SCHEMA.CREDITS.table]: creditsData,
+          [DB_SCHEMA.DELIVERY_BOYS.table]: deliveryBoysData,
+          [DB_SCHEMA.DELIVERY_CUSTOMERS.table]: deliveryCustomersData,
+          [DB_SCHEMA.PURCHASES.table]: purchasesData,
+          [DB_SCHEMA.DEPARTMENTS.table]: departmentsData,
+          [DB_SCHEMA.UNITS.table]: unitsData,
+          [DB_SCHEMA.ACCOUNTS.table]: accountsData,
+          [DB_SCHEMA.INVENTORY_LOGS.table]: inventoryLogsData,
+          [DB_SCHEMA.EXPENSES.table]: expensesData,
+          [DB_SCHEMA.ORDER_ITEMS.table]: orderItemsData,
+          [DB_SCHEMA.USERS.table]: usersData,
+          [DB_SCHEMA.HSN_MASTER.table]: hsnMasterData
+        });
+      } else {
+        hasLoadedInitialDataRef.current = true;
+      }
     } catch (error) {
       // Error: Fetching failed
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, []);
+  }, [refreshSyncResource]);
 
   // Apply theme colors from appConfig as CSS variables
   useEffect(() => {
@@ -854,8 +1198,105 @@ export default function App({ company, isTenantMode, companySlug }) {
     }
   }, [appConfig]);
 
-  // Real-time subscriptions are now handled by GlobalContext to prevent duplicate callback errors
-  // with Supabase Realtime. App.jsx will receive updates via fetchInitialData or shared state.
+  useEffect(() => {
+    const manager = syncSubscriptionManagerRef.current;
+    if (authLoading) {
+      manager.clear();
+      setSmartSyncStatus((status) => ({ ...status, state: 'pending', error: null }));
+      return undefined;
+    }
+    if (!isAuthorized || (isLocalPosTestMode && !isLocalPosReadOnlyMode)) {
+      manager.clear();
+      return undefined;
+    }
+    if (!smartSyncScope) {
+      manager.clear();
+      setSmartSyncStatus({ state: 'error', lastSyncedAt: null, error: 'Tenant and company scope unavailable; realtime sync is disabled' });
+      return undefined;
+    }
+
+    const releaseRegistrations = [];
+    const staleWhileHidden = new Set();
+    const refreshResources = () => [...activeSyncResources].forEach((resource) => smartSync.invalidateResource(resource));
+    const onWindowOffline = () => smartSync.setConnectionState(false);
+    const onWindowOnline = () => {
+      smartSync.setConnectionState(true);
+      refreshResources();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      staleWhileHidden.clear();
+      refreshResources();
+    };
+    const releaseEditPauses = () => {
+      syncPauseRef.current.releases.forEach((release) => release());
+      syncPauseRef.current = { scope: null, releases: [] };
+    };
+    const onFocusIn = (event) => {
+      const scope = event.target?.closest?.('form,[role="dialog"]');
+      if (!scope || syncPauseRef.current.scope === scope) return;
+      releaseEditPauses();
+      syncPauseRef.current = {
+        scope,
+        releases: [...activeSyncResources].map((resource) => smartSync.pauseSyncDuringEdit(resource))
+      };
+    };
+    const onFocusOut = (event) => {
+      const scope = event.target?.closest?.('form,[role="dialog"]');
+      if (!scope || scope !== syncPauseRef.current.scope) return;
+      window.setTimeout(() => {
+        if (!scope.contains(document.activeElement)) releaseEditPauses();
+      }, 0);
+    };
+
+    releaseRegistrations.push(smartSync.subscribeStatus(setSmartSyncStatus));
+    activeSyncResources.forEach((resource) => {
+      releaseRegistrations.push(smartSync.registerResource(resource, () => refreshSyncResource(resource)));
+    });
+    const watchableResources = [...activeSyncResources].filter((resource) => (
+      resource !== DB_SCHEMA.CUSTOMER_AUTH_LINKS.table
+      && Object.values(DB_SCHEMA).some((entry) => entry.table === resource && entry.tenantColumn)
+    ));
+    manager.configure({
+      scope: smartSyncScope,
+      resources: watchableResources,
+      subscribe: (resource, onChange, onStatus, scope) => dbSync.subscribe(resource, onChange, {
+        tenantId: scope.tenantId,
+        companyCode: scope.companyCode,
+        onStatus
+      }),
+      onChange: (resource) => {
+          if (document.visibilityState !== 'visible') {
+            staleWhileHidden.add(resource);
+            return;
+          }
+          (SYNC_DEPENDENCIES[resource] || [resource])
+            .forEach((dependentResource) => smartSync.invalidateResource(dependentResource));
+      }
+    });
+
+    if (!navigator.onLine) smartSync.setConnectionState(false);
+    window.addEventListener('offline', onWindowOffline);
+    window.addEventListener('online', onWindowOnline);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('focusin', onFocusIn, true);
+    document.addEventListener('focusout', onFocusOut, true);
+    const reconciliationTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshResources();
+    }, 10 * 60 * 1000);
+
+    return () => {
+      window.clearInterval(reconciliationTimer);
+      window.removeEventListener('offline', onWindowOffline);
+      window.removeEventListener('online', onWindowOnline);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('focusin', onFocusIn, true);
+      document.removeEventListener('focusout', onFocusOut, true);
+      releaseEditPauses();
+      manager.clear();
+      releaseRegistrations.forEach((release) => release());
+    };
+  }, [activeSyncResources, authLoading, isAuthorized, refreshSyncResource, smartSyncScope]);
 
   // --- CRITICAL: Initial Data Load on Auth/Mount ---
   // User ne bola products show nahi ho rahe: root cause yahin tha — fetchInitialData mount par call hi nahi hota!
@@ -1052,6 +1493,19 @@ export default function App({ company, isTenantMode, companySlug }) {
   const toolsItems = toolsDefaultItems.filter(item =>
     isAllowed(item.id) && (!navigationConfig.tools.length || navigationConfig.tools.includes(item.id))
   );
+
+  const syncStatusLabel = {
+    synced: 'Live',
+    syncing: 'Syncing',
+    pending: 'Pending',
+    offline: 'Offline',
+    error: 'Delayed'
+  }[smartSyncStatus.state] || 'Pending';
+  const syncStatusColor = smartSyncStatus.state === 'synced'
+    ? 'text-emerald-400'
+    : smartSyncStatus.state === 'offline' || smartSyncStatus.state === 'error'
+      ? 'text-amber-400'
+      : 'text-blue-400';
 
   return (
     customerMode ? (
@@ -1718,7 +2172,9 @@ export default function App({ company, isTenantMode, companySlug }) {
             <Circle size={6} fill="#3B82F6" className="text-blue-400" />
             DB: {isSupabaseMock ? '0 (MOCK)' : stats.products} Records
           </span>
-          <span className="flex items-center gap-1.5 opacity-50"><Clock size={10} /> Sync: Just Now</span>
+          <span className={`flex items-center gap-1.5 ${syncStatusColor}`} title={smartSyncStatus.error || undefined}>
+            <Circle size={6} fill="currentColor" /> Sync: {syncStatusLabel}
+          </span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-blue-300">{BRAND_NAME} ULTRA RETAIL ERP v1.0.2</span>
