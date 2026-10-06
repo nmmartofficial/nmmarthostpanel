@@ -1400,7 +1400,7 @@ return {
 
       setSelectedOrder({
         ...selectedOrder,
-        ...editFormData
+        ...(result.data || editFormData)
       });
 
       await fetchInitialData?.(
@@ -1484,19 +1484,59 @@ return {
       return;
     }
 
+    if (
+      String(selectedOrder.order_status ?? selectedOrder.status ?? '').toLowerCase() ===
+      'returned'
+    ) {
+      alert('This order is already marked as returned.');
+      return;
+    }
+
+    const amount = Number(returnAmount);
+    const orderTotal = Number(
+      selectedOrder.total_amount ??
+      selectedOrder.total ??
+      0
+    );
+
+    if (!Number.isFinite(amount) || amount <= 0 || amount > orderTotal) {
+      alert('Enter a return amount greater than zero and no more than the order total.');
+      return;
+    }
+
+    const reason = returnReason.trim();
+
+    if (!reason) {
+      alert('Enter a reason for the return.');
+      return;
+    }
+
     try {
-      await handleERPAction(
+      const returnNote = `Return recorded (${new Date().toISOString()}): ₹${amount.toFixed(2)} — ${reason}`;
+      const existingNotes = String(selectedOrder.notes || '').trim();
+      const result = await handleERPAction(
         DB_SCHEMA.ORDERS.table,
         ACTION_TYPES.UPDATE,
         {
           id: selectedOrder.id,
-          order_status: 'returned'
+          order_status: 'returned',
+          notes: existingNotes
+            ? `${existingNotes}\n${returnNote}`
+            : returnNote
         }
       );
 
+      if (!result?.success || !result.data) {
+        throw new Error(
+          result?.error || 'Return details could not be saved to Supabase.'
+        );
+      }
+
+      const stockFailures = [];
+
       for (const item of orderItems) {
         try {
-          await handleERPAction(
+          const stockResult = await handleERPAction(
             null,
             ACTION_TYPES.ADJUST_STOCK,
             {
@@ -1513,23 +1553,45 @@ return {
                 selectedOrder.order_number
             }
           );
+
+          if (!stockResult?.success) {
+            stockFailures.push({
+              item: item.product_name,
+              error: stockResult?.error || 'Stock adjustment failed'
+            });
+          }
         } catch (stockError) {
           console.error(
             'Return stock adjustment failed:',
             stockError
           );
+          stockFailures.push({
+            item: item.product_name,
+            error: stockError?.message || 'Stock adjustment failed'
+          });
         }
       }
 
+      setSelectedOrder({
+        ...selectedOrder,
+        ...result.data
+      });
       await fetchInitialData?.();
 
       setShowReturnModal(false);
       setReturnReason('');
       setReturnAmount('');
 
-      alert(
-        'Order Returned Successfully!'
-      );
+      if (stockFailures.length > 0) {
+        console.error('Return stock adjustment failures:', stockFailures);
+        alert(
+          `Return details were saved, but stock could not be restored for these item(s):\n${stockFailures
+            .map(({ item, error }) => `- ${item}: ${error}`)
+            .join('\n')}\nPlease correct the stock manually.`
+        );
+      } else {
+        alert('Order return and stock updates saved successfully.');
+      }
     } catch (error) {
       console.error(
         'Return failed:',
@@ -1661,27 +1723,27 @@ return {
             <thead className="sticky top-0 z-10 bg-slate-50">
               <tr className="border-b border-slate-200">
 
-                <th className="w-[11%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[11%] px-3 py-2.5 text-[9px] font-black text-slate-800 uppercase tracking-widest">
                   Bill #
                 </th>
 
-                <th className="w-[22%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[22%] px-3 py-2.5 text-[9px] font-black text-slate-800 uppercase tracking-widest">
                   Customer / Mobile
                 </th>
 
-                <th className="w-[30%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[30%] px-3 py-2.5 text-[9px] font-black text-slate-800 uppercase tracking-widest">
                   Order Items
                 </th>
 
-                <th className="w-[12%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[12%] px-3 py-2.5 text-[9px] font-black text-slate-800 uppercase tracking-widest">
                   Amount
                 </th>
 
-                <th className="w-[12%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                <th className="w-[12%] px-3 py-2.5 text-[9px] font-black text-slate-800 uppercase tracking-widest">
                   Method
                 </th>
 
-                <th className="w-[13%] px-3 py-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-right">
+                <th className="w-[13%] px-3 py-2.5 text-[9px] font-black text-slate-800 uppercase tracking-widest text-right">
                   Actions
                 </th>
 
@@ -1699,7 +1761,7 @@ return {
                       className="hover:bg-blue-50/50 transition-colors"
                     >
 
-                      <td className="px-3 py-3 font-black text-blue-700 text-xs whitespace-nowrap">
+                      <td className="px-3 py-2 font-black text-blue-700 text-[10px]">
                         #
                         {order.order_number ||
                           order.order_no ||
@@ -1707,7 +1769,7 @@ return {
                           index + 1}
                       </td>
 
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-2">
 
                         <p className="text-xs font-bold text-slate-800 leading-tight">
                           {order.user_mobile ||
@@ -1722,7 +1784,7 @@ return {
 
                       </td>
 
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-2 max-w-[280px]">
 
                         <p
                           className="text-[11px] font-bold text-slate-700 uppercase truncate"
@@ -1739,7 +1801,7 @@ return {
 
                       </td>
 
-                      <td className="px-3 py-3 text-xs font-black text-slate-800 whitespace-nowrap">
+                      <td className="px-3 py-2 text-[10px] font-black text-slate-800 whitespace-nowrap">
                         ₹
                         {Number(
                           order.total_amount ||
@@ -1748,7 +1810,7 @@ return {
                         )}
                       </td>
 
-                      <td className="px-3 py-3">
+                      <td className="px-3 py-2">
 
                         <span
                           className={cn(
@@ -1769,7 +1831,7 @@ return {
 
                       </td>
 
-                      <td className="px-3 py-3 text-right whitespace-nowrap space-x-1">
+                      <td className="px-3 py-2 text-right whitespace-nowrap space-x-1">
 
                         <button
                           onClick={() =>
@@ -2199,6 +2261,7 @@ return {
                           <select
                             value={
                               selectedOrder.order_status ??
+                              selectedOrder.status ??
                               'pending'
                             }
                             onChange={(e) =>

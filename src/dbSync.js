@@ -1013,6 +1013,9 @@ export const dbSync = {
         e.code = error.code; e.details = error.details; e.hint = error.hint;
         throw e;
       }
+      if (tableName === DB_SCHEMA.ORDERS?.table && (!Array.isArray(data) || data.length === 0)) {
+        throw new Error(`${tableName} update(id=${id}) did not update a row. Check the order ID, tenant access, and Supabase RLS policies.`);
+      }
       if ([DB_SCHEMA.CATEGORIES.table, DB_SCHEMA.SUBCATEGORIES.table].includes(tableName) && (!Array.isArray(data) || data.length !== 1)) {
         throw new Error(`${tableName} update(id=${id}) matched no row in the current tenant or was not permitted by RLS`);
       }

@@ -17,6 +17,7 @@ type Device = {
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const FIREBASE_MESSAGING_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const ADMIN_ORDERS_URL = "https://nmmarthostpanel.vercel.app/orders";
 
 function jsonResponse(body: JsonObject, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
@@ -290,6 +291,9 @@ Deno.serve(async (req) => {
                 tag: `nm-order-${orderId}`,
                 renotify: false,
                 silent: false,
+              },
+              fcm_options: {
+                link: ADMIN_ORDERS_URL,
               },
             },
             data: messageData,
