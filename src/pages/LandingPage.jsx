@@ -1,164 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import {
-  ArrowRight, BarChart3, Bell, Box, Building2, Check, CheckCircle2,
-  ChevronDown, ClipboardList, Cloud, CreditCard, Database, FileBarChart,
-  Globe2, LayoutDashboard, LineChart, LockKeyhole, Menu, MessageCircle,
-  Package, Percent, Phone, Play, Receipt, ScanBarcode, Settings2, ShieldCheck,
-  ShoppingBag, ShoppingCart, Sparkles, Store, Tag, Truck, Users, Wallet, X,
-  Zap
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
 import { Link } from 'react-router-dom';
 
-const contactNumber = '918282827240';
-const displayPhone = '+91 82828 27240';
-const whatsappLink = `https://wa.me/${contactNumber}?text=Hello%20NM%20MART%20ULTRA,%20I%27d%20like%20a%20demo.`;
-
-const reveal = {
-  hidden: { opacity: 0, y: 22 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: 'easeOut' } }
-};
-
-const features = [
-  { title: 'Smart POS & Billing', desc: 'Fast barcode billing, discounts, GST, payments, and print-ready receipts.', icon: Receipt, tone: 'indigo' },
-  { title: 'Inventory Management', desc: 'Know current stock, low-stock risks, valuation, and movement at a glance.', icon: Box, tone: 'emerald' },
-  { title: 'Purchase Management', desc: 'Keep suppliers, purchase entries, and costs organized in one flow.', icon: ClipboardList, tone: 'amber' },
-  { title: 'Customer Management', desc: 'Build profiles, purchase history, insights, and repeat buying habits.', icon: Users, tone: 'sky' },
-  { title: 'Offers & Coupons', desc: 'Launch targeted offers and coupon campaigns without spreadsheet work.', icon: Tag, tone: 'rose' },
-  { title: 'Online Orders', desc: 'Bring online and store orders into a single operational view.', icon: ShoppingCart, tone: 'violet' },
-  { title: 'Business Reports', desc: 'Turn sales, profit, products, and branches into clear decisions.', icon: FileBarChart, tone: 'blue' },
-  { title: 'Multi-Branch Management', desc: 'Scale across locations with shared visibility and tenant-safe data.', icon: Building2, tone: 'teal' }
-];
-
-const modules = [
-  ['Sales & POS', Receipt], ['Purchase', ClipboardList], ['Inventory', Box], ['Products', Package],
-  ['Brands', Tag], ['Customers', Users], ['Suppliers', Truck], ['Offers', Sparkles],
-  ['Coupons', Percent], ['Delivery', Truck], ['Payments', CreditCard], ['Wallet', Wallet],
-  ['Reports', FileBarChart], ['Analytics', LineChart], ['Branches', Store], ['Users', ShieldCheck],
-  ['Accounts', Database]
-];
-
-const trustItems = [
-  ['Retail Stores', Store], ['Supermarkets', ShoppingBag], ['Grocery Businesses', Package],
-  ['Multi-Branch Retail', Building2], ['Growing Businesses', Zap]
-];
-
-const faqItems = [
-  ['What is NM MART ULTRA?', 'NM MART ULTRA is an enterprise retail ERP that connects billing, inventory, purchases, customers, orders, and reports in one workspace.'],
-  ['Can I manage inventory and billing together?', 'Yes. POS billing, stock movement, purchase costs, and product data are designed to stay connected.'],
-  ['Does it support multiple branches?', 'Yes. Multi-branch operations can be managed with company-aware access and consolidated visibility.'],
-  ['Can I manage customers?', 'You can manage profiles, purchase history, offers, coupons, loyalty, and customer insights.'],
-  ['Can I create offers and coupons?', 'Yes. Offers and coupons have dedicated management flows so campaigns stay easy to control.'],
-  ['Can I view sales reports?', 'Yes. Sales, purchase, inventory, product, customer, profit, and branch reporting are part of the platform.'],
-  ['Is there a free trial?', 'Start with a guided conversation and we will recommend the right setup for your business.'],
-  ['Can I request a demo?', 'Yes. Use the Request Demo button or contact us at 82828 27240.']
-];
-
-function SectionHeading({ eyebrow, title, description, light = false }) {
-  return (
-    <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={reveal} className="mx-auto mb-14 max-w-2xl text-center">
-      {eyebrow && <p className={`mb-3 text-xs font-black uppercase tracking-[0.22em] ${light ? 'text-emerald-300' : 'text-indigo-600'}`}>{eyebrow}</p>}
-      <h2 className={`text-3xl font-black tracking-tight sm:text-4xl ${light ? 'text-white' : 'text-slate-950'}`}>{title}</h2>
-      {description && <p className={`mt-4 text-base leading-7 ${light ? 'text-slate-300' : 'text-slate-600'}`}>{description}</p>}
-    </motion.div>
-  );
-}
-
-function DashboardPreview() {
-  const metrics = [
-    ['Today\'s Sales', '₹84,260', '+18.4%', BarChart3, 'text-indigo-700', 'bg-indigo-100'],
-    ['Orders', '1,284', '+12.8%', Receipt, 'text-sky-700', 'bg-sky-100'],
-    ['Stock Health', '94.6%', 'Healthy', Box, 'text-emerald-700', 'bg-emerald-100'],
-    ['Customers', '8,492', '+9.2%', Users, 'text-amber-700', 'bg-amber-100']
-  ];
-  return (
-    <div className="relative mx-auto w-full max-w-[610px]">
-      <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white shadow-[0_28px_90px_rgba(49,46,129,0.2)]">
-        <div className="flex items-center justify-between bg-slate-950 px-5 py-3 text-white">
-          <div className="flex items-center gap-2 text-xs font-black tracking-tight"><span className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-emerald-400"><ShoppingBag size={13} /></span> NM MART <span className="text-emerald-400">ULTRA</span></div>
-          <div className="hidden gap-4 text-[9px] font-semibold text-slate-400 sm:flex"><span className="text-white">Dashboard</span><span>Sales</span><span>Inventory</span><span>Reports</span></div>
-          <div className="flex gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-rose-400" /><i className="h-2.5 w-2.5 rounded-full bg-amber-400" /><i className="h-2.5 w-2.5 rounded-full bg-emerald-400" /></div>
-        </div>
-        <div className="bg-gradient-to-br from-indigo-50 via-white to-emerald-50 p-4 sm:p-6">
-          <div className="mb-4 flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Live command center</p><h3 className="mt-1 text-lg font-black text-slate-950">Good morning, retail team</h3></div><span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[9px] font-black text-emerald-700"><i className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> SYNCED</span></div>
-          <div className="grid grid-cols-2 gap-3">
-            {metrics.map(([label, value, change, Icon, color, bg]) => <div key={label} className="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm"><div className={`mb-2 flex h-7 w-7 items-center justify-center rounded-lg ${bg}`}><Icon size={14} className={color} /></div><p className="text-[10px] font-bold text-slate-500">{label}</p><p className="mt-0.5 text-lg font-black text-slate-950">{value}</p><p className="text-[9px] font-black text-emerald-600">{change}</p></div>)}
-          </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-[1.25fr_0.75fr]">
-            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><div className="mb-3 flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Weekly revenue</p><p className="text-sm font-black text-slate-900">₹3.42L <span className="text-[9px] text-emerald-600">+24.8%</span></p></div><LineChart size={16} className="text-indigo-500" /></div><div className="flex h-20 items-end gap-1.5">{[30,44,38,60,52,72,58,82,68,92,78,100].map((height, index) => <div key={index} className="flex-1 rounded-t bg-gradient-to-t from-indigo-600 to-emerald-400" style={{ height: `${height}%` }} />)}</div><div className="mt-2 flex justify-between text-[8px] font-bold text-slate-400"><span>Mon</span><span>Wed</span><span>Fri</span><span>Sun</span></div></div>
-            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fast movers</p><div className="mt-3 space-y-3">{[['Milk 1L', '86 sold'], ['Atta 5kg', '64 sold'], ['Rice 10kg', '51 sold']].map(([name, value], index) => <div key={name} className="flex items-center gap-2"><span className={`flex h-6 w-6 items-center justify-center rounded-md text-[9px] font-black ${index === 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{index + 1}</span><div className="min-w-0"><p className="truncate text-[10px] font-black text-slate-700">{name}</p><p className="text-[9px] font-bold text-emerald-600">{value}</p></div></div>)}</div></div>
-          </div>
-        </div>
-      </motion.div>
-      <div className="absolute -left-6 top-24 hidden w-40 rounded-2xl border border-white bg-white/95 p-3 shadow-xl sm:block"><div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100"><CreditCard size={13} className="text-emerald-700" /></span><div><p className="text-[9px] font-black text-slate-900">Payment received</p><p className="text-[9px] font-bold text-emerald-600">₹2,480 · just now</p></div></div></div>
-      <div className="absolute -right-5 bottom-16 hidden w-44 rounded-2xl border border-white bg-white/95 p-3 shadow-xl sm:block"><div className="flex items-center gap-2"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100"><Bell size={13} className="text-amber-700" /></span><div><p className="text-[9px] font-black text-slate-900">Low stock alert</p><p className="text-[9px] font-bold text-amber-700">Sugar 1kg · 8 left</p></div></div></div>
-    </div>
-  );
-}
-
-function FeatureCard({ feature, index }) {
-  const Icon = feature.icon;
-  const tone = { indigo: 'bg-indigo-100 text-indigo-700', emerald: 'bg-emerald-100 text-emerald-700', amber: 'bg-amber-100 text-amber-700', sky: 'bg-sky-100 text-sky-700', rose: 'bg-rose-100 text-rose-700', violet: 'bg-violet-100 text-violet-700', blue: 'bg-blue-100 text-blue-700', teal: 'bg-teal-100 text-teal-700' }[feature.tone];
-  return <motion.article initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.2 }} variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { delay: index * 0.04 } } }} whileHover={{ y: -5 }} className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100/50"><div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${tone}`}><Icon size={22} /></div><h3 className="text-lg font-black text-slate-950">{feature.title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{feature.desc}</p><ArrowRight size={17} className="mt-5 text-slate-300 transition-all group-hover:translate-x-1 group-hover:text-indigo-600" /></motion.article>;
-}
-
-function DataPanel({ type }) {
-  if (type === 'pos') return <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl"><div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><ScanBarcode size={18} className="text-indigo-600" /><span className="text-sm font-black">Quick billing</span></div><span className="rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700">REGISTER 04</span></div><div className="mb-3 flex gap-2"><div className="flex-1 rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-400">Search product or scan barcode</div><button className="rounded-xl bg-indigo-700 px-3 text-white"><ScanBarcode size={15} /></button></div>{[['Milk 1L', '₹64'], ['Atta 5kg', '₹286'], ['Rice 10kg', '₹624']].map(([name, price]) => <div key={name} className="flex items-center justify-between border-b border-slate-100 py-3 text-sm"><span className="font-bold text-slate-700">{name}</span><span className="font-black text-slate-950">{price}</span></div>)}<div className="mt-4 flex items-center justify-between rounded-xl bg-indigo-50 p-3"><span className="text-xs font-bold text-slate-600">Total incl. GST</span><span className="text-xl font-black text-indigo-700">₹974</span></div></div>;
-  return <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xl"><div className="mb-4 flex items-center justify-between"><div><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Stock valuation</p><p className="mt-1 text-2xl font-black text-slate-950">₹18.64L</p></div><span className="rounded-xl bg-emerald-100 p-2 text-emerald-700"><Box size={18} /></span></div><div className="space-y-3">{[['Fast-moving', '68%', 'bg-emerald-500'], ['Healthy stock', '24%', 'bg-indigo-500'], ['Low stock', '8%', 'bg-amber-500']].map(([label, value, bar]) => <div key={label}><div className="mb-1 flex justify-between text-[10px] font-bold text-slate-500"><span>{label}</span><span>{value}</span></div><div className="h-2 rounded-full bg-slate-100"><div className={`h-2 rounded-full ${bar}`} style={{ width: value }} /></div></div>)}</div><div className="mt-5 rounded-2xl bg-amber-50 p-3"><div className="flex items-center gap-2 text-xs font-black text-amber-800"><Bell size={14} /> 12 items need attention</div><p className="mt-1 text-[10px] font-semibold text-amber-700">Reorder before the next sales peak.</p></div></div>;
-}
-
 export default function LandingPage() {
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [openFaq, setOpenFaq] = useState(null);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 16);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  const scrollTo = (id) => {
-    setMobileOpen(false);
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const nav = [['Features', 'features'], ['Modules', 'modules'], ['Solutions', 'solutions'], ['Pricing', 'pricing'], ['About', 'about'], ['Contact', 'contact']];
-  return <div className="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 selection:bg-indigo-700 selection:text-white">
-    <style>{`@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; } }`}</style>
-    <header className={`fixed inset-x-0 top-0 z-50 border-b transition-all ${scrolled ? 'border-slate-200/80 bg-white/85 shadow-sm backdrop-blur-xl' : 'border-transparent bg-white/60 backdrop-blur-md'}`}>
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 lg:px-8"><Link to="/" className="flex items-center gap-2.5"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-700 to-emerald-500 text-white shadow-lg shadow-indigo-300/30"><ShoppingBag size={18} /></span><span className="text-base font-black tracking-tight text-slate-950">NM MART <span className="text-emerald-600">ULTRA</span></span></Link><nav className="hidden items-center gap-7 lg:flex">{nav.map(([label, id]) => <button key={label} onClick={() => scrollTo(id)} className="text-xs font-bold text-slate-600 transition-colors hover:text-indigo-700">{label}</button>)}</nav><div className="hidden items-center gap-3 lg:flex"><Link to="/nm-mart" className="px-3 py-2 text-xs font-bold text-slate-700 hover:text-indigo-700">Login</Link><a href={whatsappLink} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50">Request Demo</a><a href={whatsappLink} className="rounded-xl bg-indigo-700 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-indigo-300/30 transition hover:bg-indigo-800">Start Free Trial</a></div><button onClick={() => setMobileOpen(!mobileOpen)} className="rounded-xl p-2 text-slate-700 lg:hidden" aria-label="Toggle navigation">{mobileOpen ? <X size={22} /> : <Menu size={22} />}</button></div>
-      <AnimatePresence>{mobileOpen && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="border-t border-slate-200 bg-white lg:hidden"><div className="flex flex-col gap-4 px-5 py-5">{nav.map(([label, id]) => <button key={label} onClick={() => scrollTo(id)} className="text-left text-sm font-bold text-slate-700">{label}</button>)}<Link to="/nm-mart" className="text-sm font-bold text-indigo-700">Login</Link><a href={whatsappLink} className="rounded-xl bg-indigo-700 px-4 py-3 text-center text-sm font-black text-white">Start Free Trial</a></div></motion.div>}</AnimatePresence>
-    </header>
-
-    <main className="relative pt-16">
-      <section className="relative overflow-hidden"><div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_72%_12%,rgba(99,102,241,0.17),transparent_30%),radial-gradient(circle_at_88%_55%,rgba(16,185,129,0.1),transparent_28%)]" /><div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(15,23,42,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.045)_1px,transparent_1px)] [background-size:44px_44px]" /><div className="relative mx-auto grid max-w-7xl items-center gap-12 px-5 py-16 lg:grid-cols-[0.86fr_1.14fr] lg:px-8 lg:py-24"><motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.08 } } }} className="max-w-xl"><motion.div variants={reveal} className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700"><Sparkles size={13} /> Enterprise Retail ERP</motion.div><motion.h1 variants={reveal} className="text-5xl font-black leading-[0.98] tracking-[-0.04em] text-slate-950 sm:text-6xl lg:text-[5.25rem]">Powering Modern<br /><span className="bg-gradient-to-r from-indigo-700 via-blue-600 to-teal-500 bg-clip-text text-transparent">Retail &amp; Supermarket</span><br />Businesses</motion.h1><motion.p variants={reveal} className="mt-7 max-w-lg text-base leading-7 text-slate-600 sm:text-lg">Complete retail management, billing, inventory control, customer marketing, and analytics in one calm, connected workspace.</motion.p><motion.div variants={reveal} className="mt-8 flex flex-wrap gap-3"><a href={whatsappLink} className="group inline-flex items-center gap-2 rounded-2xl bg-indigo-700 px-6 py-4 text-sm font-black text-white shadow-xl shadow-indigo-300/30 transition hover:-translate-y-0.5 hover:bg-indigo-800">Start Free Trial <ArrowRight size={17} className="transition group-hover:translate-x-1" /></a><button onClick={() => scrollTo('demo')} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-4 text-sm font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50"><Play size={16} className="text-indigo-600" /> Watch Demo</button></motion.div><motion.div variants={reveal} className="mt-6 flex items-center gap-2 text-xs font-bold text-slate-500"><CheckCircle2 size={15} className="text-emerald-500" /> Built for serious retail operations</motion.div></motion.div><motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, delay: 0.18 }}><DashboardPreview /></motion.div></div></section>
-
-      <section className="border-y border-slate-200 bg-white py-8"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-5 lg:px-8"><p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Built for modern retail businesses</p>{trustItems.map(([label, Icon]) => <div key={label} className="flex items-center gap-2 text-xs font-bold text-slate-600"><Icon size={16} className="text-indigo-500" /> {label}</div>)}</div></section>
-
-      <section id="features" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><SectionHeading eyebrow="Core capabilities" title="Everything Your Retail Business Needs" description="One connected platform to manage your entire retail operation." /><div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{features.map((feature, index) => <FeatureCard key={feature.title} feature={feature} index={index} />)}</div></section>
-
-      <section id="modules" className="bg-slate-950 px-5 py-24 text-white lg:px-8"><div className="mx-auto max-w-7xl"><SectionHeading light eyebrow="Connected operations" title="One ERP. Every Retail Operation." description="Bring every moving part of your business into one reliable command center." /><div className="mx-auto grid max-w-5xl items-center gap-10 lg:grid-cols-[0.75fr_1fr_0.75fr]"><div className="grid grid-cols-2 gap-3">{modules.slice(0, 6).map(([label, Icon]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-center text-xs font-bold text-slate-300"><Icon size={17} className="mx-auto mb-2 text-emerald-400" />{label}</div>)}</div><div className="relative flex aspect-square items-center justify-center rounded-full border border-indigo-400/30 bg-gradient-to-br from-indigo-600/30 via-slate-900 to-emerald-500/20 shadow-[0_0_100px_rgba(99,102,241,0.18)]"><div className="absolute inset-8 rounded-full border border-dashed border-white/15" /><div className="relative z-10 text-center"><span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-emerald-400 shadow-xl"><LayoutDashboard size={30} /></span><p className="text-lg font-black">NM MART</p><p className="font-black text-emerald-400">ULTRA PLATFORM</p><p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">One source of truth</p></div></div><div className="grid grid-cols-2 gap-3">{modules.slice(6).map(([label, Icon]) => <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-center text-xs font-bold text-slate-300"><Icon size={17} className="mx-auto mb-2 text-indigo-300" />{label}</div>)}</div></div></div></section>
-
-      <section id="solutions" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><div className="grid items-center gap-12 lg:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Decision intelligence</p><h2 className="max-w-lg text-4xl font-black tracking-tight text-slate-950">Know Your Business. Make Better Decisions.</h2><p className="mt-5 max-w-lg text-base leading-7 text-slate-600">NM MART ULTRA gives your team real-time visibility into sales, revenue, stock, customers, orders, product performance, and branches.</p><div className="mt-7 grid grid-cols-2 gap-3">{['Sales & revenue', 'Stock health', 'Customer growth', 'Branch performance'].map((item) => <div key={item} className="flex items-center gap-2 rounded-xl bg-white p-3 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200"><Check size={14} className="text-emerald-600" />{item}</div>)}</div></div><div className="rounded-[28px] border border-slate-200 bg-slate-950 p-4 shadow-2xl"><div className="rounded-2xl bg-white p-5"><div className="flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Demo data · Revenue</p><p className="mt-1 text-3xl font-black text-slate-950">₹12.8L</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black text-emerald-700">+18.6%</span></div><div className="mt-6 flex h-40 items-end gap-2 border-b border-slate-100 pb-1">{[35,48,42,65,58,74,68,88,76,96,84,100].map((height, index) => <div key={index} className="flex-1 rounded-t-md bg-gradient-to-t from-indigo-600 to-teal-400" style={{ height: `${height}%` }} />)}</div><div className="mt-4 grid grid-cols-3 gap-3">{[['Top products', 'Milk 1L'], ['Orders', '4,829'], ['Customers', '+12.4%']].map(([label, value]) => <div key={label} className="rounded-xl bg-slate-50 p-3"><p className="text-[9px] font-bold text-slate-400">{label}</p><p className="mt-1 text-xs font-black text-slate-800">{value}</p></div>)}</div></div></div></div></section>
-
-      <section className="bg-white px-5 py-24 lg:px-8"><div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2"><div className="order-2 lg:order-1"><DataPanel type="inventory" /></div><div className="order-1 lg:order-2"><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Inventory control</p><h2 className="text-4xl font-black tracking-tight text-slate-950">Never Lose Track of Your Stock</h2><p className="mt-5 text-base leading-7 text-slate-600">From fast movers to purchase history, keep your inventory healthy before it becomes a sales problem.</p><div className="mt-7 flex flex-wrap gap-2">{['Current stock', 'Low-stock alerts', 'Fast-moving products', 'Stock valuation'].map((item) => <span key={item} className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800">{item}</span>)}</div></div></div></section>
-
-      <section id="demo" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><div className="grid items-center gap-12 lg:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Point of sale</p><h2 className="text-4xl font-black tracking-tight text-slate-950">Billing That Keeps Your Store Moving</h2><p className="mt-5 text-base leading-7 text-slate-600">Search products, scan barcodes, apply discount and tax, take payment, and print a bill without slowing down the queue.</p><div className="mt-7 flex flex-wrap gap-2">{['Product search', 'Barcode scanning', 'Discount & tax', 'Customer', 'Payment', 'Print bill'].map((item) => <span key={item} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800">{item}</span>)}</div></div><DataPanel type="pos" /></div></section>
-
-      <section className="bg-indigo-50/70 px-5 py-24 lg:px-8"><div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-indigo-600">Customer intelligence</p><h2 className="text-4xl font-black tracking-tight text-slate-950">Turn Every Purchase Into a Relationship</h2><p className="mt-5 text-base leading-7 text-slate-600">Give your team the context to serve customers better and create more reasons for them to return.</p></div><div className="grid grid-cols-2 gap-4">{[['Profiles', Users], ['Purchase history', ClipboardList], ['Offers & coupons', Tag], ['Loyalty & insights', Sparkles]].map(([label, Icon]) => <div key={label} className="rounded-3xl border border-white bg-white p-5 shadow-sm"><Icon size={22} className="text-indigo-600" /><p className="mt-5 text-sm font-black text-slate-900">{label}</p><p className="mt-1 text-xs leading-5 text-slate-500">Connected to every sale and interaction.</p></div>)}</div></div></section>
-
-      <section className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><SectionHeading eyebrow="Clear reporting" title="Your Business, Clearly Explained." description="Daily sales, monthly sales, profit, purchase, inventory, customer, product, and branch reports in one place." /><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{['Daily Sales', 'Monthly Sales', 'Profit', 'Purchase', 'Inventory', 'Customer', 'Product', 'Branch'].map((label, index) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-4 flex items-center justify-between"><p className="text-xs font-black text-slate-700">{label}</p><BarChart3 size={15} className="text-indigo-500" /></div><div className="flex h-10 items-end gap-1">{[35 + index * 3, 54, 42, 70, 60, 82].map((height, i) => <div key={i} className="flex-1 rounded-t bg-indigo-100" style={{ height: `${Math.min(height, 90)}%` }} />)}</div><p className="mt-3 text-[10px] font-bold text-slate-400">Updated just now · Demo view</p></div>)}</div></section>
-
-      <section id="about" className="bg-slate-100/70 px-5 py-24 lg:px-8"><SectionHeading eyebrow="Simple rollout" title="From Setup to Smarter Growth" description="A calm operating rhythm for teams at every stage." /><div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">{[['01', 'Set Up Your Store', 'Configure products, users, pricing, and branches.'], ['02', 'Manage Your Business', 'Run billing, inventory, purchases, customers, and orders.'], ['03', 'Grow With Better Insights', 'Use live reports to improve every decision.']].map(([number, title, desc]) => <div key={number} className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"><span className="text-4xl font-black text-indigo-200">{number}</span><h3 className="mt-7 text-lg font-black text-slate-950">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-600">{desc}</p></div>)}</div></section>
-
-      <section id="pricing" className="mx-auto max-w-7xl px-5 py-24 lg:px-8"><SectionHeading eyebrow="Flexible growth" title="Simple Pricing for Growing Retail Businesses" description="Start with the setup that matches your operation. Contact sales for a tailored plan." /><div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">{[['Free Trial', 'Explore the platform', 'Get started with a guided setup.'], ['Professional', 'Contact Sales', 'For growing stores and teams.'], ['Enterprise', 'Contact Sales', 'For multi-branch operations and custom needs.']].map(([name, price, desc], index) => <div key={name} className={`rounded-3xl border p-7 ${index === 2 ? 'border-indigo-500 bg-slate-950 text-white shadow-xl shadow-indigo-200' : 'border-slate-200 bg-white'}`}><p className={`text-xs font-black uppercase tracking-widest ${index === 2 ? 'text-emerald-300' : 'text-indigo-600'}`}>{name}</p><h3 className="mt-5 text-2xl font-black">{price}</h3><p className={`mt-2 text-sm ${index === 2 ? 'text-slate-300' : 'text-slate-600'}`}>{desc}</p><div className="my-7 space-y-3">{['Billing & POS', 'Inventory control', 'Reports & analytics', 'Customer management'].map((item) => <p key={item} className={`flex items-center gap-2 text-xs font-bold ${index === 2 ? 'text-slate-300' : 'text-slate-600'}`}><Check size={14} className="text-emerald-500" />{item}</p>)}</div><a href={whatsappLink} className={`block rounded-xl px-4 py-3 text-center text-xs font-black ${index === 2 ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300' : 'bg-indigo-700 text-white hover:bg-indigo-800'}`}>{name === 'Free Trial' ? 'Start Free Trial' : 'Contact Sales'}</a></div>)}</div></section>
-
-      <section className="bg-white px-5 py-24 lg:px-8"><SectionHeading eyebrow="Answers" title="Frequently Asked Questions" /><div className="mx-auto max-w-3xl divide-y divide-slate-200 rounded-3xl border border-slate-200 bg-white px-6">{faqItems.map(([question, answer], index) => <div key={question}><button onClick={() => setOpenFaq(openFaq === index ? null : index)} className="flex w-full items-center justify-between gap-4 py-5 text-left text-sm font-black text-slate-800"><span>{question}</span><ChevronDown size={17} className={`flex-shrink-0 text-indigo-600 transition-transform ${openFaq === index ? 'rotate-180' : ''}`} /></button><AnimatePresence>{openFaq === index && <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="pb-5 text-sm leading-6 text-slate-600">{answer}</motion.p>}</AnimatePresence></div>)}</div></section>
-
-      <section id="contact" className="px-5 pb-24 lg:px-8"><div className="relative mx-auto max-w-7xl overflow-hidden rounded-[32px] bg-gradient-to-br from-slate-950 via-indigo-950 to-indigo-800 px-6 py-16 text-center shadow-2xl shadow-indigo-200 sm:px-12"><div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" /><div className="relative"><p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-emerald-300">Ready when you are</p><h2 className="mx-auto max-w-2xl text-3xl font-black tracking-tight text-white sm:text-5xl">Ready to Modernize Your Retail Business?</h2><p className="mx-auto mt-5 max-w-xl text-base leading-7 text-slate-300">Bring billing, inventory, customers, orders, and analytics together with NM MART ULTRA.</p><div className="mt-8 flex flex-wrap justify-center gap-3"><a href={whatsappLink} className="rounded-2xl bg-emerald-400 px-6 py-4 text-sm font-black text-slate-950 transition hover:bg-emerald-300">Start Free Trial <ArrowRight size={16} className="ml-1 inline" /></a><a href={whatsappLink} className="rounded-2xl border border-white/20 bg-white/10 px-6 py-4 text-sm font-black text-white transition hover:bg-white/15">Request a Demo</a></div></div></div></section>
+  return (
+    <main className="relative h-[100svh] w-full overflow-hidden bg-[#fbfaf6]">
+      <img
+        src="/images/nm-mart-home-poster.png"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover object-center landscape:object-[center_60%]"
+      />
+      <h1 className="sr-only">NM MART retail management</h1>
+      <a
+        href="tel:+918282827240"
+        aria-label="Call NM MART at 82828 27240"
+        className="absolute left-1/2 top-[52.1%] h-[6.3%] w-[min(64vw,30svh)] -translate-x-1/2 rounded-full focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[#d9a43c] landscape:top-[27%] landscape:h-[26%] landscape:w-[54vw]"
+      />
+      <Link
+        to="/login"
+        aria-label="Enter Admin Panel"
+        className="absolute left-1/2 top-[61%] flex h-[6.8%] w-[min(75vw,34svh)] -translate-x-1/2 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[#d9a43c] landscape:top-[57%] landscape:h-[26%] landscape:w-[60vw]"
+      />
     </main>
-
-    <footer className="bg-slate-950 px-5 py-12 text-slate-400 lg:px-8"><div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]"><div><div className="flex items-center gap-2 text-white"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-emerald-400"><ShoppingBag size={17} /></span><span className="font-black">NM MART <span className="text-emerald-400">ULTRA</span></span></div><p className="mt-5 max-w-xs text-sm leading-6">Powering Modern Retail &amp; Supermarket Businesses.</p><a href={`tel:${contactNumber}`} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-white hover:text-emerald-300"><Phone size={15} /> {displayPhone}</a></div>{[['Product', 'Features', 'Modules', 'Pricing', 'Solutions'], ['Company', 'About', 'Contact', 'Request Demo', 'Support'], ['Resources', 'Documentation', 'Help Center', 'FAQs', 'Privacy Policy']].map(([title, ...items]) => <div key={title}><h3 className="text-xs font-black uppercase tracking-widest text-white">{title}</h3><div className="mt-5 space-y-3">{items.map((item) => <a key={item} href={item === 'Contact' || item === 'Request Demo' ? whatsappLink : '#'} className="block text-sm transition hover:text-white">{item}</a>)}</div></div>)}</div><div className="mx-auto mt-10 flex max-w-7xl flex-col gap-3 border-t border-white/10 pt-6 text-xs font-semibold sm:flex-row sm:items-center sm:justify-between"><span>© 2026 NM MART ULTRA. All rights reserved.</span><span className="flex items-center gap-2"><LockKeyhole size={13} /> Enterprise-ready retail operations</span></div></footer>
-  </div>;
+  );
 }

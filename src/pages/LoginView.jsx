@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   ShoppingBag, Mail, Lock, Eye, EyeOff, AlertCircle,
-  Loader2, RefreshCw, CheckCircle2
+  Loader2, RefreshCw, CheckCircle2, Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   validateEmail, secureStorage, LoginRateLimiter, sanitizeText
 } from '../utils/security';
@@ -114,7 +114,58 @@ export default function LoginView({ isTenantMode = false }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex flex-col items-center justify-center p-6 font-sans antialiased">
+    <div className="login-shell flex min-h-svh flex-col bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-4 pb-4 font-sans antialiased sm:px-6">
+      <style>{`
+        @media (max-width: 700px) {
+          .login-shell { padding-bottom: 8px; }
+          .login-header { height: 48px; }
+          .login-main { padding-block: 4px; }
+          .login-card { padding: 16px; }
+          .login-brand-icon { width: 44px; height: 44px; margin-bottom: 8px; }
+          .login-brand-icon svg { width: 22px; height: 22px; }
+          .login-subtitle { margin-bottom: 12px; }
+          .login-form { gap: 12px; }
+          .login-form > :not([hidden]) ~ :not([hidden]) { margin-top: 12px; }
+          .login-field { gap: 4px; }
+          .login-field > :not([hidden]) ~ :not([hidden]) { margin-top: 4px; }
+          .login-input { height: 44px; }
+          .login-submit { height: 44px; }
+          .login-footer { margin-top: 16px; gap: 8px; }
+          .login-footer-links { gap: 8px; }
+          .login-footer-links button { white-space: nowrap; font-size: 8px; letter-spacing: 0.08em; }
+        }
+        @media (max-height: 500px) and (max-width: 900px) {
+          .login-shell { height: 100svh; min-height: 0; overflow: hidden; padding-bottom: 4px; }
+          .login-header { height: 40px; }
+          .login-main { min-height: 0; padding-block: 2px; }
+          .login-card { padding: 8px 14px; border-radius: 20px; }
+          .login-brand-icon { width: 30px; height: 30px; margin-bottom: 2px; border-radius: 9px; }
+          .login-brand-icon svg { width: 16px; height: 16px; }
+          .login-heading { margin-bottom: 0; font-size: 18px; line-height: 22px; }
+          .login-description, .login-subtitle, .login-footer { display: none; }
+          .login-form { gap: 6px; }
+          .login-form > :not([hidden]) ~ :not([hidden]) { margin-top: 6px; }
+          .login-field { gap: 0; }
+          .login-field > :not([hidden]) ~ :not([hidden]) { margin-top: 1px; }
+          .login-label { font-size: 9px; line-height: 12px; }
+          .login-input { height: 34px; }
+          .login-options { padding-top: 0; }
+          .login-options label > span:last-child,
+          .login-options > button { font-size: 9px; }
+          .login-submit { height: 34px; }
+        }
+      `}</style>
+      <header className="login-header flex h-14 shrink-0 items-center">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3.5 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+        >
+          <Home size={15} />
+          Home
+        </Link>
+      </header>
+
+      <main className="login-main flex min-h-0 flex-1 items-center justify-center py-3">
       {/* Session Expiry Warning */}
       <AnimatePresence>
         {sessionExpiryWarning && (
@@ -151,21 +202,22 @@ export default function LoginView({ isTenantMode = false }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="w-full max-w-md"
+        className="w-full max-w-[400px]"
       >
-        <div className="bg-white rounded-3xl shadow-card border border-neutral-200 p-8 sm:p-10 flex flex-col items-center">
+
+        <div className="login-card flex flex-col items-center rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_16px_44px_rgba(30,64,175,0.10)] sm:p-8">
           {/* Logo Section */}
-          <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-card shadow-blue-200 mb-6">
-            <ShoppingBag size={32} className="text-white" />
+          <div className="login-brand-icon mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-violet-600 shadow-lg shadow-blue-200/70">
+            <ShoppingBag size={27} className="text-white" />
           </div>
 
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2 uppercase text-center">
+          <h1 className="login-heading mb-1.5 text-2xl font-black tracking-tight text-slate-900 text-center">
             {BRAND_NAME}
           </h1>
-          <p className="text-sm font-bold text-slate-600 text-center mb-1">
+          <p className="login-description text-xs font-bold text-slate-600 text-center sm:text-sm">
             Retail ERP Management System
           </p>
-          <p className="text-xs font-semibold text-slate-400 text-center mb-8">
+          <p className="login-subtitle mb-5 mt-1 text-[11px] font-medium text-slate-400 text-center">
             Secure access to your business dashboard
           </p>
 
@@ -183,9 +235,9 @@ export default function LoginView({ isTenantMode = false }) {
             )}
           </AnimatePresence>
 
-          <form onSubmit={handleLogin} className="w-full space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs font-black text-slate-600 uppercase tracking-widest ml-1">
+          <form onSubmit={handleLogin} className="login-form w-full space-y-4">
+            <div className="login-field space-y-2">
+              <label className="login-label text-xs font-black text-slate-600 uppercase tracking-widest ml-1">
                 Email Address
               </label>
               <div className="relative">
@@ -198,13 +250,13 @@ export default function LoginView({ isTenantMode = false }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="w-full h-14 bg-white border border-slate-200 rounded-2xl pl-12 pr-4 text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-300"
+                  className="login-input h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-sm font-semibold text-slate-900 outline-none transition-all placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-black text-slate-600 uppercase tracking-widest ml-1">
+            <div className="login-field space-y-2">
+              <label className="login-label text-xs font-black text-slate-600 uppercase tracking-widest ml-1">
                 Password
               </label>
               <div className="relative">
@@ -217,7 +269,7 @@ export default function LoginView({ isTenantMode = false }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full h-14 bg-white border border-slate-200 rounded-2xl pl-12 pr-12 text-sm font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-slate-300"
+                  className="login-input h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 text-sm font-semibold text-slate-900 outline-none transition-all placeholder:text-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                 />
                 <button
                   type="button"
@@ -229,7 +281,7 @@ export default function LoginView({ isTenantMode = false }) {
               </div>
             </div>
 
-            <div className="flex items-center justify-between px-1 pt-1">
+            <div className="login-options flex items-center justify-between px-1 pt-1">
               <label
                 htmlFor="remember-me"
                 className="flex items-center gap-2.5 cursor-pointer select-none group"
@@ -262,7 +314,7 @@ export default function LoginView({ isTenantMode = false }) {
               type="submit"
               onClick={() => loginUiDebug('button clicked')}
               disabled={isProcessing}
-              className="w-full h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black text-sm tracking-[0.15em] rounded-2xl shadow-card shadow-blue-100 hover:opacity-95 hover:translate-y-[-1px] active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-3"
+              className="login-submit flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 text-sm font-black tracking-[0.12em] text-white shadow-lg shadow-blue-200/60 transition-all hover:-translate-y-0.5 hover:opacity-95 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isProcessing ? (
                 <Loader2 size={20} className="animate-spin" />
@@ -273,11 +325,11 @@ export default function LoginView({ isTenantMode = false }) {
           </form>
 
           {/* Footer inside card */}
-          <div className="mt-10 text-center space-y-4">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+          <div className="login-footer mt-6 space-y-3 text-center">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">
               © 2026 {BRAND_NAME} RETAIL ERP
             </p>
-            <div className="flex items-center justify-center gap-6">
+            <div className="login-footer-links flex items-center justify-center gap-4 sm:gap-6">
               <button
                 type="button"
                 onClick={() => toast.info('Privacy Policy coming soon')}
@@ -299,6 +351,7 @@ export default function LoginView({ isTenantMode = false }) {
           </div>
         </div>
       </motion.div>
+      </main>
     </div>
   );
 }
