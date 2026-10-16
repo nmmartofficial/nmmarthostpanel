@@ -1827,7 +1827,21 @@ export default function App({ company, isTenantMode, companySlug }) {
                         {group.items.map(item => (
                           <button
                             key={item.id}
-                            onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
+                            onClick={() => {
+                              if (item.id === 'Logout') {
+                                if (window.confirm('Are you sure you want to Logout?')) handleLogout();
+                                setShowMobileMenu(false);
+                              } else if (item.id === 'DatabaseBackup') {
+                                handleERPAction(DB_SCHEMA.PRODUCTS.table, ACTION_TYPES.MAINTENANCE_EXPORT, { fileName: 'Full_System_Backup' });
+                                setShowMobileMenu(false);
+                              } else if (item.id === 'ClearCache') {
+                                handleERPAction(null, ACTION_TYPES.CLEAR_CACHE);
+                                setShowMobileMenu(false);
+                              } else {
+                                setActiveTab(item.id);
+                                setShowMobileMenu(false);
+                              }
+                            }}
                             className={cn(
                               "w-full flex items-center gap-3 pl-14 pr-5 py-3 text-left text-sm",
                               activeTab === item.id ? "text-blue-700 font-bold bg-blue-50" : "text-slate-800"
@@ -1838,7 +1852,10 @@ export default function App({ company, isTenantMode, companySlug }) {
                         ))}
                         {group.key === 'Tools' && (
                           <button
-                            onClick={() => { handleLogout(); setShowMobileMenu(false); }}
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to Logout?')) handleLogout();
+                              setShowMobileMenu(false);
+                            }}
                             className="w-full flex items-center gap-3 pl-14 pr-5 py-3 text-left text-sm text-red-700"
                           >
                             <LogOut size={18} /> Logout
