@@ -572,6 +572,7 @@ export default function App({ company, isTenantMode, companySlug }) {
   });
   const [loading, setLoading] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [mobileExpandedGroup, setMobileExpandedGroup] = useState(null);
   const [darkMode, setDarkMode] = useState(localStorage.getItem('nm_dark_mode') === 'true');
   const [festivals, setFestivals] = useState(() => {
     const saved = localStorage.getItem('nm_festivals');
@@ -1540,14 +1541,15 @@ export default function App({ company, isTenantMode, companySlug }) {
       <div className={cn("h-screen flex flex-col font-sans antialiased transition-colors duration-200 overflow-hidden", darkMode ? "bg-neutral-950" : "bg-neutral-50")}>
       {/* --- Top Navigation Bar --- */}
       <header className={cn("border-b z-[100] shadow-sm select-none flex-shrink-0", darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
-        <div className="max-w-full mx-auto px-4 h-12 flex items-center justify-between">
+        <div className="max-w-full mx-auto px-3 md:px-4 h-14 md:h-12 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Brand Name / Logo */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-md">
                 <ShoppingBag size={16} className="text-white" />
               </div>
-              <h1 className="text-sm font-black text-blue-900 uppercase tracking-tighter hidden sm:block">{BRAND_NAME} ADMIN</h1>
+              <h1 className="text-sm font-black text-blue-900 uppercase tracking-tighter hidden md:block">{BRAND_NAME} ADMIN</h1>
+              <h1 className="md:hidden text-lg font-semibold text-black tracking-tight">{BRAND_NAME}</h1>
             </div>
 
             {/* Home Button */}
@@ -1556,7 +1558,7 @@ export default function App({ company, isTenantMode, companySlug }) {
               className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-tighter hover:bg-blue-700 transition-all shadow-md"
             >
               <Home size={14} />
-              <span className="hidden sm:inline">Home</span>
+              <span className="hidden md:inline">Home</span>
             </button>
 
             {/* Desktop Navigation Menus (Hidden on Mobile) */}
@@ -1708,7 +1710,7 @@ export default function App({ company, isTenantMode, companySlug }) {
               <Menu size={20} />
             </button>
 
-            <div className="flex items-center gap-1 border-r border-slate-200 pr-3 mr-1">
+            <div className="hidden md:flex items-center gap-1 border-r border-slate-200 pr-3 mr-1">
               <button
                 onClick={() => setDarkMode(!darkMode)}
                 className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-all"
@@ -1755,198 +1757,92 @@ export default function App({ company, isTenantMode, companySlug }) {
         </div>
       </header>
 
-      {/* Mobile Menu Drawer/Overlay */}
-      <AnimatePresence>
+      {/* Mobile navigation: inline panel so the page moves down instead of being covered */}
+      <AnimatePresence initial={false}>
         {showMobileMenu && (
-          <>
-            {/* Backdrop to close menu on outside click */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-[999] md:hidden"
-              onClick={() => setShowMobileMenu(false)}
-            />
+          <motion.nav
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="md:hidden flex-shrink-0 overflow-hidden bg-[#e9edf1] border-b border-slate-300 shadow-sm z-40"
+            aria-label="Mobile main navigation"
+          >
+            <div className="max-h-[68vh] overflow-y-auto py-2">
+              <button
+                onClick={() => { setActiveTab('Dashboard'); setShowMobileMenu(false); }}
+                className={cn("w-full flex items-center gap-3 px-5 py-3 text-left text-[17px] font-medium", activeTab === 'Dashboard' ? "text-blue-700" : "text-slate-900")}
+              >
+                <Home size={24} /> Home
+              </button>
 
-            {/* Side Menu Drawer */}
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed left-0 top-0 bottom-0 w-72 bg-white shadow-2xl z-[1000] flex flex-col md:hidden"
-            >
-              {/* Menu Header */}
-              <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-blue-600 to-blue-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-lg">
-                    <ShieldCheck size={24} className="text-blue-700" />
-                  </div>
-                  <div>
-                    <h2 className="text-white font-black text-lg">{BRAND_NAME} ADMIN</h2>
-                    <p className="text-blue-200 text-xs font-bold">Super Admin</p>
-                  </div>
+              {[
+                { key: 'Master', label: 'Master', icon: <Package size={24} />, items: masterItems },
+                { key: 'POS', label: 'Sale Entry', icon: <ShoppingBag size={24} />, direct: 'POS' },
+                { key: 'Purchase', label: 'Purchase', icon: <ShoppingCart size={24} />, direct: 'Purchase' },
+                { key: 'View', label: 'View', icon: <List size={24} />, items: viewItems },
+                { key: 'Report', label: 'Report', icon: <Flag size={24} />, items: reportItemsNav },
+                { key: 'Store', label: 'Store', icon: <ChevronRight size={24} />, items: storeItems },
+                { key: 'Transaction', label: 'Transaction', icon: <RefreshCw size={24} />, direct: 'Transaction' },
+                { key: 'Tools', label: 'Tools', icon: <Wrench size={24} />, items: toolsItems.filter(item => !item.hidden) }
+              ].map(group => (
+                <div key={group.key}>
+                  <button
+                    onClick={() => {
+                      if (group.direct) {
+                        setActiveTab(group.direct);
+                        setShowMobileMenu(false);
+                      } else {
+                        setMobileExpandedGroup(current => current === group.key ? null : group.key);
+                      }
+                    }}
+                    aria-expanded={group.direct ? undefined : mobileExpandedGroup === group.key}
+                    className={cn(
+                      "w-full flex items-center justify-between gap-3 px-5 py-3 text-left text-[17px] font-medium",
+                      (group.direct === activeTab || group.items?.some(item => item.id === activeTab))
+                        ? "text-blue-700"
+                        : "text-slate-900"
+                    )}
+                  >
+                    <span className="flex items-center gap-3">{group.icon}<span>{group.label}</span></span>
+                    {!group.direct && <ChevronDown size={18} className={cn("transition-transform", mobileExpandedGroup === group.key && "rotate-180")} />}
+                  </button>
+                  {group.items && mobileExpandedGroup === group.key && (
+                    <div className="bg-white/70 border-y border-slate-200 py-1">
+                      {group.items.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
+                          className={cn(
+                            "w-full flex items-center gap-3 pl-14 pr-5 py-3 text-left text-sm",
+                            activeTab === item.id ? "text-blue-700 font-bold bg-blue-50" : "text-slate-800"
+                          )}
+                        >
+                          {item.icon}<span>{item.label}</span>
+                        </button>
+                      ))}
+                      {group.key === 'Tools' && (
+                        <button
+                          onClick={() => { handleLogout(); setShowMobileMenu(false); }}
+                          className="w-full flex items-center gap-3 pl-14 pr-5 py-3 text-left text-sm text-red-700"
+                        >
+                          <LogOut size={18} /> Logout
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
+              ))}
+              <div className="border-t border-slate-300 mt-1 pt-1">
                 <button
-                  onClick={() => setShowMobileMenu(false)}
-                  className="p-2 text-white hover:bg-white/20 rounded-md"
+                  onClick={() => { setShowMobileMenu(false); setShowProfileOverlay(true); }}
+                  className="w-full flex items-center gap-3 px-5 py-3 text-left text-[17px] font-medium text-blue-700"
                 >
-                  <X size={20} />
+                  <User size={24} /> {BRAND_NAME}
                 </button>
               </div>
-
-              {/* Menu Items - Scrollable */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                {/* Quick Links */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">QUICK ACTIONS</h3>
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => { setActiveTab('Dashboard'); setShowMobileMenu(false); }}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-sm transition-all"
-                    >
-                      <Home size={18} /> Dashboard
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('POS'); setShowMobileMenu(false); }}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-sm transition-all"
-                    >
-                      <ShoppingCart size={18} /> Sale Entry
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('Purchase'); setShowMobileMenu(false); }}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 text-slate-700 hover:text-blue-700 font-bold text-sm transition-all"
-                    >
-                      <Package size={18} /> Purchase History
-                    </button>
-                  </div>
-                </div>
-
-                {/* Master Menu */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">MASTER</h3>
-                  <div className="space-y-1">
-                    {masterItems.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
-                          activeTab === item.id ? "bg-blue-100 text-blue-700 font-black" : "text-slate-700 hover:bg-slate-100 font-medium"
-                        )}
-                      >
-                        {item.icon} {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Inventory Menu */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">INVENTORY</h3>
-                  <div className="space-y-1">
-                    {inventoryItems.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
-                          activeTab === item.id ? "bg-blue-100 text-blue-700 font-black" : "text-slate-700 hover:bg-slate-100 font-medium"
-                        )}
-                      >
-                        {item.icon} {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* View Menu */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">VIEW</h3>
-                  <div className="space-y-1">
-                    {viewItems.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
-                          activeTab === item.id ? "bg-blue-100 text-blue-700 font-black" : "text-slate-700 hover:bg-slate-100 font-medium"
-                        )}
-                      >
-                        {item.icon} {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Report Menu */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">REPORTS</h3>
-                  <div className="space-y-1">
-                    {reportItemsNav.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
-                          activeTab === item.id ? "bg-blue-100 text-blue-700 font-black" : "text-slate-700 hover:bg-slate-100 font-medium"
-                        )}
-                      >
-                        {item.icon} {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Store Menu */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">STORE</h3>
-                  <div className="space-y-1">
-                    {storeItems.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
-                          activeTab === item.id ? "bg-blue-100 text-blue-700 font-black" : "text-slate-700 hover:bg-slate-100 font-medium"
-                        )}
-                      >
-                        {item.icon} {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tools Menu */}
-                <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 px-2">TOOLS</h3>
-                  <div className="space-y-1">
-                    {toolsItems.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left",
-                          activeTab === item.id ? "bg-blue-100 text-blue-700 font-black" : "text-slate-700 hover:bg-slate-100 font-medium"
-                        )}
-                      >
-                        {item.icon} {item.label}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setShowMobileMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-700 hover:text-red-800 font-bold text-sm transition-all"
-                    >
-                      <LogOut size={18} /> Logout
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </>
+            </div>
+          </motion.nav>
         )}
       </AnimatePresence>
 
@@ -2121,7 +2017,7 @@ export default function App({ company, isTenantMode, companySlug }) {
       </AnimatePresence>
 
       {/* --- Main Dashboard Area --- */}
-      <main className="flex-1 p-3 md:p-4 max-w-full mx-auto w-full flex flex-col overflow-y-auto custom-scrollbar">
+      <main className="flex-1 p-3 md:p-4 max-w-full mx-auto w-full flex flex-col overflow-y-auto custom-scrollbar min-h-0">
         {/* Breadcrumb / Page Title */}
         <div className="mb-4 flex items-center justify-between bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm flex-shrink-0">
           <div className="flex items-center gap-2">
