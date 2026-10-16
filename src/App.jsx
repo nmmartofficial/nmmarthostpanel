@@ -1769,85 +1769,96 @@ export default function App({ company, isTenantMode, companySlug }) {
         </div>
       </header>
 
-      {/* Mobile navigation: inline panel so the page moves down instead of being covered */}
+      {/* Mobile navigation drawer: overlays the page from the left without pushing dashboard content down */}
       <AnimatePresence initial={false}>
         {showMobileMenu && (
-          <motion.nav
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="md:hidden flex-shrink-0 overflow-hidden bg-[#e9edf1] border-b border-slate-300 shadow-sm z-40"
-            aria-label="Mobile main navigation"
-          >
-            <div className="max-h-[62vh] overflow-y-auto py-1">
-              {[
-                { key: 'Master', label: 'Master', icon: <Package size={24} />, items: masterItems },
-                { key: 'POS', label: 'Sale Entry', icon: <ShoppingBag size={24} />, direct: 'POS' },
-                { key: 'Purchase', label: 'Purchase', icon: <ShoppingCart size={24} />, direct: 'Purchase' },
-                { key: 'View', label: 'View', icon: <List size={24} />, items: viewItems },
-                { key: 'Report', label: 'Report', icon: <Flag size={24} />, items: reportItemsNav },
-                { key: 'Store', label: 'Store', icon: <ChevronRight size={24} />, items: storeItems },
-                { key: 'Transaction', label: 'Transaction', icon: <RefreshCw size={24} />, direct: 'Transaction' },
-                { key: 'Tools', label: 'Tools', icon: <Wrench size={24} />, items: toolsItems.filter(item => !item.hidden) }
-              ].map(group => (
-                <div key={group.key}>
-                  <button
-                    onClick={() => {
-                      if (group.direct) {
-                        setActiveTab(group.direct);
-                        setShowMobileMenu(false);
-                      } else {
-                        setMobileExpandedGroup(current => current === group.key ? null : group.key);
-                      }
-                    }}
-                    aria-expanded={group.direct ? undefined : mobileExpandedGroup === group.key}
-                    className={cn(
-                      "w-full flex items-center justify-between gap-3 px-5 py-[17px] text-left text-[18px] font-normal",
-                      (group.direct === activeTab || group.items?.some(item => item.id === activeTab))
-                        ? "text-blue-700"
-                        : "text-slate-900"
-                    )}
-                  >
-                    <span className="flex items-center gap-3">{group.icon}<span>{group.label}</span></span>
-                    {!group.direct && <ChevronDown size={18} className={cn("transition-transform", mobileExpandedGroup === group.key && "rotate-180")} />}
-                  </button>
-                  {group.items && mobileExpandedGroup === group.key && (
-                    <div className="bg-white/70 border-y border-slate-200 py-1">
-                      {group.items.map(item => (
-                        <button
-                          key={item.id}
-                          onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
-                          className={cn(
-                            "w-full flex items-center gap-3 pl-14 pr-5 py-3 text-left text-sm",
-                            activeTab === item.id ? "text-blue-700 font-bold bg-blue-50" : "text-slate-800"
-                          )}
-                        >
-                          {item.icon}<span>{item.label}</span>
-                        </button>
-                      ))}
-                      {group.key === 'Tools' && (
-                        <button
-                          onClick={() => { handleLogout(); setShowMobileMenu(false); }}
-                          className="w-full flex items-center gap-3 pl-14 pr-5 py-3 text-left text-sm text-red-700"
-                        >
-                          <LogOut size={18} /> Logout
-                        </button>
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close navigation menu"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMobileMenu(false)}
+              className="fixed inset-0 top-[72px] z-[900] bg-black/35 md:hidden"
+            />
+            <motion.nav
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', duration: 0.22 }}
+              className="fixed left-0 top-[72px] bottom-0 z-[901] w-[min(82vw,320px)] overflow-y-auto overscroll-contain bg-[#e9edf1] border-r border-slate-300 shadow-2xl md:hidden"
+              aria-label="Mobile main navigation"
+            >
+              <div className="py-1 pb-8">
+                {[
+                  { key: 'Master', label: 'Master', icon: <Package size={24} />, items: masterItems },
+                  { key: 'POS', label: 'Sale Entry', icon: <ShoppingBag size={24} />, direct: 'POS' },
+                  { key: 'Purchase', label: 'Purchase', icon: <ShoppingCart size={24} />, direct: 'Purchase' },
+                  { key: 'View', label: 'View', icon: <List size={24} />, items: viewItems },
+                  { key: 'Report', label: 'Report', icon: <Flag size={24} />, items: reportItemsNav },
+                  { key: 'Store', label: 'Store', icon: <ChevronRight size={24} />, items: storeItems },
+                  { key: 'Transaction', label: 'Transaction', icon: <RefreshCw size={24} />, direct: 'Transaction' },
+                  { key: 'Tools', label: 'Tools', icon: <Wrench size={24} />, items: toolsItems.filter(item => !item.hidden) }
+                ].map(group => (
+                  <div key={group.key}>
+                    <button
+                      onClick={() => {
+                        if (group.direct) {
+                          setActiveTab(group.direct);
+                          setShowMobileMenu(false);
+                        } else {
+                          setMobileExpandedGroup(current => current === group.key ? null : group.key);
+                        }
+                      }}
+                      aria-expanded={group.direct ? undefined : mobileExpandedGroup === group.key}
+                      className={cn(
+                        "w-full flex items-center justify-between gap-3 px-5 py-[17px] text-left text-[18px] font-normal",
+                        (group.direct === activeTab || group.items?.some(item => item.id === activeTab))
+                          ? "text-blue-700"
+                          : "text-slate-900"
                       )}
-                    </div>
-                  )}
+                    >
+                      <span className="flex items-center gap-3">{group.icon}<span>{group.label}</span></span>
+                      {!group.direct && <ChevronDown size={18} className={cn("transition-transform", mobileExpandedGroup === group.key && "rotate-180")} />}
+                    </button>
+                    {group.items && mobileExpandedGroup === group.key && (
+                      <div className="bg-white/70 border-y border-slate-200 py-1">
+                        {group.items.map(item => (
+                          <button
+                            key={item.id}
+                            onClick={() => { setActiveTab(item.id); setShowMobileMenu(false); }}
+                            className={cn(
+                              "w-full flex items-center gap-3 pl-14 pr-5 py-3 text-left text-sm",
+                              activeTab === item.id ? "text-blue-700 font-bold bg-blue-50" : "text-slate-800"
+                            )}
+                          >
+                            {item.icon}<span>{item.label}</span>
+                          </button>
+                        ))}
+                        {group.key === 'Tools' && (
+                          <button
+                            onClick={() => { handleLogout(); setShowMobileMenu(false); }}
+                            className="w-full flex items-center gap-3 pl-14 pr-5 py-3 text-left text-sm text-red-700"
+                          >
+                            <LogOut size={18} /> Logout
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div className="border-t border-slate-300 mt-1 pt-1">
+                  <button
+                    onClick={() => { setShowMobileMenu(false); setShowProfileOverlay(true); }}
+                    className="w-full flex items-center gap-3 px-5 py-3 text-left text-[17px] font-medium text-blue-700"
+                  >
+                    <User size={24} /> {BRAND_NAME}
+                  </button>
                 </div>
-              ))}
-              <div className="border-t border-slate-300 mt-1 pt-1">
-                <button
-                  onClick={() => { setShowMobileMenu(false); setShowProfileOverlay(true); }}
-                  className="w-full flex items-center gap-3 px-5 py-3 text-left text-[17px] font-medium text-blue-700"
-                >
-                  <User size={24} /> {BRAND_NAME}
-                </button>
               </div>
-            </div>
-          </motion.nav>
+            </motion.nav>
+          </>
         )}
       </AnimatePresence>
 
