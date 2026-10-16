@@ -15,7 +15,7 @@ import {
   Monitor, Maximize2, Minimize2, ChevronRight, Circle, FileJson,
   Upload, ExternalLink, ShoppingBag, IndianRupee, Flag, Mail,
   Repeat, Wrench, ArrowLeftRight, Key, QrCode,
-  Pause, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Smartphone, AlertCircle, Loader2, CheckCircle, Hash
+  Pause, Bluetooth, Star, LayoutGrid, TrendingUp, TrendingDown, AlertTriangle, Sun, Moon, Bot, MessageSquare, Calendar, Gift, Palette, Sparkles, PartyPopper, Layout, Trophy, Coins, Award, Phone, Smartphone, AlertCircle, Loader2, CheckCircle, Hash
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
