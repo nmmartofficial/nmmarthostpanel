@@ -51,23 +51,13 @@ import MasterListView from './components/MasterListView';
 import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
 import { cn, generateUUID } from './utils/helpers';
 
-
 const DEFAULT_NAVIGATION_CONFIG = {
   master: ['Products', 'Units', 'Categories', 'Subcategories', 'Brands', 'HSNMaster', 'Departments', 'Accounts', 'UserMaster', 'Banners', 'Credits', 'DeliveryBoys', 'DeliveryCustomers', 'Coupons', 'Offers', 'Pincodes', 'Addresses', 'WalletMaster', 'Suppliers'],
   inventory: ['Products', 'StockAlerts', 'StockReduction', 'PurchaseEntry', 'StockLogs', 'InventoryReconciliation'],
   reports: ['CustomerAnalytics', 'LoyaltyManagement', 'ProfitLoss', 'Expenses'],
   views: ['Orders', 'POS', 'SelfCheckout'],
-  tools: [
-    'AppConfig',
-    'StoreItemDisplay',
-    'StoreSubCatDisplay',
-    'StoreMainCatDisplay',
-    'TestBluetooth',
-    'AI',
-    'CompanyManagement'
-  ]
+  tools: ['AppConfig', 'StoreItemDisplay', 'StoreSubCatDisplay', 'StoreMainCatDisplay', 'TestBluetooth', 'AI', 'CompanyManagement']
 };
-
 
 const DEFAULT_APP_CONFIG = {
   id: 'default',
@@ -1477,19 +1467,15 @@ export default function App({ company, isTenantMode, companySlug }) {
     { id: 'SelfCheckout', label: 'Self Checkout', icon: <Monitor size={14} /> },
   ];
 
-  
-const toolsDefaultItems = [
-  { id: 'AppConfig', label: 'Configuration', icon: <Settings size={14} /> },
-  { id: 'StoreItemDisplay', label: 'Store Item Display', icon: <Package size={14} /> },
-  { id: 'StoreSubCatDisplay', label: 'Store Sub-Cat Display', icon: <Layers size={14} /> },
-  { id: 'StoreMainCatDisplay', label: 'Store Main-Cat Display', icon: <Grid size={14} /> },
-  { id: 'TestBluetooth', label: 'Test Bluetooth', icon: <Bluetooth size={14} /> },
-  { id: 'AI', label: 'AI', icon: <Bot size={14} /> },
-  ...(!isTenantMode
-    ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }]
-    : []),
-];
-
+  const toolsDefaultItems = [
+    { id: 'AppConfig', label: 'Configuration', icon: <Settings size={14} /> },
+    { id: 'StoreItemDisplay', label: 'Store Item Display', icon: <Package size={14} /> },
+    { id: 'StoreSubCatDisplay', label: 'Store Sub-Cat Display', icon: <Layers size={14} /> },
+    { id: 'StoreMainCatDisplay', label: 'Store Main-Cat Display', icon: <Grid size={14} /> },
+    { id: 'TestBluetooth', label: 'Test Bluetooth', icon: <Bluetooth size={14} /> },
+    { id: 'AI', label: 'AI Assistant', icon: <Bot size={14} /> },
+    ...(!isTenantMode ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }] : []),
+  ];
 
   const masterItems = masterDefaultItems.filter(item =>
     isAllowed(item.id) && (!navigationConfig.master.length || navigationConfig.master.includes(item.id))
@@ -2206,356 +2192,89 @@ const toolsDefaultItems = [
 }
 
 function TestBluetoothView() {
-  const [isSearching, setIsSearching] = useState(false);
-
-  const handleSearch = () => {
-    setIsSearching(true);
-    // Bluetooth search logic placeholder
-    setTimeout(() => {
-      setIsSearching(false);
-      alert("No Bluetooth printers found. Please ensure your device's Bluetooth is on.");
-    }, 2000);
+  const [status, setStatus] = useState('Ready to test');
+  const [deviceName, setDeviceName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const handleSearch = async () => {
+    if (!navigator.bluetooth || typeof navigator.bluetooth.requestDevice !== 'function') {
+      setStatus('Bluetooth is not supported in this browser. Try a supported desktop Chromium browser or the device/printer vendor app.');
+      return;
+    }
+    setBusy(true); setStatus('Waiting for device selection…');
+    try {
+      const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [] });
+      setDeviceName(device.name || 'Unnamed Bluetooth device');
+      setStatus('Device detected by browser. Printer connection/printing is not verified by device discovery alone.');
+    } catch (error) {
+      setStatus(error?.name === 'NotFoundError' ? 'No device selected.' : (error?.message || 'Bluetooth request failed.'));
+    } finally { setBusy(false); }
   };
-
-  return (
-    <div className="bg-white p-10 rounded-xl border border-slate-100 shadow-sm min-h-[400px]">
-      <h1 className="text-4xl font-normal text-slate-800 mb-8">Bluetooth Printer</h1>
-
-      <button
-        onClick={handleSearch}
-        disabled={isSearching}
-        className="px-6 py-3 bg-slate-100 border-2 border-slate-800 text-slate-800 text-base font-medium hover:bg-slate-200 transition-all flex items-center gap-3"
-      >
-        {isSearching ? <RefreshCw className="animate-spin" size={18} /> : null}
-        {isSearching ? 'Searching...' : 'Search for Bluetooth Printer'}
-      </button>
-    </div>
-  );
+  return <div className="bg-white p-6 md:p-10 rounded-xl border border-slate-200 shadow-sm space-y-5">
+    <div className="flex items-center gap-3"><Bluetooth size={28} className="text-blue-600"/><div><h1 className="text-2xl font-bold text-slate-800">Bluetooth Device Test</h1><p className="text-sm text-slate-500">Checks browser support and lets you request a nearby device.</p></div></div>
+    <button onClick={handleSearch} disabled={busy} className="px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold disabled:opacity-50">{busy ? 'Waiting…' : 'Find Bluetooth Device'}</button>
+    {deviceName && <p className="text-sm text-slate-700">Selected device: <strong>{deviceName}</strong></p>}
+    <p role="status" className="text-sm rounded-lg bg-slate-50 border border-slate-200 p-4 text-slate-700">{status}</p>
+    <p className="text-xs text-amber-700">Note: browser support and printer protocols vary. This screen does not claim a successful print test.</p>
+  </div>;
 }
 
-function StoreMainCatDisplayView({ categories, departments }) {
-  const [selectedDept, setSelectedDept] = useState('Not Selected');
-  const [selectAll, setSelectAll] = useState(false);
+function StoreDisplaySelectionView({ kind, title, sourceItems = [], currentUser }) {
   const [items, setItems] = useState([]);
+  const [search, setSearch] = useState('');
+  const [department, setDepartment] = useState('');
+  const [status, setStatus] = useState('Tap Load Data to fetch records and saved selection.');
   const [loading, setLoading] = useState(false);
-
-  const handleLoadData = () => {
-    setLoading(true);
-    // In this project, categories usually represent the main category level
-    const filtered = categories.map(c => ({ ...c, isSelected: false }));
-    setItems(filtered);
-    setLoading(false);
+  const [saving, setSaving] = useState(false);
+  const key = `store_display_${kind}`;
+  const idOf = item => String(item.id);
+  const nameOf = item => item.name || item.itname || item.item_name || item.category_name || item.subcategory_name || `Record ${item.id}`;
+  const load = async () => {
+    setLoading(true); setStatus('Loading records and saved selection…');
+    try {
+      if (!currentUser?.tenant_id) throw new Error('Tenant context is missing. Sign in with the correct admin account.');
+      let query = supabase.from('home_config').select('id,key,value,tenant_id,company_code')
+        .eq('tenant_id', currentUser.tenant_id).eq('key', key);
+      if (currentUser.company_code) query = query.eq('company_code', currentUser.company_code);
+      const { data, error } = await query.maybeSingle();
+      if (error) throw error;
+      const saved = Array.isArray(data?.value?.selected_ids) ? data.value.selected_ids.map(String) : [];
+      setItems((sourceItems || []).filter(x => x && x.id != null).map(x => ({ ...x, isSelected: saved.includes(idOf(x)) })));
+      setStatus(`Loaded ${(sourceItems || []).length} records. ${saved.length} saved selections restored.`);
+    } catch (e) { setItems((sourceItems || []).filter(x => x && x.id != null).map(x => ({ ...x, isSelected: false }))); setStatus(`Load failed: ${e.message || 'Unknown error'}`); }
+    finally { setLoading(false); }
   };
-
-  const handleToggleSelect = (id) => {
-    setItems(items.map(item => item.id === id ? { ...item, isSelected: !item.isSelected } : item));
+  useEffect(() => { setItems([]); setStatus('Tap Load Data to fetch records and saved selection.'); }, [kind]);
+  const toggle = id => setItems(prev => prev.map(x => idOf(x) === String(id) ? { ...x, isSelected: !x.isSelected } : x));
+  const filtered = items.filter(x => nameOf(x).toLowerCase().includes(search.toLowerCase()) && (!department || String(x.department_code || x.dtcode || '') === department));
+  const selectAll = val => { const ids = new Set(filtered.map(idOf)); setItems(prev => prev.map(x => ids.has(idOf(x)) ? { ...x, isSelected: val } : x)); };
+  const save = async () => {
+    setSaving(true); setStatus('Saving selection to Supabase…');
+    try {
+      if (isSupabaseMock) throw new Error('Supabase is in mock mode; selection was not saved.');
+      if (!currentUser?.tenant_id) throw new Error('Tenant context is missing.');
+      const selected_ids = items.filter(x => x.isSelected).map(idOf);
+      const payload = { tenant_id: currentUser.tenant_id, company_code: currentUser.company_code || null, key, value: { selected_ids, updated_by: currentUser.id || currentUser.user_id || null }, description: `${title} selected record IDs`, section_name: 'Store Display', section_type: 'selection', is_active: true, updated_at: new Date().toISOString() };
+      const { error } = await supabase.from('home_config').upsert(payload, { onConflict: 'tenant_id,key' });
+      if (error) throw error;
+      setStatus(`Saved successfully. ${selected_ids.length} records selected.`);
+      toast.success(`${title} selection saved`);
+    } catch (e) { setStatus(`Save failed: ${e.message || 'Unknown error'}`); toast.error(`Could not save ${title}`); }
+    finally { setSaving(false); }
   };
-
-  const handleSelectAll = (val) => {
-    setSelectAll(val);
-    setItems(items.map(item => ({ ...item, isSelected: val })));
-  };
-
-  return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6 animate-in fade-in duration-300">
-      <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-        {/* Header matching Screenshot */}
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8 flex-shrink-0 mb-6">
-          <div className="space-y-2">
-            <h2 className="text-blue-600 font-bold underline text-sm cursor-pointer">Store Main-Cat Display</h2>
-            <h1 className="text-2xl font-bold text-slate-800">Select</h1>
-            <div className="flex items-center gap-2 mt-4">
-              <input
-                type="checkbox"
-                id="selectAllMain"
-                checked={selectAll}
-                onChange={(e) => handleSelectAll(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="selectAllMain" className="text-sm font-medium text-slate-600">Select All</label>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-12">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-slate-700">Department</span>
-              <select
-                value={selectedDept}
-                onChange={e => setSelectedDept(e.target.value)}
-                className="w-40 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all bg-white"
-              >
-                <option value="Not Selected">Not Selected</option>
-                {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-              </select>
-            </div>
-
-            <button
-              onClick={handleLoadData}
-              className="px-4 py-1.5 border border-slate-400 rounded-md text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
-            >
-              Load Data
-            </button>
-          </div>
-        </div>
-
-        {/* Item List Area */}
-        <div className="flex-1 border-t border-slate-100 pt-6 overflow-y-auto custom-scrollbar">
-          {items.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
-              {items.map(item => (
-                <div key={item.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all">
-                  <input
-                    type="checkbox"
-                    checked={item.isSelected}
-                    onChange={() => handleToggleSelect(item.id)}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600"
-                  />
-                  <span className="text-sm font-medium text-slate-700">{item.name}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-40 text-slate-400 italic text-sm">
-              No main categories loaded. Click 'Load Data'.
-            </div>
-          )}
-        </div>
-
-        {/* Footer Buttons matching Screenshot */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 flex-shrink-0">
-          <button className="bg-blue-600 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-all shadow-md">
-            Save
-          </button>
-          <button className="bg-slate-500 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-slate-600 transition-all shadow-md">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  const cancel = () => { setItems(prev => prev.map(x => ({ ...x, isSelected: false }))); setSearch(''); setDepartment(''); setStatus('Unsaved selections cleared from this screen. Saved database selection is unchanged; tap Load Data to restore it.'); };
+  const deptOptions = [...new Set((sourceItems || []).map(x => x.department_code || x.dtcode).filter(Boolean).map(String))];
+  return <div className="h-[calc(100vh-12rem)] min-h-[420px] flex flex-col"><div className="flex-1 bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden gap-4">
+    <div className="flex flex-col gap-4"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600">NM Mart · Store Display</p><h1 className="text-2xl font-bold text-slate-800">{title}</h1><p className="text-sm text-slate-500">Select records and save the selection to Supabase.</p></div>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-3"><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records…" className="border border-slate-300 rounded-lg px-3 py-2 text-sm"/>{kind === 'item' ? <input value={department} onChange={e => setDepartment(e.target.value)} placeholder="Department code (optional)" className="border border-slate-300 rounded-lg px-3 py-2 text-sm"/> : <div className="flex items-center text-sm text-slate-500">{items.length} records loaded</div>}<button onClick={load} disabled={loading} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">{loading ? 'Loading…' : 'Load Data'}</button><button onClick={() => selectAll(true)} disabled={!filtered.length} className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold disabled:opacity-50">Select filtered</button></div></div>
+    <div className="text-xs text-slate-500">{filtered.filter(x => x.isSelected).length} selected in current results · {filtered.length} shown</div>
+    <div className="flex-1 overflow-auto border-t border-slate-100 pt-3"><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">{filtered.map(x => <label key={idOf(x)} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50 cursor-pointer"><input type="checkbox" checked={!!x.isSelected} onChange={() => toggle(x.id)} className="h-4 w-4"/><span className="text-sm text-slate-800">{nameOf(x)}</span><span className="ml-auto text-[10px] text-slate-400">#{x.id}</span></label>)}</div>{!filtered.length && <div className="p-10 text-center text-sm text-slate-400">{loading ? 'Loading records…' : 'No records to show. Tap Load Data.'}</div>}</div>
+    <div className="flex flex-col sm:flex-row gap-3 justify-between border-t border-slate-100 pt-4"><p role="status" className="text-xs text-slate-600 self-center">{status}</p><div className="flex gap-2"><button onClick={() => selectAll(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Deselect filtered</button><button onClick={cancel} className="rounded-lg bg-slate-500 text-white px-4 py-2 text-sm">Cancel</button><button onClick={save} disabled={saving || loading} className="rounded-lg bg-blue-600 text-white px-5 py-2 text-sm font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save to Supabase'}</button></div></div>
+  </div></div>;
 }
 
-function StoreSubCatDisplayView({ subcategories, departments }) {
-  const [selectedDept, setSelectedDept] = useState('Not Selected');
-  const [selectAll, setSelectAll] = useState(false);
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const handleLoadData = () => {
-    setLoading(true);
-    // Filter subcategories based on Department (if department logic exists in schema)
-    const filtered = subcategories.map(s => ({ ...s, isSelected: false }));
-    setItems(filtered);
-    setLoading(false);
-  };
-
-  const handleToggleSelect = (id) => {
-    setItems(items.map(item => item.id === id ? { ...item, isSelected: !item.isSelected } : item));
-  };
-
-  const handleSelectAll = (val) => {
-    setSelectAll(val);
-    setItems(items.map(item => ({ ...item, isSelected: val })));
-  };
-
-  return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6 animate-in fade-in duration-300">
-      <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-        {/* Header matching Screenshot */}
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8 flex-shrink-0 mb-6">
-          <div className="space-y-2">
-            <h2 className="text-blue-600 font-bold underline text-sm cursor-pointer">Store Sub-Cat Display</h2>
-            <h1 className="text-2xl font-bold text-slate-800">Select</h1>
-            <div className="flex items-center gap-2 mt-4">
-              <input
-                type="checkbox"
-                id="selectAllSub"
-                checked={selectAll}
-                onChange={(e) => handleSelectAll(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="selectAllSub" className="text-sm font-medium text-slate-600">Select All</label>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-12">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-slate-700">Department</span>
-              <select
-                value={selectedDept}
-                onChange={e => setSelectedDept(e.target.value)}
-                className="w-40 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all bg-white"
-              >
-                <option value="Not Selected">Not Selected</option>
-                {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-              </select>
-            </div>
-
-            <button
-              onClick={handleLoadData}
-              className="px-4 py-1.5 border border-slate-400 rounded-md text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
-            >
-              Load Data
-            </button>
-          </div>
-        </div>
-
-        {/* Item List Area */}
-        <div className="flex-1 border-t border-slate-100 pt-6 overflow-y-auto custom-scrollbar">
-          {items.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
-              {items.map(item => (
-                <div key={item.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all">
-                  <input
-                    type="checkbox"
-                    checked={item.isSelected}
-                    onChange={() => handleToggleSelect(item.id)}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600"
-                  />
-                  <span className="text-sm font-medium text-slate-700">{item.name}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-40 text-slate-400 italic text-sm">
-              No sub-categories loaded. Click 'Load Data'.
-            </div>
-          )}
-        </div>
-
-        {/* Footer Buttons matching Screenshot */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 flex-shrink-0">
-          <button className="bg-blue-600 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-all shadow-md">
-            Save
-          </button>
-          <button className="bg-slate-500 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-slate-600 transition-all shadow-md">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StoreItemDisplayView({ products, departments }) {
-  const [findHsn, setFindHsn] = useState('');
-  const [selectedDept, setSelectedDept] = useState('Not Selected');
-  const [selectAll, setSelectAll] = useState(false);
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const handleLoadData = () => {
-    setLoading(true);
-    // Filter logic based on HSN and Department
-    const filtered = products.filter(p => {
-      const matchesHsn = !findHsn || (p.hsncode || p.hsn_code || '').includes(findHsn);
-      const matchesDept = selectedDept === 'Not Selected' || (p.dtcode || p.department_code) === selectedDept;
-      return matchesHsn && matchesDept;
-    }).map(p => ({ ...p, isSelected: false }));
-
-    setItems(filtered);
-    setLoading(false);
-  };
-
-  const handleToggleSelect = (id) => {
-    setItems(items.map(item => item.id === id ? { ...item, isSelected: !item.isSelected } : item));
-  };
-
-  const handleSelectAll = (val) => {
-    setSelectAll(val);
-    setItems(items.map(item => ({ ...item, isSelected: val })));
-  };
-
-  return (
-    <div className="h-[calc(100vh-12rem)] flex flex-col space-y-6 animate-in fade-in duration-300">
-      <div className="flex-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-        {/* Header matching Screenshot */}
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8 flex-shrink-0 mb-6">
-          <div className="space-y-2">
-            <h2 className="text-blue-600 font-bold underline text-sm cursor-pointer">Store Item Display</h2>
-            <h1 className="text-2xl font-bold text-slate-800">Select Items</h1>
-            <div className="flex items-center gap-2 mt-4">
-              <input
-                type="checkbox"
-                id="selectAll"
-                checked={selectAll}
-                onChange={(e) => handleSelectAll(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="selectAll" className="text-sm font-medium text-slate-600">Select All</label>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-12">
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-slate-700">Find</p>
-                <p className="text-sm font-medium text-slate-700">HSN</p>
-              </div>
-              <input
-                type="text"
-                value={findHsn}
-                onChange={e => setFindHsn(e.target.value)}
-                className="w-32 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-              />
-            </div>
-
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-slate-700">Department</span>
-              <select
-                value={selectedDept}
-                onChange={e => setSelectedDept(e.target.value)}
-                className="w-40 border border-slate-300 rounded-md px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all bg-white"
-              >
-                <option value="Not Selected">Not Selected</option>
-                {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-              </select>
-            </div>
-
-            <button
-              onClick={handleLoadData}
-              className="px-4 py-1.5 border border-slate-400 rounded-md text-sm font-medium hover:bg-slate-50 transition-all shadow-sm"
-            >
-              Load Data
-            </button>
-          </div>
-        </div>
-
-        {/* Item List Area */}
-        <div className="flex-1 border-t border-slate-100 pt-6 overflow-y-auto custom-scrollbar">
-          {items.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
-              {items.map(item => (
-                <div key={item.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-all">
-                  <input
-                    type="checkbox"
-                    checked={item.isSelected}
-                    onChange={() => handleToggleSelect(item.id)}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600"
-                  />
-                  <span className="text-sm font-medium text-slate-700">{item.itname || item.name}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-40 text-slate-400 italic text-sm">
-              No items loaded. Adjust filters and click 'Load Data'.
-            </div>
-          )}
-        </div>
-
-        {/* Footer Buttons matching Screenshot */}
-        <div className="flex justify-end gap-3 pt-6 border-t border-slate-100 flex-shrink-0">
-          <button className="bg-blue-600 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 transition-all shadow-md">
-            Save
-          </button>
-          <button className="bg-slate-500 text-white px-6 py-1.5 rounded-md text-sm font-medium hover:bg-slate-600 transition-all shadow-md">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+function AIAssistantView() {
+  const [prompt, setPrompt] = useState('');
+  return <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4"><div className="flex items-center gap-3"><Bot className="text-blue-600" size={28}/><div><h1 className="text-2xl font-bold text-slate-800">AI Assistant</h1><p className="text-sm text-slate-500">AI provider connection must be configured before live answers can be generated.</p></div></div><textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Describe what you want help with…" className="w-full min-h-28 border border-slate-300 rounded-lg p-3"/><p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">No AI endpoint/provider is confirmed in the current App.jsx. This screen intentionally does not fabricate an AI response. Connect a secure server-side AI endpoint before enabling Send.</p><button disabled={!prompt.trim()} onClick={() => toast.error('AI service is not configured; no request was sent.')} className="rounded-lg bg-slate-300 text-slate-600 px-5 py-2 font-semibold disabled:opacity-50">Send (service not configured)</button></div>;
 }
 
 function TransactionView({ users, fetchInitialData }) {
@@ -7966,6 +7685,11 @@ function renderTabContent(activeTab, props) {
     case 'Notifications': return <NotificationsView {...props} />;
     case 'SupportTickets': return <SupportTicketsView {...props} />;
     case 'AppConfig': return <AppConfigView {...props} />;
+    case 'StoreMainCatDisplay': return <StoreDisplaySelectionView kind="main_category" title="Store Main-Cat Display" sourceItems={props.categories} currentUser={props.currentUser} />;
+    case 'StoreSubCatDisplay': return <StoreDisplaySelectionView kind="subcategory" title="Store Sub-Cat Display" sourceItems={props.subcategories} currentUser={props.currentUser} />;
+    case 'StoreItemDisplay': return <StoreDisplaySelectionView kind="item" title="Store Item Display" sourceItems={props.products} currentUser={props.currentUser} />;
+    case 'TestBluetooth': return <TestBluetoothView />;
+    case 'AI': return <AIAssistantView />;
     case 'Analytics': return <AnalyticsView {...props} />;
     case 'CustomerAnalytics': return <CustomerAnalyticsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
