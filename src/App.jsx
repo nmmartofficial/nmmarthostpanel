@@ -1543,22 +1543,30 @@ export default function App({ company, isTenantMode, companySlug }) {
       <header className={cn("border-b z-[100] shadow-sm select-none flex-shrink-0", darkMode ? "bg-neutral-900 border-neutral-800" : "bg-white border-neutral-200")}>
         <div className="max-w-full mx-auto px-3 md:px-4 h-14 md:h-12 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Brand Name / Logo */}
+            {/* Brand: desktop stays unchanged; mobile matches the reference header */}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-md">
+              <div className="hidden md:flex w-8 h-8 bg-blue-600 rounded-lg items-center justify-center shadow-md">
                 <ShoppingBag size={16} className="text-white" />
               </div>
-              <h1 className="text-sm font-black text-blue-900 uppercase tracking-tighter hidden md:block">{BRAND_NAME} ADMIN</h1>
-              <h1 className="md:hidden text-lg font-semibold text-black tracking-tight">{BRAND_NAME}</h1>
+              <button
+                type="button"
+                onClick={() => setActiveTab('Dashboard')}
+                aria-label="Go to dashboard"
+                className="md:hidden flex items-center gap-2 text-black"
+              >
+                <Home size={31} fill="currentColor" strokeWidth={2.5} />
+                <span className="text-[21px] font-medium tracking-tight">NM MART</span>
+              </button>
+              <h1 className="hidden md:block text-sm font-black text-blue-900 uppercase tracking-tighter">{BRAND_NAME} ADMIN</h1>
             </div>
 
-            {/* Home Button */}
+            {/* Home Button: desktop only; mobile home is beside the brand */}
             <button
               onClick={() => setActiveTab('Dashboard')}
-              className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-tighter hover:bg-blue-700 transition-all shadow-md"
+              className="hidden md:flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-black uppercase tracking-tighter hover:bg-blue-700 transition-all shadow-md"
             >
               <Home size={14} />
-              <span className="hidden md:inline">Home</span>
+              <span>Home</span>
             </button>
 
             {/* Desktop Navigation Menus (Hidden on Mobile) */}
@@ -1704,10 +1712,14 @@ export default function App({ company, isTenantMode, companySlug }) {
           <div className="flex items-center gap-3">
             {/* Mobile Hamburger Button */}
             <button
-              onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-all"
+              onClick={() => {
+                setShowMobileMenu(!showMobileMenu);
+                if (!showMobileMenu) setMobileExpandedGroup(null);
+              }}
+              aria-label={showMobileMenu ? "Close navigation menu" : "Open navigation menu"}
+              className="md:hidden p-3 text-slate-700 border border-slate-300 bg-slate-100 rounded-xl transition-all"
             >
-              <Menu size={20} />
+              <Menu size={28} />
             </button>
 
             <div className="hidden md:flex items-center gap-1 border-r border-slate-200 pr-3 mr-1">
@@ -1741,7 +1753,7 @@ export default function App({ company, isTenantMode, companySlug }) {
             {/* Profile Section on Right */}
             <div
               onClick={() => setShowProfileOverlay(true)}
-              className="flex items-center gap-2 group cursor-pointer pl-2"
+              className="hidden md:flex items-center gap-2 group cursor-pointer pl-2"
             >
               <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform ring-2 ring-blue-50">
                 <User size={16} fill="currentColor" />
@@ -1768,14 +1780,7 @@ export default function App({ company, isTenantMode, companySlug }) {
             className="md:hidden flex-shrink-0 overflow-hidden bg-[#e9edf1] border-b border-slate-300 shadow-sm z-40"
             aria-label="Mobile main navigation"
           >
-            <div className="max-h-[68vh] overflow-y-auto py-2">
-              <button
-                onClick={() => { setActiveTab('Dashboard'); setShowMobileMenu(false); }}
-                className={cn("w-full flex items-center gap-3 px-5 py-3 text-left text-[17px] font-medium", activeTab === 'Dashboard' ? "text-blue-700" : "text-slate-900")}
-              >
-                <Home size={24} /> Home
-              </button>
-
+            <div className="max-h-[62vh] overflow-y-auto py-1">
               {[
                 { key: 'Master', label: 'Master', icon: <Package size={24} />, items: masterItems },
                 { key: 'POS', label: 'Sale Entry', icon: <ShoppingBag size={24} />, direct: 'POS' },
@@ -1798,7 +1803,7 @@ export default function App({ company, isTenantMode, companySlug }) {
                     }}
                     aria-expanded={group.direct ? undefined : mobileExpandedGroup === group.key}
                     className={cn(
-                      "w-full flex items-center justify-between gap-3 px-5 py-3 text-left text-[17px] font-medium",
+                      "w-full flex items-center justify-between gap-3 px-5 py-[17px] text-left text-[18px] font-normal",
                       (group.direct === activeTab || group.items?.some(item => item.id === activeTab))
                         ? "text-blue-700"
                         : "text-slate-900"
