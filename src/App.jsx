@@ -51,13 +51,23 @@ import MasterListView from './components/MasterListView';
 import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
 import { cn, generateUUID } from './utils/helpers';
 
+
 const DEFAULT_NAVIGATION_CONFIG = {
   master: ['Products', 'Units', 'Categories', 'Subcategories', 'Brands', 'HSNMaster', 'Departments', 'Accounts', 'UserMaster', 'Banners', 'Credits', 'DeliveryBoys', 'DeliveryCustomers', 'Coupons', 'Offers', 'Pincodes', 'Addresses', 'WalletMaster', 'Suppliers'],
   inventory: ['Products', 'StockAlerts', 'StockReduction', 'PurchaseEntry', 'StockLogs', 'InventoryReconciliation'],
   reports: ['CustomerAnalytics', 'LoyaltyManagement', 'ProfitLoss', 'Expenses'],
   views: ['Orders', 'POS', 'SelfCheckout'],
-  tools: ['AppConfig', 'CompanyManagement']
+  tools: [
+    'AppConfig',
+    'StoreItemDisplay',
+    'StoreSubCatDisplay',
+    'StoreMainCatDisplay',
+    'TestBluetooth',
+    'AI',
+    'CompanyManagement'
+  ]
 };
+
 
 const DEFAULT_APP_CONFIG = {
   id: 'default',
@@ -1467,10 +1477,19 @@ export default function App({ company, isTenantMode, companySlug }) {
     { id: 'SelfCheckout', label: 'Self Checkout', icon: <Monitor size={14} /> },
   ];
 
-  const toolsDefaultItems = [
-    { id: 'AppConfig', label: 'Configuration', icon: <Settings size={14} /> },
-    ...(!isTenantMode ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }] : []),
-  ];
+  
+const toolsDefaultItems = [
+  { id: 'AppConfig', label: 'Configuration', icon: <Settings size={14} /> },
+  { id: 'StoreItemDisplay', label: 'Store Item Display', icon: <Package size={14} /> },
+  { id: 'StoreSubCatDisplay', label: 'Store Sub-Cat Display', icon: <Layers size={14} /> },
+  { id: 'StoreMainCatDisplay', label: 'Store Main-Cat Display', icon: <Grid size={14} /> },
+  { id: 'TestBluetooth', label: 'Test Bluetooth', icon: <Bluetooth size={14} /> },
+  { id: 'AI', label: 'AI', icon: <Bot size={14} /> },
+  ...(!isTenantMode
+    ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }]
+    : []),
+];
+
 
   const masterItems = masterDefaultItems.filter(item =>
     isAllowed(item.id) && (!navigationConfig.master.length || navigationConfig.master.includes(item.id))
