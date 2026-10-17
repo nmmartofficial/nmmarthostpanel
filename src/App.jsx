@@ -42,6 +42,7 @@ import {
   loadStoreDisplaySelection,
   saveStoreDisplaySelection
 } from './utils/storeDisplayConfig';
+import { buildThemeDraftChanges } from './utils/nmSahayak';
 import { smartSync } from './utils/smartSync';
 import { createSmartSyncSubscriptionManager, resolveSmartSyncScope } from './utils/smartSyncScope';
 import {
@@ -52,6 +53,7 @@ import {
 } from './utils/orderPushNotifications';
 
 import MasterListView from './components/MasterListView';
+import NmSahayakPanel from './components/NmSahayakPanel';
 import WalletMasterView from './pages/WalletMasterView';
 import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
 import { cn, generateUUID } from './utils/helpers';
@@ -2517,7 +2519,7 @@ function StoreDisplaySelectionView({
   );
 }
 
-function FreeThemeControlView() {
+function FreeThemeControlView({ currentUser, isTenantMode }) {
   const [publishedTheme, setPublishedTheme] = useState(null);
   const [baseTheme, setBaseTheme] = useState(null);
   const [draftTheme, setDraftTheme] = useState(null);
@@ -2640,6 +2642,31 @@ function FreeThemeControlView() {
     }
   };
 
+  const saveSahayakTheme = async (targetTheme) => {
+    if (isTenantMode || currentUser?.role !== 'super_admin') {
+      throw new Error('Only a platform super-admin can save the global website theme.');
+    }
+    if (!baseTheme || busy || loading) throw new Error('Theme settings are not ready to save.');
+    const changes = buildThemeDraftChanges(baseTheme, targetTheme, editableKeys);
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const result = await invokeControl({ action: 'save_draft', changes });
+      setBaseTheme(result.theme);
+      setDraftTheme(result.theme);
+      setHasSavedDraft(true);
+      setNotice('NM Sahayak proposal saved and verified as a draft. It is not published.');
+      return result.theme;
+    } catch (failure) {
+      if (import.meta.env.DEV) console.error('[NM Sahayak Theme Save]', { message: failure.message });
+      setError(failure.message || 'Could not save the NM Sahayak proposal.');
+      throw failure;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const renderPreview = (label, theme) => (
     <div className="rounded-lg border border-slate-200 bg-white p-3">
       <p className="mb-2 text-xs font-bold uppercase text-slate-500">{label}</p>
@@ -2690,7 +2717,14 @@ function FreeThemeControlView() {
         <div><h1 className="text-2xl font-bold text-slate-800">Free Theme Control Center</h1><p className="text-sm text-slate-500">Manual website theme controls · platform super-admin access required</p></div>
         <button type="button" onClick={loadTheme} disabled={loading || busy} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50">{loading ? 'Loading…' : 'Reload from Supabase'}</button>
       </div>
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">AI proposals are disabled in free-first mode.</p><p className="mt-1 text-xs">The existing provider has no verified free allowance. This panel makes no AI calls. Manual theme editing uses no AI.</p></div>
+      <NmSahayakPanel
+        currentUser={currentUser}
+        isAuthorized={!isTenantMode && currentUser?.role === 'super_admin'}
+        currentTheme={draftTheme}
+        canSave={!loading && !busy && Boolean(baseTheme) && !isTenantMode && currentUser?.role === 'super_admin'}
+        onApproveProposal={(changes) => saveSahayakTheme({ ...draftTheme, ...changes })}
+        onRestoreTheme={saveSahayakTheme}
+      />
       {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
       {notice && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
       {!loading && draftTheme && (
@@ -8147,7 +8181,7 @@ function renderTabContent(activeTab, props) {
     case 'StoreSubCatDisplay': return <StoreDisplaySelectionView kind="subcategory" title="Store Sub-Cat Display" sourceItems={props.subcategories} categories={props.categories} subcategories={props.subcategories} currentUser={props.currentUser} dataReady={props.dataReady} />;
     case 'StoreItemDisplay': return <StoreDisplaySelectionView kind="item" title="Store Item Display" sourceItems={props.products} categories={props.categories} subcategories={props.subcategories} currentUser={props.currentUser} dataReady={props.dataReady} />;
     case 'TestBluetooth': return <TestBluetoothView />;
-    case 'AI': return <FreeThemeControlView />;
+    case 'AI': return <FreeThemeControlView currentUser={props.currentUser} isTenantMode={props.isTenantMode} />;
     case 'Analytics': return <AnalyticsView {...props} />;
     case 'CustomerAnalytics': return <CustomerAnalyticsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
