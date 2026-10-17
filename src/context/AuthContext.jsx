@@ -545,9 +545,11 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
     } catch (err) {
-      if (import.meta.env.DEV) console.error('Supabase logout error:', err);
+      clearAuthState();
+      throw err;
     }
     clearAuthState();
   }, [clearAuthState]);
@@ -562,13 +564,19 @@ export const AuthProvider = ({ children }) => {
       setTimeout(() => localStorage.removeItem('nm_logout_event'), 100);
     } catch {}
 
-    await performLogout();
-
     const targetSlug = companySlugOverride ?? currentCompanyRef.current?.company_slug ?? secureStorage.getItem('nm_current_company')?.company_slug;
     const redirectUrl = targetSlug ? `/${targetSlug}/login` : '/login';
-    if (typeof window !== 'undefined') {
-      setTimeout(() => window.location.replace(redirectUrl), 50);
+    let signOutError = null;
+    try {
+      await performLogout();
+    } catch (error) {
+      signOutError = error;
+    } finally {
+      if (typeof window !== 'undefined') {
+        setTimeout(() => window.location.replace(redirectUrl), 50);
+      }
     }
+    if (signOutError) throw signOutError;
   }, [performLogout]);
 
   const forgotPassword = useCallback(async (email, companySlug = '') => {

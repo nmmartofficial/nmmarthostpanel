@@ -296,8 +296,10 @@ export const handleERPAction = async (moduleName, actionType, payload) => {
         break;
 
       case ACTION_TYPES.WALLET_ADJUST:
-        data = await dbSync.executeAtomic('adjust_wallet_atomic', {
+        data = await dbSync.executeAtomic('admin_adjust_wallet_atomic', {
           p_user_id: payload?.user_id,
+          p_tenant_id: payload?.tenant_id,
+          p_company_code: payload?.company_code,
           p_amount: payload?.amount,
           p_type: payload?.type,
           p_reason: payload?.reason,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, CheckCircle2, XCircle, Clock, Building2, User, Mail, Phone, Calendar, ShieldCheck, Users, Lock, Unlock, Save, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, CheckCircle2, XCircle, Clock, Building2, Mail, Phone, Calendar, ShieldCheck, Users, Lock, Unlock, Save, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../supabase';
 import { DB_SCHEMA } from '../../dbSchema';
@@ -8,29 +8,32 @@ import { toast } from 'sonner';
 import { cn } from '../../utils/helpers';
 import LoadingState from '../../components/LoadingState';
 import EmptyState from '../../components/EmptyState';
+import { useAuthContext } from '../../context/AuthContext';
 
 export default function CompanyManagement() {
+  const { currentUser } = useAuthContext();
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
   const [formData, setFormData] = useState({
-    company_name: '',
-    owner_name: '',
+    name: '',
     email: '',
-    mobile: '',
+    phone: '',
     address: '',
-    plan: 'starter',
+    subscription_plan: 'starter',
     status: 'active'
   });
 
-  // Helper to generate company code
   const generateCompanyCode = () => {
-    const num = companies.length + 1;
-    return `NM${String(num).padStart(3, '0')}`;
+    const usedCodes = new Set(companies.map((company) => String(company.company_code || '').toUpperCase()));
+    let candidate = 1;
+    while (usedCodes.has(`NM${String(candidate).padStart(3, '0')}`)) candidate += 1;
+    return `NM${String(candidate).padStart(3, '0')}`;
   };
 
-  // Helper to generate slug from company name
   const generateSlug = (name) => {
     return name
       .toLowerCase()
@@ -42,13 +45,17 @@ export default function CompanyManagement() {
   const fetchCompanies = async () => {
     try {
       setLoading(true);
-      const data = await dbSync.fetch(DB_SCHEMA.COMPANIES.table, { 
+      const data = await dbSync.fetch(DB_SCHEMA.COMPANIES.table, {
+        includeDeleted: true,
         order: { column: 'created_at', ascending: false } 
       });
       setCompanies(data);
+      setLoadError('');
     } catch (err) {
       console.error('Error fetching companies:', err);
-      toast.error('Failed to load companies');
+      const message = `Failed to load companies: ${err.message || 'Unknown database error'}`;
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -61,47 +68,68 @@ export default function CompanyManagement() {
   // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
     try {
-      // Keep payload limited to columns that exist in DB
+      const companyName = formData.name.trim();
+      const email = formData.email.trim();
+      const phone = formData.phone.trim();
+      if (!companyName || !email || !phone) {
+        throw new Error('Company name, email, and phone are required.');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid company email address.');
+      if (companyName.length > 160 || phone.length > 40 || formData.address.length > 2000) {
+        throw new Error('Company details exceed the allowed length.');
+      }
+      const status = formData.status;
+      const slug = generateSlug(companyName);
+      if (!slug) throw new Error('Company name must contain letters or numbers to create a URL slug.');
+      if (!editingCompany && companies.some((company) => company.company_slug === slug)) {
+        throw new Error('A company with this URL slug already exists.');
+      }
+
       const companyData = {
-        company_name: formData.company_name,
-        owner_name: formData.owner_name,
-        email: formData.email,
-        mobile: formData.mobile,
-        address: formData.address,
-        plan: formData.plan || 'starter',
-        status: formData.status || 'active'
+        name: companyName,
+        email,
+        phone,
+        address: formData.address.trim() || null,
+        subscription_plan: formData.subscription_plan,
+        status,
+        is_active: status === 'active'
       };
 
       if (editingCompany) {
-        await dbSync.update(DB_SCHEMA.COMPANIES.table, editingCompany.id, companyData);
+        const updated = await dbSync.update(DB_SCHEMA.COMPANIES.table, editingCompany.id, companyData);
+        if (!updated?.id) throw new Error('The database did not confirm the company update.');
         toast.success('Company updated successfully');
       } else {
         companyData.company_code = generateCompanyCode();
-        companyData.company_slug = generateSlug(formData.company_name || 'company');
-        await dbSync.insert(DB_SCHEMA.COMPANIES.table, companyData);
+        companyData.company_slug = slug;
+        const created = await dbSync.insert(DB_SCHEMA.COMPANIES.table, companyData);
+        if (!created?.id) throw new Error('The database did not confirm company creation.');
         toast.success('Company created successfully');
       }
 
       setShowModal(false);
       resetForm();
-      fetchCompanies();
+      await fetchCompanies();
     } catch (err) {
       console.error('Error saving company:', err);
-      toast.error('Failed to save company');
+      toast.error(`Failed to save company: ${err.message || 'Unknown database error'}`);
+    } finally {
+      setSaving(false);
     }
   };
 
   // Handle delete
   const handleDelete = async (company) => {
-    if (!window.confirm(`Are you sure you want to delete ${company.company_name}?`)) return;
+    if (!window.confirm(`Are you sure you want to delete ${company.name}?`)) return;
     try {
       await dbSync.delete(DB_SCHEMA.COMPANIES.table, company.id, true);
       toast.success('Company deleted');
-      fetchCompanies();
+      await fetchCompanies();
     } catch (err) {
       console.error('Error deleting company:', err);
-      toast.error('Failed to delete company');
+      toast.error(`Failed to delete company: ${err.message || 'Unknown database error'}`);
     }
   };
 
@@ -109,23 +137,26 @@ export default function CompanyManagement() {
   const handleToggleStatus = async (company) => {
     try {
       const newStatus = company.status === 'active' ? 'inactive' : 'active';
-      await dbSync.update(DB_SCHEMA.COMPANIES.table, company.id, { status: newStatus });
+      const updated = await dbSync.update(DB_SCHEMA.COMPANIES.table, company.id, {
+        status: newStatus,
+        is_active: newStatus === 'active'
+      });
+      if (!updated?.id) throw new Error('The database did not confirm the status update.');
       toast.success(`Company ${newStatus === 'active' ? 'activated' : 'deactivated'}`);
-      fetchCompanies();
+      await fetchCompanies();
     } catch (err) {
       console.error('Error toggling status:', err);
-      toast.error('Failed to update status');
+      toast.error(`Failed to update status: ${err.message || 'Unknown database error'}`);
     }
   };
 
   const resetForm = () => {
     setFormData({
-      company_name: '',
-      owner_name: '',
+      name: '',
       email: '',
-      mobile: '',
+      phone: '',
       address: '',
-      plan: 'starter',
+      subscription_plan: 'starter',
       status: 'active'
     });
     setEditingCompany(null);
@@ -134,16 +165,19 @@ export default function CompanyManagement() {
   const openEditModal = (company) => {
     setEditingCompany(company);
     setFormData({
-      company_name: company.company_name,
-      owner_name: company.owner_name,
+      name: company.name || '',
       email: company.email,
-      mobile: company.mobile,
+      phone: company.phone || '',
       address: company.address || '',
-      plan: company.plan || 'starter',
+      subscription_plan: company.subscription_plan || 'starter',
       status: company.status
     });
     setShowModal(true);
   };
+
+  if (currentUser?.role !== 'super_admin') {
+    return <div role="alert" className="m-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Company Management is restricted to platform administrators.</div>;
+  }
 
   if (loading) {
     return <LoadingState title="Loading companies" subtitle="Fetching tenant organizations and account details." />;
@@ -172,6 +206,12 @@ export default function CompanyManagement() {
 
         {/* Companies Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {loadError && (
+            <div role="alert" className="col-span-full rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+              {loadError}
+              <button type="button" onClick={fetchCompanies} className="ml-3 font-bold underline">Retry</button>
+            </div>
+          )}
           {companies.map((company) => (
             <motion.div
               key={company.id}
@@ -196,28 +236,24 @@ export default function CompanyManagement() {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-black text-slate-900 mb-1">{company.company_name}</h3>
+                <h3 className="text-xl font-black text-slate-900 mb-1">{company.name}</h3>
                 <p className="text-slate-500 text-sm font-medium mb-4">{company.company_slug}</p>
 
                 <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <User size={14} />
-                    <span>{company.owner_name}</span>
-                  </div>
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Mail size={14} />
                     <span>{company.email}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Phone size={14} />
-                    <span>{company.mobile}</span>
+                    <span>{company.phone}</span>
                   </div>
                 </div>
 
                 <div className="flex gap-2 mb-4">
                   <div className="flex-1 bg-slate-50 rounded-lg p-3 text-center">
                     <p className="text-xs text-slate-500 font-black uppercase tracking-wider">Plan</p>
-                    <p className="text-lg font-black text-slate-900 capitalize">{company.plan || company.subscription_plan}</p>
+                    <p className="text-lg font-black text-slate-900 capitalize">{company.subscription_plan || '—'}</p>
                   </div>
                   <div className="flex-1 bg-slate-50 rounded-lg p-3 text-center">
                     <p className="text-xs text-slate-500 font-black uppercase tracking-wider">Code</p>
@@ -257,7 +293,7 @@ export default function CompanyManagement() {
             </motion.div>
           ))}
 
-          {companies.length === 0 && (
+          {companies.length === 0 && !loadError && (
             <div className="col-span-full">
               <EmptyState
                 title="No companies yet"
@@ -299,21 +335,10 @@ export default function CompanyManagement() {
                     </label>
                     <input
                       type="text"
-                      value={formData.company_name}
-                      onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Owner Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.owner_name}
-                      onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      maxLength={160}
                       required
                     />
                   </div>
@@ -335,19 +360,32 @@ export default function CompanyManagement() {
                     </label>
                     <input
                       type="tel"
-                      value={formData.mobile}
-                      onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      maxLength={40}
                       required
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
+                      Address
+                    </label>
+                    <textarea
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      maxLength={2000}
+                      rows={3}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
-                      Plan
+                      Subscription Plan
                     </label>
                     <select
-                      value={formData.plan}
-                      onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+                      value={formData.subscription_plan}
+                      onChange={(e) => setFormData({ ...formData, subscription_plan: e.target.value })}
                       className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                     >
                       <option value="starter">Starter</option>
@@ -380,10 +418,11 @@ export default function CompanyManagement() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                    disabled={saving}
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
                     <Save size={16} className="inline mr-2" />
-                    {editingCompany ? 'Update' : 'Create'}
+                    {saving ? 'Saving…' : editingCompany ? 'Update' : 'Create'}
                   </button>
                 </div>
               </form>

@@ -345,10 +345,10 @@ Expected concepts include product ID, quantity change, change type and narration
 - `place_order_atomic`: POS checkout
 - `create_purchase_atomic`: purchase receiving
 - `adjust_stock_atomic`: inventory changes
-- `adjust_wallet_atomic`: wallet ledger changes
+- `admin_adjust_wallet_atomic`: authenticated, tenant-scoped wallet ledger changes
 - `verify_admin_pin`: protected manager/admin operations
 
-`src/dbSync.js` centralizes atomic RPC execution. Most admin RPCs use `{ p_payload: payload }`; wallet adjustment uses named parameters.
+`src/dbSync.js` centralizes atomic RPC execution. Most admin RPCs use `{ p_payload: payload }`; the authenticated wallet adjustment uses named parameters and explicit tenant/company scope. The legacy `adjust_wallet_atomic` RPC is revoked and must not be called by clients.
 
 ## 10. Product Images and Storage
 
@@ -468,6 +468,8 @@ Never push a migration to a different project ref. Review SQL and RLS impact bef
 - Website legacy order tenant values are hard-coded to `1 / NMM001`.
 - Website address repository contains placeholder functions and should not be assumed complete.
 - The admin project has no local database migration directory; its schema is managed through Supabase state and schema utility scripts.
+- The Admin Tools store-display selectors save tenant-scoped selected IDs in `home_config` (`store_display_item`, `store_display_subcategory` and `store_display_main_category`). The customer website does not currently read these keys, so they do not change storefront visibility. Before wiring them into catalog queries, confirm whether selections restrict products and whether an empty selection means all products or none.
+- The Admin AI Assistant does not generate responses or call an AI provider until a secure server-side integration is configured. Keep provider credentials server-only; do not place them in browser environment variables or call a provider directly from frontend code.
 - Do not treat the public fallback configuration in the website client as a replacement for correct deployment environment variables.
 - Current live audit showed zero visible orders; use a real authenticated checkout to verify the full website-to-admin path.
 

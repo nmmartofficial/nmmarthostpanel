@@ -36,6 +36,8 @@ export const APP_TAB_IDS = [
   'InventoryReconciliation',
   'CustomerAnalytics', 'LoyaltyManagement', 'ProfitLoss', 'Expenses',
   'Orders', 'POS', 'SelfCheckout', 'AppConfig', 'CompanyManagement',
+  'StoreItemDisplay', 'StoreSubCatDisplay', 'StoreMainCatDisplay',
+  'TestBluetooth', 'AI',
   'Purchase', 'Transaction', 'Notifications', 'SupportTickets', 'Analytics',
   'Users', 'AdminUsers'
 ];

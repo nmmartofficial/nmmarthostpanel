@@ -38,6 +38,10 @@ import { processImageForUpload } from './utils/imageHandler';
 import { loadSupabaseTables } from './utils/supabaseDataLoader';
 import { shouldSkipGlobalFetch } from './utils/fetchControl';
 import { isLocalPosReadOnlyMode, isLocalPosTestMode } from './utils/localPosTestMode';
+import {
+  loadStoreDisplaySelection,
+  saveStoreDisplaySelection
+} from './utils/storeDisplayConfig';
 import { smartSync } from './utils/smartSync';
 import { createSmartSyncSubscriptionManager, resolveSmartSyncScope } from './utils/smartSyncScope';
 import {
@@ -48,6 +52,7 @@ import {
 } from './utils/orderPushNotifications';
 
 import MasterListView from './components/MasterListView';
+import WalletMasterView from './pages/WalletMasterView';
 import { ModuleLoadingFallback, PaginationFooter, NavDropdown } from './components/appShell';
 import { cn, generateUUID } from './utils/helpers';
 
@@ -59,9 +64,29 @@ const DEFAULT_NAVIGATION_CONFIG = {
   tools: ['AppConfig', 'StoreItemDisplay', 'StoreSubCatDisplay', 'StoreMainCatDisplay', 'TestBluetooth', 'AI', 'CompanyManagement']
 };
 
-const DEFAULT_APP_CONFIG = {
-  id: 'default',
-  navigation_config: JSON.stringify(DEFAULT_NAVIGATION_CONFIG, null, 2)
+const DEFAULT_APP_CONFIG = {};
+
+const normalizeAppConfigRows = (rows) => {
+  const settings = Object.fromEntries((Array.isArray(rows) ? rows : [])
+    .filter((row) => row?.key)
+    .map((row) => [row.key, row.value]));
+  return Object.keys(settings).length > 0 ? settings : DEFAULT_APP_CONFIG;
+};
+
+const fetchTenantAppConfig = async (currentUser) => {
+  if (!currentUser?.tenant_id || !currentUser?.company_code) {
+    throw new Error('Company and tenant context are required to load configuration.');
+  }
+  let request = supabase.from(DB_SCHEMA.APP_CONFIG.table)
+    .select('id,tenant_id,company_code,key,value,value_type,group_name,description,is_active,created_at,updated_at')
+    .eq('tenant_id', currentUser.tenant_id)
+    .eq('company_code', currentUser.company_code);
+  ['%secret%', '%token%', '%api%key%', '%password%', '%pin%', '%private%key%'].forEach((pattern) => {
+    request = request.not('key', 'ilike', pattern);
+  });
+  const { data, error } = await request;
+  if (error) throw error;
+  return data || [];
 };
 
 const GLOBAL_SYNC_RESOURCES = [
@@ -488,7 +513,10 @@ export default function App({ company, isTenantMode, companySlug }) {
   const handleLogout = useCallback(() => {
     secureStorage.clear();
     sessionStorage.removeItem('nm_active_tab');
-    logout(isTenantMode && companySlug ? companySlug : '');
+    return logout(isTenantMode && companySlug ? companySlug : '').catch((error) => {
+      console.error('Logout failed to revoke the Supabase session:', error);
+      toast.error(`Local session cleared, but server sign-out failed: ${error.message || 'Please sign in again.'}`);
+    });
   }, [logout, isTenantMode, companySlug]);
 
   const resetSessionTimer = useCallback(() => {
@@ -531,6 +559,8 @@ export default function App({ company, isTenantMode, companySlug }) {
   // --- Data States ---
   const [stats, setStats] = useState({ products: 0, categories: 0, orders: 0, users: 0 });
   const [appConfig, setAppConfig] = useState(DEFAULT_APP_CONFIG);
+  const [appConfigRows, setAppConfigRows] = useState([]);
+  const [appConfigLoadError, setAppConfigLoadError] = useState('');
   const [banners, setBanners] = useState([]);
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
@@ -880,9 +910,10 @@ export default function App({ company, isTenantMode, companySlug }) {
         setNotifications(rows);
         break;
       case DB_SCHEMA.APP_CONFIG.table: {
-        const configRows = await fetchList(resource);
-        const config = configRows[0] || DEFAULT_APP_CONFIG;
-        setAppConfig(config);
+        const configRows = await fetchTenantAppConfig(currentUser);
+        setAppConfigRows(configRows);
+        setAppConfig(normalizeAppConfigRows(configRows));
+        setAppConfigLoadError('');
         return configRows;
       }
       case DB_SCHEMA.HOME_CONFIG.table:
@@ -1027,7 +1058,7 @@ export default function App({ company, isTenantMode, companySlug }) {
         dbSync.fetch(DB_SCHEMA.ORDERS.table, {
         order: { column: 'created_at', ascending: false }
         }),
-        dbSync.fetch(DB_SCHEMA.APP_CONFIG.table),
+        fetchTenantAppConfig(currentUser),
         dbSync.fetch(DB_SCHEMA.BANNERS.table),
         dbSync.fetch(DB_SCHEMA.SUBCATEGORIES.table, { order: { column: 'name', ascending: true } }),
         dbSync.fetch(DB_SCHEMA.BRANDS.table, { order: { column: 'name', ascending: true } }),
@@ -1060,6 +1091,7 @@ export default function App({ company, isTenantMode, companySlug }) {
       const getData = (index, fallback = []) => {
         if (!results[index]) return fallback;
         if (results[index].status === 'fulfilled') {
+          if (index === 3) return results[index].value || fallback;
           if (index === 27) return results[index].value.data || fallback;
           return results[index].value;
         }
@@ -1102,16 +1134,16 @@ export default function App({ company, isTenantMode, companySlug }) {
       setOrders(ordersData);
       setOrderItems(orderItemsData);
 
-      // Use DEFAULT_APP_CONFIG if no app config is found, otherwise only use loaded fields
-      const loadedAppConfig = Array.isArray(appConfigData) ? appConfigData[0] : appConfigData;
-      if (loadedAppConfig && Object.keys(loadedAppConfig).length > 0) {
-        setAppConfig(loadedAppConfig);
+      const appConfigResult = results[3];
+      if (appConfigResult.status === 'fulfilled') {
+        const rows = Array.isArray(appConfigData) ? appConfigData : [];
+        setAppConfigRows(rows);
+        setAppConfig(normalizeAppConfigRows(rows));
+        setAppConfigLoadError('');
       } else {
-        // Minimal safe default
-        setAppConfig({
-          id: 'default',
-          store_name: 'NM MART'
-        });
+        const message = appConfigResult.reason?.message || 'Configuration could not be loaded.';
+        setAppConfigLoadError(message);
+        toast.error('Configuration could not be loaded. Existing values were kept.');
       }
       setBanners(bannersData);
       setSubcategories(subcategoriesData);
@@ -1475,7 +1507,9 @@ export default function App({ company, isTenantMode, companySlug }) {
     { id: 'StoreMainCatDisplay', label: 'Store Main-Cat Display', icon: <Grid size={14} /> },
     { id: 'TestBluetooth', label: 'Test Bluetooth', icon: <Bluetooth size={14} /> },
     { id: 'AI', label: 'AI Assistant', icon: <Bot size={14} /> },
-    ...(!isTenantMode ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }] : []),
+    ...(!isTenantMode && currentUser?.role === 'super_admin'
+      ? [{ id: 'CompanyManagement', label: 'Company Management', icon: <Building2 size={14} /> }]
+      : []),
   ];
 
   const masterItems = masterDefaultItems.filter(item =>
@@ -2012,21 +2046,24 @@ export default function App({ company, isTenantMode, companySlug }) {
                   <div className="flex gap-3">
                     <button
                       onClick={async () => {
-                        if (!passwordForm.old || !passwordForm.new) return alert("Fill all fields");
+                        if (!passwordForm.old || !passwordForm.new || !passwordForm.confirm) return alert("Fill all fields");
                         if (passwordForm.new !== passwordForm.confirm) return alert("Passwords don't match");
-
-                        // Check if old password matches current security pin
-                        const currentPin = appConfig?.security_pin || '1234';
-                        if (passwordForm.old !== currentPin) return alert("Incorrect Old Password");
+                        if (passwordForm.new.length < 8) return alert("New password must be at least 8 characters");
 
                         try {
-                          const res = await handleERPAction(DB_SCHEMA.APP_CONFIG.table, ACTION_TYPES.BULK_UPSERT, [{ id: 'default', security_pin: passwordForm.new }]);
-                          if (res.success) {
-                            alert("Password Changed Successfully!");
-                            setShowChangePassword(false);
-                            setPasswordForm({ old: '', new: '', confirm: '' });
-                            fetchInitialData();
-                          } else throw new Error(res.error);
+                          const { data: authResult, error: authError } = await supabase.auth.getUser();
+                          if (authError) throw authError;
+                          if (!authResult?.user?.email) throw new Error('The authenticated account email is unavailable.');
+                          const { error: verifyError } = await supabase.auth.signInWithPassword({
+                            email: authResult.user.email,
+                            password: passwordForm.old
+                          });
+                          if (verifyError) throw new Error('Current password is incorrect.');
+                          const { error: updateError } = await supabase.auth.updateUser({ password: passwordForm.new });
+                          if (updateError) throw updateError;
+                          alert("Password Changed Successfully!");
+                          setShowChangePassword(false);
+                          setPasswordForm({ old: '', new: '', confirm: '' });
                         } catch (e) {
                           alert("Failed: " + e.message);
                         }
@@ -2080,7 +2117,8 @@ export default function App({ company, isTenantMode, companySlug }) {
             <Suspense fallback={<ModuleLoadingFallback title={`Loading ${activeTab}...`} />}>
               {renderTabContent(activeTab, {
                   activeTab, setActiveTab, currentUser,
-                  stats, appConfig, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons,
+                  isAllowed, isTenantMode,
+                  stats, appConfig, appConfigRows, appConfigLoadError, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons, dataReady: hasLoadedInitialDataRef.current,
                   offers, pincodes, homeConfig, walletTx, wallets, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                   purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
                   loyaltyPoints, loyaltyTransactions, loyaltyTiers, hsnMaster,
@@ -2125,88 +2163,569 @@ function TestBluetoothView() {
   const [deviceName, setDeviceName] = useState('');
   const [busy, setBusy] = useState(false);
   const handleSearch = async () => {
-    if (!navigator.bluetooth || typeof navigator.bluetooth.requestDevice !== 'function') {
-      setStatus('Bluetooth is not supported in this browser. Try a supported desktop Chromium browser or the device/printer vendor app.');
+    setDeviceName('');
+    if (!window.isSecureContext) {
+      setStatus('Bluetooth discovery requires a secure HTTPS connection (localhost is also allowed).');
       return;
     }
-    setBusy(true); setStatus('Waiting for device selection…');
+    if (!navigator.bluetooth || typeof navigator.bluetooth.requestDevice !== 'function') {
+      setStatus('This browser does not expose Web Bluetooth. Try a supported desktop Chromium browser; iOS browsers generally do not support Web Bluetooth.');
+      return;
+    }
+    setBusy(true);
+    setStatus('Waiting for you to choose a nearby Bluetooth device…');
     try {
       const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [] });
       setDeviceName(device.name || 'Unnamed Bluetooth device');
-      setStatus('Device detected by browser. Printer connection/printing is not verified by device discovery alone.');
+      setStatus('Device discovery succeeded. No connection or printer protocol has been tested.');
     } catch (error) {
-      setStatus(error?.name === 'NotFoundError' ? 'No device selected.' : (error?.message || 'Bluetooth request failed.'));
-    } finally { setBusy(false); }
+      if (error?.name === 'NotFoundError') {
+        setStatus('No device was selected.');
+      } else if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') {
+        setStatus('Bluetooth permission was denied or blocked by browser policy.');
+      } else if (error?.name === 'NotSupportedError') {
+        setStatus('This device or browser does not support the requested Bluetooth discovery.');
+      } else {
+        setStatus(`Bluetooth discovery failed: ${error?.message || 'Unknown browser error.'}`);
+      }
+    } finally {
+      setBusy(false);
+    }
   };
-  return <div className="bg-white p-6 md:p-10 rounded-xl border border-slate-200 shadow-sm space-y-5">
-    <div className="flex items-center gap-3"><Bluetooth size={28} className="text-blue-600"/><div><h1 className="text-2xl font-bold text-slate-800">Bluetooth Device Test</h1><p className="text-sm text-slate-500">Checks browser support and lets you request a nearby device.</p></div></div>
-    <button onClick={handleSearch} disabled={busy} className="px-5 py-3 rounded-lg bg-blue-600 text-white font-semibold disabled:opacity-50">{busy ? 'Waiting…' : 'Find Bluetooth Device'}</button>
-    {deviceName && <p className="text-sm text-slate-700">Selected device: <strong>{deviceName}</strong></p>}
-    <p role="status" className="text-sm rounded-lg bg-slate-50 border border-slate-200 p-4 text-slate-700">{status}</p>
-    <p className="text-xs text-amber-700">Note: browser support and printer protocols vary. This screen does not claim a successful print test.</p>
-  </div>;
+  return (
+    <div className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm md:p-10">
+      <div className="flex items-center gap-3">
+        <Bluetooth size={28} className="text-blue-600" />
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Bluetooth Device Test</h1>
+          <p className="text-sm text-slate-500">Discovery is requested only after you press the button.</p>
+        </div>
+      </div>
+      <button type="button" onClick={handleSearch} disabled={busy} className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:opacity-50">
+        {busy ? 'Waiting…' : 'Find Bluetooth Device'}
+      </button>
+      {deviceName && <p className="text-sm text-slate-700">Discovered device: <strong>{deviceName}</strong></p>}
+      <p role="status" aria-live="polite" className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">{status}</p>
+      <p className="text-xs text-amber-700">Discovery is not a connection or a print test. Browser support, iPhone limitations, and printer protocols vary.</p>
+    </div>
+  );
 }
 
-function StoreDisplaySelectionView({ kind, title, sourceItems = [], currentUser }) {
+function StoreDisplaySelectionView({
+  kind,
+  title,
+  sourceItems = [],
+  categories = [],
+  subcategories = [],
+  currentUser,
+  dataReady = false
+}) {
   const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
-  const [department, setDepartment] = useState('');
-  const [status, setStatus] = useState('Tap Load Data to fetch records and saved selection.');
+  const [categoryId, setCategoryId] = useState('');
+  const [subcategoryId, setSubcategoryId] = useState('');
+  const [status, setStatus] = useState('Waiting for store records to load.');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savedIdsRef = useRef(new Set());
   const key = `store_display_${kind}`;
-  const idOf = item => String(item.id);
-  const nameOf = item => item.name || item.itname || item.item_name || item.category_name || item.subcategory_name || `Record ${item.id}`;
-  const load = async () => {
-    setLoading(true); setStatus('Loading records and saved selection…');
+  const idOf = (item) => String(item.id);
+  const nameOf = (item) => item.name
+    || item.product_name
+    || item.item_name
+    || item.itname
+    || item.category_name
+    || item.subcategory_name
+    || `Record ${item.id}`;
+  const categoryNameOf = (item) => (
+    item.category_name
+    || item.itc
+    || categories.find((category) => String(category.id) === String(item.category_id))?.name
+    || ''
+  );
+  const subcategoryNameOf = (item) => (
+    item.subcategory_name
+    || item.sub_category_name
+    || subcategories.find((subcategory) => String(subcategory.id) === String(item.subcategory_id))?.name
+    || ''
+  );
+
+  const load = useCallback(async () => {
+    if (!dataReady) return;
+    setLoading(true);
+    setStatus('Loading records and saved selection…');
     try {
-      if (!currentUser?.tenant_id) throw new Error('Tenant context is missing. Sign in with the correct admin account.');
-      let query = supabase.from('home_config').select('id,key,value,tenant_id,company_code')
-        .eq('tenant_id', currentUser.tenant_id).eq('key', key);
-      if (currentUser.company_code) query = query.eq('company_code', currentUser.company_code);
-      const { data, error } = await query.maybeSingle();
-      if (error) throw error;
-      const saved = Array.isArray(data?.value?.selected_ids) ? data.value.selected_ids.map(String) : [];
-      setItems((sourceItems || []).filter(x => x && x.id != null).map(x => ({ ...x, isSelected: saved.includes(idOf(x)) })));
-      setStatus(`Loaded ${(sourceItems || []).length} records. ${saved.length} saved selections restored.`);
-    } catch (e) { setItems((sourceItems || []).filter(x => x && x.id != null).map(x => ({ ...x, isSelected: false }))); setStatus(`Load failed: ${e.message || 'Unknown error'}`); }
-    finally { setLoading(false); }
+      if (!currentUser?.tenant_id || !currentUser?.company_code) {
+        throw new Error('Company and tenant context are missing. Sign in again before managing store display.');
+      }
+      const savedIds = new Set(await loadStoreDisplaySelection(
+        supabase,
+        {
+          tenantId: currentUser.tenant_id,
+          companyCode: currentUser.company_code
+        },
+        key
+      ));
+      const records = (Array.isArray(sourceItems) ? sourceItems : [])
+        .filter((item) => item && item.id != null);
+      savedIdsRef.current = savedIds;
+      setItems(records.map((item) => ({ ...item, isSelected: savedIds.has(idOf(item)) })));
+      setStatus(`Loaded ${records.length} records. ${savedIds.size} saved selections restored.`);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('[Store Display persistence error]', {
+          table: error.table || DB_SCHEMA.HOME_CONFIG.table,
+          operation: error.operation || 'select',
+          key,
+          tenantId: currentUser?.tenant_id ?? null,
+          companyCode: currentUser?.company_code ?? null,
+          code: error.code || null,
+          message: error.message || 'Unknown database error',
+          details: error.details || null,
+          hint: error.hint || null,
+          status: error.status || null
+        });
+      }
+      setStatus(`Load failed: ${error.message || 'Unable to load store records.'}`);
+      toast.error(`Could not load ${title}: ${error.message || 'Unknown database error'}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    categories,
+    currentUser?.company_code,
+    currentUser?.tenant_id,
+    dataReady,
+    key,
+    sourceItems,
+    subcategories,
+    title
+  ]);
+
+  useEffect(() => {
+    setItems([]);
+    savedIdsRef.current = new Set();
+    setSearch('');
+    setCategoryId('');
+    setSubcategoryId('');
+  }, [kind, currentUser?.company_code, currentUser?.tenant_id]);
+
+  useEffect(() => {
+    if (dataReady) load();
+  }, [dataReady, load]);
+
+  const toggle = (id) => setItems((previous) => previous.map((item) => (
+    idOf(item) === String(id) ? { ...item, isSelected: !item.isSelected } : item
+  )));
+  const availableSubcategories = subcategories.filter((subcategory) => (
+    !categoryId || String(subcategory.category_id) === categoryId
+  ));
+  const filtered = items.filter((item) => {
+    const query = search.trim().toLowerCase();
+    const categoryMatch = !categoryId || String(item.category_id) === categoryId
+      || (kind === 'main_category' && idOf(item) === categoryId);
+    const subcategoryMatch = !subcategoryId || String(item.subcategory_id) === subcategoryId
+      || (kind === 'subcategory' && idOf(item) === subcategoryId);
+    const searchable = [
+      nameOf(item),
+      item.barcode,
+      item.item_code,
+      item.code,
+      categoryNameOf(item),
+      subcategoryNameOf(item)
+    ].filter(Boolean).join(' ').toLowerCase();
+    return categoryMatch && subcategoryMatch && (!query || searchable.includes(query));
+  });
+  const selectAll = (selected) => {
+    const ids = new Set(filtered.map(idOf));
+    setItems((previous) => previous.map((item) => (
+      ids.has(idOf(item)) ? { ...item, isSelected: selected } : item
+    )));
   };
-  useEffect(() => { setItems([]); setStatus('Tap Load Data to fetch records and saved selection.'); }, [kind]);
-  const toggle = id => setItems(prev => prev.map(x => idOf(x) === String(id) ? { ...x, isSelected: !x.isSelected } : x));
-  const filtered = items.filter(x => nameOf(x).toLowerCase().includes(search.toLowerCase()) && (!department || String(x.department_code || x.dtcode || '') === department));
-  const selectAll = val => { const ids = new Set(filtered.map(idOf)); setItems(prev => prev.map(x => ids.has(idOf(x)) ? { ...x, isSelected: val } : x)); };
   const save = async () => {
-    setSaving(true); setStatus('Saving selection to Supabase…');
+    setSaving(true);
+    setStatus('Saving selection to Supabase…');
     try {
       if (isSupabaseMock) throw new Error('Supabase is in mock mode; selection was not saved.');
-      if (!currentUser?.tenant_id) throw new Error('Tenant context is missing.');
-      const selected_ids = items.filter(x => x.isSelected).map(idOf);
-      const payload = { tenant_id: currentUser.tenant_id, company_code: currentUser.company_code || null, key, value: { selected_ids, updated_by: currentUser.id || currentUser.user_id || null }, description: `${title} selected record IDs`, section_name: 'Store Display', section_type: 'selection', is_active: true, updated_at: new Date().toISOString() };
-      const { error } = await supabase.from('home_config').upsert(payload, { onConflict: 'tenant_id,key' });
-      if (error) throw error;
-      setStatus(`Saved successfully. ${selected_ids.length} records selected.`);
+      if (!currentUser?.tenant_id || !currentUser?.company_code) {
+        throw new Error('Company and tenant context are required to save this selection.');
+      }
+      const selectedIds = await saveStoreDisplaySelection(supabase, {
+        scope: {
+          tenantId: currentUser.tenant_id,
+          companyCode: currentUser.company_code
+        },
+        key,
+        title,
+        selectedIds: items.filter((item) => item.isSelected).map(idOf),
+        updatedBy: currentUser.id || currentUser.user_id || null
+      });
+      savedIdsRef.current = new Set(selectedIds);
+      setStatus(`Saved successfully. ${selectedIds.length} records selected.`);
       toast.success(`${title} selection saved`);
-    } catch (e) { setStatus(`Save failed: ${e.message || 'Unknown error'}`); toast.error(`Could not save ${title}`); }
-    finally { setSaving(false); }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('[Store Display persistence error]', {
+          table: error.table || DB_SCHEMA.HOME_CONFIG.table,
+          operation: error.operation || 'unknown',
+          key,
+          tenantId: currentUser?.tenant_id ?? null,
+          companyCode: currentUser?.company_code ?? null,
+          code: error.code || null,
+          message: error.message || 'Unknown database error',
+          details: error.details || null,
+          hint: error.hint || null,
+          status: error.status || null
+        });
+      }
+      setStatus(`Save failed: ${error.message || 'Unable to save selection.'}`);
+      toast.error(`Could not save ${title}: ${error.message || 'Unknown database error'}`);
+    } finally {
+      setSaving(false);
+    }
   };
-  const cancel = () => { setItems(prev => prev.map(x => ({ ...x, isSelected: false }))); setSearch(''); setDepartment(''); setStatus('Unsaved selections cleared from this screen. Saved database selection is unchanged; tap Load Data to restore it.'); };
-  const deptOptions = [...new Set((sourceItems || []).map(x => x.department_code || x.dtcode).filter(Boolean).map(String))];
-  return <div className="h-[calc(100vh-12rem)] min-h-[420px] flex flex-col"><div className="flex-1 bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden gap-4">
-    <div className="flex flex-col gap-4"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600">NM Mart · Store Display</p><h1 className="text-2xl font-bold text-slate-800">{title}</h1><p className="text-sm text-slate-500">Select records and save the selection to Supabase.</p></div>
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-3"><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search records…" className="border border-slate-300 rounded-lg px-3 py-2 text-sm"/>{kind === 'item' ? <input value={department} onChange={e => setDepartment(e.target.value)} placeholder="Department code (optional)" className="border border-slate-300 rounded-lg px-3 py-2 text-sm"/> : <div className="flex items-center text-sm text-slate-500">{items.length} records loaded</div>}<button onClick={load} disabled={loading} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">{loading ? 'Loading…' : 'Load Data'}</button><button onClick={() => selectAll(true)} disabled={!filtered.length} className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold disabled:opacity-50">Select filtered</button></div></div>
-    <div className="text-xs text-slate-500">{filtered.filter(x => x.isSelected).length} selected in current results · {filtered.length} shown</div>
-    <div className="flex-1 overflow-auto border-t border-slate-100 pt-3"><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">{filtered.map(x => <label key={idOf(x)} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50 cursor-pointer"><input type="checkbox" checked={!!x.isSelected} onChange={() => toggle(x.id)} className="h-4 w-4"/><span className="text-sm text-slate-800">{nameOf(x)}</span><span className="ml-auto text-[10px] text-slate-400">#{x.id}</span></label>)}</div>{!filtered.length && <div className="p-10 text-center text-sm text-slate-400">{loading ? 'Loading records…' : 'No records to show. Tap Load Data.'}</div>}</div>
-    <div className="flex flex-col sm:flex-row gap-3 justify-between border-t border-slate-100 pt-4"><p role="status" className="text-xs text-slate-600 self-center">{status}</p><div className="flex gap-2"><button onClick={() => selectAll(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Deselect filtered</button><button onClick={cancel} className="rounded-lg bg-slate-500 text-white px-4 py-2 text-sm">Cancel</button><button onClick={save} disabled={saving || loading} className="rounded-lg bg-blue-600 text-white px-5 py-2 text-sm font-bold disabled:opacity-50">{saving ? 'Saving…' : 'Save to Supabase'}</button></div></div>
-  </div></div>;
+  const cancel = () => {
+    setItems((previous) => previous.map((item) => ({
+      ...item,
+      isSelected: savedIdsRef.current.has(idOf(item))
+    })));
+    setSearch('');
+    setCategoryId('');
+    setSubcategoryId('');
+    setStatus('Unsaved changes cancelled. Previously saved selections restored.');
+  };
+  const selectedCount = items.filter((item) => item.isSelected).length;
+
+  return (
+    <div className="flex h-[calc(100vh-12rem)] min-h-[420px] flex-col">
+      <div className="flex flex-1 flex-col gap-4 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-600">NM Mart · Store Display</p>
+          <h1 className="text-2xl font-bold text-slate-800">{title}</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Saved selections are stored in this tenant&apos;s home configuration. The customer-facing storefront in this project does not currently read these selection keys.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search name, code, or barcode…"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            aria-label="Search store records"
+          />
+          {kind !== 'main_category' && (
+            <select
+              value={categoryId}
+              onChange={(event) => {
+                setCategoryId(event.target.value);
+                setSubcategoryId('');
+              }}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              aria-label="Filter by main category"
+            >
+              <option value="">All main categories</option>
+              {categories.map((category) => (
+                <option key={category.id} value={String(category.id)}>{category.name}</option>
+              ))}
+            </select>
+          )}
+          {kind === 'item' && (
+            <select
+              value={subcategoryId}
+              onChange={(event) => setSubcategoryId(event.target.value)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              aria-label="Filter by subcategory"
+            >
+              <option value="">All subcategories</option>
+              {availableSubcategories.map((subcategory) => (
+                <option key={subcategory.id} value={String(subcategory.id)}>{subcategory.name}</option>
+              ))}
+            </select>
+          )}
+          <button
+            type="button"
+            onClick={load}
+            disabled={loading || !dataReady}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+          >
+            {loading ? 'Loading…' : 'Reload records'}
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+          <span>{selectedCount} selected · {filtered.length} shown</span>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => selectAll(true)} disabled={!filtered.length || loading} className="rounded-lg bg-slate-100 px-3 py-2 font-semibold disabled:opacity-50">
+              Select all shown
+            </button>
+            <button type="button" onClick={() => selectAll(false)} disabled={!filtered.length || loading} className="rounded-lg bg-slate-100 px-3 py-2 font-semibold disabled:opacity-50">
+              Clear shown
+            </button>
+            <button type="button" onClick={() => selectAll(false)} disabled={!items.length || loading} className="rounded-lg bg-slate-100 px-3 py-2 font-semibold disabled:opacity-50">
+              Clear selection
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto border-t border-slate-100 pt-3">
+          {loading && <p className="p-8 text-center text-sm text-slate-500">Loading records and saved selection…</p>}
+          {!loading && items.length === 0 && dataReady && (
+            <p className="p-8 text-center text-sm text-slate-500">No records are available for this company.</p>
+          )}
+          {!loading && filtered.length === 0 && items.length > 0 && (
+            <p className="p-8 text-center text-sm text-slate-500">No records match these filters.</p>
+          )}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((item) => {
+              const code = item.barcode || item.item_code || item.code || item.sku;
+              return (
+                <label key={idOf(item)} className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+                  <input type="checkbox" checked={Boolean(item.isSelected)} onChange={() => toggle(item.id)} className="mt-0.5 h-4 w-4" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-slate-800">{nameOf(item)}</span>
+                    {kind === 'item' && (
+                      <span className="mt-1 block text-xs text-slate-500">
+                        Code: {code || '—'} · {categoryNameOf(item) || 'No category'} / {subcategoryNameOf(item) || 'No subcategory'}
+                      </span>
+                    )}
+                    {kind !== 'item' && (
+                      <span className="mt-1 block text-xs text-slate-500">
+                        {kind === 'subcategory'
+                          ? `Main category: ${categories.find((category) => String(category.id) === String(item.category_id))?.name || '—'}`
+                          : `Current status: ${item.is_active === false ? 'Inactive' : 'Active'}`}
+                      </span>
+                    )}
+                    <span className={`mt-1 block text-[10px] font-bold uppercase ${item.isSelected ? 'text-blue-700' : 'text-slate-400'}`}>
+                      {item.isSelected ? 'Selected for store display' : 'Not selected'}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex flex-col justify-between gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center">
+          <p role="status" aria-live="polite" className="text-xs text-slate-600">{status}</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={cancel} disabled={saving || loading} className="rounded-lg bg-slate-500 px-4 py-2 text-sm text-white disabled:opacity-50">Cancel</button>
+            <button type="button" onClick={save} disabled={saving || loading || !dataReady} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-50">
+              {saving ? 'Saving…' : 'Save selection'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function AIAssistantView() {
-  const [prompt, setPrompt] = useState('');
-  return <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4"><div className="flex items-center gap-3"><Bot className="text-blue-600" size={28}/><div><h1 className="text-2xl font-bold text-slate-800">AI Assistant</h1><p className="text-sm text-slate-500">AI provider connection must be configured before live answers can be generated.</p></div></div><textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="Describe what you want help with…" className="w-full min-h-28 border border-slate-300 rounded-lg p-3"/><p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">No AI endpoint/provider is confirmed in the current App.jsx. This screen intentionally does not fabricate an AI response. Connect a secure server-side AI endpoint before enabling Send.</p><button disabled={!prompt.trim()} onClick={() => toast.error('AI service is not configured; no request was sent.')} className="rounded-lg bg-slate-300 text-slate-600 px-5 py-2 font-semibold disabled:opacity-50">Send (service not configured)</button></div>;
+function FreeThemeControlView() {
+  const [publishedTheme, setPublishedTheme] = useState(null);
+  const [baseTheme, setBaseTheme] = useState(null);
+  const [draftTheme, setDraftTheme] = useState(null);
+  const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const editableKeys = [
+    'primaryColor', 'secondaryColor', 'backgroundColor', 'textColor',
+    'highlightColor', 'accentColor', 'fontFamily', 'headingFont', 'bodyFont',
+    'fontSizeBase', 'letterSpacing', 'lineHeight', 'bannerRadius', 'cardRadius',
+    'buttonRadius', 'categoryCardStyle', 'bannerTextPosition', 'bannerCtaStyle',
+    'productCardStyle', 'headerStyle', 'footerStyle', 'buttonStyle',
+    'animationSpeed', 'shadowStyle', 'announcementText', 'announcementVisible',
+    'animationsEnabled'
+  ];
+  const fonts = ['Inter', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Montserrat', 'Raleway', 'Playfair Display', 'Oswald', 'Ubuntu', 'Merriweather'];
+  const styles = {
+    categoryCardStyle: ['soft', 'glass', 'bold'],
+    bannerTextPosition: ['left', 'center', 'right'],
+    bannerCtaStyle: ['solid', 'outline', 'pill'],
+    productCardStyle: ['compact', 'premium', 'offer'],
+    headerStyle: ['classic', 'minimal', 'modern', 'centered'],
+    footerStyle: ['simple', 'detailed', 'modern'],
+    buttonStyle: ['flat', 'gradient', 'outline', 'shadow'],
+    animationSpeed: ['slow', 'normal', 'fast'],
+    shadowStyle: ['none', 'soft', 'bold', 'glow']
+  };
+  const numberRanges = {
+    fontSizeBase: [10, 22, 1],
+    lineHeight: [1, 2, 0.1],
+    bannerRadius: [0, 32, 1],
+    cardRadius: [0, 32, 1],
+    buttonRadius: [0, 32, 1]
+  };
+
+  const invokeControl = async (payload) => {
+    const { data, error: invokeError } = await supabase.functions.invoke('admin-ai-control', { body: payload });
+    if (invokeError) {
+      let details = null;
+      try {
+        details = await invokeError.context?.clone?.().json();
+      } catch {
+        details = null;
+      }
+      throw new Error(details?.error || invokeError.message || 'Theme backend request failed.');
+    }
+    if (!data || data.error) throw new Error(data?.error || 'Theme backend returned an empty response.');
+    return data;
+  };
+
+  const loadTheme = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await invokeControl({ action: 'load_theme' });
+      const published = result.publishedTheme || {};
+      const draft = result.draftTheme || published;
+      setPublishedTheme(published);
+      setBaseTheme(draft);
+      setDraftTheme(draft);
+      setHasSavedDraft(Boolean(result.hasDraft));
+      setNotice(result.hasDraft ? 'Saved draft loaded from Supabase.' : 'Published theme loaded from Supabase.');
+    } catch (failure) {
+      if (import.meta.env.DEV) console.error('[Free Theme Control]', { operation: 'load_theme', message: failure.message });
+      setError(failure.message || 'Could not load the theme.');
+      setNotice('');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadTheme(); }, [loadTheme]);
+
+  const changes = Object.fromEntries(editableKeys
+    .filter((key) => baseTheme && draftTheme && JSON.stringify(baseTheme[key]) !== JSON.stringify(draftTheme[key]))
+    .map((key) => [key, draftTheme[key]]));
+  const changeCount = Object.keys(changes).length;
+  const isDirty = changeCount > 0;
+  const canPublish = hasSavedDraft && !isDirty && !busy && !loading;
+
+  const updateValue = (key, value) => {
+    setDraftTheme((previous) => ({ ...previous, [key]: value }));
+    setNotice('');
+    setError('');
+  };
+
+  const saveDraft = async () => {
+    if (!isDirty || changeCount > 12 || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await invokeControl({ action: 'save_draft', changes });
+      setBaseTheme(result.theme);
+      setDraftTheme(result.theme);
+      setHasSavedDraft(true);
+      setNotice('Draft saved and verified by Supabase. It is not published.');
+    } catch (failure) {
+      if (import.meta.env.DEV) console.error('[Free Theme Control]', { operation: 'save_draft', message: failure.message });
+      setError(failure.message || 'Could not save the theme draft.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const publishDraft = async () => {
+    if (!canPublish || !window.confirm('Publish this website theme globally? The Android app will not change.')) return;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await invokeControl({ action: 'publish_draft' });
+      setPublishedTheme(result.theme);
+      setNotice('Website theme published and verified by Supabase. Android is unchanged.');
+    } catch (failure) {
+      if (import.meta.env.DEV) console.error('[Free Theme Control]', { operation: 'publish_draft', message: failure.message });
+      setError(failure.message || 'Could not publish the theme.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const renderPreview = (label, theme) => (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <p className="mb-2 text-xs font-bold uppercase text-slate-500">{label}</p>
+      <div className="rounded-lg p-4" style={{ backgroundColor: theme?.backgroundColor || '#F8FAFC', color: theme?.textColor || '#111827' }}>
+        <p className="font-semibold" style={{ fontFamily: theme?.headingFont || theme?.fontFamily || 'Inter', letterSpacing: theme?.letterSpacing || '0em' }}>NM Mart</p>
+        {theme?.announcementVisible && <p className="mt-1 text-xs">{theme?.announcementText}</p>}
+        <button type="button" className="mt-3 rounded px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: theme?.primaryColor || '#155EEF', borderRadius: `${theme?.buttonRadius ?? 8}px`, boxShadow: theme?.shadowStyle === 'none' ? 'none' : undefined }}>Sample button</button>
+        <div className="mt-3 rounded border p-2 text-xs" style={{ borderRadius: `${theme?.cardRadius ?? 12}px`, borderColor: theme?.highlightColor || '#DBEAFE', backgroundColor: theme?.secondaryColor || '#EFF6FF' }}>Sample product card · {theme?.productCardStyle || 'compact'}</div>
+        <p className="mt-2 text-xs" style={{ fontFamily: theme?.bodyFont || theme?.fontFamily || 'Inter', fontSize: `${theme?.fontSizeBase || 14}px`, lineHeight: theme?.lineHeight || 1.5, letterSpacing: theme?.letterSpacing || '0em' }}>Theme-token preview · {theme?.headerStyle || 'classic'} header · {theme?.footerStyle || 'simple'} footer</p>
+      </div>
+    </div>
+  );
+
+  const renderSetting = (key, label) => {
+    const value = draftTheme?.[key];
+    if (key.endsWith('Color')) {
+      return <label key={key} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 text-sm"><span>{label}</span><input type="color" value={/^#[0-9a-f]{6}$/i.test(value || '') ? value : '#155EEF'} onChange={(event) => updateValue(key, event.target.value.toUpperCase())} aria-label={label} className="h-9 w-12" /></label>;
+    }
+    if (['fontFamily', 'headingFont', 'bodyFont'].includes(key)) {
+      return <label key={key} className="space-y-1 text-sm"><span className="font-medium">{label}</span><select value={value || 'Inter'} onChange={(event) => updateValue(key, event.target.value)} className="w-full rounded-lg border border-slate-300 p-2">{fonts.map((font) => <option key={font}>{font}</option>)}</select></label>;
+    }
+    if (styles[key]) {
+      return <label key={key} className="space-y-1 text-sm"><span className="font-medium">{label}</span><select value={value || styles[key][0]} onChange={(event) => updateValue(key, event.target.value)} className="w-full rounded-lg border border-slate-300 p-2">{styles[key].map((option) => <option key={option}>{option}</option>)}</select></label>;
+    }
+    if (numberRanges[key]) {
+      const [min, max, step] = numberRanges[key];
+      return <label key={key} className="space-y-1 text-sm"><span className="font-medium">{label}: {value ?? min}</span><input type="range" min={min} max={max} step={step} value={value ?? min} onChange={(event) => updateValue(key, Number(event.target.value))} className="w-full" /></label>;
+    }
+    if (key === 'letterSpacing') {
+      const options = ['0em', '0.01em', '0.02em', '0.04em', '0.06em'];
+      return <label key={key} className="space-y-1 text-sm"><span className="font-medium">{label}</span><select value={options.includes(value) ? value : '0em'} onChange={(event) => updateValue(key, event.target.value)} className="w-full rounded-lg border border-slate-300 p-2">{options.map((option) => <option key={option}>{option}</option>)}</select></label>;
+    }
+    if (key === 'announcementText') {
+      return <label key={key} className="space-y-1 text-sm"><span className="font-medium">{label}</span><input value={value || ''} maxLength={240} onChange={(event) => updateValue(key, event.target.value)} className="w-full rounded-lg border border-slate-300 p-2" /></label>;
+    }
+    return <label key={key} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={Boolean(value)} onChange={(event) => updateValue(key, event.target.checked)} />{label}</label>;
+  };
+
+  const colorLabels = [
+    ['primaryColor', 'Primary'], ['secondaryColor', 'Secondary'], ['backgroundColor', 'Background'],
+    ['textColor', 'Text'], ['highlightColor', 'Highlight'], ['accentColor', 'Accent']
+  ];
+  const fontLabels = [['fontFamily', 'Default font'], ['headingFont', 'Heading font'], ['bodyFont', 'Body font']];
+
+  return (
+    <div className="mx-auto flex h-[calc(100vh-12rem)] min-h-[520px] max-w-6xl flex-col gap-4 overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div><h1 className="text-2xl font-bold text-slate-800">Free Theme Control Center</h1><p className="text-sm text-slate-500">Manual website theme controls · platform super-admin access required</p></div>
+        <button type="button" onClick={loadTheme} disabled={loading || busy} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50">{loading ? 'Loading…' : 'Reload from Supabase'}</button>
+      </div>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">AI proposals are disabled in free-first mode.</p><p className="mt-1 text-xs">The existing provider has no verified free allowance. This panel makes no AI calls. Manual theme editing uses no AI.</p></div>
+      {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+      {notice && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+      {!loading && draftTheme && (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+          <div className="space-y-5">
+            <fieldset disabled={busy || loading} className="space-y-5 disabled:opacity-70">
+            <section className="space-y-3"><h2 className="font-bold">Colors</h2><div className="grid gap-3 sm:grid-cols-2">{colorLabels.map(([key, label]) => renderSetting(key, label))}</div></section>
+            <section className="space-y-3"><h2 className="font-bold">Typography</h2><div className="grid gap-3 sm:grid-cols-2">{fontLabels.map(([key, label]) => renderSetting(key, label))}{renderSetting('fontSizeBase', 'Base font size')}{renderSetting('lineHeight', 'Line height')}{renderSetting('letterSpacing', 'Letter spacing')}</div></section>
+            <section className="space-y-3"><h2 className="font-bold">Buttons, cards and layout</h2><div className="grid gap-3 sm:grid-cols-2">{[
+              ['buttonStyle', 'Button style'], ['buttonRadius', 'Button radius'],
+              ['categoryCardStyle', 'Category card style'], ['productCardStyle', 'Product card style'],
+              ['cardRadius', 'Card radius'], ['bannerRadius', 'Banner radius'],
+              ['bannerTextPosition', 'Banner text position'], ['bannerCtaStyle', 'Banner button style'],
+              ['headerStyle', 'Header style'], ['footerStyle', 'Footer style'],
+              ['animationSpeed', 'Animation speed'], ['shadowStyle', 'Shadow style']
+            ].map(([key, label]) => renderSetting(key, label))}</div></section>
+            <section className="space-y-3"><h2 className="font-bold">Announcement</h2>{renderSetting('announcementText', 'Announcement text')}<div className="flex flex-wrap gap-5">{renderSetting('announcementVisible', 'Show announcement')}{renderSetting('animationsEnabled', 'Enable animations')}</div></section>
+            </fieldset>
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+              <button type="button" onClick={saveDraft} disabled={!isDirty || changeCount > 12 || busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Working…' : 'Save draft'}</button>
+              <button type="button" onClick={publishDraft} disabled={!canPublish} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Publish saved draft</button>
+              <button type="button" onClick={() => { setDraftTheme(baseTheme); setError(''); setNotice('Unsaved changes discarded.'); }} disabled={!isDirty || busy} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-50">Discard unsaved edits</button>
+              <span className="text-xs text-slate-500">{changeCount} changed; maximum 12 per save.</span>
+            </div>
+            <p className="text-xs text-slate-500">Save and publish require the authenticated Edge Function to be deployed. No deployment or production write is performed by this code change.</p>
+          </div>
+          <aside className="space-y-3"><h2 className="font-bold">Token preview (not full storefront)</h2>{renderPreview('Published website', publishedTheme)}{renderPreview(isDirty ? 'Unsaved local preview' : hasSavedDraft ? 'Saved draft preview' : 'Draft preview', draftTheme)}<p className="text-xs text-slate-500">Website only. Android, banners, offers, products, and unrelated configuration are unchanged.</p></aside>
+        </div>
+      )}
+      {!loading && !draftTheme && !error && <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">No theme loaded. Verify the Edge Function deployment and active super-admin session.</p>}
+    </div>
+  );
 }
 
-function TransactionView({ users, fetchInitialData }) {
+function TransactionView({ users, fetchInitialData, currentUser }) {
   const [showForm, setShowForm] = useState(false);
   const [fromDate, setFromDate] = useState(new Date().toISOString().split('T')[0]);
   const [toDate, setToDate] = useState(new Date().toISOString().split('T')[0]);
@@ -2295,6 +2814,8 @@ function TransactionView({ users, fetchInitialData }) {
       for (const item of formData.items) {
         await handleERPAction(DB_SCHEMA.WALLET_MASTER.table, ACTION_TYPES.WALLET_ADJUST, {
           user_id: item.party_id,
+          tenant_id: currentUser?.tenant_id,
+          company_code: currentUser?.company_code,
           amount: item.amount,
           type: formData.type === 'Receipt' ? 'credit' : 'debit',
           reason: item.remarks || `${formData.type} Voucher`
@@ -7605,6 +8126,14 @@ const SaleCancelledBillView = (props) => <UnderDevelopmentView title="Sale Cance
 
 // --- Tab Content Renderer ---
 function renderTabContent(activeTab, props) {
+  const toolTabs = ['AppConfig', 'StoreItemDisplay', 'StoreSubCatDisplay', 'StoreMainCatDisplay', 'TestBluetooth', 'AI', 'CompanyManagement'];
+  if (toolTabs.includes(activeTab) && !props.isAllowed?.(activeTab)) {
+    return <div role="alert" className="m-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">You do not have permission to open this tool.</div>;
+  }
+  if (activeTab === 'CompanyManagement' && (props.isTenantMode || props.currentUser?.role !== 'super_admin')) {
+    return <div role="alert" className="m-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">Company Management is restricted to platform administrators.</div>;
+  }
+
   switch (activeTab) {
     // Essential admin-management views only
     case 'CompanyManagement': return <CompanyManagement />;
@@ -7614,11 +8143,11 @@ function renderTabContent(activeTab, props) {
     case 'Notifications': return <NotificationsView {...props} />;
     case 'SupportTickets': return <SupportTicketsView {...props} />;
     case 'AppConfig': return <AppConfigView {...props} />;
-    case 'StoreMainCatDisplay': return <StoreDisplaySelectionView kind="main_category" title="Store Main-Cat Display" sourceItems={props.categories} currentUser={props.currentUser} />;
-    case 'StoreSubCatDisplay': return <StoreDisplaySelectionView kind="subcategory" title="Store Sub-Cat Display" sourceItems={props.subcategories} currentUser={props.currentUser} />;
-    case 'StoreItemDisplay': return <StoreDisplaySelectionView kind="item" title="Store Item Display" sourceItems={props.products} currentUser={props.currentUser} />;
+    case 'StoreMainCatDisplay': return <StoreDisplaySelectionView kind="main_category" title="Store Main-Cat Display" sourceItems={props.categories} categories={props.categories} currentUser={props.currentUser} dataReady={props.dataReady} />;
+    case 'StoreSubCatDisplay': return <StoreDisplaySelectionView kind="subcategory" title="Store Sub-Cat Display" sourceItems={props.subcategories} categories={props.categories} subcategories={props.subcategories} currentUser={props.currentUser} dataReady={props.dataReady} />;
+    case 'StoreItemDisplay': return <StoreDisplaySelectionView kind="item" title="Store Item Display" sourceItems={props.products} categories={props.categories} subcategories={props.subcategories} currentUser={props.currentUser} dataReady={props.dataReady} />;
     case 'TestBluetooth': return <TestBluetoothView />;
-    case 'AI': return <AIAssistantView />;
+    case 'AI': return <FreeThemeControlView />;
     case 'Analytics': return <AnalyticsView {...props} />;
     case 'CustomerAnalytics': return <CustomerAnalyticsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
@@ -7648,7 +8177,7 @@ function renderTabContent(activeTab, props) {
     case 'AdminUsers': return <AdminUsersView title="Admin Users" table={DB_SCHEMA.ADMIN_USERS.table} data={props.adminUsers} {...props} />;
     case 'Pincodes': return <PincodesView title="Pincode Master" table={DB_SCHEMA.PINCODES.table} data={props.pincodes} {...props} />;
     case 'Addresses': return <AddressesView title="Address Master" table={DB_SCHEMA.ADDRESSES.table} data={props.addresses} {...props} />;
-    case 'WalletMaster': return <WalletView />;
+    case 'WalletMaster': return <WalletMasterView />;
     case 'Departments': return <DepartmentsView title="Department Master" table={DB_SCHEMA.DEPARTMENTS.table} data={props.departments} {...props} />;
     case 'HSNMaster': return <HSNMasterView title="HSN Master" table={DB_SCHEMA.HSN_MASTER.table} data={props.hsnMaster} {...props} />;
     case 'Units': return <UnitsView title="Unit Master" table={DB_SCHEMA.UNITS.table} data={props.units} {...props} />;

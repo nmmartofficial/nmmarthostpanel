@@ -1042,18 +1042,16 @@ export const dbSync = {
     if (isLocalPosTestMode && functionName === 'place_order_atomic') {
       throw new Error('Local POS Test Mode - live atomic mutations are disabled.');
     }
-    if (isLocalPosTestMode && ['adjust_wallet_atomic', 'admin_adjust_wallet_atomic'].includes(functionName)) {
+    if (isLocalPosTestMode && functionName === 'admin_adjust_wallet_atomic') {
       throw new Error('Local POS Test Mode - live wallet adjustments are disabled.');
     }
 
-    if (!['place_order_atomic', 'create_purchase_atomic', 'adjust_wallet_atomic', 'admin_adjust_wallet_atomic', 'adjust_stock_atomic'].includes(functionName)) {
+    if (!['place_order_atomic', 'create_purchase_atomic', 'admin_adjust_wallet_atomic', 'adjust_stock_atomic'].includes(functionName)) {
       throw new Error(`Unsupported atomic function: ${functionName}`);
     }
 
     try {
-      const rpcArgs = ['adjust_wallet_atomic', 'admin_adjust_wallet_atomic'].includes(functionName)
-        ? payload
-        : { p_payload: payload };
+      const rpcArgs = functionName === 'admin_adjust_wallet_atomic' ? payload : { p_payload: payload };
       const { data, error } = await supabase.rpc(functionName, rpcArgs);
       if (error) {
         const atomicError = new Error(error.message || `${action} failed`);

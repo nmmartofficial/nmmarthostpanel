@@ -55,3 +55,21 @@ test('assigns a unique route to every configured navigation module', () => {
     APP_TAB_IDS
   );
 });
+
+test('recognizes every Tools page as an application route', () => {
+  const toolsTabs = [
+    'AppConfig',
+    'StoreItemDisplay',
+    'StoreSubCatDisplay',
+    'StoreMainCatDisplay',
+    'TestBluetooth',
+    'AI',
+    'CompanyManagement'
+  ];
+  const segments = toolsTabs.map(getTabRouteSegment);
+
+  assert.deepEqual(
+    segments.map((segment) => getTabFromRouteSegment(segment, APP_TAB_IDS)),
+    toolsTabs
+  );
+});

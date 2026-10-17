@@ -352,7 +352,7 @@ export default function LoginView({ isTenantMode = false }) {
               <div className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
               <button
                 type="button"
-                onClick={() => toast.info('Contact support at: help@nmmart.in')}
+                onClick={() => toast.info('Contact support at: support@nmmart.in')}
                 className="text-[9px] font-bold text-[#718076] hover:text-[#155b43] uppercase tracking-wider transition-colors"
               >Support</button>
             </div>

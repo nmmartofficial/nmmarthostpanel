@@ -5,6 +5,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAtomicCheckoutPayload, validateAtomicCheckoutInput } from '../../utils/pos/atomicCheckout.js';
 import { buildBannerActionFields } from '../../utils/bannerActions.js';
+import {
+  buildWalletIntelligenceKpis,
+  enrichWalletCustomer,
+  formatWalletCurrency,
+  getWalletActivityStatus,
+  getWalletPeriodStart,
+  getWalletTrendDirection,
+} from '../../utils/walletIntelligence.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -169,28 +177,31 @@ test('master high-risk mappings use canonical fields and wallet is atomic', () =
   assert.doesNotMatch(app, /name: 'min_order_value'/);
   assert.match(app, /name: 'customer_id'/);
   assert.match(app, /name: 'phone'/);
-  assert.match(app, /case 'WalletMaster': return <WalletView \/>/);
+  assert.match(app, /case 'WalletMaster': return <WalletMasterView \/>/);
   assert.doesNotMatch(app, /name: 'password'/);
   assert.doesNotMatch(schema, /ADMIN_USERS:\s*\{[\s\S]*password\s*:/);
   assert.match(controller, /ACTION_TYPES\.WALLET_ADJUST/);
-  assert.match(controller, /adjust_wallet_atomic/);
+  assert.match(controller, /executeAtomic\('admin_adjust_wallet_atomic'/);
+  assert.match(controller, /p_tenant_id: payload\?\.tenant_id/);
   assert.match(sync, /admin_adjust_wallet_atomic/);
+  assert.doesNotMatch(sync, /['"]adjust_wallet_atomic['"]/);
   assert.match(master, /requiredField/);
   assert.match(master, /A valid parent category is required/);
 });
 
 test('wallet customer logins are manually linked through tenant-scoped admin RPCs', () => {
   const app = read('src/App.jsx');
+  const walletView = read('src/pages/WalletMasterView.jsx');
   const sync = read('src/dbSync.js');
   const migration = read('supabase/migrations/20261005__wallet_customer_auth_links.sql');
 
-  assert.match(app, /supabase\.rpc\('admin_list_wallet_customers'\)/);
-  assert.match(app, /supabase\.rpc\('admin_list_wallet_login_candidates'\)/);
-  assert.match(app, /supabase\.rpc\('admin_list_wallet_link_customers'\)/);
-  assert.match(app, /supabase\.rpc\('admin_link_wallet_customer'/);
-  assert.match(app, /dbSync\.executeAtomic\('admin_adjust_wallet_atomic'/);
-  assert.match(app, /p_tenant_id: selectedCustomer\.tenant_id/);
-  assert.match(app, /p_company_code: selectedCustomer\.company_code/);
+  assert.match(app, /import WalletMasterView from '\.\/pages\/WalletMasterView'/);
+  assert.match(walletView, /supabase\.rpc\('admin_list_wallet_login_candidates'\)/);
+  assert.match(walletView, /supabase\.rpc\('admin_list_wallet_link_customers'\)/);
+  assert.match(walletView, /supabase\.rpc\('admin_link_wallet_customer'/);
+  assert.match(walletView, /dbSync\.executeAtomic\('admin_adjust_wallet_atomic'/);
+  assert.match(walletView, /p_tenant_id: adjustment\.customer\.tenant_id/);
+  assert.match(walletView, /p_company_code: adjustment\.customer\.company_code/);
   assert.match(sync, /'admin_adjust_wallet_atomic'/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.customer_auth_links/);
   assert.match(migration, /auth_user_id UUID PRIMARY KEY REFERENCES auth\.users/);
@@ -200,9 +211,39 @@ test('wallet customer logins are manually linked through tenant-scoped admin RPC
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_link_wallet_customer/);
 });
 
+test('wallet account and customer dropdowns load independently from wallet intelligence', () => {
+  const walletView = read('src/pages/WalletMasterView.jsx');
+
+  assert.match(walletView, /Promise\.allSettled\(\[/);
+  assert.match(walletView, /setLoginCandidates\(loginData\)/);
+  assert.match(walletView, /setCustomerCandidates\(customerData\)/);
+  assert.match(walletView, /linkLoadErrors\.login/);
+  assert.match(walletView, /linkLoadErrors\.customer/);
+  assert.doesNotMatch(walletView, /catch \(loadError\)[\s\S]*setLoginCandidates\(\[\]\)[\s\S]*setCustomerCandidates\(\[\]\)/);
+});
+
+test('linked wallet customers remain visible when intelligence analytics fail', () => {
+  const walletView = read('src/pages/WalletMasterView.jsx');
+  const profileMigration = read('supabase/migrations/20261005__wallet_customer_profile.sql');
+
+  assert.match(walletView, /supabase\.rpc\('admin_list_wallet_customers'\)/);
+  assert.match(walletView, /supabase\.rpc\('admin_wallet_intelligence'\)/);
+  assert.match(walletView, /analyticsWarning/);
+  assert.match(walletView, /linkedCustomersData\.map/);
+  assert.match(walletView, /account_linked: true/);
+  assert.match(walletView, /Account Linked/);
+  assert.match(walletView, /supabase\.rpc\('admin_wallet_customer_profile'/);
+  assert.match(profileMigration, /admin_user\.tenant_id = p_tenant_id/);
+  assert.match(profileMigration, /admin_user\.company_code = p_company_code/);
+  assert.match(profileMigration, /FROM public\.customer_auth_links AS account_link/);
+  assert.match(profileMigration, /LEFT JOIN LATERAL/);
+  assert.match(profileMigration, /'linked_login_email'/);
+  assert.match(profileMigration, /GRANT EXECUTE ON FUNCTION public\.admin_wallet_customer_profile[\s\S]*TO authenticated/);
+  assert.doesNotMatch(profileMigration, /(?:INSERT|UPDATE|DELETE)\s+INTO\s+public\.(?:orders|wallet_master|wallet_transactions)/i);
+});
+
 test('wallet credits and debits stay in the wallet balance and transaction ledger', () => {
-  const app = read('src/App.jsx');
-  const walletView = app.slice(app.indexOf('const WalletView ='), app.indexOf('// New Master Views'));
+  const walletView = read('src/pages/WalletMasterView.jsx');
   const sync = read('src/dbSync.js');
   const migration = read('supabase/migrations/20261005__secure_login_wallet_customers.sql');
 
@@ -212,8 +253,120 @@ test('wallet credits and debits stay in the wallet balance and transaction ledge
   assert.match(migration, /INSERT INTO public\.wallet_master/);
   assert.match(migration, /INSERT INTO public\.wallet_transactions/);
   assert.doesNotMatch(migration, /INSERT INTO public\.orders/);
-  assert.doesNotMatch(walletView, /admin_credit_wallet_with_order_atomic|order_id|order_number/i);
-  assert.match(walletView, /update the shared wallet balance and ledger only; they do not create sales orders/i);
+  assert.doesNotMatch(walletView, /admin_credit_wallet_with_order_atomic|(?:insert|update|upsert)\(['"]orders/i);
+  assert.match(walletView, /existing secured wallet RPC and wallet ledger\. No sales order is created/i);
+});
+
+test('wallet intelligence reads are tenant-scoped and never write order or wallet records', () => {
+  const walletView = read('src/pages/WalletMasterView.jsx');
+  const migration = read('supabase/migrations/20261005__wallet_intelligence_reads.sql');
+
+  assert.match(walletView, /supabase\.rpc\('admin_wallet_intelligence'\)/);
+  assert.match(walletView, /supabase\.rpc\('admin_wallet_customer_profile'/);
+  assert.match(migration, /SECURITY DEFINER/);
+  assert.match(migration, /admin_user\.role = 'super_admin'/);
+  assert.match(migration, /admin_user\.tenant_id = p_tenant_id/);
+  assert.match(migration, /admin_user\.company_code = p_company_code/);
+  assert.match(migration, /LOWER\(COALESCE\(order_row\.order_status, order_row\.status, ''\)\) = 'delivered'/);
+  assert.doesNotMatch(migration, /paid_orders_count|known_payment_orders_count/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.admin_wallet_intelligence/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.admin_wallet_customer_detail/);
+  assert.doesNotMatch(migration, /(?:INSERT|UPDATE|DELETE)\s+INTO\s+public\.(?:orders|wallet_master|wallet_transactions)/i);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_wallet_intelligence\(\) TO authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.admin_wallet_customer_detail/);
+});
+
+test('wallet hardening revokes legacy RPC and direct client writes', () => {
+  const controller = read('src/erpController.js');
+  const app = read('src/App.jsx');
+  const sync = read('src/dbSync.js');
+  const migration = read('supabase/migrations/20261005__harden_wallet_access.sql');
+
+  assert.match(controller, /executeAtomic\('admin_adjust_wallet_atomic'/);
+  assert.match(controller, /p_company_code: payload\?\.company_code/);
+  assert.match(app, /tenant_id: currentUser\?\.tenant_id,[\s\S]*company_code: currentUser\?\.company_code/);
+  assert.doesNotMatch(sync, /['"]adjust_wallet_atomic['"]/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.adjust_wallet_atomic\(BIGINT, NUMERIC, TEXT, TEXT\)\s+FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /REVOKE ALL ON TABLE public\.wallet_master, public\.wallet_transactions\s+FROM PUBLIC, anon/);
+  assert.match(migration, /REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER/);
+  assert.match(migration, /CREATE POLICY wallet_master_admin_read[\s\S]*TO authenticated[\s\S]*auth\.uid\(\) IS NOT NULL/);
+  assert.match(migration, /CREATE POLICY wallet_transactions_admin_read[\s\S]*admin_user\.tenant_id = wallet_transactions\.tenant_id[\s\S]*admin_user\.company_code = wallet_transactions\.company_code/);
+  assert.doesNotMatch(migration, /USING\s*\(\s*true\s*\)/i);
+});
+
+test('wallet intelligence helpers preserve unknown data and approved activity windows', () => {
+  const now = new Date('2026-01-01T00:00:00.000Z');
+  const day = 86_400_000;
+  const customer = {
+    orders_count: 2,
+    lifetime_shopping: 100,
+    spend_90d: 50,
+    last_purchase: new Date(Date.now() - 31 * day).toISOString(),
+    wallet_balance: 20,
+    recommendation: 'review',
+  };
+  const enriched = enrichWalletCustomer(customer, [customer]);
+
+  assert.equal(getWalletActivityStatus(new Date(now.getTime() - 30 * day).toISOString(), now.getTime()), 'active');
+  assert.equal(getWalletActivityStatus(new Date(now.getTime() - 31 * day).toISOString(), now.getTime()), 'low_activity');
+  assert.equal(getWalletActivityStatus(new Date(now.getTime() - 90 * day).toISOString(), now.getTime()), 'low_activity');
+  assert.equal(getWalletActivityStatus(new Date(now.getTime() - 91 * day).toISOString(), now.getTime()), 'inactive');
+  assert.equal(enriched.activity_status, 'low_activity');
+  assert.equal(enriched.payment_history, 'No History');
+  assert.equal(enriched.recommendation, 'review');
+  assert.equal(enriched.suggested_limit, null);
+  assert.ok(enriched.score <= 100);
+  assert.equal(enriched.score_components.paymentHistory, undefined);
+  assert.equal(formatWalletCurrency(null), '—');
+  assert.equal(buildWalletIntelligenceKpis([enriched]).outstandingCredit, null);
+  assert.equal(getWalletPeriodStart('Lifetime', now), null);
+  assert.equal(getWalletPeriodStart('6 Months', now).toISOString(), '2025-07-01T00:00:00.000Z');
+});
+
+test('wallet intelligence exposes completed-customer activity, trend direction, and unknown credit data', () => {
+  const customers = [
+    { activity_status: 'active', wallet_balance: 25, lifetime_shopping: 100, recommendation: 'review' },
+    { activity_status: 'low_activity', wallet_balance: 0, lifetime_shopping: 0, recommendation: 'review' },
+    { activity_status: 'inactive', wallet_balance: 5, lifetime_shopping: 50, recommendation: 'review' },
+  ];
+  const kpis = buildWalletIntelligenceKpis(customers);
+
+  assert.equal(kpis.totalCustomers, 3);
+  assert.equal(kpis.activeCustomers, 1);
+  assert.equal(kpis.lowActivityCustomers, 1);
+  assert.equal(kpis.inactiveCustomers, 1);
+  assert.equal(kpis.totalWalletBalance, 30);
+  assert.equal(kpis.outstandingCredit, null);
+  assert.equal(getWalletTrendDirection([{ amount: 10 }, { amount: 15 }, { amount: 20 }, { amount: 25 }]), 'increasing');
+  assert.equal(getWalletTrendDirection([{ amount: 25 }, { amount: 20 }, { amount: 15 }, { amount: 10 }]), 'decreasing');
+  assert.equal(getWalletTrendDirection([{ amount: 10 }, { amount: 11 }, { amount: 10 }, { amount: 11 }]), 'stable');
+  assert.equal(getWalletTrendDirection([{ amount: 0 }, { amount: 0 }]), 'inactive');
+  assert.equal(getWalletTrendDirection([{ amount: 10 }]), 'insufficient_data');
+});
+
+test('wallet master keeps linked profiles independent and only scores verified delivered shopping', () => {
+  const walletView = read('src/pages/WalletMasterView.jsx');
+  const intelligenceMigration = read('supabase/migrations/20261005__wallet_intelligence_reads.sql');
+  const profileMigration = read('supabase/migrations/20261005__wallet_customer_profile_summary.sql');
+  const schema = read('src/dbSchema.js');
+
+  assert.match(walletView, /'Low Activity'/);
+  assert.match(walletView, /'Inactive Customers'/);
+  assert.match(walletView, /'Average Order'/);
+  assert.match(walletView, /'1Y Spend'/);
+  assert.match(walletView, /wallet_credit_total/);
+  assert.match(walletView, /wallet_debit_total/);
+  assert.match(walletView, /getWalletTrendDirection/);
+  assert.match(intelligenceMigration, /customer\.created_at/);
+  assert.match(intelligenceMigration, /'low_activity_customers'/);
+  assert.match(intelligenceMigration, /LOWER\(COALESCE\(order_row\.order_status, order_row\.status, ''\)\) = 'delivered'/);
+  assert.match(profileMigration, /admin_user\.tenant_id = p_tenant_id/);
+  assert.match(profileMigration, /admin_user\.company_code = p_company_code/);
+  assert.match(profileMigration, /wallet_credit_total/);
+  assert.match(profileMigration, /wallet_debit_total/);
+  assert.match(profileMigration, /GRANT EXECUTE ON FUNCTION public\.admin_wallet_customer_profile[\s\S]*TO authenticated/);
+  assert.match(schema, /status_flow: \['pending', 'confirmed', 'packed', 'out_for_delivery', 'delivered', 'cancelled', 'returned'\]/);
+  assert.doesNotMatch(profileMigration, /(?:INSERT|UPDATE|DELETE)\s+INTO\s+public\.(?:orders|wallet_master|wallet_transactions)/i);
 });
 
 test('order detail status changes require a confirmed Supabase row update', () => {
