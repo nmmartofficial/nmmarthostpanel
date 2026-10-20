@@ -13,7 +13,7 @@ const BarcodeInput = memo(({
   } = usePOS();
 
   return (
-    <div className="relative group">
+    <div className="relative group w-32 shrink-0 sm:w-40 lg:w-44">
       <input
         ref={inputRef}
         type="text"
@@ -23,7 +23,7 @@ const BarcodeInput = memo(({
           scanStatus.type === 'success' ? "bg-emerald-50 border-emerald-500" :
           scanStatus.type === 'error' ? "bg-red-50 border-red-500" :
           "bg-white border-neutral-200",
-          isTouchMode ? "w-64 px-5 py-3 text-sm" : "w-48 px-3 py-1.5 text-xs"
+          isTouchMode ? "w-full px-3 py-3 text-sm" : "w-full px-3 py-1.5 text-xs"
         )}
         onKeyDown={onKeyDown}
         autoFocus

@@ -451,6 +451,77 @@ export const dbSync = {
     }
   },
 
+  fetchProducts: async ({ includeDeleted = false } = {}) => {
+    if (isLocalPosTestMode && !isLocalPosReadOnlyMode) return [];
+
+    const { tenantId, companyCode } = await resolveTenantContext();
+    if (!tenantId || !companyCode) {
+      throw new Error('A tenant and store scope are required to fetch products.');
+    }
+
+    const schemaEntry = DB_SCHEMA.PRODUCTS;
+    const rows = [];
+    let offset = 0;
+    let hasMore = true;
+    while (hasMore) {
+      let request = supabase
+        .from(DB_SCHEMA.PRODUCTS.table)
+        .select('*');
+      request = applyTenantFilter(request, DB_SCHEMA.PRODUCTS.table, schemaEntry, tenantId, companyCode);
+      if (!includeDeleted) request = request.or('is_active.is.null,is_active.eq.true');
+      request = request.order('id', { ascending: true }).range(offset, offset + FETCH_BATCH_SIZE - 1);
+
+      const { data, error } = await request;
+      if (error) {
+        console.error('[dbSync.fetchProducts] Baseline product fetch failed:', error);
+        throw error;
+      }
+      if (!Array.isArray(data)) throw new Error('Supabase returned an invalid product baseline response.');
+      rows.push(...data);
+      hasMore = data.length === FETCH_BATCH_SIZE;
+      offset += data.length;
+    }
+    return rows;
+  },
+
+  fetchProductsUpdatedSince: async (updatedAfter) => {
+    if (isLocalPosTestMode && !isLocalPosReadOnlyMode) return [];
+    const timestamp = Date.parse(updatedAfter);
+    if (!Number.isFinite(timestamp)) throw new TypeError('A valid updated_at timestamp is required for product delta sync.');
+
+    const { tenantId, companyCode } = await resolveTenantContext();
+    if (!tenantId || !companyCode) {
+      throw new Error('A tenant and store scope are required to fetch product changes.');
+    }
+
+    const schemaEntry = DB_SCHEMA.PRODUCTS;
+    const rows = [];
+    let offset = 0;
+    let hasMore = true;
+    while (hasMore) {
+      let request = supabase
+        .from(DB_SCHEMA.PRODUCTS.table)
+        .select('*')
+        .gte('updated_at', new Date(timestamp).toISOString());
+      request = applyTenantFilter(request, DB_SCHEMA.PRODUCTS.table, schemaEntry, tenantId, companyCode);
+      request = request
+        .order('updated_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(offset, offset + FETCH_BATCH_SIZE - 1);
+
+      const { data, error } = await request;
+      if (error) {
+        console.error('[dbSync.fetchProductsUpdatedSince] Product delta fetch failed:', error);
+        throw error;
+      }
+      if (!Array.isArray(data)) throw new Error('Supabase returned an invalid product delta response.');
+      rows.push(...data);
+      hasMore = data.length === FETCH_BATCH_SIZE;
+      offset += data.length;
+    }
+    return rows;
+  },
+
   fetch: async (tableName, query = {}) => {
     if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
       return [];

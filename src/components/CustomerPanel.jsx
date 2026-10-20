@@ -32,17 +32,20 @@ const CustomerPanel = memo(({ compact = false }) => {
   return (
     <div className={cn(
       compact
-        ? 'relative space-y-2 bg-white p-2'
+        ? 'relative bg-white px-3 py-2'
         : cn('relative space-y-4 bg-primary-900 text-white shadow-lg', isTouchMode ? 'p-8' : 'p-5')
     )}>
-      <div className="relative">
-        <div className="mb-1 flex items-center justify-between gap-2">
+      <div className={cn(
+        'relative',
+        compact && 'grid grid-cols-1 items-center gap-2 sm:grid-cols-[auto_minmax(180px,1fr)_minmax(120px,0.8fr)]'
+      )}>
+        <div className={cn('mb-1 flex items-center justify-between gap-2', compact && 'mb-0')}>
           <label className={cn(
             'font-black uppercase tracking-widest',
             compact ? 'text-[10px] text-blue-800' : 'text-primary-300',
             isTouchMode ? 'text-xs' : 'text-[10px]'
           )}>Customer (F2)</label>
-          {selectedUser && (
+          {selectedUser && !compact && (
             <button
               onClick={onResetWalkIn}
               type="button"
@@ -70,6 +73,35 @@ const CustomerPanel = memo(({ compact = false }) => {
           onFocus={() => setShowCustDropdown(true)}
           onKeyDown={onKeyDown}
         />
+        {compact && (
+          selectedUser ? (
+            <div className="min-w-0 border-l border-slate-200 pl-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-[11px] font-black text-slate-800">
+                  {selectedUser.name || `Customer ID ${selectedUser.id}`}
+                </span>
+                <button
+                  onClick={onResetWalkIn}
+                  type="button"
+                  className="shrink-0 rounded bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  Walk-in
+                </button>
+              </div>
+              <p className="truncate text-[9px] font-medium text-slate-500">
+                {[
+                  getPOSCustomerPhone(selectedUser),
+                  selectedUser.address || selectedUser.address_line1,
+                  selectedUser.city
+                ].filter(Boolean).join(' · ') || `Customer ID ${selectedUser.id}`}
+              </p>
+            </div>
+          ) : (
+            <span className="truncate border-l border-slate-200 pl-2 text-[9px] font-medium text-slate-500">
+              Walk-in customer · selection optional
+            </span>
+          )
+        )}
         {showCustDropdown && custSearch.trim() && (
           <div className="absolute top-full left-0 right-0 z-[150] mt-1 max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-2xl">
             {filteredUsers.length > 0 ? filteredUsers.map((u, idx) => (
@@ -96,7 +128,7 @@ const CustomerPanel = memo(({ compact = false }) => {
           </div>
         )}
       </div>
-      {selectedUser && (
+      {selectedUser && !compact && (
         <motion.div
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
@@ -127,9 +159,6 @@ const CustomerPanel = memo(({ compact = false }) => {
              )}
              {customerDataError && <p role="alert" className={cn('w-full text-[10px] font-semibold', compact ? 'text-amber-700' : 'text-amber-200')}>{customerDataError}</p>}
         </motion.div>
-      )}
-      {compact && !selectedUser && (
-        <p className="text-[9px] font-medium text-slate-500">Walk-in sale · choose a customer only when needed</p>
       )}
     </div>
   );

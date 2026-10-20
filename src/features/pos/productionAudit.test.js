@@ -38,20 +38,61 @@ test('Touch Sale uses one cart table and a click-to-show text-only product panel
   const billingPanel = read('src/components/CartPanel.jsx');
   const productPanel = read('src/features/pos/components/RightSidebar.tsx');
   const productCard = read('src/components/ProductCard.jsx');
+  const productGrid = read('src/components/ProductGrid.jsx');
+  const posSettings = read('src/features/pos/settings/posLayoutSettings.js');
 
   for (const heading of ['Sr. No.', 'Item Name', 'MRP', 'Qty', 'Disc %', 'GST %', 'Sale Rate', 'Total']) {
     assert.ok(billingPanel.includes(heading), `bill table must expose ${heading}`);
   }
+  assert.match(layout, /billingRatio: 1\.7/);
+  assert.match(layout, /cartItemColumnMinWidth: 180/);
   assert.match(layout, /minmax\(0,var\(--pos-billing-ratio\)\)_minmax\(20rem,1fr\)/);
+  assert.match(layout, /fixed inset-0 z-\[110\]/);
+  assert.match(layout, /if \(cart\.length > 0\)/);
+  assert.match(layout, /setActiveTab\?\.\('Dashboard'\)/);
+  assert.match(productPanel, /useState<ProductListSelection>\(\(\) =>/);
+  assert.match(posSettings, /defaultProductMode: 'closed'/);
   assert.match(productPanel, /aria-pressed=\{showTrending\}/);
-  assert.match(productPanel, /setShowTrending\(\(visible\) => !visible\)/);
+  assert.match(productPanel, /setProductListSelection\(\{ type: 'trending' \}\)/);
+  assert.match(productPanel, /setProductListSelection\(\{ type: 'all' \}\)/);
+  assert.match(productPanel, /Trending data unavailable/);
+  assert.match(productPanel, /hasTrendingData: ranked\.length > 0/);
+  assert.match(productPanel, /Payment Mode/);
+  assert.match(productPanel, /Amount Received/);
+  assert.match(productPanel, /Change Due/);
+  assert.match(productPanel, /Complete Bill \/ Payment/);
+  assert.match(productPanel, /setShowPaymentModal\(true\)/);
+  assert.match(productPanel, /showPrices/);
   assert.match(productPanel, /buildTopSellingProducts/);
   assert.match(productCard, /getCartUnitPrice/);
+  assert.match(productCard, /formatCurrency\(saleRate\)/);
+  assert.match(productGrid, /showPrice={showPrices}/);
   assert.doesNotMatch(productCard, /<img|resolveProductImageUrl|No Image/);
   assert.match(billingPanel, /handlePriceChangeAttempt/);
   assert.match(billingPanel, /handleHoldBill/);
   assert.match(billingPanel, /setShowDiscountPanel/);
   assert.match(billingPanel, /setShowPaymentModal/);
+  assert.match(billingPanel, /Quick Qty/);
+  assert.match(billingPanel, /onClick=\{\(\) => changeQty\(selectedCartId, amount\)\}/);
+});
+
+test('product refreshes use scoped IndexedDB snapshots and timestamp deltas', () => {
+  const app = read('src/App.jsx');
+  const globalContext = read('src/context/GlobalContext.jsx');
+  const dbSync = read('src/dbSync.js');
+  const cache = read('src/utils/productDeltaCache.js');
+  const indexes = read('supabase/migrations/20261020194133__products_delta_sync_indexes.sql');
+
+  assert.match(app, /syncProductSnapshot\(/);
+  assert.match(app, /fetchDelta: \(updatedAfter\) => dbSync\.fetchProductsUpdatedSince\(updatedAfter\)/);
+  assert.match(globalContext, /syncProductSnapshot\(/);
+  assert.match(dbSync, /\.gte\('updated_at', new Date\(timestamp\)\.toISOString\(\)\)/);
+  assert.match(dbSync, /applyTenantFilter\(request, DB_SCHEMA\.PRODUCTS\.table, schemaEntry, tenantId, companyCode\)/);
+  assert.match(cache, /PRODUCT_DELTA_OVERLAP_MS = 2 \* 60 \* 1000/);
+  assert.match(cache, /mergeProductDelta\(initialProducts, delta/);
+  assert.match(cache, /indexedDB\.open\(DATABASE_NAME, DATABASE_VERSION\)/);
+  assert.match(indexes, /products \(tenant_id, updated_at, id\)/);
+  assert.match(indexes, /products \(company_code, updated_at, id\)/);
 });
 
 test('atomic checkout preserves payment reference and canonical order items', () => {
@@ -122,11 +163,11 @@ test('local POS test mode is development-only and blocks live checkout', () => {
   const dbSync = read('src/dbSync.js');
   const dataLoader = read('src/utils/supabaseDataLoader.js');
   const protectedRoute = read('src/components/ProtectedRoute.jsx');
-  const envLocal = read('.env.local');
 
   assert.match(localMode, /import\.meta\.env\.DEV\s*&&/);
-  assert.match(envLocal, /VITE_LOCAL_POS_TEST_AUTH=true/);
-  assert.match(envLocal, /VITE_LOCAL_POS_TEST_READS=true/);
+  assert.match(localMode, /VITE_LOCAL_POS_TEST_AUTH === 'true'/);
+  assert.match(localMode, /VITE_LOCAL_POS_TEST_READS === 'true'/);
+  assert.match(localMode, /VITE_USE_MOCK === 'true'/);
   assert.match(authContext, /isLocalPosTestMode/);
   assert.match(authContext, /LOCAL_POS_TEST_USER/);
   assert.match(globalContext, /isLocalPosTestMode\s*&&\s*!isLocalPosReadOnlyMode/);

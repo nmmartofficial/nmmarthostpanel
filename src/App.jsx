@@ -48,6 +48,11 @@ import {
   fetchAndReconcileInventoryRows,
   reconcileInventoryRows
 } from './utils/inventorySync';
+import {
+  readProductSnapshot,
+  syncProductSnapshot,
+  writeProductDelta
+} from './utils/productDeltaCache';
 import { smartSync } from './utils/smartSync';
 import { createSmartSyncSubscriptionManager, resolveSmartSyncScope } from './utils/smartSyncScope';
 import {
@@ -610,10 +615,12 @@ export default function App({ company, isTenantMode, companySlug }) {
   const [loading, setLoading] = useState(false);
   const [inventoryError, setInventoryError] = useState('');
   const productsRef = useRef(products);
+  const productsScopeRef = useRef(null);
   const productsIncludeDeletedRef = useRef(false);
   const inventoryFetchPromiseRef = useRef(null);
   const inventoryRefreshPromiseRef = useRef(null);
   const pendingInventoryReconciliationRef = useRef(false);
+  const pendingProductFullRefreshRef = useRef(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [mobileExpandedGroup, setMobileExpandedGroup] = useState(null);
   const [darkMode, setDarkMode] = useState(localStorage.getItem('nm_dark_mode') === 'true');
@@ -821,20 +828,50 @@ export default function App({ company, isTenantMode, companySlug }) {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
   const fetchInitialDataRef = useRef(null);
+  const smartSyncScope = useMemo(() => resolveSmartSyncScope({
+    currentUser: authUser,
+    currentCompany: authCompany,
+    company
+  }), [authUser, authCompany, company]);
 
   const commitInventoryRows = useCallback((rows) => {
     const reconciledRows = reconcileInventoryRows(productsRef.current, rows);
     productsRef.current = reconciledRows;
+    productsScopeRef.current = smartSyncScope
+      ? `${String(smartSyncScope.tenantId)}:${String(smartSyncScope.companyCode)}`
+      : null;
     setProducts(reconciledRows);
     setInventoryError('');
     return reconciledRows;
-  }, []);
+  }, [smartSyncScope]);
 
   const fetchInventoryRows = useCallback(async (query) => {
     while (inventoryFetchPromiseRef.current) {
       await Promise.allSettled([inventoryFetchPromiseRef.current]);
     }
-    const request = Promise.resolve().then(() => dbSync.fetch(DB_SCHEMA.PRODUCTS.table, query));
+    const includeDeleted = query?.includeDeleted === true;
+    productsIncludeDeletedRef.current = includeDeleted;
+    if (!smartSyncScope) {
+      throw new Error('Tenant and store scope are required to synchronize products.');
+    }
+    const request = Promise.resolve().then(async () => {
+      const cached = query?.forceFull === true
+        ? null
+        : await readProductSnapshot(smartSyncScope, { includeDeleted });
+      if (cached && Array.isArray(cached.products) && productsRef.current.length === 0) {
+        commitInventoryRows(cached.products);
+      }
+      return syncProductSnapshot({
+        scope: smartSyncScope,
+        currentProducts: productsScopeRef.current === `${String(smartSyncScope.tenantId)}:${String(smartSyncScope.companyCode)}`
+          ? productsRef.current
+          : [],
+        includeDeleted,
+        forceFull: query?.forceFull === true || query?.fullRefresh === true,
+        fetchFull: () => dbSync.fetchProducts({ includeDeleted }),
+        fetchDelta: (updatedAfter) => dbSync.fetchProductsUpdatedSince(updatedAfter)
+      });
+    });
     inventoryFetchPromiseRef.current = request;
     try {
       return await request;
@@ -844,7 +881,17 @@ export default function App({ company, isTenantMode, companySlug }) {
     } finally {
       if (inventoryFetchPromiseRef.current === request) inventoryFetchPromiseRef.current = null;
     }
-  }, []);
+  }, [commitInventoryRows, smartSyncScope]);
+
+  useEffect(() => {
+    if (!smartSyncScope) return;
+    const nextScopeKey = `${String(smartSyncScope.tenantId)}:${String(smartSyncScope.companyCode)}`;
+    if (productsScopeRef.current && productsScopeRef.current !== nextScopeKey) {
+      productsRef.current = [];
+      productsScopeRef.current = nextScopeKey;
+      setProducts([]);
+    }
+  }, [smartSyncScope]);
 
   // --- Targeted State Updates (Infinite Loop Prevention) ---
   // The App owns scoped Realtime subscriptions; shared context consumes its refresh events.
@@ -853,12 +900,6 @@ export default function App({ company, isTenantMode, companySlug }) {
     ...GLOBAL_SYNC_RESOURCES,
     ...(PAGE_SYNC_RESOURCES[activeTab] || [])
   ]), [activeTab]);
-  const smartSyncScope = useMemo(() => resolveSmartSyncScope({
-    currentUser: authUser,
-    currentCompany: authCompany,
-    company
-  }), [authUser, authCompany, company]);
-
   const refreshSyncResource = useCallback(async (resource, options = {}) => {
     const fetchList = async (table, query) => {
       const rows = await dbSync.fetch(table, query);
@@ -872,6 +913,9 @@ export default function App({ company, isTenantMode, companySlug }) {
         const refreshPromise = (async () => {
           const query = {
             ...(options.productsIncludeDeleted ? { includeDeleted: true } : {}),
+            ...(options.fullProductRefresh || options.fullRefresh || pendingProductFullRefreshRef.current
+              ? { forceFull: true }
+              : {}),
             throwOnError: true
           };
           pendingInventoryReconciliationRef.current = false;
@@ -881,6 +925,7 @@ export default function App({ company, isTenantMode, companySlug }) {
           );
           productsIncludeDeletedRef.current = Boolean(options.productsIncludeDeleted);
           rows = commitInventoryRows(rows);
+          pendingProductFullRefreshRef.current = false;
           setStats((previous) => ({ ...previous, products: rows.length }));
           if (pendingInventoryReconciliationRef.current
             && hasLoadedInitialDataRef.current && document.visibilityState === 'visible') {
@@ -1100,7 +1145,7 @@ export default function App({ company, isTenantMode, companySlug }) {
 
     if (!silent) setLoading(true);
     try {
-      const supabaseLoadSummary = await loadSupabaseTables(['COMPANIES', 'PRODUCTS', 'CATEGORIES', 'ORDERS', 'USERS'], {
+      const supabaseLoadSummary = await loadSupabaseTables(['COMPANIES', 'CATEGORIES', 'ORDERS', 'USERS'], {
         limit: 5,
         onProgress: (event) => {
           if (import.meta.env.DEV) {
@@ -1119,6 +1164,7 @@ export default function App({ company, isTenantMode, companySlug }) {
 
       const productsQuery = {
         ...(options?.productsIncludeDeleted ? { includeDeleted: true } : {}),
+        ...(options?.fullProductRefresh || options?.fullRefresh ? { forceFull: true } : {}),
         throwOnError: true
       };
 
@@ -1395,6 +1441,7 @@ export default function App({ company, isTenantMode, companySlug }) {
           if (resource !== DB_SCHEMA.PRODUCTS.table) return;
           if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
             pendingInventoryReconciliationRef.current = true;
+            pendingProductFullRefreshRef.current = true;
           } else if (status === 'SUBSCRIBED' && pendingInventoryReconciliationRef.current) {
             if (document.visibilityState === 'visible' && hasLoadedInitialDataRef.current
               && !isFetchingRef.current) {
@@ -1409,10 +1456,17 @@ export default function App({ company, isTenantMode, companySlug }) {
             staleWhileHidden.add(resource);
             if (resource === DB_SCHEMA.PRODUCTS.table) {
               pendingInventoryReconciliationRef.current = true;
+              if (String(payload?.eventType || '').toUpperCase() === 'DELETE') {
+                pendingProductFullRefreshRef.current = true;
+              }
             }
             return;
           }
           if (resource === DB_SCHEMA.PRODUCTS.table) {
+            const isDeleteEvent = String(payload?.eventType || '').toUpperCase() === 'DELETE';
+            if (isDeleteEvent && (!hasLoadedInitialDataRef.current || isFetchingRef.current || inventoryRefreshPromiseRef.current)) {
+              pendingProductFullRefreshRef.current = true;
+            }
             if (syncPauseRef.current.scope) {
               smartSync.invalidateResource(resource);
               return;
@@ -1422,6 +1476,7 @@ export default function App({ company, isTenantMode, companySlug }) {
               includeDeleted: productsIncludeDeletedRef.current
             });
             if (result.requiresReconciliation) {
+              if (isDeleteEvent) pendingProductFullRefreshRef.current = true;
               pendingInventoryReconciliationRef.current = true;
               if (hasLoadedInitialDataRef.current && !isFetchingRef.current) {
                 pendingInventoryReconciliationRef.current = false;
@@ -1431,6 +1486,22 @@ export default function App({ company, isTenantMode, companySlug }) {
             }
             if (!hasLoadedInitialDataRef.current || isFetchingRef.current || inventoryRefreshPromiseRef.current) {
               pendingInventoryReconciliationRef.current = true;
+            }
+            const isDelete = String(payload?.eventType || '').toUpperCase() === 'DELETE';
+            const changedProduct = isDelete ? payload?.old : payload?.new;
+            const eventMatchesScope = changedProduct?.tenant_id != null
+              && changedProduct?.company_code != null
+              && String(changedProduct.tenant_id) === String(smartSyncScope?.tenantId)
+              && String(changedProduct.company_code) === String(smartSyncScope?.companyCode);
+            if (!result.requiresReconciliation && eventMatchesScope) {
+              const changedProducts = isDelete ? [] : payload?.new ? [payload.new] : [];
+              const deletedIds = isDelete ? [payload.old?.id] : [];
+              void Promise.all([
+                writeProductDelta(smartSyncScope, changedProducts, { deletedIds }),
+                writeProductDelta(smartSyncScope, changedProducts, { includeDeleted: true, deletedIds })
+              ]).catch((error) => {
+                console.error('[Inventory cache] Realtime product update could not be cached:', error);
+              });
             }
             if (result.changed) {
               const rows = commitInventoryRows(result.rows);

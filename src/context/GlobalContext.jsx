@@ -6,6 +6,7 @@ import { secureStorage } from '../utils/security';
 import { shouldSkipGlobalFetch } from '../utils/fetchControl';
 import { isLocalPosReadOnlyMode, isLocalPosTestMode } from '../utils/localPosTestMode';
 import { reconcileInventoryRows } from '../utils/inventorySync';
+import { readProductSnapshot, syncProductSnapshot } from '../utils/productDeltaCache';
 
 const GlobalContext = createContext();
 
@@ -119,10 +120,18 @@ export const GlobalProvider = ({ children }) => {
   const isFetchingRef = useRef(false);
   const mountRef = useRef(false);
   const productsRef = useRef(products);
+  const productsScopeRef = useRef(null);
 
   const commitInventoryRows = useCallback((rows) => {
     const reconciledRows = reconcileInventoryRows(productsRef.current, rows);
     productsRef.current = reconciledRows;
+    const userData = secureStorage.getItem('nm_user_data');
+    const savedCompany = secureStorage.getItem('nm_current_company');
+    const tenantId = userData?.tenant_id ?? savedCompany?.id;
+    const companyCode = userData?.company_code ?? savedCompany?.company_code;
+    productsScopeRef.current = tenantId && companyCode
+      ? `${String(tenantId)}:${String(companyCode)}`
+      : null;
     setProducts(reconciledRows);
     return reconciledRows;
   }, []);
@@ -164,9 +173,39 @@ export const GlobalProvider = ({ children }) => {
         ...(options?.productsIncludeDeleted ? { includeDeleted: true } : {}),
         throwOnError: true
       };
+      const storedCompany = secureStorage.getItem('nm_current_company');
+      const productScope = {
+        tenantId: userData?.tenant_id ?? storedCompany?.id,
+        companyCode
+      };
+      const productScopeKey = `${String(productScope.tenantId)}:${String(productScope.companyCode)}`;
+      if (productsScopeRef.current && productsScopeRef.current !== productScopeKey) {
+        productsRef.current = [];
+        productsScopeRef.current = productScopeKey;
+        setProducts([]);
+      }
+      const productsPromise = productScope.tenantId && productScope.companyCode
+        ? (async () => {
+          const includeDeleted = options?.productsIncludeDeleted === true;
+          const cached = options?.fullProductRefresh || options?.fullRefresh
+            ? null
+            : await readProductSnapshot(productScope, { includeDeleted });
+          if (cached && productsRef.current.length === 0) {
+            commitInventoryRows(cached.products);
+          }
+          return syncProductSnapshot({
+            scope: productScope,
+            currentProducts: productsScopeRef.current === productScopeKey ? productsRef.current : [],
+            includeDeleted,
+            forceFull: options?.fullProductRefresh === true || options?.fullRefresh === true,
+            fetchFull: () => dbSync.fetchProducts({ includeDeleted }),
+            fetchDelta: (updatedAfter) => dbSync.fetchProductsUpdatedSince(updatedAfter)
+          });
+        })()
+        : dbSync.fetch(DB_SCHEMA.PRODUCTS.table, productsQuery);
 
       const results = await Promise.allSettled([
-        dbSync.fetch(DB_SCHEMA.PRODUCTS.table, productsQuery),
+        productsPromise,
         dbSync.fetch(DB_SCHEMA.CATEGORIES.table, { order: { column: 'name', ascending: true } }),
         dbSync.fetch(DB_SCHEMA.ORDERS.table, { order: { column: 'created_at', ascending: false } }),
         dbSync.fetch(DB_SCHEMA.APP_CONFIG.table),

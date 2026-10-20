@@ -31,7 +31,10 @@ const CartRow = memo(({
   onRemove,
   onUpdateQty,
   onUpdatePrice,
-  openKeypad
+  openKeypad,
+  columns,
+  fontScale,
+  rowHeight
 }) => {
   const [quantityInput, setQuantityInput] = useState(String(item.quantity ?? ''));
   const [priceInput, setPriceInput] = useState(String(getCartUnitPrice(item) ?? ''));
@@ -77,6 +80,7 @@ const CartRow = memo(({
   return (
     <tr
       onClick={() => onSelect(item.id)}
+      style={{ height: `${rowHeight}px`, fontSize: `calc(11px * ${fontScale})` }}
       className={cn(
         'border-b border-slate-100 text-[11px] transition-colors',
         'min-h-[var(--pos-cart-row-min-height,42px)]',
@@ -85,13 +89,13 @@ const CartRow = memo(({
       )}
     >
       <td className="px-2 py-1.5 text-center font-semibold text-slate-500">{index + 1}</td>
-      <td className="min-w-[160px] max-w-[260px] px-2 py-1.5">
+      <td className="min-w-[var(--pos-cart-item-column-min-width,160px)] max-w-[260px] px-2 py-1.5">
         <span className="block truncate font-bold text-slate-800" title={name}>{name}</span>
         {(item.barcode || item.sku || item.item_code) && (
           <span className="block truncate text-[9px] text-slate-400">{item.barcode || item.sku || item.item_code}</span>
         )}
       </td>
-      <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{mrp === null ? '—' : formatAmount(mrp)}</td>
+      {columns.mrp && <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">{mrp === null ? '—' : formatAmount(mrp)}</td>}
       <td className="px-2 py-1 text-center" onClick={(event) => event.stopPropagation()}>
         <input
           aria-label={`Quantity for ${name}`}
@@ -118,13 +122,20 @@ const CartRow = memo(({
           className="h-9 w-14 rounded border border-slate-200 bg-white text-center font-bold outline-none focus:border-blue-500"
         />
       </td>
-      <td className="whitespace-nowrap px-2 py-1.5 text-center tabular-nums">
-        {discountPercent === null ? '—' : `${discountPercent.toFixed(2)}%`}
-      </td>
-      <td className="whitespace-nowrap px-2 py-1.5 text-center tabular-nums">
+      {columns.discount && <td className="whitespace-nowrap px-2 py-1.5 text-center tabular-nums">
+        {discountPercent === null ? '—' : (
+          <span>
+            {discountPercent.toFixed(2)}%
+            {discountAmount != null && (
+              <span className="block text-[9px] text-slate-500">₹{formatAmount(discountAmount)}</span>
+            )}
+          </span>
+        )}
+      </td>}
+      {columns.gst && <td className="whitespace-nowrap px-2 py-1.5 text-center tabular-nums">
         {gstRate === null ? '—' : `${gstRate.toFixed(2)}%`}
-      </td>
-      <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums" onClick={(event) => event.stopPropagation()}>
+      </td>}
+      {columns.saleRate && <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums" onClick={(event) => event.stopPropagation()}>
         {editingPrice ? (
           <input
             aria-label={`Sale rate for ${name}`}
@@ -164,11 +175,11 @@ const CartRow = memo(({
             {unitRate === null ? '—' : formatAmount(unitRate)}
           </button>
         )}
-      </td>
+      </td>}
       <td className="whitespace-nowrap px-2 py-1.5 text-right font-bold tabular-nums">
         {lineTotal === null ? '—' : formatAmount(lineTotal)}
       </td>
-      <td className="px-2 py-1.5 text-center" onClick={(event) => event.stopPropagation()}>
+      {columns.actions && <td className="px-2 py-1.5 text-center" onClick={(event) => event.stopPropagation()}>
         <button
           type="button"
           aria-label={`Remove ${name}`}
@@ -177,7 +188,7 @@ const CartRow = memo(({
         >
           <Trash2 size={15} />
         </button>
-      </td>
+      </td>}
     </tr>
   );
 });
@@ -191,6 +202,7 @@ const CartPanel = memo(() => {
     setSelectedCartId,
     removeFromCart,
     updateQty,
+    changeQty,
     handlePriceChangeAttempt,
     lastAddedId,
     isTouchMode,
@@ -225,13 +237,25 @@ const CartPanel = memo(() => {
     setActiveTab,
     setShowShiftPanel,
     setShowTimeline,
-    setShowHardwareDashboard
+    setShowHardwareDashboard,
+    posLayoutSettings
   } = usePOS();
+  const settings = posLayoutSettings || {};
+  const columns = {
+    mrp: settings.cartColumns?.mrp !== false,
+    discount: settings.cartColumns?.discount !== false,
+    gst: settings.cartColumns?.gst !== false,
+    saleRate: settings.cartColumns?.saleRate !== false,
+    actions: settings.cartColumns?.actions !== false
+  };
+  const billingButtons = settings.billingButtons || {};
 
   const mrpTotal = useMemo(() => {
     const values = cart.map((item) => toOptionalNumber(item.mrp));
     return values.length > 0 && values.every((value) => value !== null)
-      ? values.reduce((total, value) => total + Number(value), 0)
+      ? values.reduce((total, value, index) => (
+        total + Number(value) * (toOptionalNumber(cart[index].quantity) ?? 0)
+      ), 0)
       : null;
   }, [cart]);
   const taxComponents = ['cgst', 'sgst', 'igst', 'cess'].filter((key) => (
@@ -275,18 +299,18 @@ const CartPanel = memo(() => {
             </div>
           </div>
         ) : (
-          <table className="w-full min-w-[820px] border-collapse">
+          <table className="w-full min-w-[540px] border-collapse">
             <thead className="sticky top-0 z-10 bg-blue-700 text-[10px] font-black uppercase tracking-wide text-white shadow-sm">
               <tr>
                 <th className="w-12 px-2 py-2 text-center">Sr. No.</th>
-                <th className="min-w-[160px] px-2 py-2 text-left">Item Name</th>
-                <th className="w-20 px-2 py-2 text-right">MRP</th>
+                <th className="min-w-[var(--pos-cart-item-column-min-width,160px)] px-2 py-2 text-left">Item Name</th>
+                {columns.mrp && <th className="w-20 px-2 py-2 text-right">MRP</th>}
                 <th className="w-20 px-2 py-2 text-center">Qty</th>
-                <th className="w-20 px-2 py-2 text-center">Disc %</th>
-                <th className="w-20 px-2 py-2 text-center">GST %</th>
-                <th className="w-24 px-2 py-2 text-right">Sale Rate</th>
+                {columns.discount && <th className="w-20 px-2 py-2 text-center">Disc %</th>}
+                {columns.gst && <th className="w-20 px-2 py-2 text-center">GST %</th>}
+                {columns.saleRate && <th className="w-24 px-2 py-2 text-right">Sale Rate</th>}
                 <th className="w-24 px-2 py-2 text-right">Total</th>
-                <th className="w-12 px-2 py-2 text-center">Del</th>
+                {columns.actions && <th className="w-12 px-2 py-2 text-center">Del</th>}
               </tr>
             </thead>
             <tbody>
@@ -308,6 +332,9 @@ const CartPanel = memo(() => {
                     onUpdateQty={updateQty}
                     onUpdatePrice={handlePriceChangeAttempt}
                     openKeypad={openKeypad}
+                    columns={columns}
+                    fontScale={Number(settings.fontScale) || 1}
+                    rowHeight={Number(settings.cartRowHeight) || 42}
                   />
                 );
               })}
@@ -371,59 +398,59 @@ const CartPanel = memo(() => {
             <span className="text-xs font-black uppercase tracking-wide text-slate-600">Net payable</span>
             <span className="text-2xl font-black leading-none text-blue-900">₹{formatAmount(finalTotal)}</span>
           </div>
-          <button
+          {settings.paymentPlacement === 'on-demand' && <button
             type="button"
             disabled={cart.length === 0 || isProcessing || Boolean(taxError)}
             onClick={() => {
               setPaymentAmounts({ Cash: finalTotal, UPI: 0, Card: 0 });
               setShowPaymentModal(true);
             }}
-            className="min-h-11 rounded-lg bg-blue-700 px-5 text-sm font-black uppercase text-white shadow hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className={`inline-flex min-h-11 rounded-lg bg-blue-700 px-5 text-sm font-black uppercase text-white shadow hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 ${settings.paymentPlacement === 'on-demand' ? '' : 'lg:hidden'}`}
           >
-            Complete bill · F12
-          </button>
+            Complete bill / payment
+          </button>}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 border-t border-slate-200 p-2 sm:grid-cols-3 xl:grid-cols-6">
-          <button
+        <div className="grid grid-cols-2 gap-1.5 border-t border-slate-200 p-2 sm:grid-cols-3 xl:grid-cols-5">
+          {billingButtons.deleteSelected !== false && <button
             type="button"
             disabled={!selectedCartId}
             onClick={() => removeFromCart(selectedCartId)}
             className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 text-[10px] font-bold uppercase text-red-700 disabled:opacity-40"
           >
             <Trash2 size={13} /> Delete selected
-          </button>
-          <button
+          </button>}
+          {billingButtons.discountCoupon !== false && <button
             type="button"
             disabled={cart.length === 0}
             onClick={() => setShowDiscountPanel(true)}
             className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 text-[10px] font-bold uppercase text-blue-800 disabled:opacity-40"
           >
-            <BadgePercent size={13} /> Discount / coupon
-          </button>
-          <button
+            <BadgePercent size={13} /> Discount / coupon · F8
+          </button>}
+          {billingButtons.holdBill !== false && <button
             type="button"
             disabled={cart.length === 0}
             onClick={handleHoldBill}
             className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 text-[10px] font-bold uppercase text-amber-800 disabled:opacity-40"
           >
             <Pause size={13} /> Hold bill · F3
-          </button>
-          <button
+          </button>}
+          {billingButtons.heldBills !== false && <button
             type="button"
             onClick={() => setShowHoldQueue(true)}
             className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold uppercase text-slate-700"
           >
             <Clock size={13} /> Held ({heldBills.length}) · F4
-          </button>
-          <button
+          </button>}
+          {billingButtons.ordersReturns !== false && <button
             type="button"
             onClick={openOrdersReturns}
             className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-purple-200 bg-purple-50 px-2 text-[10px] font-bold uppercase text-purple-800"
           >
             <FileText size={13} /> Orders / returns
-          </button>
-          <button
+          </button>}
+          {billingButtons.splitTender !== false && <button
             type="button"
             onClick={() => {
               setIsSplitPayment(!isSplitPayment);
@@ -437,36 +464,54 @@ const CartPanel = memo(() => {
             )}
           >
             <LayoutGrid size={13} /> {isSplitPayment ? 'Split tender on' : 'Split tender'}
-          </button>
-          <button
+          </button>}
+          {billingButtons.shift !== false && <button
             type="button"
             onClick={() => setShowShiftPanel(true)}
             className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold uppercase text-slate-700"
           >
             <Activity size={13} /> Shift · F7
-          </button>
-          <button
+          </button>}
+          {billingButtons.activity !== false && <button
             type="button"
             onClick={() => setShowTimeline(true)}
             className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold uppercase text-slate-700"
           >
             <Clock size={13} /> Activity · F9
-          </button>
-          <button
+          </button>}
+          {billingButtons.devices !== false && <button
             type="button"
             onClick={() => setShowHardwareDashboard(true)}
             className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 text-[10px] font-bold uppercase text-slate-700"
           >
             <Radio size={13} /> Devices · F10
-          </button>
-          <button
+          </button>}
+          {billingButtons.clearBill !== false && <button
             type="button"
             disabled={cart.length === 0}
             onClick={handleClearCartAttempt}
-            className="inline-flex min-h-10 items-center justify-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2 text-[10px] font-bold uppercase text-slate-700 disabled:opacity-40 sm:col-span-3 xl:col-span-6"
+            className="inline-flex min-h-9 items-center justify-center gap-1 rounded-md border border-slate-300 bg-slate-100 px-2 text-[10px] font-bold uppercase text-slate-700 disabled:opacity-40 sm:col-span-3 xl:col-span-5"
           >
             <RefreshCw size={13} /> Clear bill · confirmation required
-          </button>
+          </button>}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5 border-t border-slate-200 bg-blue-50/70 px-2 py-1.5">
+          <span className="shrink-0 text-[9px] font-black uppercase text-blue-900">Quick Qty</span>
+          {[1, 2, 5, 10].map((amount) => (
+            <button
+              type="button"
+              key={amount}
+              disabled={!selectedCartId}
+              onClick={() => changeQty(selectedCartId, amount)}
+              className="min-h-7 min-w-9 rounded border border-blue-100 bg-white px-2 text-[10px] font-bold text-blue-900 hover:border-blue-400 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={`Add ${amount} to selected item quantity`}
+            >
+              +{amount}
+            </button>
+          ))}
+          <span className="ml-auto truncate text-[9px] text-slate-500">
+            {selectedCartId ? 'Selected item' : 'Select an item to adjust quantity'}
+          </span>
         </div>
       </div>
     </div>

@@ -41,6 +41,13 @@ import usePosActions, {
 import { POSProvider } from '../context';
 import { PaymentProvider, usePayment } from '../features/pos/payment';
 import { isLocalPosTestMode } from '../utils/localPosTestMode';
+import {
+  canManagePOSLayoutSettings,
+  getPOSLayoutSettingsRow,
+  normalizePOSLayoutSettings,
+  parsePOSLayoutSettings,
+  POS_LAYOUT_CONFIG_KEY
+} from '../features/pos/settings/posLayoutSettings';
 
 function POSViewContent({
   products,
@@ -49,6 +56,7 @@ function POSViewContent({
   offers = [],
   coupons = [],
   appConfigRows = [],
+  isTenantMode = false,
   users = [],
   currentUser,
   fetchInitialData,
@@ -321,6 +329,77 @@ function POSViewContent({
       ? 'inclusive'
       : null;
   }, [appConfigRows]);
+  const posLayoutConfigRow = useMemo(
+    () => getPOSLayoutSettingsRow(appConfigRows, currentUser),
+    [appConfigRows, currentUser]
+  );
+  const posLayoutSettings = useMemo(
+    () => parsePOSLayoutSettings(posLayoutConfigRow?.value),
+    [posLayoutConfigRow?.value]
+  );
+  const savePOSLayoutSettings = useCallback(async (settings) => {
+    if (isLocalPosTestMode) {
+      throw new Error('Shared POS settings cannot be saved in local test mode.');
+    }
+    if (!canManagePOSLayoutSettings(currentUser)) {
+      throw new Error('An active authorized store administrator is required to save POS settings.');
+    }
+    if (isTenantMode && !currentUser?.tenant_id) {
+      throw new Error('Tenant scope is required to save shared POS settings.');
+    }
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+    if (!authData?.user?.id || (
+      currentUser?.auth_user_id && currentUser.auth_user_id !== authData.user.id
+    )) {
+      throw new Error('Your authenticated admin session could not be verified. Sign in again.');
+    }
+
+    const value = JSON.stringify(normalizePOSLayoutSettings(settings));
+    const scope = {
+      tenant_id: currentUser.tenant_id,
+      company_code: currentUser.company_code,
+      key: POS_LAYOUT_CONFIG_KEY
+    };
+    const { data: existing, error: lookupError } = await supabase
+      .from(DB_SCHEMA.APP_CONFIG.table)
+      .select('id')
+      .eq('tenant_id', scope.tenant_id)
+      .eq('company_code', scope.company_code)
+      .eq('key', scope.key)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+
+    const setting = {
+      value,
+      value_type: 'string',
+      group_name: 'pos',
+      description: 'Versioned Touch Sale presentation settings.',
+      is_active: true,
+      updated_at: new Date().toISOString()
+    };
+    const result = existing?.id
+      ? await supabase
+        .from(DB_SCHEMA.APP_CONFIG.table)
+        .update(setting)
+        .eq('id', existing.id)
+        .eq('tenant_id', scope.tenant_id)
+        .eq('company_code', scope.company_code)
+        .select('id')
+        .maybeSingle()
+      : await supabase
+        .from(DB_SCHEMA.APP_CONFIG.table)
+        .insert({ ...scope, ...setting })
+        .select('id')
+        .maybeSingle();
+    if (result.error) throw result.error;
+    if (!result.data?.id) {
+      throw new Error('Supabase did not confirm saving the store POS settings.');
+    }
+
+    await fetchInitialData(true, false);
+    toast.success('Shared POS settings saved');
+  }, [currentUser, fetchInitialData, isTenantMode]);
   const promotionResult = useMemo(() => selectBestPOSPromotion({
     cart,
     offers,
@@ -764,7 +843,8 @@ function POSViewContent({
 
   const contextValue = useMemo(() => ({
     // Basic Data
-    products, categories, brands, appConfig, offers, coupons, orders, orderItems, fetchInitialData, setActiveTab,
+    products, categories, brands, appConfig, appConfigRows, offers, coupons, orders, orderItems, fetchInitialData, setActiveTab,
+    posLayoutSettings, savePOSLayoutSettings,
     inventoryLoading: loading, inventoryError,
     gstPricingMode, taxError, billingError, couponError: promotionResult.couponError, currentUser,
     cashierShift, isShiftLoading, isShiftProcessing, shiftError,
@@ -828,7 +908,8 @@ function POSViewContent({
     renderCount: renderCount.current,
     uptime: Math.floor((Date.now() - mountTime.current) / 1000)
   }), [
-    products, categories, brands, appConfig, offers, coupons, orders, orderItems, fetchInitialData, setActiveTab, loading, inventoryError,
+    products, categories, brands, appConfig, appConfigRows, offers, coupons, orders, orderItems, fetchInitialData, setActiveTab, loading, inventoryError,
+    posLayoutSettings, savePOSLayoutSettings,
     gstPricingMode, taxError, billingError, promotionResult.couponError, currentUser,
     cashierShift, isShiftLoading, isShiftProcessing, shiftError,
     openCashierShift, recordCashierMovement, closeCashierShift, refreshCashierShift,

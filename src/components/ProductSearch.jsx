@@ -70,7 +70,7 @@ const ProductSearch = memo(() => {
   };
 
   return (
-    <div className="flex-1 relative">
+    <div className="relative min-w-0 flex-1">
       <input
         ref={searchInputRef}
         type="text"

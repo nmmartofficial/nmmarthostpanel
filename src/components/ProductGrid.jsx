@@ -1,10 +1,10 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useRef, useState } from 'react';
 import { Box, RefreshCw } from 'lucide-react';
 import { cn } from '../utils/helpers';
 import ProductCard from './ProductCard';
 import { usePOS } from '../context';
 
-const ProductGrid = memo(({ productsOverride }) => {
+const ProductGrid = memo(({ productsOverride, showPrices = false }) => {
   const {
     filteredProducts: products = [],
     products: inventory = [],
@@ -12,10 +12,35 @@ const ProductGrid = memo(({ productsOverride }) => {
     addToCart: onProductClick,
     isTouchMode = false,
     inventoryLoading: loading = false,
-    inventoryError = ''
+    inventoryError = '',
+    posLayoutSettings
   } = usePOS();
+  const gridRef = useRef(null);
+  const configuredColumns = Math.max(2, Number(posLayoutSettings?.productGridColumns) || 3);
+  const minimumTileWidth = Math.max(100, Number(posLayoutSettings?.productButtonMinWidth) || 124);
+  const [gridColumns, setGridColumns] = useState(configuredColumns);
   const initialInventoryLoading = loading && inventory.length === 0;
   const visibleProducts = Array.isArray(productsOverride) ? productsOverride : products;
+
+  useEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return undefined;
+    const updateColumns = () => {
+      const computedStyle = window.getComputedStyle(grid);
+      const gap = Number.parseFloat(computedStyle.columnGap) || 8;
+      const availableWidth = Math.max(0, grid.clientWidth - 24);
+      const fittingColumns = Math.max(1, Math.floor((availableWidth + gap) / (minimumTileWidth + gap)));
+      setGridColumns(Math.min(configuredColumns, fittingColumns));
+    };
+    updateColumns();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateColumns);
+      return () => window.removeEventListener('resize', updateColumns);
+    }
+    const observer = new ResizeObserver(updateColumns);
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [configuredColumns, minimumTileWidth, visibleProducts.length]);
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -53,8 +78,12 @@ const ProductGrid = memo(({ productsOverride }) => {
         </div>
       ) : (
         <div
+          ref={gridRef}
           className="grid flex-1 content-start gap-[var(--pos-grid-gap,8px)] overflow-y-auto bg-slate-50/50 p-3 custom-scrollbar"
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(var(--pos-product-min-width, 124px), 100%), 1fr))' }}
+          style={{
+            gridTemplateColumns: `repeat(${gridColumns}, minmax(0, 1fr))`,
+            fontSize: `calc(11px * ${Number(posLayoutSettings?.fontScale) || 1})`
+          }}
         >
           {visibleProducts.map((product) => (
             <ProductCard
@@ -63,6 +92,8 @@ const ProductGrid = memo(({ productsOverride }) => {
               addToCart={onProductClick}
               isSelected={selectedProduct?.id === product.id}
               isTouchMode={isTouchMode}
+              showPrice={showPrices}
+              fontScale={Number(posLayoutSettings?.fontScale) || 1}
             />
           ))}
         </div>

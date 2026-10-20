@@ -1,8 +1,9 @@
 import React, { memo } from 'react';
 import { cn } from '../utils/helpers';
+import { formatCurrency } from '../utils/pos';
 import { getCartUnitPrice } from '../utils/pos/calculations';
 
-const ProductCard = memo(({ product, addToCart, isSelected, isTouchMode }) => {
+const ProductCard = memo(({ product, addToCart, isSelected, isTouchMode, showPrice = false, fontScale = 1 }) => {
   const name = product.itname || product.name || product.item_name || 'Unnamed item';
   const packSize = product.pack_size
     || product.package_size
@@ -22,6 +23,7 @@ const ProductCard = memo(({ product, addToCart, isSelected, isTouchMode }) => {
       type="button"
       onClick={() => addToCart(product)}
       disabled={disabled}
+      style={{ fontSize: `calc(12px * ${fontScale})` }}
       aria-label={`${name}${packSize ? ` ${packSize}` : ''}${unavailable ? ', out of stock' : ''}${saleRate === null ? ', price unavailable' : ''}`}
       className={cn(
         'flex min-h-[var(--pos-product-min-height,64px)] min-w-0 items-center justify-center rounded-lg border px-2 py-2 text-center font-bold leading-snug transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
@@ -33,8 +35,15 @@ const ProductCard = memo(({ product, addToCart, isSelected, isTouchMode }) => {
       )}
       title={saleRate === null ? 'Price unavailable' : unavailable ? 'Out of stock' : undefined}
     >
-      <span className="line-clamp-3 break-words">
-        {name}{packSize ? ` ${packSize}` : ''}
+      <span className="flex min-w-0 flex-col items-center gap-1">
+        <span className="line-clamp-2 break-words">
+          {name}{packSize ? ` ${packSize}` : ''}
+        </span>
+        {showPrice && (
+          <span className="text-[10px] font-black tabular-nums text-blue-800" style={{ fontSize: `calc(10px * ${fontScale})` }}>
+            {saleRate === null ? 'Price unavailable' : formatCurrency(saleRate)}
+          </span>
+        )}
       </span>
     </button>
   );
