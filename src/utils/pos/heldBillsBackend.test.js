@@ -9,7 +9,7 @@ import {
 import { sortHeldBills } from './holdHelpers.js';
 import { formatHoldAge } from './formatters.js';
 
-const user = { tenant_id: 'tenant-7', company_code: 'STORE-7' };
+const user = { tenant_id: '7', company_code: 'STORE-7' };
 const row = {
   id: 'b26b7c01-5851-4ef7-8334-15bbad5384dc',
   tenant_id: user.tenant_id,
@@ -89,6 +89,10 @@ test('resumes and deletes only through backend-confirmed RPC results', async () 
     /did not confirm/
   );
   await assert.rejects(listStoreHeldBills(createClient({}).client, {}), /Tenant and store scope/);
+  await assert.rejects(
+    listStoreHeldBills(createClient({}).client, { tenant_id: 'tenant-7', company_code: 'STORE-7' }),
+    /valid numeric tenant ID/
+  );
 });
 
 test('surfaces RPC errors instead of treating backend failures as successful holds', async () => {

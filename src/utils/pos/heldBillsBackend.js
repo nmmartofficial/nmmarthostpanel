@@ -2,8 +2,12 @@ const requireStoreScope = (currentUser) => {
   if (currentUser?.tenant_id == null || !currentUser?.company_code) {
     throw new Error('Tenant and store scope are required for held bills.');
   }
+  const tenantId = String(currentUser.tenant_id);
+  if (!/^[1-9]\d*$/.test(tenantId)) {
+    throw new Error('A valid numeric tenant ID is required for held bills.');
+  }
   return {
-    p_tenant_id: currentUser.tenant_id,
+    p_tenant_id: tenantId,
     p_company_code: currentUser.company_code
   };
 };

@@ -12,89 +12,49 @@ const admin = {
   company_code: 'STORE-7'
 };
 
-const createClient = ({ existing = null, authUserId = 'auth-admin-1', returnedScope } = {}) => {
+const createClient = ({
+  authUserId = 'auth-admin-1',
+  returnedScope,
+  rpcError = null
+} = {}) => {
   const calls = [];
   const client = {
     auth: { getUser: async () => ({ data: { user: { id: authUserId } }, error: null }) },
-    from(table) {
-      const state = { table, operation: 'select', filters: [], values: null };
-      const builder = {
-        select(columns) {
-          state.columns = columns;
-          calls.push({ ...state, method: 'select' });
-          return builder;
+    rpc: async (procedure, parameters) => {
+      calls.push({ procedure, parameters });
+      if (rpcError) return { data: null, error: rpcError };
+      return {
+        data: {
+          id: 22,
+          tenant_id: returnedScope?.tenant_id ?? parameters.p_tenant_id,
+          company_code: returnedScope?.company_code ?? parameters.p_company_code,
+          key: returnedScope?.key ?? POS_LAYOUT_CONFIG_KEY,
+          value: JSON.stringify(parameters.p_settings)
         },
-        eq(column, value) {
-          state.filters.push([column, value]);
-          return builder;
-        },
-        update(values) {
-          state.operation = 'update';
-          state.values = values;
-          return builder;
-        },
-        insert(values) {
-          state.operation = 'insert';
-          state.values = values;
-          return builder;
-        },
-        maybeSingle: async () => {
-          calls.push({ ...state, filters: [...state.filters], method: 'maybeSingle' });
-          if (state.operation === 'select') return { data: existing, error: null };
-          const saved = state.operation === 'insert'
-            ? state.values
-            : { ...existing, ...state.values };
-          return {
-            data: {
-              id: saved.id || 22,
-              tenant_id: returnedScope?.tenant_id ?? saved.tenant_id,
-              company_code: returnedScope?.company_code ?? saved.company_code,
-              key: returnedScope?.key ?? saved.key,
-              value: saved.value
-            },
-            error: null
-          };
-        }
+        error: null
       };
-      return builder;
     }
   };
   return { client, calls };
 };
 
-test('saves a new settings row scoped to the authenticated tenant and company', async () => {
+test('saves settings through the store-scoped RPC after verifying the admin session', async () => {
   const { client, calls } = createClient();
   const saved = await savePOSLayoutSettingsToSupabase(client, admin, { theme: 'blue' });
-  const insert = calls.find((call) => call.method === 'maybeSingle' && call.operation === 'insert');
 
   assert.equal(saved.key, POS_LAYOUT_CONFIG_KEY);
-  assert.equal(saved.tenant_id, admin.tenant_id);
+  assert.equal(String(saved.tenant_id), String(admin.tenant_id));
   assert.equal(saved.company_code, admin.company_code);
   assert.equal(JSON.parse(saved.value).theme, 'blue');
-  assert.deepEqual(insert.filters, []);
+  assert.equal(calls[0].procedure, 'pos_layout_settings_save');
+  assert.deepEqual(calls[0].parameters, {
+    p_tenant_id: '7',
+    p_company_code: 'STORE-7',
+    p_settings: JSON.parse(saved.value)
+  });
 });
 
-test('updates only the existing settings row in the matching tenant and company', async () => {
-  const existing = {
-    id: 12,
-    tenant_id: admin.tenant_id,
-    company_code: admin.company_code,
-    key: POS_LAYOUT_CONFIG_KEY
-  };
-  const { client, calls } = createClient({ existing });
-  const saved = await savePOSLayoutSettingsToSupabase(client, admin, { theme: 'blue' });
-  const update = calls.find((call) => call.method === 'maybeSingle' && call.operation === 'update');
-
-  assert.equal(saved.id, existing.id);
-  assert.deepEqual(update.filters, [
-    ['id', existing.id],
-    ['tenant_id', admin.tenant_id],
-    ['company_code', admin.company_code],
-    ['key', POS_LAYOUT_CONFIG_KEY]
-  ]);
-});
-
-test('rejects an unverified admin session or a row returned for another store', async () => {
+test('rejects an unverified admin session, invalid tenant ID, or a row returned for another store', async () => {
   const mismatchedSession = createClient({ authUserId: 'different-auth-user' });
   await assert.rejects(
     savePOSLayoutSettingsToSupabase(mismatchedSession.client, admin, {}),
@@ -102,9 +62,22 @@ test('rejects an unverified admin session or a row returned for another store', 
   );
   assert.equal(mismatchedSession.calls.length, 0);
 
+  await assert.rejects(
+    savePOSLayoutSettingsToSupabase(createClient().client, { ...admin, tenant_id: 'tenant-7' }, {}),
+    /valid numeric tenant ID/
+  );
+
   const wrongScope = createClient({ returnedScope: { tenant_id: 8 } });
   await assert.rejects(
     savePOSLayoutSettingsToSupabase(wrongScope.client, admin, {}),
     /did not confirm saving/
+  );
+});
+
+test('surfaces scoped settings RPC failures', async () => {
+  const { client } = createClient({ rpcError: new Error('RLS or RPC unavailable') });
+  await assert.rejects(
+    savePOSLayoutSettingsToSupabase(client, admin, {}),
+    /RLS or RPC unavailable/
   );
 });

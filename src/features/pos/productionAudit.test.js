@@ -361,9 +361,8 @@ test('POS layout settings are saved to the authenticated tenant-scoped app confi
   assert.match(posView, /setAppConfigRows\?\.\(/);
   assert.match(posView, /setAppConfig\?\.\(/);
   assert.match(settingsBackend, /client\.auth\.getUser\(\)/);
-  assert.match(settingsBackend, /eq\('tenant_id', scope\.tenant_id\)/);
-  assert.match(settingsBackend, /eq\('company_code', scope\.company_code\)/);
-  assert.match(settingsBackend, /eq\('key', scope\.key\)/);
+  assert.match(settingsBackend, /client\.rpc\('pos_layout_settings_save'/);
+  assert.doesNotMatch(settingsBackend, /client\.from\(/);
   assert.match(settingsBackend, /did not confirm saving the store POS settings/);
   assert.match(app, /setAppConfigRows, setBanners/);
 });
@@ -393,6 +392,14 @@ test('held POS bills use authenticated tenant-scoped backend RPCs, not browser l
   assert.match(migration, /held_bill\.status = 'held'/);
   assert.match(migration, /'POS_HELD_BILL_NOT_AVAILABLE'/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.pos_held_bill_resume/);
+
+  const correction = read('supabase/migrations/20261020201000__pos_backend_scope_correction.sql');
+  assert.match(correction, /ALTER COLUMN tenant_id TYPE BIGINT/);
+  assert.match(correction, /DROP FUNCTION IF EXISTS public\.pos_held_bills_list\(UUID, TEXT\)/);
+  assert.match(correction, /pos_layout_settings_save/);
+  assert.match(correction, /admin_user\.auth_user_id = auth\.uid\(\)/);
+  assert.match(correction, /ON CONFLICT \(tenant_id, key\)/);
+  assert.match(correction, /GRANT EXECUTE ON FUNCTION public\.pos_layout_settings_save/);
 });
 
 test('atomic purchase contract owns stock receipt and inventory logging', () => {
