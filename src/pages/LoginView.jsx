@@ -114,7 +114,7 @@ export default function LoginView({ isTenantMode = false }) {
   };
 
   return (
-    <div className="login-shell flex min-h-svh flex-col bg-[radial-gradient(ellipse_at_top_left,_#e8f0eb_0%,_transparent_42%),linear-gradient(135deg,_#f7f8f4_0%,_#eef2ee_100%)] px-4 pb-4 font-sans antialiased sm:px-6">
+    <div className="login-shell flex min-h-svh flex-col bg-[radial-gradient(ellipse_at_top_left,_#eaf1fb_0%,_transparent_42%),linear-gradient(135deg,_#f7f9fc_0%,_#edf3fb_100%)] px-4 pb-4 font-sans antialiased sm:px-6">
       <style>{`
         @media (max-width: 700px) {
           .login-shell { padding-bottom: 8px; }
@@ -163,7 +163,7 @@ export default function LoginView({ isTenantMode = false }) {
       <header className="login-header flex h-14 shrink-0 items-center">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 rounded-xl border border-[#dbe5dc] bg-white/90 px-3.5 py-2 text-xs font-bold text-[#244b39] shadow-sm transition hover:border-[#c9a45f] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7863e]"
+          className="inline-flex items-center gap-2 rounded-xl border border-[#d8e2ef] bg-white/90 px-3.5 py-2 text-xs font-bold text-[#24466f] shadow-sm transition hover:border-[#c9a45f] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b7863e]"
         >
           <Home size={15} />
           Back to home
@@ -210,20 +210,20 @@ export default function LoginView({ isTenantMode = false }) {
         className="w-full max-w-[400px]"
       >
 
-        <div className="login-card flex flex-col items-center rounded-[28px] border border-white bg-white p-8 shadow-[0_24px_70px_rgba(29,60,44,0.12)] ring-1 ring-[#dfe7df] sm:p-10">
+        <div className="login-card flex flex-col items-center rounded-[28px] border border-white bg-white p-8 shadow-[0_24px_70px_rgba(34,71,125,0.13)] ring-1 ring-[#dce5f0] sm:p-10">
           {/* Logo Section */}
-          <div className="login-brand-icon mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#123c30] shadow-lg shadow-[#123c30]/20">
+          <div className="login-brand-icon mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#173e70] shadow-lg shadow-[#173e70]/20">
             <ShoppingBag size={27} className="text-[#e7bd69]" />
           </div>
 
           <p className="login-eyebrow mb-1 text-[9px] font-extrabold uppercase tracking-[0.22em] text-[#9a7136]">Administrator access</p>
-          <h1 className="login-heading mb-1.5 text-2xl font-extrabold tracking-tight text-[#173c2e] text-center">
+          <h1 className="login-heading mb-1.5 text-2xl font-extrabold tracking-tight text-[#1b3557] text-center">
             {BRAND_NAME}
           </h1>
-          <p className="login-description text-xs font-semibold text-[#607268] text-center sm:text-sm">
+          <p className="login-description text-xs font-semibold text-[#5c6d82] text-center sm:text-sm">
             Retail management, all in one place
           </p>
-          <p className="login-subtitle mb-5 mt-1 flex items-center gap-1 text-[11px] font-medium text-[#849188] text-center">
+          <p className="login-subtitle mb-5 mt-1 flex items-center gap-1 text-[11px] font-medium text-[#8290a3] text-center">
             <ShieldCheck size={13} className="text-[#9a7136]" />
             Sign in to your secure dashboard
           </p>
@@ -244,11 +244,11 @@ export default function LoginView({ isTenantMode = false }) {
 
           <form onSubmit={handleLogin} className="login-form w-full space-y-4">
             <div className="login-field space-y-2">
-              <label className="login-label ml-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#4b6255]">
+              <label className="login-label ml-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#435a76]">
                 Email Address
               </label>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8a9b90]">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8293a8]">
                   <Mail size={18} />
                 </div>
                 <input
@@ -257,17 +257,17 @@ export default function LoginView({ isTenantMode = false }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="login-input h-12 w-full rounded-xl border border-[#dfe7e0] bg-[#fcfdfb] pl-12 pr-4 text-sm font-medium text-[#173c2e] outline-none transition-all placeholder:text-[#a5b0a8] focus:border-[#739780] focus:bg-white focus:ring-4 focus:ring-[#155b43]/10"
+                  className="login-input h-12 w-full rounded-xl border border-[#dce5ef] bg-[#fbfcfe] pl-12 pr-4 text-sm font-medium text-[#1b3557] outline-none transition-all placeholder:text-[#a1adbd] focus:border-[#6d8fbd] focus:bg-white focus:ring-4 focus:ring-[#275b9a]/10"
                 />
               </div>
             </div>
 
             <div className="login-field space-y-2">
-              <label className="login-label ml-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#4b6255]">
+              <label className="login-label ml-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#435a76]">
                 Password
               </label>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8a9b90]">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8293a8]">
                   <Lock size={18} />
                 </div>
                 <input
@@ -276,13 +276,13 @@ export default function LoginView({ isTenantMode = false }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="login-input h-12 w-full rounded-xl border border-[#dfe7e0] bg-[#fcfdfb] pl-12 pr-12 text-sm font-medium text-[#173c2e] outline-none transition-all placeholder:text-[#a5b0a8] focus:border-[#739780] focus:bg-white focus:ring-4 focus:ring-[#155b43]/10"
+                  className="login-input h-12 w-full rounded-xl border border-[#dce5ef] bg-[#fbfcfe] pl-12 pr-12 text-sm font-medium text-[#1b3557] outline-none transition-all placeholder:text-[#a1adbd] focus:border-[#6d8fbd] focus:bg-white focus:ring-4 focus:ring-[#275b9a]/10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9aa79e] transition-colors hover:text-[#355c4a]"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#95a2b3] transition-colors hover:text-[#315987]"
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -303,16 +303,16 @@ export default function LoginView({ isTenantMode = false }) {
                 />
                 <div className={cn(
                   "w-5 h-5 rounded-lg border flex items-center justify-center transition-all",
-                  rememberMe ? "bg-[#155b43] border-[#155b43] shadow-sm shadow-[#155b43]/20" : "bg-white border-slate-300 group-hover:border-[#739780] peer-focus:border-[#739780] peer-focus:ring-4 peer-focus:ring-[#155b43]/10"
+                  rememberMe ? "bg-[#275b9a] border-[#275b9a] shadow-sm shadow-[#275b9a]/20" : "bg-white border-slate-300 group-hover:border-[#6d8fbd] peer-focus:border-[#6d8fbd] peer-focus:ring-4 peer-focus:ring-[#275b9a]/10"
                 )}>
                   {rememberMe && <CheckCircle2 size={14} className="text-white" />}
                 </div>
-                <span className="text-[10px] font-bold text-[#607268]">Remember me</span>
+                <span className="text-[10px] font-bold text-[#5c6d82]">Remember me</span>
               </label>
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-[10px] font-extrabold text-[#155b43] hover:text-[#9a7136] hover:underline underline-offset-4"
+                className="text-[10px] font-extrabold text-[#275b9a] hover:text-[#9a7136] hover:underline underline-offset-4"
               >
                 Forgot Password?
               </button>
@@ -322,7 +322,7 @@ export default function LoginView({ isTenantMode = false }) {
               type="submit"
               onClick={() => loginUiDebug('button clicked')}
               disabled={isProcessing}
-              className="login-submit flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#c39a4c] bg-[#123c30] text-xs font-extrabold tracking-[0.12em] text-white shadow-[0_8px_20px_rgba(18,60,48,0.18)] transition-all hover:-translate-y-0.5 hover:bg-[#174b3b] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="login-submit flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#c39a4c] bg-[#173e70] text-xs font-extrabold tracking-[0.12em] text-white shadow-[0_8px_20px_rgba(23,62,112,0.2)] transition-all hover:-translate-y-0.5 hover:bg-[#214f88] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isProcessing ? (
                 <Loader2 size={20} className="animate-spin" />
@@ -341,19 +341,19 @@ export default function LoginView({ isTenantMode = false }) {
               <button
                 type="button"
                 onClick={() => toast.info('Privacy Policy coming soon')}
-                className="text-[9px] font-bold text-[#718076] hover:text-[#155b43] uppercase tracking-wider transition-colors"
+                className="text-[9px] font-bold text-[#718096] hover:text-[#275b9a] uppercase tracking-wider transition-colors"
               >Privacy Policy</button>
               <div className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
               <button
                 type="button"
                 onClick={() => toast.info('Terms of Service coming soon')}
-                className="text-[9px] font-bold text-[#718076] hover:text-[#155b43] uppercase tracking-wider transition-colors"
+                className="text-[9px] font-bold text-[#718096] hover:text-[#275b9a] uppercase tracking-wider transition-colors"
               >Terms</button>
               <div className="w-1.5 h-1.5 bg-slate-200 rounded-full" />
               <button
                 type="button"
                 onClick={() => toast.info('Contact support at: support@nmmart.in')}
-                className="text-[9px] font-bold text-[#718076] hover:text-[#155b43] uppercase tracking-wider transition-colors"
+                className="text-[9px] font-bold text-[#718096] hover:text-[#275b9a] uppercase tracking-wider transition-colors"
               >Support</button>
             </div>
           </div>
