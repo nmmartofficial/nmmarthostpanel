@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { X, Search, Clock, Trash2, ArrowRight, Filter, ChevronRight } from 'lucide-react';
+import { X, Search, Clock, Trash2, ArrowRight, Filter, ChevronRight, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/helpers';
 import { getShortHoldId, formatCurrency, formatHoldAge } from '../utils/pos';
@@ -19,6 +19,9 @@ const HoldQueueDialog = memo(() => {
     setSelectedHoldIdx: onSelectBill,
     resumeHoldBill: onRestoreBill,
     deleteHeldBill: onDeleteBill,
+    heldBillsLoading,
+    heldBillsError,
+    refreshHeldBills,
     handleGlobalKey: onKeyDown
   } = usePOS();
 
@@ -45,9 +48,20 @@ const HoldQueueDialog = memo(() => {
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Manage suspended transactions and resumes</p>
             </div>
           </div>
-          <button onClick={() => onClose(false)} className="p-3 hover:bg-slate-200 rounded-full text-slate-400 transition-all">
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => refreshHeldBills().catch(() => {})}
+              disabled={heldBillsLoading}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={heldBillsLoading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+            <button onClick={() => onClose(false)} className="p-3 hover:bg-slate-200 rounded-full text-slate-400 transition-all">
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Toolbar: Search & Sort */}
@@ -81,7 +95,16 @@ const HoldQueueDialog = memo(() => {
           {/* Left: Hold List */}
           <div className="w-[40%] border-r border-slate-100 flex flex-col bg-slate-50/30">
             <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-              {filteredHeldBills.length === 0 ? (
+              {heldBillsError && (
+                <p role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">
+                  Held bills could not be loaded: {heldBillsError}
+                </p>
+              )}
+              {heldBillsLoading && filteredHeldBills.length === 0 ? (
+                <div className="flex h-full items-center justify-center gap-2 text-sm font-semibold text-slate-500">
+                  <RefreshCw size={16} className="animate-spin" /> Loading held bills…
+                </div>
+              ) : filteredHeldBills.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 opacity-40">
                   <Clock size={48} />
                   <p className="text-[10px] font-black uppercase tracking-widest">No Held Bills Found</p>
@@ -111,7 +134,7 @@ const HoldQueueDialog = memo(() => {
                          <span className="bg-slate-100 text-slate-500 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
                             {hb.cart?.length || 0} Items
                          </span>
-                         <span className="text-[9px] font-bold text-slate-400">{formatHoldAge(hb.id)}</span>
+                         <span className="text-[9px] font-bold text-slate-400">{formatHoldAge(hb.created_at || hb.id)}</span>
                       </div>
                       <ChevronRight size={16} className={cn("transition-transform", selectedHoldIndex === idx ? "text-amber-500 translate-x-1" : "text-slate-300")} />
                     </div>
@@ -152,7 +175,7 @@ const HoldQueueDialog = memo(() => {
                       </div>
                       <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                          <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Suspended Time</p>
-                         <p className="text-xs font-black text-slate-700">{formatHoldAge(previewBill.id)}</p>
+                         <p className="text-xs font-black text-slate-700">{formatHoldAge(previewBill.created_at || previewBill.id)}</p>
                       </div>
                    </div>
 

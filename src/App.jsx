@@ -2346,7 +2346,7 @@ export default function App({ company, isTenantMode, companySlug }) {
                   offers, pincodes, homeConfig, walletTx, wallets, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                   purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
                   loyaltyPoints, loyaltyTransactions, loyaltyTiers, hsnMaster,
-                  setAppConfig, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems: setOrderItems || (() => {}), setUsers, setCoupons,
+                  setAppConfig, setAppConfigRows, setBanners, setCategories, setSubcategories, setBrands, setProducts, setOrders, setOrderItems: setOrderItems || (() => {}), setUsers, setCoupons,
                   setAdminUsers, setCredits, setDeliveryBoys, setDeliveryCustomers, setPurchases, setDepartments, setUnits, setAccounts,
                   setFestivals, setPreviewFestival, setLoyaltyPoints, setLoyaltyTransactions, setLoyaltyTiers,
                   uploadImage, fetchInitialData, setLoading,

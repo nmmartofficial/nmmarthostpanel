@@ -352,6 +352,49 @@ test('cashier sales are assigned to an open shift and the UI requires backend sh
   assert.match(step7Migration, /POS_SHIFT_IDEMPOTENCY_KEY_CONFLICT/);
 });
 
+test('POS layout settings are saved to the authenticated tenant-scoped app config row', () => {
+  const posView = read('src/pages/POSView.jsx');
+  const settingsBackend = read('src/features/pos/settings/posLayoutSettingsBackend.js');
+  const app = read('src/App.jsx');
+
+  assert.match(posView, /savePOSLayoutSettingsToSupabase\(supabase, currentUser, settings\)/);
+  assert.match(posView, /setAppConfigRows\?\.\(/);
+  assert.match(posView, /setAppConfig\?\.\(/);
+  assert.match(settingsBackend, /client\.auth\.getUser\(\)/);
+  assert.match(settingsBackend, /eq\('tenant_id', scope\.tenant_id\)/);
+  assert.match(settingsBackend, /eq\('company_code', scope\.company_code\)/);
+  assert.match(settingsBackend, /eq\('key', scope\.key\)/);
+  assert.match(settingsBackend, /did not confirm saving the store POS settings/);
+  assert.match(app, /setAppConfigRows, setBanners/);
+});
+
+test('held POS bills use authenticated tenant-scoped backend RPCs, not browser localStorage', () => {
+  const holdHook = read('src/hooks/useHoldEngine.js');
+  const holdBackend = read('src/utils/pos/heldBillsBackend.js');
+  const migration = read('supabase/migrations/20261020200328__pos_held_bills.sql');
+  const posView = read('src/pages/POSView.jsx');
+
+  assert.doesNotMatch(holdHook, /localStorage/);
+  assert.match(holdHook, /saveStoreHeldBill\(supabase, currentUser/);
+  assert.match(holdHook, /resumeStoreHeldBill\(supabase, currentUser/);
+  assert.match(holdHook, /deleteStoreHeldBill\(supabase, currentUser/);
+  assert.match(holdHook, /listStoreHeldBills\(supabase, currentUser\)/);
+  assert.match(posView, /setSessionActivitiesCount, currentUser\s*\n\s*\}\);/);
+  assert.match(holdHook, /await saveStoreHeldBill[\s\S]*?clearCart\(\)/);
+  assert.match(posView, /const data = await resumeHoldBillEngine\(hb\)/);
+  assert.match(holdBackend, /client\.rpc\(procedure, parameters\)/);
+  assert.match(holdBackend, /Tenant and store scope are required/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.pos_held_bills/);
+  assert.match(migration, /ALTER TABLE public\.pos_held_bills ENABLE ROW LEVEL SECURITY/);
+  assert.match(migration, /REVOKE ALL ON TABLE public\.pos_held_bills FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /admin_user\.auth_user_id = auth\.uid\(\)/);
+  assert.match(migration, /admin_user\.tenant_id = p_tenant_id/);
+  assert.match(migration, /admin_user\.company_code = p_company_code/);
+  assert.match(migration, /held_bill\.status = 'held'/);
+  assert.match(migration, /'POS_HELD_BILL_NOT_AVAILABLE'/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.pos_held_bill_resume/);
+});
+
 test('atomic purchase contract owns stock receipt and inventory logging', () => {
   const purchaseRpc = read('supabase/migrations/functions/0206__create_purchase_atomic.sql');
   const purchaseEntry = read('src/pages/Inventory/PurchaseEntryView.jsx');

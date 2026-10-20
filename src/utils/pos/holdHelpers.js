@@ -14,10 +14,17 @@ export const getShortHoldId = (id) => {
  */
 export const sortHeldBills = (bills, criteria) => {
   const list = [...bills];
+  const timestamp = (bill) => {
+    if (Number.isFinite(Number(bill?.created_at))) return Number(bill.created_at);
+    const parsed = Date.parse(bill?.created_at || bill?.time || '');
+    if (Number.isFinite(parsed)) return parsed;
+    const numericId = Number(bill?.id);
+    return Number.isFinite(numericId) ? numericId : 0;
+  };
   list.sort((a, b) => {
     switch (criteria) {
-      case 'newest': return b.id - a.id;
-      case 'oldest': return a.id - b.id;
+      case 'newest': return timestamp(b) - timestamp(a);
+      case 'oldest': return timestamp(a) - timestamp(b);
       case 'highest': return b.total - a.total;
       case 'lowest': return a.total - b.total;
       default: return 0;

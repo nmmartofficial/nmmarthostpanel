@@ -42,7 +42,11 @@ export const formatInvoiceNo = (no) => {
  * Formats the age of a held bill
  */
 export const formatHoldAge = (timestamp) => {
-  const diff = Date.now() - timestamp;
+  const value = Number.isFinite(Number(timestamp)) && typeof timestamp !== 'string'
+    ? Number(timestamp)
+    : Date.parse(timestamp);
+  if (!Number.isFinite(value)) return 'Time unavailable';
+  const diff = Math.max(0, Date.now() - value);
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'Just now';
   if (mins < 60) return `${mins}m ago`;
