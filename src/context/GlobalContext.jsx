@@ -5,6 +5,7 @@ import { dbSync } from '../dbSync';
 import { secureStorage } from '../utils/security';
 import { shouldSkipGlobalFetch } from '../utils/fetchControl';
 import { isLocalPosReadOnlyMode, isLocalPosTestMode } from '../utils/localPosTestMode';
+import { reconcileInventoryRows } from '../utils/inventorySync';
 
 const GlobalContext = createContext();
 
@@ -117,6 +118,14 @@ export const GlobalProvider = ({ children }) => {
   // --- Refs ---
   const isFetchingRef = useRef(false);
   const mountRef = useRef(false);
+  const productsRef = useRef(products);
+
+  const commitInventoryRows = useCallback((rows) => {
+    const reconciledRows = reconcileInventoryRows(productsRef.current, rows);
+    productsRef.current = reconciledRows;
+    setProducts(reconciledRows);
+    return reconciledRows;
+  }, []);
 
   // --- Fetch Logic ---
   if (typeof window !== 'undefined') window.__NM_REFRESH_DATA__ = (s) => fetchInitialData(s);
@@ -151,7 +160,10 @@ export const GlobalProvider = ({ children }) => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const dateStr = thirtyDaysAgo.toISOString();
 
-      const productsQuery = options?.productsIncludeDeleted ? { includeDeleted: true } : undefined;
+      const productsQuery = {
+        ...(options?.productsIncludeDeleted ? { includeDeleted: true } : {}),
+        throwOnError: true
+      };
 
       const results = await Promise.allSettled([
         dbSync.fetch(DB_SCHEMA.PRODUCTS.table, productsQuery),
@@ -194,7 +206,16 @@ export const GlobalProvider = ({ children }) => {
         return fallback;
       };
 
-      setProducts(getData(0));
+      let currentProducts = productsRef.current;
+      if (results[0]?.status === 'fulfilled') {
+        try {
+          currentProducts = commitInventoryRows(results[0].value);
+        } catch (error) {
+          console.error('[GlobalContext] Inventory reconciliation failed; existing items were kept:', error);
+        }
+      } else {
+        console.error('[GlobalContext] Inventory refresh failed; existing items were kept:', results[0]?.reason);
+      }
       setCategories(getData(1));
       setOrders(getData(2));
 
@@ -231,7 +252,7 @@ export const GlobalProvider = ({ children }) => {
       setUsers(getData(28));
 
       setStats({
-        products: getData(0).length,
+        products: currentProducts.length,
         categories: getData(1).length,
         orders: getData(2).length,
         users: getData(28).length
@@ -243,11 +264,19 @@ export const GlobalProvider = ({ children }) => {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, []);
+  }, [commitInventoryRows]);
 
   useEffect(() => {
     const syncSetters = {
-      [DB_SCHEMA.PRODUCTS.table]: setProducts,
+      [DB_SCHEMA.PRODUCTS.table]: (rows) => {
+        try {
+          const reconciledRows = reconcileInventoryRows(productsRef.current, rows);
+          productsRef.current = reconciledRows;
+          setProducts(reconciledRows);
+        } catch (error) {
+          console.error('[GlobalContext] Invalid synchronized inventory was ignored:', error);
+        }
+      },
       [DB_SCHEMA.ORDERS.table]: setOrders,
       [DB_SCHEMA.ORDER_ITEMS.table]: setOrderItems,
       [DB_SCHEMA.USERS.table]: setUsers,

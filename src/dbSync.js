@@ -671,7 +671,8 @@ export const dbSync = {
           }
         }
 
-        const tenantFallback = isProductsRead && !error && Array.isArray(data) && data.length === 0;
+        const tenantFallback = !query.throwOnError
+          && isProductsRead && !error && Array.isArray(data) && data.length === 0;
         if (tenantFallback) {
           console.warn(
             `%c[dbSync.fetch] ⚠ Tenant-scoped product fetch returned zero rows. Retrying without tenant/company filter so legacy rows can still be read and updated.`,
@@ -688,9 +689,12 @@ export const dbSync = {
           }
         }
 
-        const demoTenantFallback = isProductsRead && !error && Array.isArray(data) && data.length === 0 &&
-          ['NMM001', 'DEMO001', 'DEMO-COMPANY', 'demo-company'].includes(String(companyCode || '').toUpperCase()) ||
-          String(companyCode || '').toLowerCase().includes('demo');
+        const demoTenantFallback = !query.throwOnError
+          && isProductsRead && !error && Array.isArray(data) && data.length === 0
+          && (
+            ['NMM001', 'DEMO001', 'DEMO-COMPANY', 'demo-company'].includes(String(companyCode || '').toUpperCase())
+            || String(companyCode || '').toLowerCase().includes('demo')
+          );
 
         if (demoTenantFallback) {
           console.warn(
@@ -757,6 +761,7 @@ export const dbSync = {
         }
         if (error) {
           console.error('[dbSync.fetch Error]', effectiveSource, error.message);
+          if (query.throwOnError) throw error;
           return allData;
         }
 
@@ -768,6 +773,7 @@ export const dbSync = {
       return allData;
     } catch (err) {
       console.error('[dbSync.fetch Failed]', tableName, err.message);
+      if (query.throwOnError) throw err;
       return [];
     }
   },

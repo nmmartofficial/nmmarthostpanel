@@ -43,6 +43,11 @@ import {
   saveStoreDisplaySelection
 } from './utils/storeDisplayConfig';
 import { buildThemeDraftChanges } from './utils/nmSahayak';
+import {
+  applyInventoryRealtimeChange,
+  fetchAndReconcileInventoryRows,
+  reconcileInventoryRows
+} from './utils/inventorySync';
 import { smartSync } from './utils/smartSync';
 import { createSmartSyncSubscriptionManager, resolveSmartSyncScope } from './utils/smartSyncScope';
 import {
@@ -603,6 +608,11 @@ export default function App({ company, isTenantMode, companySlug }) {
     ];
   });
   const [loading, setLoading] = useState(false);
+  const productsRef = useRef(products);
+  const productsIncludeDeletedRef = useRef(false);
+  const inventoryFetchPromiseRef = useRef(null);
+  const inventoryRefreshPromiseRef = useRef(null);
+  const pendingInventoryReconciliationRef = useRef(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [mobileExpandedGroup, setMobileExpandedGroup] = useState(null);
   const [darkMode, setDarkMode] = useState(localStorage.getItem('nm_dark_mode') === 'true');
@@ -809,6 +819,26 @@ export default function App({ company, isTenantMode, companySlug }) {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
+  const commitInventoryRows = useCallback((rows) => {
+    const reconciledRows = reconcileInventoryRows(productsRef.current, rows);
+    productsRef.current = reconciledRows;
+    setProducts(reconciledRows);
+    return reconciledRows;
+  }, []);
+
+  const fetchInventoryRows = useCallback(async (query) => {
+    while (inventoryFetchPromiseRef.current) {
+      await Promise.allSettled([inventoryFetchPromiseRef.current]);
+    }
+    const request = Promise.resolve().then(() => dbSync.fetch(DB_SCHEMA.PRODUCTS.table, query));
+    inventoryFetchPromiseRef.current = request;
+    try {
+      return await request;
+    } finally {
+      if (inventoryFetchPromiseRef.current === request) inventoryFetchPromiseRef.current = null;
+    }
+  }, []);
+
   // --- Targeted State Updates (Infinite Loop Prevention) ---
   // The App owns scoped Realtime subscriptions; shared context consumes its refresh events.
 
@@ -830,11 +860,37 @@ export default function App({ company, isTenantMode, companySlug }) {
     };
     let rows;
     switch (resource) {
-      case DB_SCHEMA.PRODUCTS.table:
-        rows = await fetchList(resource, options.productsIncludeDeleted ? { includeDeleted: true } : undefined);
-        setProducts(rows);
-        setStats((previous) => ({ ...previous, products: rows.length }));
-        break;
+      case DB_SCHEMA.PRODUCTS.table: {
+        if (inventoryRefreshPromiseRef.current) return inventoryRefreshPromiseRef.current;
+        const refreshPromise = (async () => {
+          const query = {
+            ...(options.productsIncludeDeleted ? { includeDeleted: true } : {}),
+            throwOnError: true
+          };
+          pendingInventoryReconciliationRef.current = false;
+          rows = await fetchAndReconcileInventoryRows(
+            productsRef.current,
+            () => fetchInventoryRows(query)
+          );
+          productsIncludeDeletedRef.current = Boolean(options.productsIncludeDeleted);
+          rows = commitInventoryRows(rows);
+          setStats((previous) => ({ ...previous, products: rows.length }));
+          if (pendingInventoryReconciliationRef.current
+            && hasLoadedInitialDataRef.current && document.visibilityState === 'visible') {
+            pendingInventoryReconciliationRef.current = false;
+            Promise.resolve().then(() => smartSync.invalidateResource(resource));
+          }
+          return rows;
+        })();
+        inventoryRefreshPromiseRef.current = refreshPromise;
+        try {
+          return await refreshPromise;
+        } finally {
+          if (inventoryRefreshPromiseRef.current === refreshPromise) {
+            inventoryRefreshPromiseRef.current = null;
+          }
+        }
+      }
       case DB_SCHEMA.CATEGORIES.table:
         rows = await fetchList(resource, { order: { column: 'name', ascending: true } });
         setCategories(rows);
@@ -984,7 +1040,7 @@ export default function App({ company, isTenantMode, companySlug }) {
         return null;
     }
     return rows;
-  }, [currentUser?.company_code, currentUser?.tenant_id]);
+  }, [commitInventoryRows, currentUser?.company_code, currentUser?.tenant_id, fetchInventoryRows]);
 
   const fetchInitialData = useCallback(async (force = false, silent = false, options = {}) => {
     if (isLocalPosTestMode && !isLocalPosReadOnlyMode) {
@@ -1032,6 +1088,7 @@ export default function App({ company, isTenantMode, companySlug }) {
 
     isFetchingRef.current = true;
     mountRef.current = now;
+    pendingInventoryReconciliationRef.current = false;
 
     if (!silent) setLoading(true);
     try {
@@ -1052,10 +1109,13 @@ export default function App({ company, isTenantMode, companySlug }) {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const dateStr = thirtyDaysAgo.toISOString();
 
-      const productsQuery = options?.productsIncludeDeleted ? { includeDeleted: true } : {};
+      const productsQuery = {
+        ...(options?.productsIncludeDeleted ? { includeDeleted: true } : {}),
+        throwOnError: true
+      };
 
       const results = await Promise.allSettled([
-        dbSync.fetch(DB_SCHEMA.PRODUCTS.table, productsQuery),
+        fetchInventoryRows(productsQuery),
         dbSync.fetch(DB_SCHEMA.CATEGORIES.table, { order: { column: 'name', ascending: true } }),
         dbSync.fetch(DB_SCHEMA.ORDERS.table, {
         order: { column: 'created_at', ascending: false }
@@ -1131,7 +1191,21 @@ export default function App({ company, isTenantMode, companySlug }) {
       const orderItemsData = getData(27);
       const hsnMasterData = getData(29);
 
-      setProducts(productsData);
+      let currentProducts = productsRef.current;
+      if (results[0]?.status === 'fulfilled') {
+        try {
+          productsIncludeDeletedRef.current = Boolean(options?.productsIncludeDeleted);
+          currentProducts = commitInventoryRows(productsData);
+        } catch (error) {
+          pendingInventoryReconciliationRef.current = true;
+          console.error('[Inventory reconciliation] Invalid initial inventory response:', error);
+          toast.error('Inventory could not be refreshed. Existing items were kept.');
+        }
+      } else {
+        pendingInventoryReconciliationRef.current = true;
+        console.error('[Inventory fetch] Initial inventory refresh failed:', results[0]?.reason);
+        toast.error('Inventory could not be refreshed. Existing items were kept.');
+      }
       setCategories(categoriesData);
       setOrders(ordersData);
       setOrderItems(orderItemsData);
@@ -1174,14 +1248,14 @@ export default function App({ company, isTenantMode, companySlug }) {
       setHsnMaster(hsnMasterData);
 
       setStats({
-        products: productsData.length,
+        products: currentProducts.length,
         categories: categoriesData.length,
         orders: ordersData.length,
         users: usersData.length
       });
       if (hasLoadedInitialDataRef.current) {
         smartSync.publishResourceUpdates({
-          [DB_SCHEMA.PRODUCTS.table]: productsData,
+          ...(results[0]?.status === 'fulfilled' ? { [DB_SCHEMA.PRODUCTS.table]: currentProducts } : {}),
           [DB_SCHEMA.CATEGORIES.table]: categoriesData,
           [DB_SCHEMA.ORDERS.table]: ordersData,
           [DB_SCHEMA.APP_CONFIG.table]: Array.isArray(appConfigData) ? appConfigData : [appConfigData],
@@ -1215,13 +1289,17 @@ export default function App({ company, isTenantMode, companySlug }) {
       } else {
         hasLoadedInitialDataRef.current = true;
       }
+      if (pendingInventoryReconciliationRef.current) {
+        pendingInventoryReconciliationRef.current = false;
+        smartSync.invalidateResource(DB_SCHEMA.PRODUCTS.table);
+      }
     } catch (error) {
       // Error: Fetching failed
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [refreshSyncResource]);
+  }, [commitInventoryRows, fetchInventoryRows, refreshSyncResource]);
 
   // Apply theme colors from appConfig as CSS variables
   useEffect(() => {
@@ -1252,7 +1330,11 @@ export default function App({ company, isTenantMode, companySlug }) {
 
     const releaseRegistrations = [];
     const staleWhileHidden = new Set();
-    const refreshResources = () => [...activeSyncResources].forEach((resource) => smartSync.invalidateResource(resource));
+    const refreshResources = ({ includeProducts = true } = {}) => {
+      [...activeSyncResources]
+        .filter((resource) => includeProducts || resource !== DB_SCHEMA.PRODUCTS.table)
+        .forEach((resource) => smartSync.invalidateResource(resource));
+    };
     const onWindowOffline = () => smartSync.setConnectionState(false);
     const onWindowOnline = () => {
       smartSync.setConnectionState(true);
@@ -1298,11 +1380,53 @@ export default function App({ company, isTenantMode, companySlug }) {
       subscribe: (resource, onChange, onStatus, scope) => dbSync.subscribe(resource, onChange, {
         tenantId: scope.tenantId,
         companyCode: scope.companyCode,
-        onStatus
+        onStatus: (status) => {
+          onStatus(status);
+          if (resource !== DB_SCHEMA.PRODUCTS.table) return;
+          if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
+            pendingInventoryReconciliationRef.current = true;
+          } else if (status === 'SUBSCRIBED' && pendingInventoryReconciliationRef.current) {
+            if (document.visibilityState === 'visible' && hasLoadedInitialDataRef.current
+              && !isFetchingRef.current) {
+              pendingInventoryReconciliationRef.current = false;
+              smartSync.invalidateResource(resource);
+            }
+          }
+        }
       }),
-      onChange: (resource) => {
+      onChange: (resource, payload) => {
           if (document.visibilityState !== 'visible') {
             staleWhileHidden.add(resource);
+            if (resource === DB_SCHEMA.PRODUCTS.table) {
+              pendingInventoryReconciliationRef.current = true;
+            }
+            return;
+          }
+          if (resource === DB_SCHEMA.PRODUCTS.table) {
+            if (syncPauseRef.current.scope) {
+              smartSync.invalidateResource(resource);
+              return;
+            }
+            const result = applyInventoryRealtimeChange(productsRef.current, payload, {
+              scope: smartSyncScope,
+              includeDeleted: productsIncludeDeletedRef.current
+            });
+            if (result.requiresReconciliation) {
+              pendingInventoryReconciliationRef.current = true;
+              if (hasLoadedInitialDataRef.current && !isFetchingRef.current) {
+                pendingInventoryReconciliationRef.current = false;
+                smartSync.invalidateResource(resource);
+              }
+              return;
+            }
+            if (!hasLoadedInitialDataRef.current || isFetchingRef.current || inventoryRefreshPromiseRef.current) {
+              pendingInventoryReconciliationRef.current = true;
+            }
+            if (result.changed) {
+              const rows = commitInventoryRows(result.rows);
+              setStats((previous) => ({ ...previous, products: rows.length }));
+              smartSync.publishResourceUpdates({ [resource]: rows });
+            }
             return;
           }
           (SYNC_DEPENDENCIES[resource] || [resource])
@@ -1317,7 +1441,7 @@ export default function App({ company, isTenantMode, companySlug }) {
     document.addEventListener('focusin', onFocusIn, true);
     document.addEventListener('focusout', onFocusOut, true);
     const reconciliationTimer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') refreshResources();
+      if (document.visibilityState === 'visible') refreshResources({ includeProducts: false });
     }, 10 * 60 * 1000);
 
     return () => {
@@ -1331,7 +1455,7 @@ export default function App({ company, isTenantMode, companySlug }) {
       manager.clear();
       releaseRegistrations.forEach((release) => release());
     };
-  }, [activeSyncResources, authLoading, isAuthorized, refreshSyncResource, smartSyncScope]);
+  }, [activeSyncResources, authLoading, commitInventoryRows, isAuthorized, refreshSyncResource, smartSyncScope]);
 
   // --- CRITICAL: Initial Data Load on Auth/Mount ---
   // User ne bola products show nahi ho rahe: root cause yahin tha — fetchInitialData mount par call hi nahi hota!
