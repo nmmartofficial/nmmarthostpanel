@@ -608,6 +608,7 @@ export default function App({ company, isTenantMode, companySlug }) {
     ];
   });
   const [loading, setLoading] = useState(false);
+  const [inventoryError, setInventoryError] = useState('');
   const productsRef = useRef(products);
   const productsIncludeDeletedRef = useRef(false);
   const inventoryFetchPromiseRef = useRef(null);
@@ -825,6 +826,7 @@ export default function App({ company, isTenantMode, companySlug }) {
     const reconciledRows = reconcileInventoryRows(productsRef.current, rows);
     productsRef.current = reconciledRows;
     setProducts(reconciledRows);
+    setInventoryError('');
     return reconciledRows;
   }, []);
 
@@ -836,6 +838,9 @@ export default function App({ company, isTenantMode, companySlug }) {
     inventoryFetchPromiseRef.current = request;
     try {
       return await request;
+    } catch (error) {
+      setInventoryError('Inventory could not be refreshed. Previously loaded items are kept.');
+      throw error;
     } finally {
       if (inventoryFetchPromiseRef.current === request) inventoryFetchPromiseRef.current = null;
     }
@@ -1091,6 +1096,7 @@ export default function App({ company, isTenantMode, companySlug }) {
     isFetchingRef.current = true;
     mountRef.current = now;
     pendingInventoryReconciliationRef.current = false;
+    setInventoryError('');
 
     if (!silent) setLoading(true);
     try {
@@ -1200,6 +1206,7 @@ export default function App({ company, isTenantMode, companySlug }) {
           currentProducts = commitInventoryRows(productsData);
         } catch (error) {
           pendingInventoryReconciliationRef.current = true;
+          setInventoryError('Inventory could not be refreshed. Previously loaded items are kept.');
           console.error('[Inventory reconciliation] Invalid initial inventory response:', error);
           toast.error('Inventory could not be refreshed. Existing items were kept.');
         }
@@ -2264,7 +2271,7 @@ export default function App({ company, isTenantMode, companySlug }) {
               {renderTabContent(activeTab, {
                   activeTab, setActiveTab, currentUser,
                   isAllowed, isTenantMode,
-                  stats, appConfig, appConfigRows, appConfigLoadError, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons, dataReady: hasLoadedInitialDataRef.current,
+                  stats, appConfig, appConfigRows, appConfigLoadError, banners, categories, subcategories, brands, products, orders, orderItems: orderItems || [], users, coupons, dataReady: hasLoadedInitialDataRef.current, loading, inventoryError,
                   offers, pincodes, homeConfig, walletTx, wallets, addresses, cart, wishlist, adminUsers, credits, deliveryBoys, deliveryCustomers,
                   purchases, departments, units, accounts, inventoryLogs, expenses, festivals, previewFestival, activeFestival,
                   loyaltyPoints, loyaltyTransactions, loyaltyTiers, hsnMaster,
@@ -6802,7 +6809,12 @@ const CouponsView = (props) => (
       { name: 'discount_value', label: 'Value', type: 'number', required: true },
       { name: 'min_order_amount', label: 'Min Order', type: 'number' },
       { name: 'max_discount', label: 'Max Discount', type: 'number' },
+      { name: 'valid_from', label: 'Valid From', type: 'date' },
       { name: 'valid_to', label: 'Expiry Date', type: 'date' },
+      { name: 'usage_limit', label: 'Usage Limit', type: 'number' },
+      { name: 'per_user_limit', label: 'Per Customer Limit', type: 'number' },
+      { name: 'applies_to', label: 'Applies To', type: 'select', options: [{ value: 'all', label: 'All items' }, { value: 'product', label: 'Product' }, { value: 'category', label: 'Category' }] },
+      { name: 'applies_to_id', label: 'Target Item / Category ID', type: 'number' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
   />
@@ -6815,11 +6827,15 @@ const OffersView = (props) => (
     fields={[
       { name: 'title', label: 'Offer Title', type: 'text', required: true },
       { name: 'description', label: 'Description', type: 'text' },
-      { name: 'offer_type', label: 'Offer Type', type: 'select', options: [{value: 'BOGO', label: 'Buy One Get One'}, {value: 'Discount', label: 'Flat Discount'}, {value: 'Bundle', label: 'Bundle Offer'}] },
+      { name: 'offer_type', label: 'Offer Type', type: 'select', options: [{value: 'BOGO', label: 'Buy X Get Y'}, {value: 'Percentage', label: 'Percentage Discount'}, {value: 'Fixed', label: 'Fixed Amount'}, {value: 'Discount', label: 'Flat Discount (legacy)'}, {value: 'Bundle', label: 'Bundle Offer (not applied in POS)'}] },
       { name: 'buy_qty', label: 'Buy Qty', type: 'number' },
       { name: 'get_qty', label: 'Get Qty', type: 'number' },
       { name: 'discount_value', label: 'Discount Value', type: 'number' },
       { name: 'min_order_amount', label: 'Min Order Amount', type: 'number' },
+      { name: 'applies_to_type', label: 'Applies To', type: 'select', options: [{ value: 'all', label: 'All items' }, { value: 'product', label: 'Product' }, { value: 'category', label: 'Category' }] },
+      { name: 'applies_to_id', label: 'Target Item / Category ID', type: 'number' },
+      { name: 'valid_from', label: 'Valid From', type: 'date' },
+      { name: 'valid_to', label: 'Valid To', type: 'date' },
       { name: 'banner_image', label: 'Banner Image', type: 'image' },
       { name: 'is_active', label: 'Active', type: 'boolean' }
     ]}
@@ -8326,12 +8342,12 @@ function renderTabContent(activeTab, props) {
     case 'StoreItemDisplay': return <StoreDisplaySelectionView kind="item" title="Store Item Display" sourceItems={props.products} categories={props.categories} subcategories={props.subcategories} currentUser={props.currentUser} dataReady={props.dataReady} />;
     case 'TestBluetooth': return <TestBluetoothView />;
     case 'AI': return <FreeThemeControlView currentUser={props.currentUser} isTenantMode={props.isTenantMode} />;
-    case 'Analytics': return <AnalyticsView {...props} />;
+    case 'Analytics': return <AnalyticsView {...props} orderItems={props.orderItems || []} />;
     case 'CustomerAnalytics': return <CustomerAnalyticsView {...props} />;
     case 'POS': return <POSView orders={props.orders} {...props} />;
     case 'SelfCheckout': return <SelfCheckoutView orders={props.orders} products={props.products} fetchInitialData={props.fetchInitialData} appConfig={props.appConfig} customerMode={props.customerMode} setCustomerMode={props.setCustomerMode} />;
     case 'LoyaltyManagement': return <LoyaltyManagementView orders={props.orders} fetchInitialData={props.fetchInitialData} />;
-    case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} />;
+    case 'ProfitLoss': return <ProfitLossView orders={props.orders} purchases={props.purchases} expenses={props.expenses} currentUser={props.currentUser} />;
 
     // Inventory and master management
     case 'StockAlerts': return <StockAlertsView products={props.products} fetchInitialData={props.fetchInitialData} />;

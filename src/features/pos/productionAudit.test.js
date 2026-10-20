@@ -33,6 +33,27 @@ test('atomic checkout rejects invalid quantity and underpayment', () => {
   }), /INSUFFICIENT_PAYMENT/);
 });
 
+test('Touch Sale uses one cart table and a click-to-show text-only product panel', () => {
+  const layout = read('src/features/pos/layout/POSLayout.tsx');
+  const billingPanel = read('src/components/CartPanel.jsx');
+  const productPanel = read('src/features/pos/components/RightSidebar.tsx');
+  const productCard = read('src/components/ProductCard.jsx');
+
+  for (const heading of ['Sr. No.', 'Item Name', 'MRP', 'Qty', 'Disc %', 'GST %', 'Sale Rate', 'Total']) {
+    assert.ok(billingPanel.includes(heading), `bill table must expose ${heading}`);
+  }
+  assert.match(layout, /minmax\(0,var\(--pos-billing-ratio\)\)_minmax\(20rem,1fr\)/);
+  assert.match(productPanel, /aria-pressed=\{showTrending\}/);
+  assert.match(productPanel, /setShowTrending\(\(visible\) => !visible\)/);
+  assert.match(productPanel, /buildTopSellingProducts/);
+  assert.match(productCard, /getCartUnitPrice/);
+  assert.doesNotMatch(productCard, /<img|resolveProductImageUrl|No Image/);
+  assert.match(billingPanel, /handlePriceChangeAttempt/);
+  assert.match(billingPanel, /handleHoldBill/);
+  assert.match(billingPanel, /setShowDiscountPanel/);
+  assert.match(billingPanel, /setShowPaymentModal/);
+});
+
 test('atomic checkout preserves payment reference and canonical order items', () => {
   const payload = buildAtomicCheckoutPayload({
     cart: [{ id: 7, name: 'Rice', sale_rate: 50, quantity: 2 }],
@@ -127,6 +148,167 @@ test('atomic RPC contract locks stock rows before writing order side effects', (
   assert.match(rpc, /INSERT INTO public\.order_items/);
   assert.match(rpc, /INSERT INTO public\.inventory_logs/);
   assert.match(rpc, /INSERT INTO public\.payment_transactions/);
+});
+
+test('authoritative checkout decrements scoped product stock atomically before logging movement', () => {
+  const rpc = read('supabase/migrations/functions/0208__authoritative_pos_pricing_overrides.sql');
+  const stockUpdate = rpc.indexOf('UPDATE public.products AS product');
+  const inventoryLog = rpc.indexOf('INSERT INTO public.inventory_logs', stockUpdate);
+  const returnOrderId = rpc.indexOf('RETURN v_order_id', inventoryLog);
+  const checkoutStart = rpc.indexOf('CREATE OR REPLACE FUNCTION public.place_order_atomic');
+  const checkoutEnd = rpc.indexOf('REVOKE ALL ON FUNCTION public.place_order_atomic', checkoutStart);
+  const checkoutRpc = rpc.slice(checkoutStart, checkoutEnd);
+
+  assert.ok(stockUpdate > checkoutStart);
+  assert.ok(inventoryLog > stockUpdate);
+  assert.ok(returnOrderId > inventoryLog);
+  assert.match(checkoutRpc, /FOR UPDATE/);
+  assert.match(checkoutRpc, /SET stock = product\.stock - \(line->>'quantity'\)::NUMERIC/);
+  assert.match(checkoutRpc, /product\.tenant_id = v_tenant_id/);
+  assert.match(checkoutRpc, /product\.company_code = v_company_code/);
+  assert.match(checkoutRpc, /product\.stock >= \(line->>'quantity'\)::NUMERIC/);
+  assert.match(checkoutRpc, /v_stock_update_count <> jsonb_array_length\(v_prepared_lines\)/);
+  assert.match(checkoutRpc, /RAISE EXCEPTION 'POS_STOCK_UPDATE_FAILED'/);
+});
+
+test('authoritative POS RPC persists order, item, and payment rows before returning confirmation', () => {
+  const rpc = read('supabase/migrations/functions/0208__authoritative_pos_pricing_overrides.sql');
+  const orderInsert = rpc.indexOf('INSERT INTO public.orders');
+  const itemInsert = rpc.indexOf('INSERT INTO public.order_items', orderInsert);
+  const paymentInsert = rpc.indexOf('INSERT INTO public.payment_transactions', itemInsert);
+  const returnOrderId = rpc.indexOf('RETURN v_order_id', paymentInsert);
+
+  assert.ok(orderInsert >= 0);
+  assert.ok(itemInsert > orderInsert);
+  assert.ok(paymentInsert > itemInsert);
+  assert.ok(returnOrderId > paymentInsert);
+});
+
+test('POS invoice is exposed only after backend checkout confirmation', () => {
+  const posView = read('src/pages/POSView.jsx');
+  const checkoutStart = posView.indexOf('const orderRes = await handleERPAction');
+  const backendFailureCheck = posView.indexOf('if (!orderRes.success)', checkoutStart);
+  const receiptOpen = posView.indexOf('setShowReceiptDialog(true)', checkoutStart);
+  const persistedInvoiceLoad = posView.indexOf('await loadPersistedInvoice(orderId)', checkoutStart);
+
+  assert.notEqual(checkoutStart, -1);
+  assert.ok(backendFailureCheck > checkoutStart);
+  assert.ok(receiptOpen > backendFailureCheck);
+  assert.ok(persistedInvoiceLoad > receiptOpen);
+  assert.match(posView, /fetchPersistedPOSInvoice\(supabase/);
+  assert.doesNotMatch(posView, /order_number:\s*`POS-\$\{orderId\}`/);
+});
+
+test('atomic checkout returns the saved order id without client invoice generation', () => {
+  const rpc = read('supabase/migrations/functions/0208__authoritative_pos_pricing_overrides.sql');
+  const checkout = read('src/utils/pos/atomicCheckout.js');
+
+  assert.match(rpc, /'POS-' \|\| gen_random_uuid\(\)::TEXT/);
+  assert.match(rpc, /RETURNING id INTO v_order_id/);
+  assert.match(rpc, /RETURN v_order_id/);
+  assert.match(checkout, /transaction_id:\s*transactionId/);
+  assert.doesNotMatch(checkout, /order_number\s*:/);
+});
+
+test('atomic checkout carries proportional discount remainder into the final persisted line', () => {
+  const rpc = read('supabase/migrations/functions/0208__authoritative_pos_pricing_overrides.sql');
+  assert.match(rpc, /v_last_eligible_index BIGINT/);
+  assert.match(rpc, /v_last_eligible_index := v_line_index/);
+  assert.match(rpc, /IF v_line_index \+ 1 = v_last_eligible_index THEN\s+v_allocated_discount := ROUND\(v_global_discount - v_allocated_so_far, 2\)/);
+  assert.match(rpc, /POS_DISCOUNT_ALLOCATION_INVALID/);
+  assert.match(rpc, /v_allocated_so_far := v_allocated_so_far \+ v_allocated_discount/);
+  assert.match(rpc, /'discount_amount', v_line_discount,[\s\S]*?'gst_amount', v_line_gst,[\s\S]*?'total', v_net_amount/);
+});
+
+test('authoritative POS checkout restricts direct RPC calls to POS roles', () => {
+  const rpc = read('supabase/migrations/functions/0208__authoritative_pos_pricing_overrides.sql');
+  assert.match(rpc, /LOWER\(BTRIM\(COALESCE\(v_admin\.role, ''\)\)\) NOT IN \([\s\S]*?'super_admin'[\s\S]*?'admin'[\s\S]*?'manager'[\s\S]*?'cashier'/);
+  assert.match(rpc, /RAISE EXCEPTION 'POS_ROLE_NOT_AUTHORIZED'/);
+});
+
+test('checkout transaction reference is not yet a server-side idempotency key', () => {
+  const rpc = read('supabase/migrations/functions/0208__authoritative_pos_pricing_overrides.sql');
+  const checkoutStart = rpc.indexOf('CREATE OR REPLACE FUNCTION public.place_order_atomic');
+  const checkoutEnd = rpc.indexOf('REVOKE ALL ON FUNCTION public.place_order_atomic', checkoutStart);
+  const checkoutRpc = rpc.slice(checkoutStart, checkoutEnd);
+  const checkout = read('src/utils/pos/atomicCheckout.js');
+
+  assert.match(checkout, /transaction_id:\s*transactionId/);
+  assert.doesNotMatch(checkoutRpc, /transaction_id|idempotency_key/i);
+});
+
+test('return idempotency replay is bound to the original processor and active store scope', () => {
+  const migration = read('supabase/migrations/20261020__pos_step7_returns_refunds_shifts.sql');
+  const replayStart = migration.indexOf('WHERE return_row.idempotency_key = p_idempotency_key');
+  const replayEnd = migration.indexOf('SELECT refund.id', replayStart);
+  const replayCheck = migration.slice(replayStart, replayEnd);
+
+  assert.match(replayCheck, /v_existing\.auth_user_id <> auth\.uid\(\)/);
+  assert.match(replayCheck, /v_existing\.processed_by_admin_user_id <> v_admin\.id/);
+  assert.match(replayCheck, /order_row\.tenant_id = v_admin\.tenant_id/);
+  assert.match(replayCheck, /order_row\.company_code = v_admin\.company_code/);
+});
+
+test('POS cart discard and cashier session summary do not claim a saved-sale void or drawer reconciliation', () => {
+  const posView = read('src/pages/POSView.jsx');
+  const voidDialog = read('src/components/VoidDialog.jsx');
+  const shiftDashboard = read('src/components/ShiftDashboard.jsx');
+
+  assert.match(voidDialog, /clears the unsaved cart only/);
+  assert.match(voidDialog, /does not cancel a saved order or issue a refund/);
+  assert.match(posView, /Unsaved cart discarded/);
+  assert.match(shiftDashboard, /Cashier Session Summary/);
+  assert.match(shiftDashboard, /Cashier: .*Unavailable/);
+  assert.match(shiftDashboard, /not a cash reconciliation/);
+  assert.doesNotMatch(shiftDashboard, /Cash In Drawer|Live Operational Data|Terminal: POS-01/);
+});
+
+test('return UI calls the scoped atomic RPC and labels refunds as pending requests', () => {
+  const returnDialog = read('src/modules/pos/dialogs/ReturnDialog.jsx');
+  const paymentService = read('src/features/pos/payment/services/payment.service.ts');
+  const ordersView = read('src/pages/Orders/OrdersView.jsx');
+  const statusMigration = read('supabase/migrations/20261005__secure_order_status_updates.sql');
+  const step7Migration = read('supabase/migrations/20261020__pos_step7_returns_refunds_shifts.sql');
+  const returnHandlerStart = ordersView.indexOf('const handleReturnOrder');
+  const returnHandlerEnd = ordersView.indexOf('/*\n   * ============================================================\n   * RENDER', returnHandlerStart);
+  const returnHandler = ordersView.slice(returnHandlerStart, returnHandlerEnd);
+
+  assert.match(returnDialog, /Returns and refunds are unavailable/);
+  assert.match(returnDialog, /No return or payment has been\s+processed/);
+  assert.doesNotMatch(returnDialog, /mockInvoice|onProcessReturn|Process Return/);
+  assert.match(ordersView, /pos_order_returnable_items/);
+  assert.match(returnHandler, /process_pos_return/);
+  assert.match(returnHandler, /p_idempotency_key/);
+  assert.match(ordersView, /refund request; it does not confirm money transfer/);
+  assert.match(ordersView, /restockable: item\.restockable === true/);
+  assert.match(step7Migration, /POS_RETURN_QUANTITY_EXCEEDS_REMAINING/);
+  assert.match(step7Migration, /refund_status.*'pending'/);
+  assert.match(step7Migration, /IF \(v_input->>'restockable'\)::BOOLEAN IS TRUE THEN/);
+  assert.match(statusMigration, /'returned'/);
+  assert.match(statusMigration, /admin_user\.tenant_id = order_row\.tenant_id/);
+  assert.doesNotMatch(statusMigration, /payment_transactions|inventory_logs|order_items/);
+  assert.match(paymentService, /REFUND_REQUIRES_ATOMIC_TRANSACTION/);
+  assert.match(paymentService, /success:\s*false/);
+});
+
+test('cashier sales are assigned to an open shift and the UI requires backend shift confirmation', () => {
+  const checkoutRpc = read('supabase/migrations/functions/0208__authoritative_pos_pricing_overrides.sql');
+  const step7Migration = read('supabase/migrations/20261020__pos_step7_returns_refunds_shifts.sql');
+  const posView = read('src/pages/POSView.jsx');
+  const shiftDashboard = read('src/components/ShiftDashboard.jsx');
+
+  assert.match(checkoutRpc, /POS_CASHIER_SHIFT_REQUIRED/);
+  assert.match(checkoutRpc, /cashier_shift_id/);
+  assert.match(checkoutRpc, /FOR SHARE/);
+  assert.match(posView, /pos_cashier_shift_current/);
+  assert.match(posView, /Open a cashier shift before completing a sale/);
+  assert.match(shiftDashboard, /openCashierShift/);
+  assert.match(shiftDashboard, /recordCashierMovement/);
+  assert.match(shiftDashboard, /closeCashierShift/);
+  assert.match(shiftDashboard, /Counted closing cash/);
+  assert.match(shiftDashboard, /Record movement/);
+  assert.match(step7Migration, /POS_MIXED_TENDER_RECONCILIATION_UNAVAILABLE/);
+  assert.match(step7Migration, /POS_SHIFT_IDEMPOTENCY_KEY_CONFLICT/);
 });
 
 test('atomic purchase contract owns stock receipt and inventory logging', () => {

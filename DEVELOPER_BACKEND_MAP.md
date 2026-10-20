@@ -79,6 +79,17 @@ Environment variables:
 - `VITE_LOCAL_POS_TEST_READS`
 - `VITE_STORE_BASE_URL`
 
+## NM Sahayak local AI
+
+- The AI tool uses the developer computer's Ollama service at `127.0.0.1:11434` and the configured `qwen3:4b` model. It never sends prompts to a hosted AI provider.
+- Start the Admin Panel as usual, then run `npm run sahayak:local` in a second terminal. The companion service binds only to `127.0.0.1:4178`; it does not listen on the LAN or create a tunnel.
+- The local service reads only `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from `.env`/`.env.local`. Each proposal request must include the signed-in Supabase access token; the local service verifies it with Supabase Auth and requires exactly one active `super_admin` profile through the user's RLS-scoped `admin_users` read.
+- Default browser origins are `http://localhost:5200`, `http://127.0.0.1:5200`, and `https://nmmarthostpanel.vercel.app`. Override with `NM_SAHAYAK_ALLOWED_ORIGINS` as a comma-separated list of origins only (scheme, host, optional port; no paths). Do not add `*`.
+- The assistant currently proposes only allowlisted website theme values. Proposals are validated on both sides, previewed before approval, and saved only through the existing authorized `admin-ai-control` `save_draft` action. Publishing remains separate. No SQL, source code, CSS, banner writes, homepage-order writes, business records, or model-triggered save actions are supported.
+- If Ollama is unavailable, the panel labels the model unavailable and offers a deterministic, validated rule-based theme suggestion. It never switches to cloud AI.
+- Accepted proposal history is limited to the current browser session. Restore saves the previous values as an unpublished draft through the same authorized action; no persistent audit history or automatic published-theme rollback is available.
+- The public storefront and Android app do not call this local service. The global website theme control does not alter Android styling.
+
 ### Website client
 
 File: `../NM-MART-PROJECT SITE/nm-mart/src/lib/supabase/client.ts`

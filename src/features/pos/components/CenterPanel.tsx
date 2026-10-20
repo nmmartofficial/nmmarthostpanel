@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../../../utils/helpers';
-import SearchContainer from './search/SearchContainer';
-import ProductGridContainer from './products/ProductGridContainer';
+import CustomerPanel from '../../../components/CustomerPanel';
+import CartPanel from '../../../components/CartPanel';
 
 interface CenterPanelProps {
   className?: string;
@@ -10,11 +10,13 @@ interface CenterPanelProps {
 const CenterPanel: React.FC<CenterPanelProps> = ({ className }) => {
   return (
     <section className={cn(
-      'flex-1 flex flex-col min-w-0 bg-neutral-50',
+      'flex flex-1 flex-col min-w-0 overflow-hidden border-r border-slate-200 bg-slate-50',
       className
     )}>
-      <SearchContainer />
-      <ProductGridContainer />
+      <div className="shrink-0 border-b border-slate-200 bg-white">
+        <CustomerPanel compact />
+      </div>
+      <CartPanel />
     </section>
   );
 };

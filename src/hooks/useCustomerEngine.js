@@ -1,7 +1,14 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { dbSync } from '../dbSync';
 import { DB_SCHEMA } from '../dbSchema';
-import { normalizeSearch, calcCustomerStats, formatDate, toFloat } from '../utils/pos';
+import {
+  calcCustomerStats,
+  filterPOSCustomers,
+  formatDate,
+  getPOSCustomerSelection,
+  isCurrentCustomerRequest,
+  toFloat
+} from '../utils/pos';
 
 export const useCustomerEngine = ({
   users = [],
@@ -14,18 +21,14 @@ export const useCustomerEngine = ({
   const [selectedCustIdx, setSelectedCustIdx] = useState(-1);
   const [selectedUser, setSelectedUser] = useState(null);
   const [customerHistory, setCustomerHistory] = useState([]);
-  const [customerLoyalty, setCustomerLoyalty] = useState({ points: 0, wallet: 0 });
+  const [customerLoyalty, setCustomerLoyalty] = useState({ points: null, wallet: null });
+  const [customerDataLoading, setCustomerDataLoading] = useState(false);
+  const [customerDataError, setCustomerDataError] = useState('');
   const [redeemPoints, setRedeemPoints] = useState(0);
+  const customerRequestId = useRef(0);
 
   const filteredUsers = useMemo(() => {
-    const term = normalizeSearch(custSearch);
-    if (!term) return [];
-
-    return users.filter(u =>
-      normalizeSearch(u.name).includes(term) ||
-      (u.mobile || '').includes(term) ||
-      normalizeSearch(u.id).includes(term)
-    ).slice(0, 10);
+    return filterPOSCustomers(users, custSearch);
   }, [custSearch, users]);
 
   const customerStats = useMemo(() => {
@@ -38,47 +41,73 @@ export const useCustomerEngine = ({
     };
   }, [selectedUser, orders]);
 
-  const fetchCustomerData = useCallback(async (mobile) => {
+  const fetchCustomerData = useCallback(async (userId, requestId) => {
     try {
-      const history = await dbSync.fetch(DB_SCHEMA.ORDERS.table, {
-        eq: { column: 'user_mobile', value: mobile },
-        limit: 5,
-        order: { column: 'created_at', ascending: false }
-      });
-      setCustomerHistory(history || []);
-      const userData = await dbSync.fetch(DB_SCHEMA.USERS.table, { eq: { column: 'mobile', value: mobile } });
-      if (userData && userData.length > 0) {
-        const walletData = await dbSync.fetch(DB_SCHEMA.WALLET_MASTER.table, {
-          eq: { column: 'user_id', value: userData[0].id },
+      const [history, loyaltyData, walletData] = await Promise.all([
+        dbSync.fetch(DB_SCHEMA.ORDERS.table, {
+          eq: { column: 'user_id', value: userId },
+          limit: 5,
+          order: { column: 'created_at', ascending: false }
+        }),
+        dbSync.fetch(DB_SCHEMA.LOYALTY_POINTS.table, {
+          eq: { column: 'user_id', value: userId },
           limit: 1
-        });
-        setCustomerLoyalty({
-          points: userData[0].points || 0,
-          wallet: Number(walletData?.[0]?.balance ?? userData[0].wallet ?? 0)
-        });
+        }),
+        dbSync.fetch(DB_SCHEMA.WALLET_MASTER.table, {
+          eq: { column: 'user_id', value: userId },
+          limit: 1
+        })
+      ]);
+      if (!isCurrentCustomerRequest(requestId, customerRequestId.current)) return;
+      setCustomerHistory(history || []);
+      setCustomerLoyalty({
+        points: loyaltyData?.[0]?.points == null ? null : toFloat(loyaltyData[0].points),
+        wallet: walletData?.[0]?.balance == null ? null : toFloat(walletData[0].balance)
+      });
+    } catch (error) {
+      if (!isCurrentCustomerRequest(requestId, customerRequestId.current)) return;
+      setCustomerDataError('Customer history and balance could not be loaded.');
+      console.error('Failed to load POS customer data:', error);
+    } finally {
+      if (isCurrentCustomerRequest(requestId, customerRequestId.current)) {
+        setCustomerDataLoading(false);
       }
-    } catch (e) { console.error(e); }
+    }
   }, []);
 
   useEffect(() => {
-    if (selectedUser?.mobile && selectedUser.mobile.length >= 10) {
-       fetchCustomerData(selectedUser.mobile);
-    } else {
-       setCustomerHistory([]);
-       setCustomerLoyalty({ points: 0, wallet: 0 });
-       setRedeemPoints(0);
+    const requestId = ++customerRequestId.current;
+    setCustomerHistory([]);
+    setCustomerLoyalty({ points: null, wallet: null });
+    setRedeemPoints(0);
+    setCustomerDataError('');
+
+    if (!selectedUser?.id) {
+      setCustomerDataLoading(false);
+      return () => {
+        if (isCurrentCustomerRequest(requestId, customerRequestId.current)) {
+          customerRequestId.current += 1;
+        }
+      };
     }
+
+    setCustomerDataLoading(true);
+    fetchCustomerData(selectedUser.id, requestId);
+    return () => {
+      if (isCurrentCustomerRequest(requestId, customerRequestId.current)) {
+        customerRequestId.current += 1;
+      }
+    };
   }, [selectedUser, fetchCustomerData]);
 
   const selectCustomer = useCallback((user) => {
-    if (!user) {
-      setSelectedUser(null);
-      setCustSearch('');
-      addSessionActivity?.('Customer Reset', 'Switched to Walk-in', 'Sales');
+    const selection = getPOSCustomerSelection(user);
+    setSelectedUser(selection.user);
+    setCustSearch(selection.searchValue);
+    if (!selection.user) {
+      addSessionActivity?.('Customer Reset', selection.activityLabel, 'Sales');
     } else {
-      setSelectedUser(user);
-      setCustSearch(user.mobile || user.name || '');
-      addSessionActivity?.('Customer Selected', `${user.name || user.mobile}`, 'Sales', 'success');
+      addSessionActivity?.('Customer Selected', selection.activityLabel, 'Sales', 'success');
     }
     setShowCustDropdown(false);
     setSelectedCustIdx(-1);
@@ -111,6 +140,8 @@ export const useCustomerEngine = ({
     selectedUser, setSelectedUser,
     customerHistory,
     customerLoyalty,
+    customerDataLoading,
+    customerDataError,
     redeemPoints, setRedeemPoints,
     filteredUsers,
     customerStats,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search,
   Eye,
@@ -89,7 +89,8 @@ export default function OrdersView({
   orders,
   filter,
   fetchInitialData,
-  appConfig
+  appConfig,
+  currentUser
 }) {
   const safeOrders = Array.isArray(orders) ? orders : [];
 
@@ -107,7 +108,12 @@ export default function OrdersView({
 
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnReason, setReturnReason] = useState('');
-  const [returnAmount, setReturnAmount] = useState('');
+  const [returnableItems, setReturnableItems] = useState([]);
+  const [returnLoading, setReturnLoading] = useState(false);
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnError, setReturnError] = useState('');
+  const [returnResult, setReturnResult] = useState(null);
+  const returnRequestsRef = useRef(new Map());
 
   /*
    * ============================================================
@@ -1475,135 +1481,154 @@ return {
    * RETURN
    * ============================================================
    */
-  const handleReturnOrder = async (
-    event
-  ) => {
-    event.preventDefault();
-
-    if (!selectedOrder) {
-      return;
-    }
-
-    if (
-      String(selectedOrder.order_status ?? selectedOrder.status ?? '').toLowerCase() ===
-      'returned'
-    ) {
-      alert('This order is already marked as returned.');
-      return;
-    }
-
-    const amount = Number(returnAmount);
-    const orderTotal = Number(
-      selectedOrder.total_amount ??
-      selectedOrder.total ??
-      0
-    );
-
-    if (!Number.isFinite(amount) || amount <= 0 || amount > orderTotal) {
-      alert('Enter a return amount greater than zero and no more than the order total.');
-      return;
-    }
-
-    const reason = returnReason.trim();
-
-    if (!reason) {
-      alert('Enter a reason for the return.');
-      return;
-    }
-
+  const openReturnModal = async (order) => {
+    setShowReturnModal(true);
+    const pendingRequest = returnRequestsRef.current.get(String(order?.id));
+    setReturnReason(pendingRequest?.payload?.p_reason || '');
+    setReturnError('');
+    setReturnResult(null);
+    setReturnableItems([]);
+    setReturnLoading(true);
+    const companyCode = order?.company_code || currentUser?.company_code;
+    const tenantId = order?.tenant_id || currentUser?.tenant_id;
     try {
-      const returnNote = `Return recorded (${new Date().toISOString()}): ₹${amount.toFixed(2)} — ${reason}`;
-      const existingNotes = String(selectedOrder.notes || '').trim();
-      const result = await handleERPAction(
-        DB_SCHEMA.ORDERS.table,
-        ACTION_TYPES.UPDATE,
-        {
-          id: selectedOrder.id,
-          order_status: 'returned',
-          notes: existingNotes
-            ? `${existingNotes}\n${returnNote}`
-            : returnNote
-        }
-      );
-
-      if (!result?.success || !result.data) {
-        throw new Error(
-          result?.error || 'Return details could not be saved to Supabase.'
-        );
-      }
-
-      const stockFailures = [];
-
-      for (const item of orderItems) {
-        try {
-          const stockResult = await handleERPAction(
-            null,
-            ACTION_TYPES.ADJUST_STOCK,
-            {
-              product_id:
-                item.product_id,
-              change_qty:
-                Number(
-                  item.quantity || 0
-                ),
-              change_type: 'return',
-              narration:
-                `Return from Order #${selectedOrder.order_number}`,
-              reference_number:
-                selectedOrder.order_number
-            }
-          );
-
-          if (!stockResult?.success) {
-            stockFailures.push({
-              item: item.product_name,
-              error: stockResult?.error || 'Stock adjustment failed'
-            });
-          }
-        } catch (stockError) {
-          console.error(
-            'Return stock adjustment failed:',
-            stockError
-          );
-          stockFailures.push({
-            item: item.product_name,
-            error: stockError?.message || 'Stock adjustment failed'
-          });
-        }
-      }
-
-      setSelectedOrder({
-        ...selectedOrder,
-        ...result.data
+      if (!companyCode || !tenantId) throw new Error('The order tenant/store scope is unavailable.');
+      const { data, error } = await supabase.rpc('pos_order_returnable_items', {
+        p_order_id: order.id,
+        p_company_code: companyCode,
+        p_tenant_id: tenantId
       });
-      await fetchInitialData?.();
-
-      setShowReturnModal(false);
-      setReturnReason('');
-      setReturnAmount('');
-
-      if (stockFailures.length > 0) {
-        console.error('Return stock adjustment failures:', stockFailures);
-        alert(
-          `Return details were saved, but stock could not be restored for these item(s):\n${stockFailures
-            .map(({ item, error }) => `- ${item}: ${error}`)
-            .join('\n')}\nPlease correct the stock manually.`
-        );
-      } else {
-        alert('Order return and stock updates saved successfully.');
-      }
+      if (error) throw error;
+      if (!Array.isArray(data)) throw new Error('The backend returned invalid returnable-item data.');
+      const pendingLines = new Map((pendingRequest?.payload?.p_items || []).map((item) => [
+        String(item.order_item_id),
+        item
+      ]));
+      setReturnableItems(data.map((item) => {
+        const pendingLine = pendingLines.get(String(item.order_item_id));
+        return {
+          ...item,
+          return_quantity: pendingLine ? String(pendingLine.quantity) : '',
+          restockable: pendingLine?.restockable === true
+        };
+      }));
     } catch (error) {
-      console.error(
-        'Return failed:',
-        error
-      );
-
-      alert(
-        'Return Failed: ' +
-          (error?.message || '')
-      );
+      console.error('Returnable order items load failed:', error);
+      setReturnError(error?.message || 'Unable to load returnable items.');
+    } finally {
+      setReturnLoading(false);
     }
   };
+
+  const handleReturnOrder = async (event) => {
+    event.preventDefault();
+    if (returnSubmitting || returnResult) return;
+    const requestedItems = returnableItems
+      .filter((item) => Number(item.return_quantity) > 0)
+      .map((item) => ({
+        order_item_id: Number(item.order_item_id),
+        quantity: Number(item.return_quantity),
+        restockable: item.restockable === true
+      }));
+    if (!requestedItems.length) {
+      setReturnError('Enter a return quantity for at least one item.');
+      return;
+    }
+    if (returnableItems.some((item) => (
+      Number(item.return_quantity) > Number(item.remaining_quantity)
+    ))) {
+      setReturnError('A return quantity exceeds the remaining quantity sold.');
+      return;
+    }
+    if (!returnReason.trim()) {
+      setReturnError('A return reason is required.');
+      return;
+    }
+    if (requestedItems.some((item) => (
+      !Number.isFinite(item.quantity)
+      || item.quantity <= 0
+      || !Number.isSafeInteger(item.order_item_id)
+    ))) {
+      setReturnError('Return quantities are invalid.');
+      return;
+    }
+
+    setReturnSubmitting(true);
+    setReturnError('');
+    try {
+      const companyCode = selectedOrder?.company_code || currentUser?.company_code;
+      const tenantId = selectedOrder?.tenant_id || currentUser?.tenant_id;
+      if (!companyCode || !tenantId) throw new Error('The order tenant/store scope is unavailable.');
+      const requestPayload = {
+        p_order_id: selectedOrder.id,
+        p_company_code: companyCode,
+        p_tenant_id: tenantId,
+        p_items: requestedItems,
+        p_reason: returnReason.trim()
+      };
+      const signature = JSON.stringify(requestPayload);
+      const orderKey = String(selectedOrder.id);
+      let pendingRequest = returnRequestsRef.current.get(orderKey);
+      if (pendingRequest && pendingRequest.signature !== signature) {
+        throw new Error('A prior return response may be pending. Retry the unchanged request so the backend can safely confirm its result.');
+      }
+      if (!pendingRequest) {
+        const randomUUID = globalThis.crypto?.randomUUID;
+        if (typeof randomUUID !== 'function') {
+          throw new Error('Secure request IDs are unavailable in this browser.');
+        }
+        pendingRequest = {
+          signature,
+          key: randomUUID.call(globalThis.crypto),
+          payload: requestPayload
+        };
+        returnRequestsRef.current.set(orderKey, pendingRequest);
+      }
+      const { data, error } = await supabase.rpc('process_pos_return', {
+        ...pendingRequest.payload,
+        p_idempotency_key: pendingRequest.key
+      });
+      if (error) throw error;
+      if (!data || data.return_status !== 'accepted') {
+        throw new Error('The backend did not confirm acceptance of this return.');
+      }
+      returnRequestsRef.current.delete(orderKey);
+      setReturnResult(data);
+      try {
+        const { data: refreshedItems, error: refreshError } = await supabase.rpc('pos_order_returnable_items', {
+          p_order_id: selectedOrder.id,
+          p_company_code: companyCode,
+          p_tenant_id: tenantId
+        });
+        if (refreshError) throw refreshError;
+        if (!Array.isArray(refreshedItems)) throw new Error('Invalid refreshed returnable-item data.');
+        setReturnableItems(refreshedItems.map((item) => ({
+          ...item,
+          return_quantity: '',
+          restockable: false
+        })));
+        await fetchInitialData?.();
+      } catch (refreshError) {
+        console.error('Accepted return follow-up refresh failed:', refreshError);
+        setReturnError(`Return accepted; refresh failed: ${refreshError?.message || 'reload order details to see current status.'}`);
+      }
+    } catch (error) {
+      console.error('POS return request failed:', error);
+      setReturnError(error?.message || 'Return request failed.');
+    } finally {
+      setReturnSubmitting(false);
+    }
+  };
+
+  const returnAmountPreview = returnableItems.reduce((sum, item) => {
+    const quantity = Number(item.return_quantity);
+    const soldQuantity = Number(item.sold_quantity);
+    const lineTotal = Number(item.total_amount);
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(soldQuantity) || soldQuantity <= 0 || !Number.isFinite(lineTotal)) {
+      return sum;
+    }
+    return sum + (lineTotal * quantity / soldQuantity);
+  }, 0);
 
   /*
    * ============================================================
@@ -1943,19 +1968,11 @@ return {
 
                   {!isEditing && (
                     <button
-                      onClick={() => {
-                        setReturnAmount(
-                          selectedOrder.total_amount ||
-                            0
-                        );
-                        setShowReturnModal(
-                          true
-                        );
-                      }}
+                      onClick={() => openReturnModal(selectedOrder)}
                       className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg text-[10px] font-black uppercase border border-orange-100"
                     >
                       <Undo2 size={12} />
-                      Return Order
+                      Process Return
                     </button>
                   )}
 
@@ -2624,15 +2641,12 @@ return {
                 <div className="p-4 bg-orange-50 border-b border-orange-200 flex items-center justify-between">
 
                   <h3 className="text-sm font-black text-orange-800 uppercase tracking-tighter">
-                    Return Order
+                    Return Sale Items
                   </h3>
 
                   <button
-                    onClick={() =>
-                      setShowReturnModal(
-                        false
-                      )
-                    }
+                    disabled={returnSubmitting}
+                    onClick={() => setShowReturnModal(false)}
                     className="p-2 hover:bg-orange-100 rounded-lg"
                   >
                     <X size={18} />
@@ -2646,7 +2660,6 @@ return {
                   }
                   className="p-6 space-y-6"
                 >
-
                   <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
 
                     <div className="flex items-center gap-3 mb-2">
@@ -2669,35 +2682,70 @@ return {
                       </span>
 
                       <span className="text-[13px] font-black text-orange-700">
-                        ₹
-                        {selectedOrder.total_amount ||
-                          0}
+                        ₹{returnAmountPreview.toFixed(2)} estimated
                       </span>
 
                     </div>
 
                   </div>
 
-                  <div>
-
-                    <label className="text-[9px] font-black text-slate-800 uppercase tracking-widest ml-1">
-                      Return Amount
-                    </label>
-
-                    <input
-                      type="number"
-                      value={
-                        returnAmount
-                      }
-                      onChange={(e) =>
-                        setReturnAmount(
-                          e.target.value
-                        )
-                      }
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none"
-                    />
-
-                  </div>
+                  {returnLoading ? (
+                    <p className="text-sm text-slate-500">Loading authoritative returnable quantities…</p>
+                  ) : (
+                    <div className="max-h-60 space-y-3 overflow-y-auto">
+                      {returnableItems.map((item) => (
+                        <div key={item.order_item_id} className="rounded-xl border border-slate-200 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-black text-slate-800">{item.product_name}</p>
+                              <p className="text-[10px] text-slate-500">
+                                Sold {item.sold_quantity} · previously returned {item.returned_quantity} · remaining {item.remaining_quantity}
+                              </p>
+                            </div>
+                            <label className="text-[10px] font-bold text-slate-600">
+                              Return qty
+                              <input
+                                type="number"
+                                min="0"
+                                max={item.remaining_quantity}
+                                step="0.001"
+                                value={item.return_quantity}
+                                disabled={returnSubmitting || Number(item.remaining_quantity) <= 0}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+                                  setReturnableItems((items) => items.map((row) => (
+                                    row.order_item_id === item.order_item_id
+                                      ? { ...row, return_quantity: value }
+                                      : row
+                                  )));
+                                }}
+                                className="mt-1 block w-24 rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                              />
+                            </label>
+                          </div>
+                          <label className="mt-2 flex items-center gap-2 text-[10px] font-semibold text-slate-600">
+                            <input
+                              type="checkbox"
+                              checked={item.restockable}
+                              disabled={returnSubmitting || Number(item.remaining_quantity) <= 0}
+                              onChange={(event) => {
+                                const checked = event.target.checked;
+                                setReturnableItems((items) => items.map((row) => (
+                                  row.order_item_id === item.order_item_id
+                                    ? { ...row, restockable: checked }
+                                    : row
+                                )));
+                              }}
+                            />
+                            Item is inspected and resellable (restock)
+                          </label>
+                        </div>
+                      ))}
+                      {!returnableItems.length && (
+                        <p className="text-xs text-slate-500">No returnable items were found for this order.</p>
+                      )}
+                    </div>
+                  )}
 
                   <div>
 
@@ -2706,6 +2754,7 @@ return {
                     </label>
 
                     <textarea
+                      disabled={returnSubmitting || returnResult !== null}
                       value={
                         returnReason
                       }
@@ -2725,11 +2774,8 @@ return {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowReturnModal(
-                          false
-                        )
-                      }
+                      disabled={returnSubmitting}
+                      onClick={() => setShowReturnModal(false)}
                       className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest"
                     >
                       Cancel
@@ -2737,13 +2783,24 @@ return {
 
                     <button
                       type="submit"
-                      className="px-6 py-2 bg-orange-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                      disabled={returnLoading || returnSubmitting || !returnableItems.length || returnResult !== null}
+                      className="px-6 py-2 bg-orange-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Confirm Return
+                      {returnSubmitting ? 'Processing…' : 'Submit Return'}
                     </button>
 
                   </div>
 
+                  {returnError && (
+                    <p role="alert" className="mx-6 mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">
+                      {returnError}
+                    </p>
+                  )}
+                  {returnResult && (
+                    <p role="status" className="mx-6 mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-900">
+                      Return #{returnResult.return_id} accepted by the backend for {Number(returnResult.refund_amount || 0).toFixed(2)}. Refund status: {returnResult.refund_status}. This confirms only a refund request; it does not confirm money transfer.
+                    </p>
+                  )}
                 </form>
 
               </motion.div>

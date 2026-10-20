@@ -33,6 +33,13 @@ import {
   YAxis,
 } from 'recharts';
 import { cn } from '../utils/helpers';
+import {
+  buildCategoryData,
+  filterRowsToCurrentStore,
+  getLocalDateKey,
+  isEligiblePaidSale,
+  summarizePaidSales
+} from '../utils/analyticsHelpers';
 
 const PAYMENT_COLORS = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#64748b'];
 const KPI_TONES = {
@@ -42,13 +49,8 @@ const KPI_TONES = {
   emerald: 'bg-emerald-50 text-emerald-600',
   amber: 'bg-amber-50 text-amber-600',
 };
-const currency = (value) => `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`;
+const currency = (value) => `₹${(Number(value) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 const numeric = (value) => Number(value) || 0;
-const dateKey = (value) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
-};
-
 const EmptyState = ({ children }) => (
   <div className="flex min-h-[150px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-[11px] font-bold text-slate-400">
     {children}
@@ -100,14 +102,16 @@ export default function DashboardView(props) {
     currentUser,
   } = props;
 
-  const safeOrders = Array.isArray(orders) ? orders : [];
-  const safeProducts = Array.isArray(products) ? products : [];
-  const safeOrderItems = Array.isArray(orderItems) ? orderItems : [];
-  const safePurchases = Array.isArray(purchases) ? purchases : [];
-  const safeInventoryLogs = Array.isArray(inventoryLogs) ? inventoryLogs : [];
-  const safeCategories = Array.isArray(categories) ? categories : [];
-  const customerRows = Array.isArray(deliveryCustomers) ? deliveryCustomers : [];
-  const safeCustomers = customerRows.length > 0 ? customerRows : (Array.isArray(users) ? users : []);
+  const safeOrders = filterRowsToCurrentStore(orders, currentUser);
+  const safeProducts = filterRowsToCurrentStore(products, currentUser);
+  const safeOrderItems = filterRowsToCurrentStore(orderItems, currentUser);
+  const safePurchases = filterRowsToCurrentStore(purchases, currentUser);
+  const safeInventoryLogs = filterRowsToCurrentStore(inventoryLogs, currentUser);
+  const safeCategories = filterRowsToCurrentStore(categories, currentUser);
+  const customerRows = filterRowsToCurrentStore(deliveryCustomers, currentUser);
+  const safeCustomers = customerRows.length > 0
+    ? customerRows
+    : filterRowsToCurrentStore(users, currentUser);
 
   const storeSlug = currentUser?.store_slug || currentUser?.shop_id;
   const storeBaseUrl = import.meta.env.VITE_STORE_BASE_URL || 'https://nmmart.in';
@@ -129,12 +133,12 @@ export default function DashboardView(props) {
   };
 
   const totals = useMemo(() => {
-    const totalRevenue = safeOrders.reduce((sum, order) => sum + numeric(order.total_amount), 0);
-    const today = new Date().toISOString().slice(0, 10);
-    const todaySales = safeOrders
-      .filter((order) => dateKey(order.created_at) === today)
-      .reduce((sum, order) => sum + numeric(order.total_amount), 0);
-    return { totalRevenue, todaySales };
+    const summary = summarizePaidSales(safeOrders);
+    const today = getLocalDateKey(new Date());
+    const todaySales = safeOrders.filter((order) => (
+      isEligiblePaidSale(order) && getLocalDateKey(order.created_at) === today
+    )).reduce((sum, order) => sum + numeric(order.total_amount), 0);
+    return { totalRevenue: summary.revenue, todaySales, ...summary };
   }, [safeOrders]);
 
   const salesTrend = useMemo(() => {
@@ -145,9 +149,9 @@ export default function DashboardView(props) {
       return date;
     });
     return days.map((date) => {
-      const key = date.toISOString().slice(0, 10);
+      const key = getLocalDateKey(date);
       const total = safeOrders
-        .filter((order) => dateKey(order.created_at) === key)
+        .filter((order) => isEligiblePaidSale(order) && getLocalDateKey(order.created_at) === key)
         .reduce((sum, order) => sum + numeric(order.total_amount), 0);
       return {
         date: key,
@@ -160,6 +164,7 @@ export default function DashboardView(props) {
   const paymentData = useMemo(() => {
     const totalsByMethod = {};
     safeOrders.forEach((order) => {
+      if (!isEligiblePaidSale(order)) return;
       const method = String(order.payment_method || '').trim().toUpperCase();
       if (!method) return;
       const normalized = method.includes('CASH') ? 'CASH'
@@ -175,20 +180,16 @@ export default function DashboardView(props) {
   }, [safeOrders]);
 
   const categoryData = useMemo(() => {
-    const productMap = new Map(safeProducts.map((product) => [String(product.id), product]));
-    const categoryMap = new Map(safeCategories.map((category) => [String(category.id), category.name]));
-    const totalsByCategory = {};
-    safeOrderItems.forEach((item) => {
-      const product = productMap.get(String(item.product_id));
-      const category = product?.category_name || categoryMap.get(String(product?.category_id)) || item.category_name;
-      if (!category) return;
-      totalsByCategory[category] = (totalsByCategory[category] || 0) + numeric(item.total || (item.rate * item.quantity));
+    const byCategory = buildCategoryData(safeOrderItems, safeProducts, safeOrders);
+    const categoryNames = new Map(safeCategories.map((category) => [String(category.id), category.name]));
+    return byCategory.map((entry) => {
+      const categoryId = entry.name.startsWith('Category ') ? entry.name.slice(9) : null;
+      return {
+        name: categoryId ? categoryNames.get(categoryId) || entry.name : entry.name,
+        amount: entry.revenue
+      };
     });
-    return Object.entries(totalsByCategory)
-      .map(([name, amount]) => ({ name, amount }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
-  }, [safeCategories, safeOrderItems, safeProducts]);
+  }, [safeCategories, safeOrderItems, safeOrders, safeProducts]);
 
   const inventoryAlerts = useMemo(() => {
     const lowStock = safeProducts.filter((product) => {
@@ -201,7 +202,7 @@ export default function DashboardView(props) {
   }, [safeProducts]);
 
   const recentActivity = useMemo(() => {
-    const sales = safeOrders.map((order) => ({
+    const sales = safeOrders.filter(isEligiblePaidSale).map((order) => ({
       id: `sale-${order.id}`,
       label: `Sale ${order.order_number || `#${order.id}`}`,
       detail: currency(order.total_amount),
@@ -244,12 +245,20 @@ export default function DashboardView(props) {
     );
   }
 
+  if (currentUser?.tenant_id == null || !currentUser?.company_code) {
+    return (
+      <div role="alert" className="m-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+        Dashboard reports are unavailable until the authenticated tenant and store scope is established.
+      </div>
+    );
+  }
+
   const kpis = [
-    { label: 'Inventory', value: stats.products ?? safeProducts.length, detail: 'Items in catalog', icon: Package, tone: 'blue' },
-    { label: 'Orders', value: stats.orders ?? safeOrders.length, detail: 'Recorded orders', icon: ShoppingCart, tone: 'cyan' },
+    { label: 'Inventory', value: safeProducts.length, detail: 'Scoped catalog rows loaded', icon: Package, tone: 'blue' },
+    { label: 'Orders', value: safeOrders.length, detail: 'Scoped order rows loaded', icon: ShoppingCart, tone: 'cyan' },
     { label: 'Customers', value: safeCustomers.length, detail: 'Customer records', icon: Users, tone: 'violet' },
-    { label: 'Today Sale', value: currency(totals.todaySales), detail: 'Today', icon: TrendingUp, tone: 'emerald' },
-    { label: 'Total Revenue', value: currency(totals.totalRevenue), detail: 'All recorded orders', icon: DollarSign, tone: 'amber' },
+    { label: 'Today Sale', value: currency(totals.todaySales), detail: 'Paid sales · local date', icon: TrendingUp, tone: 'emerald' },
+    { label: 'Paid Revenue', value: currency(totals.totalRevenue), detail: 'Eligible paid orders loaded', icon: DollarSign, tone: 'amber' },
   ];
 
   return (
@@ -290,7 +299,7 @@ export default function DashboardView(props) {
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
           <section className="xl:col-span-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <SectionHeader icon={TrendingUp} title="7-Day Sales Trend" detail="Recorded orders" />
+            <SectionHeader icon={TrendingUp} title="7-Day Paid Sales Trend" detail="Eligible paid orders · local date" />
             {safeOrders.length === 0 ? <EmptyState>No sales trend available yet</EmptyState> : (
               <div className="h-[220px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -336,6 +345,26 @@ export default function DashboardView(props) {
             )}
           </section>
         </div>
+
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Persisted sales totals">
+          {[
+            { label: 'Discounts on paid sales', value: totals.discounts },
+            { label: 'Persisted GST on paid sales', value: totals.gst },
+            { label: 'Recorded cancelled/returned orders', value: safeOrders.filter((order) => ['cancelled', 'canceled', 'returned'].includes(String(order.order_status ?? order.status ?? '').toLowerCase())).length }
+          ].map((metric) => (
+            <div key={metric.label} className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{metric.label}</p>
+              <p className="mt-2 text-lg font-black text-slate-800">
+                {typeof metric.value === 'number' && metric.label.startsWith('Recorded')
+                  ? metric.value
+                  : currency(metric.value)}
+              </p>
+            </div>
+          ))}
+          <p className="sm:col-span-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            Returns, refund-request status, and tender-level split totals are not included: these records are not exposed to this report data source.
+          </p>
+        </section>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <section className="rounded-xl bg-slate-900 p-4 text-white shadow-sm">

@@ -46,8 +46,8 @@ const VoidDialog = memo(() => {
                 <AlertTriangle size={32} />
               </div>
               <div>
-                <h2 className="text-2xl font-black uppercase tracking-tight">Void Current Sale?</h2>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-wrap">This action will cancel and clear the entire cart.</p>
+                <h2 className="text-2xl font-black uppercase tracking-tight">Discard Current Cart?</h2>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-wrap">This clears the unsaved cart only. It does not cancel a saved order or issue a refund.</p>
               </div>
             </div>
 
@@ -69,7 +69,7 @@ const VoidDialog = memo(() => {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1 flex items-center gap-1">
-                  Reason for Void <span className="text-red-500">*</span>
+                  Reason for Discard <span className="text-red-500">*</span>
                 </label>
                 <select
                   autoFocus
@@ -109,7 +109,7 @@ const VoidDialog = memo(() => {
                 )}
               >
                 {loading ? <RefreshCw className="animate-spin" size={16} /> : <XCircle size={16} />}
-                Void Sale (Enter)
+                Discard Cart (Enter)
               </button>
               <button
                 onClick={onCancel}
@@ -118,7 +118,7 @@ const VoidDialog = memo(() => {
                   isTouchMode ? "py-6" : ""
                 )}
               >
-                Keep Sale (Esc)
+                Keep Cart (Esc)
               </button>
             </div>
           </div>

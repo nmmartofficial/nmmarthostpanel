@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/helpers';
 import { formatCurrency, escapeRegExp } from '../utils/pos';
+import { getCartUnitPrice } from '../utils/pos/calculations';
 import { usePOS } from '../context';
 
 // --- Search Highlighting Helper ---
@@ -30,8 +31,19 @@ const HighlightText = memo(({ text, highlight }) => {
 
 HighlightText.displayName = 'HighlightText';
 
+const getReferenceName = (records, id) => {
+  if (id === null || id === undefined) return '';
+  const record = records?.find((item) => String(item?.id) === String(id));
+  return record?.name || record?.brand_name || record?.category_name || record?.catname || '';
+};
+
 const ProductSearch = memo(() => {
   const {
+    categories,
+    brands,
+    products = [],
+    inventoryLoading = false,
+    inventoryError = '',
     searchTerm,
     setSearchTerm,
     showSearchDropdown,
@@ -46,6 +58,16 @@ const ProductSearch = memo(() => {
   } = usePOS();
 
   const hasSearchTerm = Boolean(searchTerm?.trim());
+  const displayName = (product) => product.itname || product.name || product.item_name || 'Unnamed item';
+  const displayCode = (product) => product.sku || product.item_code || product.kcode || product.k_code || product.dtcode;
+  const displayCategory = (product) => product.category_name || product.item_category
+    || getReferenceName(categories, product.category_id)
+    || product.subcategory_name || product.sub_category_name;
+  const displayBrand = (product) => product.brand_name || getReferenceName(brands, product.brand_id);
+  const displayPrice = (product) => {
+    const amount = getCartUnitPrice(product);
+    return amount === null ? 'Price unavailable' : formatCurrency(amount);
+  };
 
   return (
     <div className="flex-1 relative">
@@ -83,10 +105,14 @@ const ProductSearch = memo(() => {
             {searchResults.length > 0 ? (
               searchResults.map((p, idx) => (
                 <button
+                  type="button"
                   key={p.id || p.barcode || `search-res-${idx}`}
                   role="option"
                   aria-selected={selectedIndex === idx}
-                  onClick={() => handleProductSelect(p)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    handleProductSelect(p);
+                  }}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={cn(
                     "w-full text-left border-b border-slate-50 last:border-none flex justify-between items-center",
@@ -96,20 +122,30 @@ const ProductSearch = memo(() => {
                 >
                   <div className="flex flex-col">
                     <span className={cn("font-black uppercase", isTouchMode ? "text-sm" : "text-[11px]")}>
-                      <HighlightText text={p.itname || p.name} highlight={searchTerm} />
+                      <HighlightText text={displayName(p)} highlight={searchTerm} />
                     </span>
                     <span className={cn("opacity-60", isTouchMode ? "text-[10px]" : "text-[9px]")}>
                       Barcode: {p.barcode || 'N/A'}
+                      {displayCode(p) ? ` • SKU: ${displayCode(p)}` : ''}
+                      {displayBrand(p) ? ` • ${displayBrand(p)}` : ''}
+                      {displayCategory(p) ? ` • ${displayCategory(p)}` : ''}
                     </span>
                   </div>
                   <span className={cn("font-black", isTouchMode ? "text-sm" : "text-xs")}>
-                    {formatCurrency(p.onlinerate || p.sale_rate || 0)}
+                    {displayPrice(p)}
                   </span>
                 </button>
               ))
             ) : (
-              <div role="status" className="p-4 text-center text-[10px] font-black text-slate-400">
-                No Product Found
+              <div
+                role={inventoryError && products.length === 0 ? 'alert' : 'status'}
+                className="p-4 text-center text-[10px] font-black text-slate-400"
+              >
+                {inventoryLoading && products.length === 0
+                  ? 'Loading item master...'
+                  : inventoryError && products.length === 0
+                    ? `Inventory unavailable: ${inventoryError}`
+                    : 'No matching item. Scan or search again.'}
               </div>
             )}
           </div>

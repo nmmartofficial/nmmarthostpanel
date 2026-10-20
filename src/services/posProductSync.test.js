@@ -29,6 +29,13 @@ test('POS patch preserves blank existing values by omitting blank fields', () =>
   assert.deepEqual(patch, { barcode: '000123' });
 });
 
+test('POS product sync maps the legacy Rate field to canonical sale_rate without replacing MRP', () => {
+  const patch = buildPosProductPatch({ Rate: '45.50', MRP: '60' });
+
+  assert.equal(patch.sale_rate, 45.5);
+  assert.equal(patch.mrp, 60);
+});
+
 test('POS sync updates an existing barcode match and inserts a new product', () => {
   const result = planPosProductSync({
     existingProducts: [{ id: 7, barcode: '123', name: 'Old Item', image_url: 'admin-image' }],

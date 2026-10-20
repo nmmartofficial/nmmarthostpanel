@@ -63,6 +63,12 @@ export function applyInventoryRealtimeChange(rows, payload, { scope, includeDele
     }
     const index = rows.findIndex((row) => getInventoryId(row) === id);
     if (index === -1) return { rows, changed: false, requiresReconciliation: false };
+    const previousUpdatedAt = Date.parse(rows[index].updated_at);
+    const deletedUpdatedAt = Date.parse(deleted.updated_at);
+    if (Number.isFinite(previousUpdatedAt) && Number.isFinite(deletedUpdatedAt)
+      && deletedUpdatedAt < previousUpdatedAt) {
+      return { rows, changed: false, requiresReconciliation: false };
+    }
     return {
       rows: [...rows.slice(0, index), ...rows.slice(index + 1)],
       changed: true,
@@ -83,8 +89,16 @@ export function applyInventoryRealtimeChange(rows, payload, { scope, includeDele
   if (id === null || scopeMatch === 'unknown') {
     return { rows, changed: false, requiresReconciliation: true };
   }
+  const index = rows.findIndex((row) => getInventoryId(row) === id);
+  if (index !== -1) {
+    const previousUpdatedAt = Date.parse(rows[index].updated_at);
+    const incomingUpdatedAt = Date.parse(record.updated_at);
+    if (Number.isFinite(previousUpdatedAt) && Number.isFinite(incomingUpdatedAt)
+      && incomingUpdatedAt < previousUpdatedAt) {
+      return { rows, changed: false, requiresReconciliation: false };
+    }
+  }
   if (isInactive(record.is_active) && !includeDeleted) {
-    const index = rows.findIndex((row) => getInventoryId(row) === id);
     if (index === -1) return { rows, changed: false, requiresReconciliation: false };
     return {
       rows: [...rows.slice(0, index), ...rows.slice(index + 1)],
@@ -93,7 +107,6 @@ export function applyInventoryRealtimeChange(rows, payload, { scope, includeDele
     };
   }
 
-  const index = rows.findIndex((row) => getInventoryId(row) === id);
   if (index !== -1) {
     if (areInventoryRecordsEqual(rows[index], record)) {
       return { rows, changed: false, requiresReconciliation: false };
@@ -141,6 +154,41 @@ export function reconcileInventoryRows(previousRows, fetchedRows) {
     return previousRows;
   }
   return nextRows;
+}
+
+const INVENTORY_CART_FIELDS = [
+  'stock',
+  'available_stock',
+  'availstock',
+  'low_stock_threshold',
+  'stock_status',
+  'is_active'
+];
+
+export function syncCartInventory(cart, products) {
+  if (!Array.isArray(cart) || !Array.isArray(products)) {
+    throw new TypeError('Cart inventory synchronization requires valid row arrays.');
+  }
+
+  const productsById = new Map(products
+    .filter((product) => getInventoryId(product) !== null)
+    .map((product) => [getInventoryId(product), product]));
+  let changed = false;
+  const nextCart = cart.map((item) => {
+    const product = productsById.get(getInventoryId(item));
+    if (!product) return item;
+    let nextItem = item;
+    INVENTORY_CART_FIELDS.forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(product, field)
+        && !Object.is(item[field], product[field])) {
+        if (nextItem === item) nextItem = { ...item };
+        nextItem[field] = product[field];
+      }
+    });
+    if (nextItem !== item) changed = true;
+    return nextItem;
+  });
+  return changed ? nextCart : cart;
 }
 
 export async function fetchAndReconcileInventoryRows(previousRows, fetchRows) {

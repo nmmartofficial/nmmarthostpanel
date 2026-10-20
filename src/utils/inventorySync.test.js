@@ -3,7 +3,8 @@ import test from 'node:test';
 import {
   applyInventoryRealtimeChange,
   fetchAndReconcileInventoryRows,
-  reconcileInventoryRows
+  reconcileInventoryRows,
+  syncCartInventory
 } from './inventorySync.js';
 
 const scope = { tenantId: 42, companyCode: 'SHOP042' };
@@ -17,6 +18,7 @@ const product = (id, overrides = {}) => ({
   price: 25,
   is_active: true,
   created_at: `2026-01-0${id}T00:00:00.000Z`,
+  updated_at: '2026-01-10T00:00:00.000Z',
   ...overrides
 });
 
@@ -75,6 +77,54 @@ test('changed stock quantity and other fields replace only the changed item', ()
   assert.equal(result.rows[1].quantity, 4);
   assert.equal(result.rows[1].stock, 4);
   assert.equal(result.rows[1].price, 19);
+});
+
+test('out-of-order stock events cannot overwrite newer inventory records', () => {
+  const current = product(1, { stock: 5, updated_at: '2026-01-12T00:00:00.000Z' });
+  const rows = [current];
+  const result = applyInventoryRealtimeChange(rows, {
+    eventType: 'UPDATE',
+    new: product(1, { stock: 9, updated_at: '2026-01-11T00:00:00.000Z' })
+  }, { scope });
+
+  assert.equal(result.rows, rows);
+  assert.equal(result.changed, false);
+  assert.equal(result.rows[0].stock, 5);
+
+  const staleDelete = applyInventoryRealtimeChange(rows, {
+    eventType: 'DELETE',
+    old: product(1, { updated_at: '2026-01-11T00:00:00.000Z' })
+  }, { scope });
+  assert.equal(staleDelete.rows, rows);
+  assert.equal(staleDelete.changed, false);
+});
+
+test('cart inventory refresh updates stock fields without replacing prices or other cart state', () => {
+  const cartItem = {
+    ...product(1, { stock: 8 }),
+    quantity: 2,
+    sale_rate: 17,
+    price_override_approval_id: 'approval-1',
+    discount_amount: 3
+  };
+  const updatedProduct = product(1, {
+    stock: 3,
+    low_stock_threshold: 4,
+    stock_status: 'low',
+    sale_rate: 99
+  });
+  const cart = [cartItem];
+  const updatedCart = syncCartInventory(cart, [updatedProduct]);
+
+  assert.notEqual(updatedCart, cart);
+  assert.equal(updatedCart[0].stock, 3);
+  assert.equal(updatedCart[0].low_stock_threshold, 4);
+  assert.equal(updatedCart[0].stock_status, 'low');
+  assert.equal(updatedCart[0].sale_rate, 17);
+  assert.equal(updatedCart[0].quantity, 2);
+  assert.equal(updatedCart[0].price_override_approval_id, 'approval-1');
+  assert.equal(updatedCart[0].discount_amount, 3);
+  assert.equal(syncCartInventory(updatedCart, [updatedProduct]), updatedCart);
 });
 
 test('explicit deactivation and fully scoped deletion remove cached items safely', () => {

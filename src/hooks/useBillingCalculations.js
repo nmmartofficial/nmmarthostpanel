@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { toFloat, calcCartSubtotal, calcCartTotalGst, calcCartTotalQuantity } from '../utils/pos';
+import {
+  calcBillTotals,
+  calcCartTotalQuantity,
+  summarizePOSPaymentAmounts
+} from '../utils/pos';
 
-/**
- * Enterprise Billing Calculation Engine
- * Extracted pure calculation logic for NM MART POS.
- */
 export const useBillingCalculations = ({
   cart = [],
   billDiscount = 0,
@@ -12,135 +12,72 @@ export const useBillingCalculations = ({
   flatDiscount = 0,
   redeemPoints = 0,
   paymentAmounts = { Cash: 0, UPI: 0, Card: 0 },
-  discountInput = null
+  discountInput = null,
+  promotion = null,
+  gstPricingMode = null
 }) => {
-  const RUPEE_PER_POINT = 1;
+  const totals = useMemo(() => calcBillTotals({
+    cart,
+    billDiscount,
+    deliveryChargePercent,
+    flatDiscount,
+    redeemPoints,
+    discountInput,
+    promotion,
+    gstPricingMode
+  }), [
+    cart,
+    billDiscount,
+    deliveryChargePercent,
+    flatDiscount,
+    redeemPoints,
+    discountInput,
+    promotion,
+    gstPricingMode
+  ]);
 
-  // 1. Sub Total Calculation
-  const subTotal = useMemo(() => calcCartSubtotal(cart), [cart]);
-
-  // 2. GST / Tax Calculations
-  const totalGst = useMemo(() => calcCartTotalGst(cart), [cart]);
-
-  // 3. Discount Calculations
-  const discountAmount = useMemo(() =>
-    (subTotal * toFloat(billDiscount)) / 100,
-    [subTotal, billDiscount]
+  const paymentSummary = useMemo(
+    () => summarizePOSPaymentAmounts(paymentAmounts, totals.finalTotal),
+    [paymentAmounts, totals.finalTotal]
   );
-
-  const flatDiscountVal = useMemo(() => toFloat(flatDiscount), [flatDiscount]);
-
-  const pointsDiscountVal = useMemo(() =>
-    toFloat(redeemPoints) * RUPEE_PER_POINT,
-    [redeemPoints]
-  );
-
-  const totalDiscount = useMemo(() =>
-    discountAmount + flatDiscountVal + pointsDiscountVal,
-    [discountAmount, flatDiscountVal, pointsDiscountVal]
-  );
-
-  const manualDiscount = useMemo(() =>
-    discountAmount + flatDiscountVal,
-    [discountAmount, flatDiscountVal]
-  );
-
-  // 4. Surcharges / Delivery
-  const deliveryChargeAmount = useMemo(() =>
-    (subTotal * toFloat(deliveryChargePercent)) / 100,
-    [subTotal, deliveryChargePercent]
-  );
-
-  // 5. Totals Logic
-  const rawTotal = useMemo(() =>
-    subTotal - discountAmount + deliveryChargeAmount - flatDiscountVal - pointsDiscountVal,
-    [subTotal, discountAmount, deliveryChargeAmount, flatDiscountVal, pointsDiscountVal]
-  );
-
-  const finalTotal = useMemo(() => Math.round(rawTotal), [rawTotal]);
-  const roundOff = useMemo(() => toFloat((finalTotal - rawTotal).toFixed(2)), [finalTotal, rawTotal]);
-
-  // 6. Savings Calculations
-  const savingAmount = useMemo(() => {
-    if (!discountInput) return 0;
-    const val = toFloat(discountInput.value);
-    return discountInput.type === 'percent' ? (subTotal * val / 100) : val;
-  }, [subTotal, discountInput]);
-
-  const newNetTotal = useMemo(() =>
-    Math.round(subTotal - savingAmount + deliveryChargeAmount - pointsDiscountVal),
-    [subTotal, savingAmount, deliveryChargeAmount, pointsDiscountVal]
-  );
-
-  // 7. Payment Status
-  const paidTotal = useMemo(() =>
-    Object.values(paymentAmounts).reduce((a, b) => a + toFloat(b), 0),
-    [paymentAmounts]
-  );
-
-  const changeReturn = useMemo(() => Math.max(0, paidTotal - finalTotal), [paidTotal, finalTotal]);
-  const remainingToPay = useMemo(() => Math.max(0, finalTotal - paidTotal), [finalTotal, paidTotal]);
-
-  const isPaymentValid = useMemo(() => paidTotal >= finalTotal, [paidTotal, finalTotal]);
-
-  // 8. Summary & Statistics
+  const paidTotal = paymentSummary.paidTotal;
   const totalQuantity = useMemo(() => calcCartTotalQuantity(cart), [cart]);
-
-  const avgItemPrice = useMemo(() =>
-    cart.length > 0 ? subTotal / cart.length : 0,
-    [cart.length, subTotal]
+  const avgItemPrice = useMemo(
+    () => (cart.length > 0 ? totals.subTotal / cart.length : 0),
+    [cart.length, totals.subTotal]
   );
+  const changeReturn = paymentSummary.changeReturn;
+  const remainingToPay = paymentSummary.remainingToPay;
+  const isPaymentValid = !totals.taxError
+    && !totals.billingError
+    && paymentSummary.isValid;
 
-  const cartSummary = useMemo(() => {
-    return {
-      itemsCount: cart.length,
-      totalItems: cart.length,
-      totalQuantity,
-      avgItemPrice,
-      totalAmount: finalTotal,
-      taxAmount: totalGst,
-      discountAmount: totalDiscount,
-      savings: savingAmount
-    };
-  }, [cart.length, totalQuantity, avgItemPrice, finalTotal, totalGst, totalDiscount, savingAmount]);
+  const cartSummary = useMemo(() => ({
+    itemsCount: cart.length,
+    totalItems: cart.length,
+    totalQuantity,
+    avgItemPrice,
+    totalAmount: totals.finalTotal,
+    taxAmount: totals.totalGst,
+    discountAmount: totals.totalDiscount,
+    savings: totals.savingAmount
+  }), [cart.length, totalQuantity, avgItemPrice, totals]);
 
   return {
-    // Basic Totals
-    subTotal,
-    totalGst,
-    taxAmount: totalGst,
-
-    // Discounts
-    discountAmount,
-    flatDiscountVal,
-    pointsDiscountVal,
-    totalDiscount,
-    manualDiscount,
-
-    // Surcharges
-    deliveryChargeAmount,
-
-    // Final Totals
-    finalTotal,
-    grandTotal: finalTotal,
-    netTotal: newNetTotal,
-    roundOff,
-    customerPayable: finalTotal,
-
-    // Savings
-    savingAmount,
-    customerSavings: totalDiscount > 0 ? totalDiscount : savingAmount,
-
-    // Payments
+    ...totals,
+    taxAmount: totals.totalGst,
+    grandTotal: totals.finalTotal,
+    netTotal: totals.newNetTotal,
+    customerPayable: totals.finalTotal,
+    customerSavings: totals.totalDiscount > 0 ? totals.totalDiscount : totals.savingAmount,
     paidTotal,
     paidAmount: paidTotal,
     changeReturn,
     remainingToPay,
     remainingAmount: remainingToPay,
+    paymentValidationError: paymentSummary.error,
     splitPaymentTotals: paymentAmounts,
     isPaymentValid,
-
-    // Summary & Aliases
     cartSummary,
     totalItems: cart.length,
     totalQuantity,

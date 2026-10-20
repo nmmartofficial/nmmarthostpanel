@@ -318,6 +318,7 @@ export default function AppConfigView({
     handling_charge: { label: 'Order Handling Fee', type: 'number', category: 'financial' },
     cashback_percentage: { label: 'Reward Cashback (%)', type: 'number', category: 'financial' },
     tax_rate: { label: 'GST Tax Rate (%)', type: 'number', category: 'financial' },
+    pos_gst_pricing_mode: { label: 'POS GST Pricing Mode (Tenant-wide)', type: 'text', category: 'financial', readOnly: true },
     navigation_config: { label: 'Navigation Buttons (JSON)', type: 'textarea', category: 'settings' },
     maintenance_mode: { label: 'App Maintenance Mode', type: 'checkbox', category: 'settings' },
     app_version: { label: 'App Version (Latest)', type: 'text', category: 'settings' },
@@ -429,8 +430,9 @@ export default function AppConfigView({
                         <input
                           type={f.type}
                           value={formData[f.name] || ''}
+                          readOnly={f.readOnly === true}
                           onChange={(e) => setFormData({ ...formData, [f.name]: e.target.value })}
-                          className="w-full bg-neutral-50 border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 focus:ring-4 focus:ring-primary-50 transition-all text-neutral-900 outline-none"
+                          className={`w-full bg-neutral-50 border-2 border-neutral-100 rounded-xl px-4 py-2.5 text-[11px] font-black focus:border-primary-500 focus:ring-4 focus:ring-primary-50 transition-all text-neutral-900 outline-none ${f.readOnly ? 'cursor-not-allowed opacity-70' : ''}`}
                         />
                       )}
                     </div>

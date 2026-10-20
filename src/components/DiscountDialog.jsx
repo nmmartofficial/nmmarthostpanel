@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BadgePercent, X, Percent, IndianRupee, Gift } from 'lucide-react';
 import { cn } from '../utils/helpers';
@@ -11,6 +11,11 @@ const DiscountDialog = memo(() => {
     setDiscountInput,
     subTotal,
     totalGst,
+    couponCode,
+    couponError,
+    activePromotion,
+    handleApplyCoupon,
+    gstPricingMode,
     savingAmount,
     newNetTotal,
     isTouchMode,
@@ -18,6 +23,8 @@ const DiscountDialog = memo(() => {
     setShowDiscountPanel,
     openKeypad
   } = usePOS();
+  const [couponInput, setCouponInput] = useState(couponCode);
+  useEffect(() => setCouponInput(couponCode), [couponCode]);
 
   if (!open) return null;
 
@@ -129,16 +136,38 @@ const DiscountDialog = memo(() => {
               </div>
             </div>
 
-            {/* Promotion Placeholders */}
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between opacity-60">
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 space-y-3">
               <div className="flex items-center gap-3">
-                <Gift size={20} className="text-blue-500" />
+                <Gift size={20} className="text-blue-600" />
                 <div>
-                  <p className="text-[10px] font-black text-blue-700 uppercase tracking-tighter">Automatic Offers</p>
-                  <p className="text-[8px] font-bold text-blue-400 uppercase">Buy 1 Get 1, Combo Packs etc.</p>
+                  <p className="text-[10px] font-black text-blue-800 uppercase tracking-tighter">Offers & coupons</p>
+                  <p className="text-[9px] font-bold text-blue-600">Eligible offers apply automatically; only the best single benefit is used.</p>
                 </div>
               </div>
-              <span className="bg-blue-200 text-blue-700 text-[8px] font-black px-2 py-0.5 rounded-full">UPCOMING</span>
+              <div className="flex gap-2">
+                <input
+                  aria-label="Coupon code"
+                  value={couponInput}
+                  onChange={(event) => setCouponInput(event.target.value.toUpperCase())}
+                  placeholder="Enter coupon code"
+                  className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold uppercase text-slate-800 outline-none focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleApplyCoupon(couponInput)}
+                  className="rounded-lg bg-blue-700 px-3 py-2 text-[10px] font-black uppercase text-white"
+                >
+                  Apply
+                </button>
+              </div>
+              {couponError && (
+                <p role="alert" className="text-[10px] font-bold text-red-700">{couponError}</p>
+              )}
+              {activePromotion && (
+                <p role="status" className="text-[10px] font-bold text-emerald-700">
+                  {activePromotion.title} applied: -₹{activePromotion.discountAmount.toFixed(2)}
+                </p>
+              )}
             </div>
           </div>
 
@@ -156,8 +185,8 @@ const DiscountDialog = memo(() => {
                 <span>-₹{savingAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center text-sm font-bold text-slate-500">
-                <span>GST (Estimated)</span>
-                <span>₹{totalGst.toFixed(2)}</span>
+                <span>GST included</span>
+                <span>{gstPricingMode ? `₹${Number(totalGst || 0).toFixed(2)}` : 'Configuration required'}</span>
               </div>
             </div>
 

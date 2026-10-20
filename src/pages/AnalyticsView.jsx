@@ -3,9 +3,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area 
 } from 'recharts';
-import { 
-  TrendingUp, ShoppingBag, Users, IndianRupee, 
-  ArrowUpRight, ArrowDownRight, Activity, Package 
+import {
+  Package
 } from 'lucide-react';
 import { cn } from '../utils/helpers';
 import {
@@ -13,17 +12,44 @@ import {
   buildStatusData,
   buildCategoryData,
   buildAnalyticsMetrics,
-  buildTopSellingProducts
+  buildTopSellingProducts,
+  filterRowsToCurrentStore
 } from '../utils/analyticsHelpers';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
-export default function AnalyticsView({ orders, products, users }) {
-  const salesTrendData = useMemo(() => buildSalesTrendData(orders), [orders]);
-  const statusData = useMemo(() => buildStatusData(orders), [orders]);
-  const categoryData = useMemo(() => buildCategoryData(orders), [orders]);
-  const metrics = useMemo(() => buildAnalyticsMetrics(orders), [orders]);
-  const topSellingProducts = useMemo(() => buildTopSellingProducts(orders, products), [orders, products]);
+export default function AnalyticsView({ orders, products, orderItems = [], currentUser }) {
+  const safeOrders = useMemo(
+    () => filterRowsToCurrentStore(orders, currentUser),
+    [orders, currentUser]
+  );
+  const safeProducts = useMemo(
+    () => filterRowsToCurrentStore(products, currentUser),
+    [products, currentUser]
+  );
+  const safeOrderItems = useMemo(
+    () => filterRowsToCurrentStore(orderItems, currentUser),
+    [orderItems, currentUser]
+  );
+  const salesTrendData = useMemo(() => buildSalesTrendData(safeOrders), [safeOrders]);
+  const statusData = useMemo(() => buildStatusData(safeOrders), [safeOrders]);
+  const categoryData = useMemo(
+    () => buildCategoryData(safeOrderItems, safeProducts, safeOrders),
+    [safeOrderItems, safeProducts, safeOrders]
+  );
+  const metrics = useMemo(() => buildAnalyticsMetrics(safeOrders), [safeOrders]);
+  const topSellingProducts = useMemo(
+    () => buildTopSellingProducts(safeOrderItems, safeProducts, safeOrders),
+    [safeOrderItems, safeProducts, safeOrders]
+  );
+
+  if (currentUser?.tenant_id == null || !currentUser?.company_code) {
+    return (
+      <div role="alert" className="m-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+        Analytics are unavailable until the authenticated tenant and store scope is established.
+      </div>
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-12rem)] flex flex-col space-y-4">
@@ -34,8 +60,8 @@ export default function AnalyticsView({ orders, products, users }) {
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Insights & Business Trends</p>
         </div>
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Live Sync Enabled</span>
+          <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+          <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Loaded persisted records</span>
         </div>
       </div>
 
@@ -50,9 +76,8 @@ export default function AnalyticsView({ orders, products, users }) {
                 </div>
                 <span className={cn(
                   "text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1",
-                  m.trend.startsWith('+') ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                  "bg-slate-100 text-slate-500"
                 )}>
-                  {m.trend.startsWith('+') ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                   {m.trend}
                 </span>
               </div>
@@ -131,7 +156,8 @@ export default function AnalyticsView({ orders, products, users }) {
 
           {/* Top Categories Bar Chart */}
           <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6">Category Revenue</h3>
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-2">Paid Category Sales</h3>
+            <p className="mb-4 text-[9px] font-semibold text-slate-400">Based on the loaded order-item snapshot (currently limited to 30 days); accepted returns are not deducted.</p>
             <div className="h-[250px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryData} layout="vertical">
@@ -157,9 +183,9 @@ export default function AnalyticsView({ orders, products, users }) {
             <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6">Inventory Health</h3>
             <div className="space-y-4 flex-1 flex flex-col justify-center">
               {[
-                { label: 'Low Stock', count: products.filter(p => p.stock > 0 && p.stock <= 5).length, color: 'bg-amber-500' },
-                { label: 'Out of Stock', count: products.filter(p => p.stock <= 0).length, color: 'bg-red-500' },
-                { label: 'Healthy Stock', count: products.filter(p => p.stock > 5).length, color: 'bg-emerald-500' },
+                { label: 'Low Stock', count: safeProducts.filter(p => p.stock > 0 && p.stock <= 5).length, color: 'bg-amber-500' },
+                { label: 'Out of Stock', count: safeProducts.filter(p => p.stock <= 0).length, color: 'bg-red-500' },
+                { label: 'Healthy Stock', count: safeProducts.filter(p => p.stock > 5).length, color: 'bg-emerald-500' },
               ].map((item, i) => (
                 <div key={i} className="space-y-1">
                   <div className="flex justify-between items-end">
@@ -169,7 +195,7 @@ export default function AnalyticsView({ orders, products, users }) {
                   <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={cn("h-full rounded-full transition-all duration-1000", item.color)}
-                      style={{ width: `${(item.count / products.length) * 100}%` }}
+                      style={{ width: `${safeProducts.length ? (item.count / safeProducts.length) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
@@ -180,7 +206,7 @@ export default function AnalyticsView({ orders, products, users }) {
                 <Package size={14} className="text-slate-400" />
                 <span className="text-[9px] font-black text-slate-500 uppercase">Total SKUs</span>
               </div>
-              <span className="text-xs font-black text-slate-800">{products.length}</span>
+              <span className="text-xs font-black text-slate-800">{safeProducts.length}</span>
             </div>
           </div>
 
@@ -188,45 +214,34 @@ export default function AnalyticsView({ orders, products, users }) {
           <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">Top Selling Products</h3>
-              <button className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline">Full Report</button>
             </div>
+            <p className="mb-3 text-[9px] font-semibold text-slate-400">Ranks loaded item records only; older sales and accepted returns are not represented.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="sticky top-0 z-10 bg-white">
                   <tr className="border-b border-slate-100 bg-slate-50/50">
                     <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Product Name</th>
                     <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Category</th>
-                    <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Price</th>
-                    <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Stock</th>
-                    <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Performance</th>
+                    <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Sales Value</th>
+                    <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Units Sold</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {products.slice(0, 5).map((p, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50 transition-colors">
+                  {topSellingProducts.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-2">
-                        <p className="text-[10px] font-black text-slate-800 uppercase truncate max-w-[200px]">{p.name}</p>
+                        <p className="text-[10px] font-black text-slate-800 uppercase truncate max-w-[200px]">{p.name || p.itname || 'Product name unavailable'}</p>
                       </td>
                       <td className="px-4 py-2 text-center">
-                        <span className="text-[8px] font-black text-slate-600 uppercase bg-slate-100 px-2 py-0.5 rounded-full">{p.category_name || 'N/A'}</span>
+                        <span className="text-[8px] font-black text-slate-600 uppercase bg-slate-100 px-2 py-0.5 rounded-full">{p.category_name || 'Unavailable'}</span>
                       </td>
-                      <td className="px-4 py-2 text-center text-[10px] font-black text-slate-800">₹{p.sale_rate}</td>
-                      <td className="px-4 py-2 text-center">
-                        <span className={cn(
-                          "text-[8px] font-black px-2 py-0.5 rounded-full",
-                          p.stock <= 5 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
-                        )}>{p.stock}</span>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-12 h-1 bg-slate-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${80 - (i * 10)}%` }} />
-                          </div>
-                          <span className="text-[8px] font-black text-slate-400">{80 - (i * 10)}%</span>
-                        </div>
-                      </td>
+                      <td className="px-4 py-2 text-right text-[10px] font-black text-slate-800">₹{Number(p.revenue).toFixed(2)}</td>
+                      <td className="px-4 py-2 text-right text-[10px] font-black text-slate-700">{p.quantity}</td>
                     </tr>
                   ))}
+                  {topSellingProducts.length === 0 && (
+                    <tr><td colSpan="4" className="px-4 py-8 text-center text-xs text-slate-400">No eligible paid item records are available.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>

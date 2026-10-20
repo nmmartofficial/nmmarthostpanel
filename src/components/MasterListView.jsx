@@ -556,8 +556,55 @@ if (requiredField) {
         toast.error(`Coupon code "${code}" already exists`);
         return;
       }
-      if (Number(formData.discount_value) < 0 || Number(formData.min_order_amount || 0) < 0) {
-        toast.error('Coupon amounts cannot be negative');
+      const discountValue = Number(formData.discount_value);
+      const minimum = Number(formData.min_order_amount || 0);
+      const maximum = Number(formData.max_discount || 0);
+      if (
+        !code
+        || !Number.isFinite(discountValue)
+        || discountValue < 0
+        || (formData.discount_type === 'percentage' && discountValue > 100)
+        || !Number.isFinite(minimum)
+        || minimum < 0
+        || !Number.isFinite(maximum)
+        || maximum < 0
+      ) {
+        toast.error('Enter a valid coupon code, discount and non-negative limits');
+        return;
+      }
+    }
+
+    if (table === DB_SCHEMA.OFFERS.table) {
+      const offerType = String(formData.offer_type || '').toLowerCase();
+      const discountValue = Number(formData.discount_value || 0);
+      const minimum = Number(formData.min_order_amount || 0);
+      if (!['bogo', 'percentage', 'fixed', 'discount', 'bundle'].includes(offerType)) {
+        toast.error('Choose a supported offer type');
+        return;
+      }
+      if (
+        !Number.isFinite(discountValue)
+        || discountValue < 0
+        || (offerType === 'percentage' && discountValue > 100)
+        || !Number.isFinite(minimum)
+        || minimum < 0
+      ) {
+        toast.error('Offer discounts and minimum order amounts must be valid and non-negative');
+        return;
+      }
+      if (offerType === 'bogo') {
+        const buyQty = Number(formData.buy_qty);
+        const getQty = Number(formData.get_qty);
+        if (!Number.isInteger(buyQty) || buyQty <= 0 || !Number.isInteger(getQty) || getQty <= 0) {
+          toast.error('Buy X Get Y requires positive whole-number quantities');
+          return;
+        }
+      }
+      if (
+        formData.applies_to_type
+        && !['all', 'product', 'category'].includes(String(formData.applies_to_type).toLowerCase())
+      ) {
+        toast.error('Choose a valid offer target');
         return;
       }
     }

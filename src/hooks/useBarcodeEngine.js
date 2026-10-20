@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { normalizeBarcode } from '../utils/pos';
+import { normalizeBarcode, resolveBarcodeMatch } from '../utils/pos';
 
 export const useBarcodeEngine = ({
   barcodeMap,
   addToCart,
+  onAmbiguousBarcode,
   addSessionActivity,
   addHardwareLog
 }) => {
@@ -25,27 +26,36 @@ export const useBarcodeEngine = ({
 
     processingScan.current = true;
     try {
-      const product = barcodeMap.get(code);
-      if (product) {
-        addToCart(product);
+      const match = resolveBarcodeMatch(barcodeMap, code);
+      if (match.status === 'match') {
+        addToCart(match.product);
         triggerScanFeedback('success');
         addHardwareLog?.('Barcode Read Successful', 'Barcode Scanner', 'success');
+      } else if (match.status === 'ambiguous') {
+        onAmbiguousBarcode?.(code);
+        addSessionActivity?.('Ambiguous Barcode', `Barcode: ${code}`, 'Inventory Alerts', 'warning');
+        addHardwareLog?.(`Ambiguous Barcode: ${code}`, 'Barcode Scanner', 'warning');
+        triggerScanFeedback('error', 'Multiple items match; choose one');
       } else {
         addSessionActivity?.('Scan Failed', `Barcode: ${code}`, 'Inventory Alerts', 'error');
         addHardwareLog?.(`Unknown Barcode: ${code}`, 'Barcode Scanner', 'warning');
-        triggerScanFeedback('error', 'Product Not Found');
+        triggerScanFeedback('error', 'Item not found');
       }
     } finally {
       processingScan.current = false;
+      setTimeout(() => barcodeInputRef.current?.focus(), 0);
       if (scanQueue.current.length > 0) {
         const nextCode = scanQueue.current.shift();
         setTimeout(() => processScanCode(nextCode), 10);
       }
     }
-  }, [barcodeMap, addToCart, triggerScanFeedback, addSessionActivity, addHardwareLog]);
+  }, [barcodeMap, addToCart, onAmbiguousBarcode, triggerScanFeedback, addSessionActivity, addHardwareLog]);
 
   const handleBarcodeScan = (e) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.repeat) return;
       const code = e.target.value;
       e.target.value = '';
       if (!code || processingScan.current) {

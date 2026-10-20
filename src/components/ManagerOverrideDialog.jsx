@@ -14,7 +14,6 @@ const ManagerOverrideDialog = memo(() => {
     setOverrideData,
     handleOverrideApprove: onConfirm,
     setShowOverride,
-    pinInputRef,
     isTouchMode,
     appConfig
   } = usePOS();
@@ -70,16 +69,8 @@ const ManagerOverrideDialog = memo(() => {
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Manager PIN</label>
-              <input
-                ref={pinInputRef}
-                type="password"
-                placeholder="Enter Security PIN"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-center tracking-[0.5em] outline-none focus:bg-white focus:border-red-500 transition-all shadow-inner"
-                value={overrideData.pin}
-                onChange={(e) => onOverrideDataChange({ ...overrideData, pin: e.target.value })}
-              />
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-800">
+              Authorization is verified by the server using your signed-in account and store permissions.
             </div>
 
             <div className="space-y-1.5">
