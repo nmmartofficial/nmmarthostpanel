@@ -30,9 +30,11 @@ import { secureStorage } from './utils/security'
 
 import { Toaster } from 'sonner'
 import { getTabIdFromRouteSegment, getTabRouteSegment } from './utils/tabRoutes'
+import { installChunkLoadRecovery } from './utils/chunkLoadRecovery'
 
 import './index.css'
 
+installChunkLoadRecovery();
 
 
 /**

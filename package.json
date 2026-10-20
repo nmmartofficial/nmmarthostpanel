@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test src/utils/security.test.js src/utils/fetchControl.test.js src/utils/activeFilter.test.js src/utils/authState.test.js src/utils/supabaseConfig.test.js src/utils/orderPushNotifications.test.js src/features/pos/productionAudit.test.js src/pages/Inventory/bulkProductEntry.test.js src/services/posProductSync.test.js src/utils/firebaseMessaging.test.js src/utils/smartSync.test.js src/utils/smartSyncScope.test.js src/utils/inventorySync.test.js src/utils/storeDisplayConfig.test.js src/utils/nmSahayak.test.js scripts/nm-sahayak-local.test.js",
+    "test": "node --test src/utils/security.test.js src/utils/fetchControl.test.js src/utils/activeFilter.test.js src/utils/authState.test.js src/utils/supabaseConfig.test.js src/utils/orderPushNotifications.test.js src/features/pos/productionAudit.test.js src/pages/Inventory/bulkProductEntry.test.js src/services/posProductSync.test.js src/utils/firebaseMessaging.test.js src/utils/smartSync.test.js src/utils/smartSyncScope.test.js src/utils/inventorySync.test.js src/utils/chunkLoadRecovery.test.js src/utils/storeDisplayConfig.test.js src/utils/nmSahayak.test.js scripts/nm-sahayak-local.test.js",
     "sahayak:local": "node scripts/nm-sahayak-local.js",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
