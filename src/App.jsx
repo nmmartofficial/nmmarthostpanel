@@ -36,7 +36,7 @@ import {
 } from './utils/security';
 import { processImageForUpload } from './utils/imageHandler';
 import { loadSupabaseTables } from './utils/supabaseDataLoader';
-import { shouldSkipGlobalFetch } from './utils/fetchControl';
+import { shouldLoadInitialDataForScope, shouldSkipGlobalFetch } from './utils/fetchControl';
 import { isLocalPosReadOnlyMode, isLocalPosTestMode } from './utils/localPosTestMode';
 import {
   loadStoreDisplaySelection,
@@ -815,9 +815,11 @@ export default function App({ company, isTenantMode, companySlug }) {
   const isFetchingRef = useRef(false);
   const mountRef = useRef(false);
   const hasLoadedInitialDataRef = useRef(false);
+  const initialDataScopeRef = useRef(null);
   const syncPauseRef = useRef({ scope: null, releases: [] });
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
+  const fetchInitialDataRef = useRef(null);
 
   const commitInventoryRows = useCallback((rows) => {
     const reconciledRows = reconcileInventoryRows(productsRef.current, rows);
@@ -1300,6 +1302,7 @@ export default function App({ company, isTenantMode, companySlug }) {
       isFetchingRef.current = false;
     }
   }, [commitInventoryRows, fetchInventoryRows, refreshSyncResource]);
+  fetchInitialDataRef.current = fetchInitialData;
 
   // Apply theme colors from appConfig as CSS variables
   useEffect(() => {
@@ -1343,7 +1346,7 @@ export default function App({ company, isTenantMode, companySlug }) {
     const onVisibilityChange = () => {
       if (document.visibilityState !== 'visible') return;
       staleWhileHidden.clear();
-      refreshResources();
+      refreshResources({ includeProducts: pendingInventoryReconciliationRef.current });
     };
     const releaseEditPauses = () => {
       syncPauseRef.current.releases.forEach((release) => release());
@@ -1457,13 +1460,30 @@ export default function App({ company, isTenantMode, companySlug }) {
     };
   }, [activeSyncResources, authLoading, commitInventoryRows, isAuthorized, refreshSyncResource, smartSyncScope]);
 
-  // --- CRITICAL: Initial Data Load on Auth/Mount ---
-  // User ne bola products show nahi ho rahe: root cause yahin tha — fetchInitialData mount par call hi nahi hota!
+  // Load the authenticated tenant once; later updates use scoped Realtime and targeted refreshes.
   useEffect(() => {
-    if (!isAuthorized) return;
-    if (!currentUser) return;
-    fetchInitialData(true, false);
-  }, [isAuthorized, currentUser, fetchInitialData]);
+    if (authLoading) return;
+    if (!isAuthorized || !currentUser || !smartSyncScope) {
+      initialDataScopeRef.current = null;
+      hasLoadedInitialDataRef.current = false;
+      return;
+    }
+    const scopeKey = [
+      authUser?.id || currentUser.id || 'authenticated-user',
+      smartSyncScope.tenantId,
+      smartSyncScope.companyCode
+    ].join(':');
+    if (!shouldLoadInitialDataForScope(scopeKey, initialDataScopeRef.current)) return;
+    initialDataScopeRef.current = scopeKey;
+    fetchInitialDataRef.current?.(true, false);
+  }, [
+    authLoading,
+    authUser?.id,
+    currentUser,
+    isAuthorized,
+    smartSyncScope?.companyCode,
+    smartSyncScope?.tenantId
+  ]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
