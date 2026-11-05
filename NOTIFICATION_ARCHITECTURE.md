@@ -86,6 +86,21 @@ Required steps in the Android project:
 6. Verify the payload and deep link target
 7. Verify unauthorized users do not receive it
 
-## 9. Production deployment
+## 9. Admin broadcast flow
+
+The admin panel's Notifications > Send to App Users form calls the
+`send-broadcast-notification` Edge Function. The function:
+
+- authenticates the Supabase session and checks the active admin role;
+- scopes recipients through `customer_auth_links` using tenant and company;
+- filters active Android device tokens by the selected audience;
+- sends FCM messages server-side with a validated internal route; and
+- records delivery counts in `push_broadcasts`.
+
+The browser never receives Firebase server credentials and never calls FCM
+directly. The app receives broadcast payloads with `type: "offer"` and routes
+them through the existing safe offer/product/category navigation checks.
+
+## 10. Production deployment
 
 Production deployment must happen only after review and approval. This repo does not include the Android app and must not be published without that project being present and tested on a real device.

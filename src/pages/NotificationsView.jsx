@@ -3,10 +3,11 @@ import { Bell, Package, CheckCircle2, Send, RefreshCw, Users } from 'lucide-reac
 import { handleERPAction, ACTION_TYPES } from '../erpController';
 import { DB_SCHEMA } from '../dbSchema';
 import { cn, generateUUID } from '../utils/helpers';
+import { supabase } from '../supabase';
 
 export default function NotificationsView({ notifications, fetchInitialData }) {
   const [activeTab, setActiveTab] = useState('system'); // 'system' or 'user'
-  const [userNotif, setUserNotif] = useState({ title: '', message: '', target: 'all' });
+  const [userNotif, setUserNotif] = useState({ title: '', message: '', target: 'all', action: '/offers' });
   const [isSending, setIsSending] = useState(false);
 
   const markAsRead = async (id) => {
@@ -22,25 +23,18 @@ export default function NotificationsView({ notifications, fetchInitialData }) {
     
     setIsSending(true);
     try {
-      const payload = {
-        title: userNotif.title,
-        message: userNotif.message,
-        type: 'promotion',
-        reference_id: null,
-        user_id: userNotif.target === 'all' ? null : userNotif.target,
-        is_read: false,
-        created_at: new Date().toISOString(),
-        company_code: 'DEFAULT'
-      };
-
-      const res = await handleERPAction(DB_SCHEMA.NOTIFICATIONS.table, ACTION_TYPES.INSERT, payload);
-
-      if (res && res.success) {
-        alert('Notification sent');
-        setUserNotif({ title: '', message: '', target: 'all' });
-      } else {
-        throw new Error(res?.error || 'Insert failed');
-      }
+      const { data, error } = await supabase.functions.invoke('send-broadcast-notification', {
+        body: {
+          title: userNotif.title.trim(),
+          message: userNotif.message.trim(),
+          audience: userNotif.target,
+          route: userNotif.action
+        }
+      });
+      if (error) throw error;
+      if (!data || typeof data.sent !== 'number') throw new Error('Backend did not confirm delivery.');
+      alert(`Notification sent to ${data.sent} device(s).`);
+      setUserNotif({ title: '', message: '', target: 'all', action: '/offers' });
     } catch (error) {
       alert("Failed to send: " + error.message);
     } finally {
@@ -167,18 +161,21 @@ export default function NotificationsView({ notifications, fetchInitialData }) {
                     value={userNotif.target}
                     onChange={e => setUserNotif({...userNotif, target: e.target.value})}
                   >
-                    <option value="all">All Registered Users</option>
-                    <option value="active">Active Last 7 Days</option>
-                    <option value="new">New Users (Last 24h)</option>
+                    <option value="all">All App Users</option>
+                    <option value="active">Active Devices (Last 7 Days)</option>
+                    <option value="new">New Devices (Last 24h)</option>
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-800 uppercase tracking-widest ml-1">Action Type</label>
-                  <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none">
-                    <option value="none">Just Open App</option>
-                    <option value="category">Open Category Page</option>
-                    <option value="product">Open Product Page</option>
-                    <option value="offer">Open Offers Page</option>
+                  <select
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold outline-none"
+                    value={userNotif.action}
+                    onChange={e => setUserNotif({...userNotif, action: e.target.value})}
+                  >
+                    <option value="/offers">Open Offers Page</option>
+                    <option value="/">Open Home Page</option>
+                    <option value="/products?collection=offers">Open Discount Products</option>
                   </select>
                 </div>
               </div>
