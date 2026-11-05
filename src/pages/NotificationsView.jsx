@@ -5,7 +5,8 @@ import { DB_SCHEMA } from '../dbSchema';
 import { cn, generateUUID } from '../utils/helpers';
 import { supabase } from '../supabase';
 
-export default function NotificationsView({ notifications, fetchInitialData }) {
+export default function NotificationsView({ notifications = [], fetchInitialData }) {
+  const notificationItems = Array.isArray(notifications) ? notifications : [];
   const [activeTab, setActiveTab] = useState('system'); // 'system' or 'user'
   const [userNotif, setUserNotif] = useState({ title: '', message: '', target: 'all', action: '/offers' });
   const [isSending, setIsSending] = useState(false);
@@ -73,7 +74,7 @@ export default function NotificationsView({ notifications, fetchInitialData }) {
               <h3 className="text-sm font-black text-slate-800 uppercase tracking-tighter">System Notifications</h3>
               <button
                 onClick={async () => {
-                  const unread = notifications.filter(n => !n.is_read);
+                  const unread = notificationItems.filter(n => !n.is_read);
                   await Promise.all(unread.map(n => handleERPAction(DB_SCHEMA.NOTIFICATIONS.table, ACTION_TYPES.UPDATE, { id: n.id, is_read: true })));
                   fetchInitialData();
                 }}
@@ -84,12 +85,12 @@ export default function NotificationsView({ notifications, fetchInitialData }) {
             </div>
 
             <div className="space-y-2">
-              {notifications.length === 0 ? (
+              {notificationItems.length === 0 ? (
                 <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
                   <Bell size={40} className="mx-auto text-slate-200 mb-4" />
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No notifications found</p>
                 </div>
-              ) : notifications.map((n) => (
+              ) : notificationItems.map((n) => (
                 <div key={n.id} className={cn(
                   "bg-white p-4 rounded-xl border transition-all flex items-start gap-4",
                   n.is_read ? "border-slate-100 opacity-60" : "border-blue-100 shadow-sm shadow-blue-50"
