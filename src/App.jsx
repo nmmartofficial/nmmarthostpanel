@@ -72,7 +72,7 @@ const DEFAULT_NAVIGATION_CONFIG = {
   master: ['Products', 'Units', 'Categories', 'Subcategories', 'Brands', 'HSNMaster', 'Departments', 'Accounts', 'UserMaster', 'Banners', 'Credits', 'DeliveryBoys', 'DeliveryCustomers', 'Coupons', 'Offers', 'Pincodes', 'Addresses', 'WalletMaster', 'Suppliers'],
   inventory: ['Products', 'StockAlerts', 'StockReduction', 'PurchaseEntry', 'StockLogs', 'InventoryReconciliation'],
   reports: ['CustomerAnalytics', 'LoyaltyManagement', 'ProfitLoss', 'Expenses'],
-  views: ['Orders', 'POS', 'SelfCheckout'],
+  views: ['Orders', 'POS', 'SelfCheckout', 'Notifications'],
   tools: ['AppConfig', 'StoreItemDisplay', 'StoreSubCatDisplay', 'StoreMainCatDisplay', 'TestBluetooth', 'AI', 'CompanyManagement']
 };
 
@@ -1675,7 +1675,10 @@ export default function App({ company, isTenantMode, companySlug }) {
       master: Array.isArray(parsed?.master) ? parsed.master : DEFAULT_NAVIGATION_CONFIG.master,
       inventory: Array.isArray(parsed?.inventory) ? parsed.inventory : DEFAULT_NAVIGATION_CONFIG.inventory,
       reports: Array.isArray(parsed?.reports) ? parsed.reports : DEFAULT_NAVIGATION_CONFIG.reports,
-      views: Array.isArray(parsed?.views) ? parsed.views : DEFAULT_NAVIGATION_CONFIG.views,
+      views: Array.from(new Set([
+        ...(Array.isArray(parsed?.views) ? parsed.views : DEFAULT_NAVIGATION_CONFIG.views),
+        'Notifications'
+      ])),
       tools: Array.isArray(parsed?.tools) ? parsed.tools : DEFAULT_NAVIGATION_CONFIG.tools
     };
   }, [appConfig]);
