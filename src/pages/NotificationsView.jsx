@@ -5,8 +5,9 @@ import { DB_SCHEMA } from '../dbSchema';
 import { cn, generateUUID } from '../utils/helpers';
 import { supabase } from '../supabase';
 
-export default function NotificationsView({ notifications = [], fetchInitialData }) {
-  const notificationItems = Array.isArray(notifications) ? notifications : [];
+export default function NotificationsView(props = {}) {
+  const notificationItems = Array.isArray(props.notifications) ? props.notifications : [];
+  const { fetchInitialData } = props;
   const [activeTab, setActiveTab] = useState('system'); // 'system' or 'user'
   const [userNotif, setUserNotif] = useState({ title: '', message: '', target: 'all', action: '/offers' });
   const [isSending, setIsSending] = useState(false);
