@@ -1679,7 +1679,10 @@ export default function App({ company, isTenantMode, companySlug }) {
         ...(Array.isArray(parsed?.views) ? parsed.views : DEFAULT_NAVIGATION_CONFIG.views),
         'Notifications'
       ])),
-      tools: Array.isArray(parsed?.tools) ? parsed.tools : DEFAULT_NAVIGATION_CONFIG.tools
+      tools: Array.from(new Set([
+        ...(Array.isArray(parsed?.tools) ? parsed.tools : DEFAULT_NAVIGATION_CONFIG.tools),
+        'Notifications'
+      ]))
     };
   }, [appConfig]);
 
@@ -1729,6 +1732,7 @@ export default function App({ company, isTenantMode, companySlug }) {
 
   const toolsDefaultItems = [
     { id: 'AppConfig', label: 'Configuration', icon: <Settings size={14} /> },
+    { id: 'Notifications', label: 'Push Notifications', icon: <Bell size={14} /> },
     { id: 'StoreItemDisplay', label: 'Store Item Display', icon: <Package size={14} /> },
     { id: 'StoreSubCatDisplay', label: 'Store Sub-Cat Display', icon: <Layers size={14} /> },
     { id: 'StoreMainCatDisplay', label: 'Store Main-Cat Display', icon: <Grid size={14} /> },
