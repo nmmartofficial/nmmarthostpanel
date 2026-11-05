@@ -8,6 +8,7 @@ import { supabase } from '../supabase';
 export default function NotificationsView(props = {}) {
   const notificationItems = Array.isArray(props.notifications) ? props.notifications : [];
   const { fetchInitialData } = props;
+  const hasNotifications = notificationItems.length > 0;
   const [activeTab, setActiveTab] = useState('system'); // 'system' or 'user'
   const [userNotif, setUserNotif] = useState({ title: '', message: '', target: 'all', action: '/offers' });
   const [isSending, setIsSending] = useState(false);
@@ -86,7 +87,7 @@ export default function NotificationsView(props = {}) {
             </div>
 
             <div className="space-y-2">
-              {notificationItems.length === 0 ? (
+              {!hasNotifications ? (
                 <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center">
                   <Bell size={40} className="mx-auto text-slate-200 mb-4" />
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No notifications found</p>
